@@ -748,7 +748,14 @@
     "polly": {
       "model_prices": {
         "label": "Polly 模型价格",
-        "help": "每行一个模型：模型 ID，然后是输入、输出、缓存读取和缓存写入的每百万 token 美元价格。Polly 的用量按此计费。"
+        "help": "每行一个模型：模型 ID，然后是输入、输出、缓存读取和缓存写入的每百万 token 美元价格。Polly 的用量按此计费。",
+        "columns": {
+          "model": "模型",
+          "input": "输入",
+          "output": "输出",
+          "cache_read": "缓存读取",
+          "cache_write": "缓存写入"
+        }
       }
     }
   }

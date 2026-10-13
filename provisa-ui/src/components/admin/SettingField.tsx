@@ -20,6 +20,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import {
+  ActionIcon,
   Alert,
   Badge,
   Button,
@@ -29,9 +30,11 @@ import {
   PasswordInput,
   Select,
   Stack,
+  Table,
   Text,
   TextInput,
 } from "@mantine/core";
+import { Plus, X } from "lucide-react";
 import { fetchSettingsCatalog, updateSettingsCatalog } from "../../api/admin";
 import type { CatalogSetting, SettingsCatalog } from "../../api/admin";
 import { SaveRow } from "./settingsCards";
@@ -109,14 +112,26 @@ function reasonMessage(err: unknown, t: TFunction): { field?: string; message: s
   const message = err instanceof Error ? err.message : String(err);
   const params = (
     err as {
-      params?: { field?: string; reason?: string; min?: number; max?: number; other?: string };
+      params?: {
+        field?: string;
+        reason?: string;
+        min?: number;
+        max?: number;
+        other?: string;
+        entry?: string;
+      };
     }
   ).params;
   if (!params?.reason) return { field: params?.field, message };
   const key = SERVER_REASON_KEY[params.reason] ?? `adminPage.setting.reason.${params.reason}`;
   return {
     field: params.field,
-    message: t(key, { min: params.min, max: params.max, other: params.other }),
+    message: t(key, {
+      min: params.min,
+      max: params.max,
+      other: params.other,
+      entry: params.entry,
+    }),
   };
 }
 
@@ -197,6 +212,116 @@ function MapRows({
         </FormLayout>
       </CollapsibleItem>
     </Collapsibles>
+  );
+}
+
+/** A list whose entries are rows of columns (REQ-2012), as its draft: rows joined by ", ", each
+ * row's cells by a space -- the same text the plain list field holds, so it saves the same way. */
+const tableRows = (draft: string, width: number): string[][] =>
+  draft
+    .split(",")
+    .map((r) => r.trim())
+    .filter((r) => r !== "")
+    .map((r) => {
+      const cells = r.split(/\s+/);
+      return [...cells, ...Array<string>(Math.max(width - cells.length, 0)).fill("")];
+    });
+const tableDraft = (rows: string[][]): string =>
+  rows
+    .map((r) =>
+      r
+        .map((c) => c.trim())
+        .join(" ")
+        .trim(),
+    )
+    .filter((r) => r !== "")
+    .join(", ");
+
+/** A list setting shown as a table: one row per entry, one column per part, rows added and
+ * removed in place. */
+function TableRows({
+  setting: s,
+  columns,
+  draft,
+  readOnly,
+  onChange,
+}: {
+  setting: CatalogSetting;
+  columns: string[];
+  draft: string;
+  readOnly: boolean;
+  onChange: (draft: string) => void;
+}) {
+  const { t } = useTranslation();
+  const [rows, setRows] = useState<string[][]>(() => tableRows(draft, columns.length));
+  const update = (next: string[][]) => {
+    setRows(next);
+    onChange(tableDraft(next));
+  };
+  const id = `setting-${s.key}`;
+  return (
+    <Stack gap={4}>
+      <Table withTableBorder data-testid={`${id}-table`}>
+        <Table.Thead>
+          <Table.Tr>
+            {columns.map((c, j) => (
+              // The first column names the row (a model id) and takes the room the others leave.
+              <Table.Th key={c} w={j === 0 ? "36%" : undefined}>
+                {t(`settings.${s.key}.columns.${c}`)}
+              </Table.Th>
+            ))}
+            <Table.Th />
+          </Table.Tr>
+        </Table.Thead>
+        <Table.Tbody>
+          {rows.map((row, i) => (
+            <Table.Tr key={i} data-testid={`${id}-row-${i}`}>
+              {columns.map((c, j) => (
+                <Table.Td key={c}>
+                  <TextInput
+                    size="xs"
+                    aria-label={`${t(`settings.${s.key}.columns.${c}`)} ${i + 1}`}
+                    value={row[j] ?? ""}
+                    disabled={readOnly}
+                    onChange={(e) => {
+                      const value = e.currentTarget.value;
+                      update(
+                        rows.map((r, k) => (k === i ? r.map((x, m) => (m === j ? value : x)) : r)),
+                      );
+                    }}
+                    data-testid={`${id}-${i}-${c}`}
+                  />
+                </Table.Td>
+              ))}
+              <Table.Td>
+                <ActionIcon
+                  variant="subtle"
+                  color="red"
+                  aria-label={t("adminPage.setting.removeRow")}
+                  disabled={readOnly}
+                  onClick={() => update(rows.filter((_r, k) => k !== i))}
+                  data-testid={`${id}-${i}-remove`}
+                >
+                  <X size={14} />
+                </ActionIcon>
+              </Table.Td>
+            </Table.Tr>
+          ))}
+        </Table.Tbody>
+      </Table>
+      <div>
+        <Button
+          variant="subtle"
+          size="compact-xs"
+          leftSection={<Plus size={14} />}
+          disabled={readOnly}
+          onClick={() => setRows([...rows, Array<string>(columns.length).fill("")])}
+          data-testid={`${id}-add`}
+        >
+          {t("adminPage.setting.addRow")}
+        </Button>
+      </div>
+    </Stack>
   );
 }
 
@@ -348,6 +473,26 @@ export function SettingField({
           error={errorNode}
           data-testid={id}
         />
+        {status}
+      </FormField>
+    );
+  }
+  if (s.type === "list" && s.columns && s.columns.length > 0) {
+    return (
+      <FormField size="full" data-testid={`${id}-field`}>
+        {label}
+        <TableRows
+          setting={s}
+          columns={s.columns}
+          draft={draft}
+          readOnly={readOnly}
+          onChange={onChange}
+        />
+        {errorNode && (
+          <Text c="red" size="xs">
+            {errorNode}
+          </Text>
+        )}
         {status}
       </FormField>
     );

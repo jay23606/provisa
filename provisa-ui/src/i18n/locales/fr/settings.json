@@ -748,7 +748,14 @@
     "polly": {
       "model_prices": {
         "label": "Prix des modèles de Polly",
-        "help": "Une ligne par modèle : son identifiant, puis USD par million de jetons pour l'entrée, la sortie, les lectures et les écritures de cache. L'usage de Polly en est chiffré."
+        "help": "Une ligne par modèle : son identifiant, puis USD par million de jetons pour l'entrée, la sortie, les lectures et les écritures de cache. L'usage de Polly en est chiffré.",
+        "columns": {
+          "model": "Modèle",
+          "input": "Entrée",
+          "output": "Sortie",
+          "cache_read": "Lecture du cache",
+          "cache_write": "Écriture du cache"
+        }
       }
     }
   }

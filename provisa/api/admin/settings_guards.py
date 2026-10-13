@@ -147,7 +147,7 @@ def _prices(values: dict[str, Any]) -> None:
     try:
         parse_prices(settings_registry.prospective("polly.model_prices", values))
     except PriceTableError as err:
-        raise Refused("polly.model_prices", "price_entry_invalid", entry=str(err)) from None
+        raise Refused("polly.model_prices", "price_entry_invalid", entry=err.entry) from None
 
 
 def check(values: dict[str, Any]) -> None:

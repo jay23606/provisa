@@ -748,7 +748,14 @@
     "polly": {
       "model_prices": {
         "label": "Polly-Modellpreise",
-        "help": "Eine Zeile je Modell: seine ID, dann USD pro Million Token für Eingabe, Ausgabe, Cache-Lesen und Cache-Schreiben. Danach werden Pollys Kosten berechnet."
+        "help": "Eine Zeile je Modell: seine ID, dann USD pro Million Token für Eingabe, Ausgabe, Cache-Lesen und Cache-Schreiben. Danach werden Pollys Kosten berechnet.",
+        "columns": {
+          "model": "Modell",
+          "input": "Eingabe",
+          "output": "Ausgabe",
+          "cache_read": "Cache-Lesen",
+          "cache_write": "Cache-Schreiben"
+        }
       }
     }
   }

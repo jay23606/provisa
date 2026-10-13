@@ -748,7 +748,14 @@
     "polly": {
       "model_prices": {
         "label": "Polly 模型價格",
-        "help": "每行一個模型：模型 ID，然後是輸入、輸出、快取讀取和快取寫入的每百萬 token 美元價格。Polly 的用量按此計費。"
+        "help": "每行一個模型：模型 ID，然後是輸入、輸出、快取讀取和快取寫入的每百萬 token 美元價格。Polly 的用量按此計費。",
+        "columns": {
+          "model": "模型",
+          "input": "輸入",
+          "output": "輸出",
+          "cache_read": "快取讀取",
+          "cache_write": "快取寫入"
+        }
       }
     }
   }

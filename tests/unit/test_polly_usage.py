@@ -186,7 +186,17 @@ def test_an_unreadable_price_table_is_refused_when_it_is_saved():
     settings_guards.check({"polly.model_prices": ["claude-haiku-5-5 0.1 0.5 0.01 0.125"]})
     with pytest.raises(settings_guards.Refused) as refused:
         settings_guards.check({"polly.model_prices": ["claude-haiku-5-5 cheap"]})
-    assert (refused.value.field, refused.value.reason) == (
+    assert (refused.value.field, refused.value.reason, refused.value.params) == (
         "polly.model_prices",
         "price_entry_invalid",
+        {"entry": "claude-haiku-5-5 cheap"},
     )
+
+
+def test_the_price_table_is_offered_as_a_table_of_its_columns():
+    from provisa.core import settings_registry
+
+    described = settings_registry.describe("polly.model_prices")
+    assert described["type"] == "list"
+    assert described["columns"] == ["model", "input", "output", "cache_read", "cache_write"]
+    assert "claude-haiku-5-5 0.1 0.5 0.01 0.125" in described["default"]

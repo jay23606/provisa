@@ -748,7 +748,14 @@
     "polly": {
       "model_prices": {
         "label": "Polly model prices",
-        "help": "One line a model: its id, then USD per million tokens for input, output, cache reads and cache writes. Polly's usage is costed from it."
+        "help": "One line a model: its id, then USD per million tokens for input, output, cache reads and cache writes. Polly's usage is costed from it.",
+        "columns": {
+          "model": "Model",
+          "input": "Input",
+          "output": "Output",
+          "cache_read": "Cache read",
+          "cache_write": "Cache write"
+        }
       }
     }
   }

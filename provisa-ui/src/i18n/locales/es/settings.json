@@ -748,7 +748,14 @@
     "polly": {
       "model_prices": {
         "label": "Precios de modelos de Polly",
-        "help": "Una línea por modelo: su id y luego USD por millón de tokens de entrada, salida, lecturas de caché y escrituras de caché. El uso de Polly se calcula con ella."
+        "help": "Una línea por modelo: su id y luego USD por millón de tokens de entrada, salida, lecturas de caché y escrituras de caché. El uso de Polly se calcula con ella.",
+        "columns": {
+          "model": "Modelo",
+          "input": "Entrada",
+          "output": "Salida",
+          "cache_read": "Lectura de caché",
+          "cache_write": "Escritura de caché"
+        }
       }
     }
   }
