@@ -65,7 +65,7 @@ Per transport, with telemetry off: the step with the highest throughput that had
 - Provisa CPU per request;
 - client CPU and source CPU;
 - the three devices and the network as above;
-- the caption "Telemetry OFF";
+- the caption: the read path, "single source, direct read", and "Telemetry OFF". It names no federation engine: the optimistic request reads one source, from the response cache or directly from Postgres on a miss, so no engine is in its path. The engine is stated per run only for the sizing knob runs, where requests do reach it;
 - the commit, the contract, and the raw results.
 
 The language and transport pairs are those already published: SQL over pgwire (cached and uncached, side by side), SQL over Arrow Flight, GraphQL over HTTP, Cypher over Bolt, gRPC, REST and JSON:API.
