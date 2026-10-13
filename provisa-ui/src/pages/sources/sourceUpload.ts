@@ -25,10 +25,16 @@ export function fileLocationOf(form: { type: string; path: string; database: str
 
 const escaped = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** Whether `path` is the file `sourceId` was given by upload. */
+/** Whether `path` is the file `sourceId` was given by upload: `{files}/<source>/<name>`, as an
+ * upload's path is kept (the org's token, never the file's physical location), or the absolute
+ * form an upload saved before was kept in. */
 export function isUploadPath(path: string | null | undefined, sourceId: string): boolean {
   if (!path || !sourceId) return false;
-  return new RegExp(`/orgs/[^/]+/files/${escaped(sourceId)}/[^/]+$`).test(path);
+  const id = escaped(sourceId);
+  return (
+    new RegExp(`^\\{files\\}/${id}/[^/]+$`).test(path) ||
+    new RegExp(`/orgs/[^/]+/files/${id}/[^/]+$`).test(path)
+  );
 }
 
 /** A file name the server keeps: letters, digits, '.', '_' and '-' (others become '_'). */

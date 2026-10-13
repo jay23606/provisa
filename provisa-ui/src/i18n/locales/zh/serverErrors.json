@@ -385,7 +385,9 @@
       "microsoft_365_invalid": "Microsoft 365 数据源 {{source}}：{{error}}",
       "parameter_set_by_source": "'{{table}}' 的参数保留其源对它的描述：传给源的方式以及源是否要求它都不能更改。数据管理员通过参数的必填开关将其设为必填。",
       "logs_invalid": "Logs 源 {{source}}：{{error}}",
-      "logs_path_refused": "Logs 源 {{source}}：{{reason}}"
+      "logs_path_refused": "Logs 源 {{source}}：{{reason}}",
+      "file_path_leaves_org": "数据源 {{source}}：{{path}} 超出了组织的文件夹。",
+      "file_path_local_refused": "数据源 {{source}}：承载多个组织的服务器不读取其自身磁盘上的文件；请上传文件，或以 {files}/… 或远程地址指定它。"
     },
     "secrets": {
       "name_refused": "{{name}} 不是 {{service}} 中本组织密钥范围内的名称：名称相对于组织，不能超出组织范围",

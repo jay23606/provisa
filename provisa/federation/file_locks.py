@@ -146,9 +146,10 @@ class UnprotectedWrite(RuntimeError):
         return UnprotectedWrite(self.path, source_id)
 
 
-def refuse_unprotected(path: str) -> None:
+def refuse_unprotected(path: str, shown: str | None = None) -> None:
     """Refuse a write to the database file at ``path`` when no lock can protect it: the org
-    folder it is in is encrypted and its mount is shared (``org_files.shared_mount``)."""
+    folder it is in is encrypted and its mount is shared (``org_files.shared_mount``). The
+    refusal names the file as ``shown`` (the source's own path, an org token kept as written)."""
     from provisa.core import org_files, org_folder_crypt
 
     if not org_files.shared_mount():
@@ -159,7 +160,7 @@ def refuse_unprotected(path: str) -> None:
         return
     org = real[len(orgs) + 1 :].split(os.sep, 1)[0]
     if org_folder_crypt.is_encrypted(org_files.orgs_dir() / org):
-        raise UnprotectedWrite(path)
+        raise UnprotectedWrite(shown or path)
 
 
 def is_lock_conflict(exc: BaseException) -> bool:

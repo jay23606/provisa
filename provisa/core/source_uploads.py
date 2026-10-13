@@ -75,7 +75,7 @@ def is_upload(source_id: str, path: str | None, org_id: str | None = None) -> bo
     if not path:
         return False
     here = org_files.org_root(org_id) / _AREA / source_id
-    return Path(path).parent == here
+    return Path(org_files.resolve_path(path, org_id)).parent == here
 
 
 async def receive(

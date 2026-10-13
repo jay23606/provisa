@@ -106,7 +106,7 @@ class DuckDBCsvConnector(Connector):
 
     def details(self, source: Source) -> dict:
         return {
-            "view_ddl": f"CREATE VIEW {source.id} AS SELECT * FROM read_csv_auto('{source.path}')",
+            "view_ddl": f"CREATE VIEW {source.id} AS SELECT * FROM read_csv_auto('{_located(source)}')",
             **file_location_details(source),  # REQ-1997: any location, with its credentials
         }
 
@@ -129,6 +129,14 @@ def _s3_secret_ddl(source: "Source") -> str | None:
         clauses.append(f"ENDPOINT '{endpoint.split('://', 1)[-1]}'")  # bare host, no scheme
         clauses.append("URL_STYLE 'path'")  # R2/MinIO-style endpoints reject virtual-hosted URLs
     return f'CREATE OR REPLACE SECRET "_s3_{source.id}" (TYPE s3, {", ".join(clauses)})'
+
+
+def _located(source: "Source") -> str:
+    """The file a file source's path names: a path written with the org's tokens (``{files}/...``,
+    REQ-1997) is resolved to the org's folder here, where it is read; any other path as it is."""
+    from provisa.core.org_files import resolve_path
+
+    return resolve_path(source.path or "")
 
 
 _GCS_SCHEMES = frozenset({"gs", "gcs"})
@@ -245,7 +253,7 @@ class DuckDBParquetConnector(Connector):
 
     def details(self, source: Source) -> dict:
         return {
-            "view_ddl": f"CREATE VIEW {source.id} AS SELECT * FROM read_parquet('{source.path}')",
+            "view_ddl": f"CREATE VIEW {source.id} AS SELECT * FROM read_parquet('{_located(source)}')",
             **file_location_details(source),  # REQ-1997: any location, with its credentials
         }
 
@@ -264,7 +272,7 @@ class DuckDBSqliteConnector(Connector):
         # regardless of the registered schema name — the runtime references the remote there.
         alias = f"_src_{source.id}"
         return {
-            "attach": f"ATTACH '{source.path}' AS \"{alias}\" ({_attach_options(source, 'sqlite')})",
+            "attach": f"ATTACH '{_located(source)}' AS \"{alias}\" ({_attach_options(source, 'sqlite')})",
             "raw_alias": alias,
             "remote_schema": "main",
             **file_location_details(source),  # REQ-1997: any location, with its credentials
@@ -286,7 +294,7 @@ class DuckDBDuckdbConnector(Connector):
         # remote under its default ``main`` schema, aliased away from the physical catalog.
         alias = f"_src_{source.id}"
         return {
-            "attach": f"ATTACH '{source.path}' AS \"{alias}\" ({_attach_options(source, 'duckdb')})",
+            "attach": f"ATTACH '{_located(source)}' AS \"{alias}\" ({_attach_options(source, 'duckdb')})",
             "raw_alias": alias,
             "remote_schema": "main",
             **file_location_details(source),  # REQ-1997: any location, with its credentials
@@ -1140,7 +1148,7 @@ class FileFdwConnector(Connector):  # REQ-893
                 f'CREATE SERVER IF NOT EXISTS "{server}" FOREIGN DATA WRAPPER file_fdw',
             ],
             "server": server,
-            "table_options": f"OPTIONS (filename '{source.path}', format 'csv', header 'true')",
+            "table_options": f"OPTIONS (filename '{_located(source)}', format 'csv', header 'true')",
         }
 
 
@@ -1172,7 +1180,7 @@ class SqliteFdwConnector(Connector):  # REQ-907
             "attach_ddl": [
                 "CREATE EXTENSION IF NOT EXISTS sqlite_fdw",
                 f'CREATE SERVER IF NOT EXISTS "{server}" FOREIGN DATA WRAPPER sqlite_fdw '
-                f"OPTIONS (database '{source.path}')",
+                f"OPTIONS (database '{_located(source)}')",
                 f'CREATE SCHEMA IF NOT EXISTS "{local_schema}"',
                 f'IMPORT FOREIGN SCHEMA public FROM SERVER "{server}" INTO "{local_schema}"',
             ],
@@ -1350,7 +1358,7 @@ class _PgDuckdbScanConnector(Connector):  # REQ-901
         return {
             "requires_preload": "pg_duckdb",
             "reader": self._reader,
-            "scan": f"{self._reader}('{source.path}'{self._scan_args})",
+            "scan": f"{self._reader}('{_located(source)}'{self._scan_args})",
         }
 
 

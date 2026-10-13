@@ -385,7 +385,9 @@
       "microsoft_365_invalid": "Microsoft 365-bron {{source}}: {{error}}",
       "parameter_set_by_source": "Een parameter van '{{table}}' houdt wat de bron erover zegt: hoe hij de bron bereikt en of de bron hem vereist, kan niet worden gewijzigd. Een steward maakt een parameter verplicht met de schakelaar Verplicht.",
       "logs_invalid": "Logs-bron {{source}}: {{error}}",
-      "logs_path_refused": "Logs-bron {{source}}: {{reason}}"
+      "logs_path_refused": "Logs-bron {{source}}: {{reason}}",
+      "file_path_leaves_org": "Bron {{source}}: {{path}} gaat buiten de map van de organisatie.",
+      "file_path_local_refused": "Bron {{source}}: een server met veel organisaties leest geen bestand van zijn eigen schijf; upload het bestand of geef het op als {files}/… of met een extern adres."
     },
     "secrets": {
       "name_refused": "{{name}} is geen naam binnen de secrets van deze organisatie in {{service}}: een naam is relatief ten opzichte van de organisatie en kan deze niet verlaten",

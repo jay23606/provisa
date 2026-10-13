@@ -6025,11 +6025,13 @@
   "zh/sourceFormFields.json::sourceFormFields.uploadReplace": "Upload a new file",
   "zh/sourceFormFields.json::sourceFormFields.uploadNeedsId": "Enter the source's ID first: the file is kept under it.",
   "zh/sourceFormFields.json::sourceFormFields.uploadedFileHint": "This source's uploaded file, kept in your organization's folder. Upload a new one to replace it.",
-  "zh/sourceFormFields.json::sourceFormFields.fileLocationsHint": "A path on the server, an https:// address, or s3://, gs:// or az:// with the store's credentials; or upload the file.",
-  "zh/sourceFormFields.json::sourceFormFields.fileDatabaseLocationsHint": "A path on the server, an https:// address, or s3://, gs:// or az:// with the store's credentials (read-only there); or upload the file.",
+  "zh/sourceFormFields.json::sourceFormFields.fileLocationsHint": "{files}/… in the organization's files, a path on the server, an https:// address, or s3://, gs:// or az:// with the store's credentials; or upload the file.",
+  "zh/sourceFormFields.json::sourceFormFields.fileDatabaseLocationsHint": "{files}/… in the organization's files, a path on the server, an https:// address, or s3://, gs:// or az:// with the store's credentials (read-only there); or upload the file.",
   "zh/serverErrors.json::serverErrors.files.too_large": "The file is larger than the {{limit}} bytes an upload may be.",
   "zh/serverErrors.json::serverErrors.files.bad_name": "{{name}} cannot be the name of an uploaded file: use letters, digits, '.', '_' and '-'.",
   "zh/serverErrors.json::serverErrors.files.not_a_file_source": "A {{type}} source is not given a file by upload.",
   "zh/settings.json::settings.sources.max_upload_bytes.label": "Largest uploaded file",
-  "zh/settings.json::settings.sources.max_upload_bytes.help": "The largest file a SQLite, DuckDB, CSV or Parquet source may be given by upload from the source form; a larger one is refused, naming this limit. A larger file is better read where it is, from an object store."
+  "zh/settings.json::settings.sources.max_upload_bytes.help": "The largest file a SQLite, DuckDB, CSV or Parquet source may be given by upload from the source form; a larger one is refused, naming this limit. A larger file is better read where it is, from an object store.",
+  "zh/serverErrors.json::serverErrors.schema.file_path_leaves_org": "Source {{source}}: {{path}} leaves the organization's folder.",
+  "zh/serverErrors.json::serverErrors.schema.file_path_local_refused": "Source {{source}}: a server of many organizations reads no file on its own disk; upload the file, or name it as {files}/… or by a remote address."
 }

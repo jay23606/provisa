@@ -44,4 +44,8 @@ async def upload_file(request: Request, source_id: str, name: str, type: str) ->
     from provisa.api.app import state
 
     await reprovision_source_after_registration(await _get_pool(), state, source_id)
-    return {"path": str(path), "bytes": size}
+    # REQ-1997: the path as the org's tokens write it ({files}/<source>/<name>), never the file's
+    # physical location; it is what the source then names.
+    from provisa.core.org_files import token_path
+
+    return {"path": token_path(str(path)), "bytes": size}

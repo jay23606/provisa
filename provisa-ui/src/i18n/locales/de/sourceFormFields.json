@@ -96,7 +96,7 @@
     "uploadReplace": "Neue Datei hochladen",
     "uploadNeedsId": "Geben Sie zuerst die ID der Quelle ein: Die Datei wird unter ihr abgelegt.",
     "uploadedFileHint": "Die hochgeladene Datei dieser Quelle, abgelegt im Ordner Ihrer Organisation. Laden Sie eine neue hoch, um sie zu ersetzen.",
-    "fileLocationsHint": "Ein Pfad auf dem Server, eine https://-Adresse oder s3://, gs:// bzw. az:// mit den Zugangsdaten des Speichers; oder laden Sie die Datei hoch.",
-    "fileDatabaseLocationsHint": "Ein Pfad auf dem Server, eine https://-Adresse oder s3://, gs:// bzw. az:// mit den Zugangsdaten des Speichers (dort nur lesbar); oder laden Sie die Datei hoch."
+    "fileLocationsHint": "{files}/… in den Dateien der Organisation, ein Pfad auf dem Server, eine https://-Adresse oder s3://, gs:// bzw. az:// mit den Zugangsdaten des Speichers; oder laden Sie die Datei hoch.",
+    "fileDatabaseLocationsHint": "{files}/… in den Dateien der Organisation, ein Pfad auf dem Server, eine https://-Adresse oder s3://, gs:// bzw. az:// mit den Zugangsdaten des Speichers (dort nur lesbar); oder laden Sie die Datei hoch."
   }
 }

@@ -385,7 +385,9 @@
       "microsoft_365_invalid": "Source Microsoft 365 {{source}} : {{error}}",
       "parameter_set_by_source": "Un paramètre de '{{table}}' garde ce que sa source dit de lui : la façon dont il atteint la source et le fait que la source l'exige ne peuvent pas être modifiés. Un responsable rend un paramètre obligatoire avec son interrupteur « Obligatoire ».",
       "logs_invalid": "Source Logs {{source}} : {{error}}",
-      "logs_path_refused": "Source Logs {{source}} : {{reason}}"
+      "logs_path_refused": "Source Logs {{source}} : {{reason}}",
+      "file_path_leaves_org": "Source {{source}} : {{path}} sort du dossier de l'organisation.",
+      "file_path_local_refused": "Source {{source}} : un serveur de plusieurs organisations ne lit aucun fichier sur son propre disque ; téléversez le fichier, ou désignez-le par {files}/… ou par une adresse distante."
     },
     "secrets": {
       "name_refused": "{{name}} n'est pas un nom situé dans les secrets de cette organisation dans {{service}} : un nom est relatif à l'organisation et ne peut pas en sortir",

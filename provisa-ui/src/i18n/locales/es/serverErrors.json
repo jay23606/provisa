@@ -385,7 +385,9 @@
       "microsoft_365_invalid": "Origen de Microsoft 365 {{source}}: {{error}}",
       "parameter_set_by_source": "Un parámetro de '{{table}}' conserva lo que su origen dice de él: no se puede cambiar cómo llega al origen ni si el origen lo exige. Un administrador de datos hace obligatorio un parámetro con su interruptor de obligatorio.",
       "logs_invalid": "Origen Logs {{source}}: {{error}}",
-      "logs_path_refused": "Origen Logs {{source}}: {{reason}}"
+      "logs_path_refused": "Origen Logs {{source}}: {{reason}}",
+      "file_path_leaves_org": "Origen {{source}}: {{path}} sale de la carpeta de la organización.",
+      "file_path_local_refused": "Origen {{source}}: un servidor de muchas organizaciones no lee archivos de su propio disco; suba el archivo o indíquelo como {files}/… o con una dirección remota."
     },
     "secrets": {
       "name_refused": "{{name}} no es un nombre dentro de los secretos de esta organización en {{service}}: un nombre es relativo a la organización y no puede salir de ella",

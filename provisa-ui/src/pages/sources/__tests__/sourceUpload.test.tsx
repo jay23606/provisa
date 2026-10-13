@@ -43,7 +43,7 @@ const BASE: SourceFormState = {
   description: "",
 };
 
-const UPLOADED = "/srv/provisa/orgs/acme/files/survey/survey.sqlite";
+const UPLOADED = "{files}/survey/survey.sqlite";
 
 let seen: SourceFormState | null = null;
 
@@ -102,6 +102,9 @@ afterEach(() => {
 describe("upload helpers", () => {
   it("knows an upload's path by the source it belongs to", () => {
     expect(isUploadPath(UPLOADED, "survey")).toBe(true);
+    // An upload saved before its path was kept as the org's token.
+    expect(isUploadPath("/srv/provisa/orgs/acme/files/survey/survey.sqlite", "survey")).toBe(true);
+    expect(isUploadPath("{files}/other/survey.sqlite", "survey")).toBe(false);
     expect(isUploadPath(UPLOADED, "other")).toBe(false);
     expect(isUploadPath("/data/survey.sqlite", "survey")).toBe(false);
     expect(isUploadPath("", "survey")).toBe(false);

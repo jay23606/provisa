@@ -76,6 +76,7 @@ class SQLAlchemyDriver(DirectDriver):  # REQ-229, REQ-550
     def __init__(self, drivername: str) -> None:
         self._drivername = drivername
         self._engine: Any = None  # sqlalchemy.Engine (sync)
+        self._shown = ""  # the database as the source names it, for messages
 
     async def connect(
         self,
@@ -90,6 +91,13 @@ class SQLAlchemyDriver(DirectDriver):  # REQ-229, REQ-550
         from sqlalchemy import create_engine
         from sqlalchemy.engine import URL
 
+        # REQ-1997: a file database's path written with the org's tokens ({files}/...) is opened
+        # where it resolves; messages name it as written.
+        self._shown = database
+        if self._drivername.startswith("sqlite") and database:
+            from provisa.core.org_files import resolve_path
+
+            database = resolve_path(database)
         url = URL.create(
             self._drivername,
             username=user or None,
@@ -138,7 +146,7 @@ class SQLAlchemyDriver(DirectDriver):  # REQ-229, REQ-550
 
         engine = self._engine
         assert engine is not None
-        refuse_unprotected(engine.url.database or "")
+        refuse_unprotected(engine.url.database or "", self._shown)
         try:
             with engine.begin() as conn:
                 conn.exec_driver_sql("PRAGMA busy_timeout = 0")
@@ -152,7 +160,7 @@ class SQLAlchemyDriver(DirectDriver):  # REQ-229, REQ-550
                 )
         except exc.OperationalError as failed:
             if "database is locked" in str(failed.orig):
-                raise FileLocked(engine.url.database or "") from None
+                raise FileLocked(self._shown) from None
             raise
 
     async def close(self) -> None:
