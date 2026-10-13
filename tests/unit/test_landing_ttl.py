@@ -31,7 +31,7 @@ from provisa.cache.values_cte import InlineRows
 _TABLE = {"table_name": "movie_hits", "source_id": "atlas"}
 
 
-def _state(source_ttl=None, default=300, threshold_rows=None):
+def _state(source_ttl=None, default=300, source="atlas"):
     engine = SimpleNamespace(land_source_table=AsyncMock())
 
     @contextmanager
@@ -41,7 +41,7 @@ def _state(source_ttl=None, default=300, threshold_rows=None):
     engine.isolated_sync = _sync
     return SimpleNamespace(
         federation_engine=engine,
-        source_cache={"atlas": {"cache_ttl": source_ttl}} if source_ttl is not None else {},
+        source_cache={source: {"cache_ttl": source_ttl}} if source_ttl is not None else {},
         response_cache_default_ttl=default,
     )
 
@@ -219,3 +219,41 @@ async def test_the_terminal_drops_the_scratch_tables_however_the_statement_ends(
     with pytest.raises(RuntimeError, match="the engine failed"):
         await _pipeline._execute_plan_bound(plan, object())  # type: ignore[arg-type]
     assert dropped == [("loc", "scratch__x")]
+
+
+@pytest.mark.parametrize(
+    ("registered", "source_ttl", "expected"),
+    [(0, 300, 0), (None, 120, 120), (None, None, 300), (45, 120, 45)],
+)
+@pytest.mark.asyncio
+async def test_a_grpc_remote_tables_ttl_is_the_first_one_set(
+    monkeypatch, engine_cache, registered, source_ttl, expected
+):
+    """A missing TTL is not 300 by itself: it is the source's, else the default (REQ-2003)."""
+    from provisa.api_source import engine_cache as ec
+    from provisa.source_adapters import grpc_remote_adapter
+
+    fetched: dict = {}
+
+    async def _fetch(**kw):
+        fetched["ttl"] = kw["ttl"]
+        return [{"id": 1}]
+
+    monkeypatch.setattr(grpc_remote_adapter, "fetch", _fetch)
+    monkeypatch.setattr(ec, "cache_table_name", lambda *_a: "grpc_tbl")
+    monkeypatch.setattr(ec, "land_api_cache", AsyncMock())
+    _threshold(monkeypatch, 1000)
+    reg = {"pb2": None, **({"cache_ttl": registered} if registered is not None else {})}
+    query = SimpleNamespace(
+        columns=[],
+        full_method_path="/S/M",
+        input_message="I",
+        output_message="O",
+        server_streaming=False,
+    )
+    state = _state(source_ttl=source_ttl, source="grpc_src")
+    state.grpc_remote_sources = {}
+    hot = SimpleNamespace(hold=lambda *_a, **_k: "held")
+    await mat._mat_grpc_remote_table("s__m", "grpc_src", reg, query, state, hot, 0, {}, {}, None)
+    assert fetched["ttl"] == expected
+    assert engine_cache["drops"] == [("grpc_tbl", expected)]

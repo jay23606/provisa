@@ -698,6 +698,10 @@ async def _mat_grpc_remote_table(
     cache_loc = cache_location(source_id, _cache_cat, org_cache_schema(state))
     cache_tbl = cache_table_name(source_id, tn, nf_args or {})
     redirect_config = RedirectConfig.from_env()
+    # REQ-2003: the registration's TTL, else its source's, else the default -- the first one set.
+    ttl = landing_ttl(
+        {"table_name": tn, "source_id": source_id, "cache_ttl": reg.get("cache_ttl")}, state
+    )
 
     with state.federation_engine.isolated_sync() as _c:
         ensure_cache_schema(_c, cache_loc)
@@ -715,7 +719,7 @@ async def _mat_grpc_remote_table(
         args=nf_args or {},
         grpc_remote_sources=getattr(state, "grpc_remote_sources", {}),
         response_cache_store=NoopCacheStore(),  # the PG cache table is the cache, not Redis
-        ttl=reg.get("cache_ttl", 300),
+        ttl=ttl,
         server_streaming=grpc_query.server_streaming,
     )
     if not col_names:
@@ -729,7 +733,7 @@ async def _mat_grpc_remote_table(
                 state.federation_engine,
                 cache_loc,
                 cache_tbl,
-                reg.get("cache_ttl", 300),
+                ttl,
                 redirect_config,
             )
         except Exception as cache_exc:
