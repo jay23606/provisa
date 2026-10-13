@@ -206,11 +206,17 @@ class _SyncedStore:
     def __init__(self, db_path: str) -> None:
         self._db_path = db_path
 
+    def _run(
+        self, fn: Any, *, read_only: bool = False, canary: bool = False, unseen: bool = False
+    ) -> Any:
+        """Run ``fn(con)`` on a connection with the store attached as ``mat_store``: here, the
+        store file opened and closed for this one operation (``_with_store``)."""
+        return _with_store(self._db_path, fn, read_only=read_only, canary=canary, unseen=unseen)
+
     def reconcile(self, schema: str, table: str, columns: list[tuple[str, str]]) -> str:
         from provisa.federation.store_connection import reconcile_duckdb_native
 
-        return _with_store(
-            self._db_path,
+        return self._run(
             lambda con: reconcile_duckdb_native(
                 con, catalog=_MAT_STORE_ALIAS, schema=schema, table=table, columns=columns
             ),
@@ -227,8 +233,7 @@ class _SyncedStore:
     ) -> str:
         from provisa.federation.store_connection import land_duckdb_native
 
-        return _with_store(
-            self._db_path,
+        return self._run(
             lambda con: land_duckdb_native(
                 con,
                 catalog=_MAT_STORE_ALIAS,
@@ -253,8 +258,7 @@ class _SyncedStore:
         handed over columnar like ``write_mv``'s ``fresh``, never as per-row events."""
         from provisa.federation.store_connection import upsert_arrow_duckdb_native
 
-        return _with_store(
-            self._db_path,
+        return self._run(
             lambda con: upsert_arrow_duckdb_native(
                 con,
                 catalog=_MAT_STORE_ALIAS,
@@ -304,7 +308,7 @@ class _SyncedStore:
                 raise
             con.execute("COMMIT")
 
-        _with_store(self._db_path, run)
+        self._run(run)
 
     def apply_cdc(
         self,
@@ -316,8 +320,7 @@ class _SyncedStore:
     ) -> dict[str, int]:
         from provisa.federation.store_connection import apply_cdc_duckdb_native
 
-        return _with_store(
-            self._db_path,
+        return self._run(
             lambda con: apply_cdc_duckdb_native(
                 con,
                 catalog=_MAT_STORE_ALIAS,
@@ -334,8 +337,7 @@ class _SyncedStore:
     ) -> None:
         from provisa.federation.store_connection import ensure_row_cache_table_duckdb_native
 
-        _with_store(
-            self._db_path,
+        self._run(
             lambda con: ensure_row_cache_table_duckdb_native(
                 con, catalog=_MAT_STORE_ALIAS, schema=schema, table=table, columns=columns
             ),
@@ -377,7 +379,7 @@ class _SyncedStore:
                 keys=keys,
             )
 
-        return _with_store(self._db_path, _do)
+        return self._run(_do)
 
     def read_row_cache(
         self,
@@ -388,8 +390,7 @@ class _SyncedStore:
     ) -> dict[tuple[Any, ...], Any]:
         from provisa.federation.store_connection import read_row_cache_duckdb_native
 
-        return _with_store(
-            self._db_path,
+        return self._run(
             lambda con: read_row_cache_duckdb_native(
                 con,
                 catalog=_MAT_STORE_ALIAS,
@@ -409,8 +410,7 @@ class _SyncedStore:
     ) -> None:
         from provisa.federation.store_connection import tombstone_row_cache_duckdb_native
 
-        _with_store(
-            self._db_path,
+        self._run(
             lambda con: tombstone_row_cache_duckdb_native(
                 con,
                 catalog=_MAT_STORE_ALIAS,
@@ -432,8 +432,7 @@ class _SyncedStore:
     ) -> str:
         from provisa.federation.store_connection import persist_duckdb_native
 
-        return _with_store(
-            self._db_path,
+        return self._run(
             lambda con: persist_duckdb_native(
                 con,
                 catalog=_MAT_STORE_ALIAS,
@@ -469,7 +468,7 @@ class _SyncedStore:
             con.execute(f"DROP TABLE IF EXISTS {_qualified(_MAT_STORE_ALIAS, schema, build)}")
             con.execute(_create_ddl(_MAT_STORE_ALIAS, schema, build, columns))
 
-        _with_store(self._db_path, _do, unseen=True)
+        self._run(_do, unseen=True)
 
     def replica_write(self, schema: str, build: str, names: list[str], batch: Any) -> None:
         """Append one Arrow record batch to the build table, read in place by the store."""
@@ -489,7 +488,7 @@ class _SyncedStore:
             finally:
                 con.unregister("_replica_batch")
 
-        _with_store(self._db_path, _do, unseen=True)
+        self._run(_do, unseen=True)
 
     def replica_swap(self, schema: str, table: str, build: str) -> None:
         """Replace the replica with the build table: drop and rename in one transaction."""
@@ -507,14 +506,13 @@ class _SyncedStore:
                 con.execute("ROLLBACK")
                 raise
 
-        _with_store(self._db_path, _do)
+        self._run(_do)
 
     def replica_abort(self, schema: str, build: str) -> None:
         """Discard the build table."""
         from provisa.federation.store_connection import _qualified
 
-        _with_store(
-            self._db_path,
+        self._run(
             lambda con: con.execute(
                 f"DROP TABLE IF EXISTS {_qualified(_MAT_STORE_ALIAS, schema, build)}"
             ),
@@ -523,15 +521,14 @@ class _SyncedStore:
 
     def table_columns(self, schema: str, table: str) -> list[str] | None:
         """The store table's column names in ordinal order, or ``None`` when it does not exist."""
-        return _with_store(self._db_path, lambda con: _table_columns(con, schema, table))
+        return self._run(lambda con: _table_columns(con, schema, table))
 
     def tables(self, schema: str) -> list[str]:
         """The tables the store holds in ``schema``; none when the store has no such schema yet
         (a schema is created by the first write into it)."""
         return [
             row[0]
-            for row in _with_store(
-                self._db_path,
+            for row in self._run(
                 lambda con: con.execute(
                     "SELECT table_name FROM duckdb_tables() "
                     "WHERE database_name = ? AND schema_name = ?",
@@ -546,8 +543,8 @@ class _SyncedStore:
         TABLES) — the engine connection never ATTACHes this file (REQ-1901) — and the API-result
         cache's statements, whose values bind at ``?`` through ``params``."""
         if params is None:
-            return _with_store(self._db_path, lambda con: con.execute(sql).fetchall())
-        return _with_store(self._db_path, lambda con: con.execute(sql, params).fetchall())
+            return self._run(lambda con: con.execute(sql).fetchall())
+        return self._run(lambda con: con.execute(sql, params).fetchall())
 
     def write_mv(
         self,
@@ -581,15 +578,14 @@ class _SyncedStore:
             assert row is not None  # COUNT(*) always yields a row
             return int(row[0])
 
-        return _with_store(self._db_path, _do)
+        return self._run(_do)
 
     def fetch_arrow(self, schema: str, table: str) -> tuple[Any, StoreCanary]:
         """Full current contents of a landed/materialized table, as Arrow, plus the store canary
         it is current as of -- the read half of this module's contract. A worker copies the table
         into its own connection before a query that references it, and re-copies only once
         ``canary()`` no longer matches (some process wrote the store since)."""
-        return _with_store(
-            self._db_path,
+        return self._run(
             lambda con: con.execute(
                 f'SELECT * FROM {_MAT_STORE_ALIAS}."{schema}"."{table}"'
             ).fetch_arrow_table(),
@@ -600,6 +596,38 @@ class _SyncedStore:
     def canary(self) -> StoreCanary:
         """The store's current canary (no lock: a stat is atomic, and a mismatch only re-copies)."""
         return store_canary(self._db_path)
+
+
+class EngineAttachedStore(_SyncedStore):
+    """REQ-1999: a store the engine holds attached on its own connection as ``mat_store`` -- a
+    MotherDuck database -- written with the same DuckDB statements as the embedded store file, each
+    operation on a cursor of that connection. A server store has none of the file's single writer:
+    no lock is taken, no write generation is kept, and the engine reads it in place rather than
+    copying a table per statement, so the copy's canary has nothing to answer."""
+
+    def __init__(self, con: Any) -> None:
+        self._con = con
+
+    def _run(
+        self, fn: Any, *, read_only: bool = False, canary: bool = False, unseen: bool = False
+    ) -> Any:
+        del read_only, unseen  # nothing to lock or count on a server store
+        if canary:
+            raise RuntimeError(_READ_IN_PLACE)
+        from provisa.core import request_deadline
+
+        cur = self._con.cursor()
+        try:
+            with request_deadline.cancel_on_deadline(cur.interrupt):
+                return fn(cur)
+        finally:
+            cur.close()
+
+    def canary(self) -> StoreCanary:
+        raise RuntimeError(_READ_IN_PLACE)
+
+
+_READ_IN_PLACE = "a store attached on the engine connection is read in place, never copied"
 
 
 def get_broker(db_path: str) -> _SyncedStore:
