@@ -1412,6 +1412,22 @@ export interface ResultRedirect {
   contentType: string | null;
 }
 
+/** The server's redirect handle (``redirect_url``, ``row_count``, …) as the UI holds it. Every
+ *  buffered data surface answers a redirected result with one (REQ-1194, REQ-1224). */
+export function toResultRedirect(handle: {
+  redirect_url: string;
+  row_count: number;
+  expires_in?: number | null;
+  content_type?: string | null;
+}): ResultRedirect {
+  return {
+    url: handle.redirect_url,
+    rowCount: handle.row_count,
+    expiresIn: handle.expires_in ?? null,
+    contentType: handle.content_type ?? null,
+  };
+}
+
 export async function runSql(
   // A statement, or a statement with the values of its $1…$n placeholders. The values are
   // sent beside the text and bound by the server; they are never written into it.
@@ -1470,12 +1486,7 @@ export async function runSql(
         column_types: null,
         rows: [],
         warnings: json?.extensions?.warnings ?? [],
-        redirect: {
-          url: handle.redirect_url,
-          rowCount: handle.row_count,
-          expiresIn: handle.expires_in ?? null,
-          contentType: handle.content_type ?? null,
-        },
+        redirect: toResultRedirect(handle),
       };
     }
     const rows: Record<string, unknown>[] = json?.data?.sql ?? [];

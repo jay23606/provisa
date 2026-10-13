@@ -9,6 +9,7 @@
 // permission from the copyright holder.
 
 import { useState, useCallback } from "react";
+import type { ResultRedirect } from "../../api/admin";
 import type { FrameData, GNode, GEdge } from "./graph-model";
 import { getStored, setStored } from "../../lib/browserStorage";
 
@@ -65,6 +66,7 @@ interface SerializedFrame {
   rows: Record<string, unknown>[];
   columns: string[];
   error?: string;
+  redirect?: ResultRedirect;
   elapsed?: number;
   pinned?: boolean;
 }
@@ -79,6 +81,7 @@ function serializeFrame(f: FrameData): SerializedFrame {
     edges: [...f.edges.entries()],
     rows: f.rows,
     columns: f.columns,
+    redirect: f.redirect,
     elapsed: f.elapsed,
     pinned: f.pinned,
   };

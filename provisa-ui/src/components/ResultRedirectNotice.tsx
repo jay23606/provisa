@@ -16,10 +16,16 @@ import type { ResultRedirect } from "../api/admin";
  * REQ-1194 / REQ-1224: a result the server landed in the results store, said as that: how many rows
  * it holds and a link to it. Shown where the rows would be; the rows are there, not here.
  */
-export function ResultRedirectNotice({ redirect }: { redirect: ResultRedirect }) {
+export function ResultRedirectNotice({
+  redirect,
+  className,
+}: {
+  redirect: ResultRedirect;
+  className?: string;
+}) {
   const { t, i18n } = useTranslation();
   return (
-    <Alert color="blue" data-testid="result-redirected">
+    <Alert color="blue" data-testid="result-redirected" className={className}>
       <Text size="sm">
         {t("resultRedirect.landed", {
           count: redirect.rowCount,

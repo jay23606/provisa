@@ -66,6 +66,12 @@ export function useOverlayNavigation({
         return null;
       }
       const data = await res.json();
+      if (data.redirect) {
+        // REQ-1224: over the large-result threshold, the neighbours were delivered to a file
+        // rather than returned; none can be drawn, which is said, as a failed query is.
+        console.error("show neighbors query was delivered to a file, not drawn:", data.redirect);
+        return null;
+      }
       const rows: Record<string, unknown>[] = data.rows ?? [];
       return extractElements(rows);
     },
