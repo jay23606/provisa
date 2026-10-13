@@ -394,7 +394,12 @@
       "logs_invalid": "Logs 源 {{source}}：{{error}}",
       "logs_path_refused": "Logs 源 {{source}}：{{reason}}",
       "file_path_leaves_org": "数据源 {{source}}：{{path}} 超出了组织的文件夹。",
-      "file_path_local_refused": "数据源 {{source}}：承载多个组织的服务器不读取其自身磁盘上的文件；请上传文件，或以 {files}/… 或远程地址指定它。"
+      "file_path_local_refused": "数据源 {{source}}：承载多个组织的服务器不读取其自身磁盘上的文件；请上传文件，或以 {files}/… 或远程地址指定它。",
+      "relationship_alias_taken": "别名 '{{alias}}' 已是来自 '{{table}}' 的关系 '{{relationship}}' 的别名",
+      "relationship_ambiguous_table": "表名 '{{table}}'（{{end}}）指向多个数据源中的表（{{sources}}）",
+      "relationship_unknown_source": "源表 '{{table}}' 未注册",
+      "relationship_unknown_target": "目标表 '{{table}}' 未注册",
+      "relationship_unknown_junction": "连接表 '{{table}}' 未注册"
     },
     "secrets": {
       "name_refused": "{{name}} 不是 {{service}} 中本组织密钥范围内的名称：名称相对于组织，不能超出组织范围",

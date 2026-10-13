@@ -6161,5 +6161,10 @@
   "he/tour.json::tour.demos.weblogs.summary": "The shop's web and database logs, joined: the slowest pages and the SQL behind them, the requests that failed in the database, and what an analyst may see.",
   "he/tour.json::tour.menu.thisDemo": "This demo",
   "he/tour.json::tour.steps.weblogsGlossary.title": "The shop's own words",
-  "he/tour.json::tour.steps.weblogsGlossary.description": "The demo's glossary says what the logs mean: <strong>slow page</strong> is a kind of web request, derived from page latency. Its terms and the links between them, the shop's ontology, let anyone find the logs by what they mean rather than by column names."
+  "he/tour.json::tour.steps.weblogsGlossary.description": "The demo's glossary says what the logs mean: <strong>slow page</strong> is a kind of web request, derived from page latency. Its terms and the links between them, the shop's ontology, let anyone find the logs by what they mean rather than by column names.",
+  "he/serverErrors.json::serverErrors.schema.relationship_alias_taken": "Alias '{{alias}}' is already the alias of relationship '{{relationship}}' from '{{table}}'",
+  "he/serverErrors.json::serverErrors.schema.relationship_ambiguous_table": "The {{end}} table name '{{table}}' names a table in more than one source ({{sources}})",
+  "he/serverErrors.json::serverErrors.schema.relationship_unknown_source": "Source table '{{table}}' is not registered",
+  "he/serverErrors.json::serverErrors.schema.relationship_unknown_target": "Target table '{{table}}' is not registered",
+  "he/serverErrors.json::serverErrors.schema.relationship_unknown_junction": "Junction table '{{table}}' is not registered"
 }

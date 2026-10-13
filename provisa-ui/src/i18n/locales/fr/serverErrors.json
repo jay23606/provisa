@@ -394,7 +394,12 @@
       "logs_invalid": "Source Logs {{source}} : {{error}}",
       "logs_path_refused": "Source Logs {{source}} : {{reason}}",
       "file_path_leaves_org": "Source {{source}} : {{path}} sort du dossier de l'organisation.",
-      "file_path_local_refused": "Source {{source}} : un serveur de plusieurs organisations ne lit aucun fichier sur son propre disque ; téléversez le fichier, ou désignez-le par {files}/… ou par une adresse distante."
+      "file_path_local_refused": "Source {{source}} : un serveur de plusieurs organisations ne lit aucun fichier sur son propre disque ; téléversez le fichier, ou désignez-le par {files}/… ou par une adresse distante.",
+      "relationship_alias_taken": "L'alias '{{alias}}' est déjà l'alias de la relation '{{relationship}}' depuis '{{table}}'",
+      "relationship_ambiguous_table": "Le nom de table '{{table}}' ({{end}}) désigne une table dans plus d'une source ({{sources}})",
+      "relationship_unknown_source": "La table source '{{table}}' n'est pas enregistrée",
+      "relationship_unknown_target": "La table cible '{{table}}' n'est pas enregistrée",
+      "relationship_unknown_junction": "La table de jonction '{{table}}' n'est pas enregistrée"
     },
     "secrets": {
       "name_refused": "{{name}} n'est pas un nom situé dans les secrets de cette organisation dans {{service}} : un nom est relatif à l'organisation et ne peut pas en sortir",

@@ -19,7 +19,7 @@ import { ActionIcon, Checkbox, Group, Select, Text, TextInput, NumberInput } fro
 import { Trash2, Pencil, ArrowLeftRight } from "lucide-react";
 import type { Relationship, RegisteredTable } from "../../types/admin";
 import type { TrackedFunction } from "../../api/actions";
-import type { RelForm } from "./relationship-types";
+import { tableRef, type RelForm } from "./relationship-types";
 import { domainToSqlName } from "../../naming";
 import { RelationshipRead } from "./RelationshipRead";
 import { JunctionPanel } from "./JunctionPanel";
@@ -179,8 +179,8 @@ export function RelationshipDetail({
                     data={[
                       { value: "", label: t("relationshipRow.selectPlaceholder") },
                       ...filteredSrcTables.map((t2) => ({
-                        value: t2.tableName,
-                        label: t2.tableName,
+                        value: tableRef(t2),
+                        label: tableRef(t2),
                       })),
                     ]}
                     value={editingRel.sourceTableId}
@@ -194,7 +194,7 @@ export function RelationshipDetail({
                     data={[
                       { value: "", label: t("relationshipRow.selectPlaceholder") },
                       ...(
-                        tables.find((t2) => t2.tableName === editingRel.sourceTableId)?.columns ??
+                        tables.find((t2) => tableRef(t2) === editingRel.sourceTableId)?.columns ??
                         []
                       ).map((c) => ({ value: c.columnName, label: c.columnName })),
                     ]}
@@ -268,8 +268,8 @@ export function RelationshipDetail({
                         data={[
                           { value: "", label: t("relationshipRow.selectPlaceholder") },
                           ...filteredTgtTables.map((t2) => ({
-                            value: t2.tableName,
-                            label: t2.tableName,
+                            value: tableRef(t2),
+                            label: tableRef(t2),
                           })),
                         ]}
                         value={editingRel.targetTableId}
@@ -283,7 +283,7 @@ export function RelationshipDetail({
                         data={[
                           { value: "", label: t("relationshipRow.selectPlaceholder") },
                           ...(
-                            tables.find((t2) => t2.tableName === editingRel.targetTableId)
+                            tables.find((t2) => tableRef(t2) === editingRel.targetTableId)
                               ?.columns ?? []
                           ).map((c) => ({ value: c.columnName, label: c.columnName })),
                         ]}

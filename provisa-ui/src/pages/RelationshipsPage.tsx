@@ -38,9 +38,10 @@ import {
 } from "../hooks/useAdminQueries";
 import { fetchActions } from "../api/actions";
 import type { TrackedFunction } from "../api/actions";
-import type { Relationship } from "../types/admin";
+import type { MutationResult, Relationship } from "../types/admin";
 import {
   EMPTY_FORM,
+  tableRef,
   type Candidate,
   type RelForm,
 } from "../components/relationships/relationship-types";
@@ -138,6 +139,10 @@ export function RelationshipsPage() {
   const loading = relsLoading || tablesLoading;
 
   const tableNameById = Object.fromEntries(tables.map((t) => [t.id, t.tableName]));
+  // The name a relationship's save takes for each table (relationship-types.tableRef).
+  const tableRefById: Record<number, string> = Object.fromEntries(
+    tables.map((t) => [t.id, tableRef(t)]),
+  );
   const tableDomainById = Object.fromEntries(
     tables.map((t) => [t.id, domainToSqlName(t.domainId)]),
   );
@@ -164,29 +169,37 @@ export function RelationshipsPage() {
     if (form.targetType === "function" && !form.targetFunctionName) return;
     setSaving("new");
     setSaveProblem("");
-    const result = await upsertRelationship({
-      id: form.id,
-      sourceTableId: form.sourceTableId,
-      targetTableId: form.targetType === "table" ? form.targetTableId : "",
-      sourceColumn: form.sourceColumn,
-      targetColumn: form.targetType === "table" ? form.targetColumn : "",
-      cardinality: form.targetType === "function" ? "one-to-many" : form.cardinality,
-      materialize: form.materialize,
-      refreshInterval: parseInt(form.refreshInterval) || 300,
-      targetFunctionName: form.targetType === "function" ? form.targetFunctionName : null,
-      functionArg: form.targetType === "function" ? form.functionArg : null,
-      alias: form.alias || null,
-      graphqlAlias: form.graphqlAlias || null,
-      disableCypher: form.disableCypher,
-      // REQ-1586: the junction declaration saves with the edge.
-      viaTable: form.viaTable,
-      viaSourceColumn: form.viaSourceColumn,
-      viaTargetColumn: form.viaTargetColumn,
-      viaTypeColumn: form.viaTypeColumn || null,
-      viaTypeValue: form.viaTypeValue || null,
-      viaLabelSource: form.viaLabelSource,
-    });
-    setSaving(null);
+    let result: MutationResult;
+    try {
+      result = await upsertRelationship({
+        id: form.id,
+        sourceTableId: form.sourceTableId,
+        targetTableId: form.targetType === "table" ? form.targetTableId : "",
+        sourceColumn: form.sourceColumn,
+        targetColumn: form.targetType === "table" ? form.targetColumn : "",
+        cardinality: form.targetType === "function" ? "one-to-many" : form.cardinality,
+        materialize: form.materialize,
+        refreshInterval: parseInt(form.refreshInterval) || 300,
+        targetFunctionName: form.targetType === "function" ? form.targetFunctionName : null,
+        functionArg: form.targetType === "function" ? form.functionArg : null,
+        alias: form.alias || null,
+        graphqlAlias: form.graphqlAlias || null,
+        disableCypher: form.disableCypher,
+        // REQ-1586: the junction declaration saves with the edge.
+        viaTable: form.viaTable,
+        viaSourceColumn: form.viaSourceColumn,
+        viaTargetColumn: form.viaTargetColumn,
+        viaTypeColumn: form.viaTypeColumn || null,
+        viaTypeValue: form.viaTypeValue || null,
+        viaLabelSource: form.viaLabelSource,
+      });
+    } catch (err) {
+      // A save that errors rather than answering a refusal still ends: the form says why.
+      setSaveProblem(err instanceof Error ? err.message : String(err));
+      return;
+    } finally {
+      setSaving(null);
+    }
     if (!result.success) {
       // Refused: the form stays open and says why.
       setSaveProblem(serverMessage(result, result.message));
@@ -204,39 +217,44 @@ export function RelationshipsPage() {
     if (!editingRel?.id) return;
     setSaving(editingRel.originalId || editingRel.id);
     setSaveProblem("");
-    const result = await upsertRelationship({
-      id: editingRel.id,
-      sourceTableId: editingRel.sourceTableId,
-      targetTableId: editingRel.targetType === "table" ? editingRel.targetTableId : "",
-      sourceColumn: editingRel.sourceColumn,
-      targetColumn: editingRel.targetType === "table" ? editingRel.targetColumn : "",
-      cardinality: editingRel.targetType === "function" ? "one-to-many" : editingRel.cardinality,
-      materialize: editingRel.materialize,
-      refreshInterval: parseInt(editingRel.refreshInterval) || 300,
-      targetFunctionName:
-        editingRel.targetType === "function" ? editingRel.targetFunctionName : null,
-      functionArg: editingRel.targetType === "function" ? editingRel.functionArg : null,
-      alias: editingRel.alias || null,
-      graphqlAlias: editingRel.graphqlAlias || null,
-      disableCypher: editingRel.disableCypher,
-      // REQ-1586: the junction declaration saves with the edge.
-      viaTable: editingRel.viaTable,
-      viaSourceColumn: editingRel.viaSourceColumn,
-      viaTargetColumn: editingRel.viaTargetColumn,
-      viaTypeColumn: editingRel.viaTypeColumn || null,
-      viaTypeValue: editingRel.viaTypeValue || null,
-      viaLabelSource: editingRel.viaLabelSource,
-    });
-    if (!result.success) {
+    try {
+      const result = await upsertRelationship({
+        id: editingRel.id,
+        sourceTableId: editingRel.sourceTableId,
+        targetTableId: editingRel.targetType === "table" ? editingRel.targetTableId : "",
+        sourceColumn: editingRel.sourceColumn,
+        targetColumn: editingRel.targetType === "table" ? editingRel.targetColumn : "",
+        cardinality: editingRel.targetType === "function" ? "one-to-many" : editingRel.cardinality,
+        materialize: editingRel.materialize,
+        refreshInterval: parseInt(editingRel.refreshInterval) || 300,
+        targetFunctionName:
+          editingRel.targetType === "function" ? editingRel.targetFunctionName : null,
+        functionArg: editingRel.targetType === "function" ? editingRel.functionArg : null,
+        alias: editingRel.alias || null,
+        graphqlAlias: editingRel.graphqlAlias || null,
+        disableCypher: editingRel.disableCypher,
+        // REQ-1586: the junction declaration saves with the edge.
+        viaTable: editingRel.viaTable,
+        viaSourceColumn: editingRel.viaSourceColumn,
+        viaTargetColumn: editingRel.viaTargetColumn,
+        viaTypeColumn: editingRel.viaTypeColumn || null,
+        viaTypeValue: editingRel.viaTypeValue || null,
+        viaLabelSource: editingRel.viaLabelSource,
+      });
+      if (!result.success) {
+        setSaveProblem(serverMessage(result, result.message));
+        return;
+      }
+      if (editingRel.originalId && editingRel.originalId !== editingRel.id) {
+        await deleteRelationship(editingRel.originalId);
+      }
+      setEditingRel(null);
+    } catch (err) {
+      // A save that errors rather than answering a refusal still ends: the form says why.
+      setSaveProblem(err instanceof Error ? err.message : String(err));
+    } finally {
       setSaving(null);
-      setSaveProblem(serverMessage(result, result.message));
-      return;
     }
-    if (editingRel.originalId && editingRel.originalId !== editingRel.id) {
-      await deleteRelationship(editingRel.originalId);
-    }
-    setSaving(null);
-    setEditingRel(null);
   }, [editingRel, upsertRelationship, deleteRelationship]);
 
   const handleClearRejections = useCallback(async () => {
@@ -291,11 +309,11 @@ export function RelationshipsPage() {
         id: String(rel.id),
         originalId: String(rel.id),
         sourceDomain: rel.sourceDomainId ? domainToSqlName(rel.sourceDomainId) : "",
-        sourceTableId: rel.sourceTableName,
+        sourceTableId: tableRefById[rel.sourceTableId],
         sourceColumn: rel.sourceColumn,
         targetType: isComputed ? "function" : "table",
         targetDomain: rel.targetTableId ? (tableDomainById[rel.targetTableId] ?? "") : "",
-        targetTableId: rel.targetTableName ?? "",
+        targetTableId: rel.targetTableId != null ? tableRefById[rel.targetTableId] : "",
         targetColumn: rel.targetColumn ?? "",
         targetFunctionName: rel.targetFunctionName ?? "",
         functionArg: rel.functionArg ?? "",
@@ -305,7 +323,7 @@ export function RelationshipsPage() {
         alias: rel.alias ?? "",
         graphqlAlias: rel.graphqlAlias ?? "",
         disableCypher: rel.disableCypher ?? false,
-        viaTable: rel.viaTableName ?? "",
+        viaTable: rel.viaTableId != null ? tableRefById[rel.viaTableId] : "",
         viaSourceColumn: rel.viaSourceColumn ?? "",
         viaTargetColumn: rel.viaTargetColumn ?? "",
         viaTypeColumn: rel.viaTypeColumn ?? "",
@@ -316,7 +334,7 @@ export function RelationshipsPage() {
         junctionDeclared: Boolean(rel.viaTableName),
       });
     },
-    [tableDomainById],
+    [tableDomainById, tableRefById],
   );
 
   const buildReverse = useCallback(
@@ -350,11 +368,11 @@ export function RelationshipsPage() {
       return {
         ...EMPTY_FORM,
         id: `${r.targetTableName}-to-${r.sourceTableName}`,
-        sourceTableId: r.targetTableName ?? "",
+        sourceTableId: r.targetTableId != null ? tableRefById[r.targetTableId] : "",
         sourceDomain: r.targetTableId ? (tableDomainById[r.targetTableId] ?? "") : "",
         sourceColumn: r.targetColumn ?? "",
         targetType: "table",
-        targetTableId: r.sourceTableName,
+        targetTableId: tableRefById[r.sourceTableId],
         targetDomain: r.sourceDomainId ?? "",
         targetColumn: r.sourceColumn,
         cardinality: flipCardinality(r.cardinality),
@@ -364,7 +382,7 @@ export function RelationshipsPage() {
         refreshInterval: String(r.refreshInterval ?? 300),
       };
     },
-    [tableDomainById],
+    [tableDomainById, tableRefById],
   );
 
   const handleReverseAdd = useCallback(async () => {
@@ -372,21 +390,29 @@ export function RelationshipsPage() {
       return;
     setSaving("reverse");
     setSaveProblem("");
-    const result = await upsertRelationship({
-      id: reverseForm.id,
-      sourceTableId: reverseForm.sourceTableId,
-      targetTableId: reverseForm.targetTableId,
-      sourceColumn: reverseForm.sourceColumn,
-      targetColumn: reverseForm.targetColumn,
-      cardinality: reverseForm.cardinality,
-      materialize: reverseForm.materialize,
-      refreshInterval: parseInt(reverseForm.refreshInterval) || 300,
-      targetFunctionName: null,
-      functionArg: null,
-      alias: reverseForm.alias || null,
-      graphqlAlias: reverseForm.graphqlAlias || null,
-    });
-    setSaving(null);
+    let result: MutationResult;
+    try {
+      result = await upsertRelationship({
+        id: reverseForm.id,
+        sourceTableId: reverseForm.sourceTableId,
+        targetTableId: reverseForm.targetTableId,
+        sourceColumn: reverseForm.sourceColumn,
+        targetColumn: reverseForm.targetColumn,
+        cardinality: reverseForm.cardinality,
+        materialize: reverseForm.materialize,
+        refreshInterval: parseInt(reverseForm.refreshInterval) || 300,
+        targetFunctionName: null,
+        functionArg: null,
+        alias: reverseForm.alias || null,
+        graphqlAlias: reverseForm.graphqlAlias || null,
+      });
+    } catch (err) {
+      // A save that errors rather than answering a refusal still ends: the form says why.
+      setSaveProblem(err instanceof Error ? err.message : String(err));
+      return;
+    } finally {
+      setSaving(null);
+    }
     if (!result.success) {
       setSaveProblem(serverMessage(result, result.message));
       return;

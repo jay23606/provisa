@@ -167,25 +167,13 @@ async def _upsert_relationship_impl(
     # masking still apply when the join is traversed. So the gate asks about the SOURCE domain, and
     # an edge whose target lives elsewhere is recorded but flagged for the other domain to review.
     from provisa.api.admin.capabilities import require_domain
-    from provisa.core.repositories import table as table_repo
 
     _pool_g = await _get_pool()
     async with _pool_g.acquire() as _gconn:
-        _src_row = await table_repo.find_by_table_name(
-            cast("Connection", _gconn), input.source_table_id
-        )
-        _tgt_row = (
-            await table_repo.find_by_table_name(cast("Connection", _gconn), input.target_table_id)
-            if input.target_table_id
-            else None
-        )
-    if _src_row is None:
-        return MutationResult(
-            success=False,
-            message=f"Source table {input.source_table_id!r} is not registered",
-            code="schema.relationship_unknown_source",
-            params={"table": input.source_table_id},
-        )
+        _refusal, _src_row, _tgt_row = await _relationship_tables(cast("Connection", _gconn), input)
+    if _refusal is not None:
+        return _refusal
+    assert _src_row is not None  # _relationship_tables refuses an unresolved source
     try:
         require_domain(info, _src_row["domain_id"])
     except PermissionError:
@@ -196,6 +184,78 @@ async def _upsert_relationship_impl(
     _identity = _identity_from_info(info)
     _owner = getattr(_identity, "user_id", None) if _identity is not None else None
     return await save_relationship(input, owner=_owner, needs_review=_cross_domain)
+
+
+async def _relationship_tables(
+    conn: "Connection", input: RelationshipInput
+) -> "tuple[MutationResult | None, dict | None, dict | None]":
+    """The relationship's source and target tables, by the virtual names it gives them, or the
+    refusal naming the one that resolves to no table or to more than one. Checked before any
+    write: a refused save stores nothing."""
+    from provisa.core.repositories import table as table_repo
+
+    ends = [("source", input.source_table_id)]
+    if not input.target_function_name and input.target_table_id:
+        ends.append(("target", input.target_table_id))
+    if input.via_table:
+        ends.append(("junction", input.via_table))
+    rows: dict[str, dict] = {}
+    for end, name in ends:
+        try:
+            row = await table_repo.find_by_table_name(conn, name)
+        except table_repo.AmbiguousTableName as amb:
+            return (
+                MutationResult(
+                    success=False,
+                    message=str(amb),
+                    code="schema.relationship_ambiguous_table",
+                    params={"end": end, "table": name, "sources": ", ".join(amb.sources)},
+                ),
+                None,
+                None,
+            )
+        if row is None:
+            return (
+                MutationResult(
+                    success=False,
+                    message=f"{end.capitalize()} table {name!r} is not registered",
+                    code=f"schema.relationship_unknown_{end}",
+                    params={"table": name},
+                ),
+                None,
+                None,
+            )
+        rows[end] = row
+    return None, rows["source"], rows.get("target")
+
+
+async def _relationship_alias_refusal(
+    conn: "Connection", input: RelationshipInput, source_table_id: int
+) -> "MutationResult | None":
+    """An alias another relationship of the same source table already holds, refused by name
+    with the relationship that holds it: one source table's relationships are told apart by it."""
+    if not input.alias:
+        return None
+    held = (
+        await conn.execute_core(
+            select(relationships.c.id).where(
+                relationships.c.source_table_id == source_table_id,
+                relationships.c.alias == input.alias,
+                relationships.c.id != input.id,
+            )
+        )
+    ).fetchone()
+    if held is None:
+        return None
+    return MutationResult(
+        success=False,
+        message=(
+            f"Alias {input.alias!r} is already the alias of relationship {held.id!r} from "
+            f"{input.source_table_id!r}"
+        ),
+        code="schema.relationship_alias_taken",
+        params={"alias": input.alias, "table": input.source_table_id, "relationship": held.id},
+    )
 
 
 def _cardinality_problem(input: RelationshipInput) -> "MutationResult | None":
@@ -273,6 +333,12 @@ async def save_relationship(
         _conn = cast("Connection", conn)
         from provisa.api.admin._fake_guard import relationship_fake_refusal
 
+        _refusal, _src_row, _tgt_row = await _relationship_tables(_conn, input)
+        if _refusal is None:
+            assert _src_row is not None  # _relationship_tables refuses an unresolved source
+            _refusal = await _relationship_alias_refusal(_conn, input, _src_row["id"])
+        if _refusal is not None:
+            return _refusal
         try:
             async with _conn.transaction():
                 await rel_repo.upsert(_conn, model)

@@ -9,7 +9,13 @@
 // permission from the copyright holder.
 
 import { domainToSqlName } from "../../naming";
-import type { Relationship } from "../../types/admin";
+import type { RegisteredTable, Relationship } from "../../types/admin";
+
+/** The name a relationship gives a table, and the one its save resolves: the table's alias when
+ *  it has one, its table name otherwise (the virtual name, REQ-014). */
+export function tableRef(table: Pick<RegisteredTable, "alias" | "tableName">): string {
+  return table.alias ?? table.tableName;
+}
 
 export interface Candidate {
   id: number;

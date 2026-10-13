@@ -394,7 +394,12 @@
       "logs_invalid": "Logs ソース {{source}}: {{error}}",
       "logs_path_refused": "Logs ソース {{source}}: {{reason}}",
       "file_path_leaves_org": "ソース {{source}}: {{path}} は組織のフォルダーの外を指しています。",
-      "file_path_local_refused": "ソース {{source}}: 多数の組織を抱えるサーバーは自身のディスク上のファイルを読み取りません。ファイルをアップロードするか、{files}/… またはリモートのアドレスで指定してください。"
+      "file_path_local_refused": "ソース {{source}}: 多数の組織を抱えるサーバーは自身のディスク上のファイルを読み取りません。ファイルをアップロードするか、{files}/… またはリモートのアドレスで指定してください。",
+      "relationship_alias_taken": "エイリアス '{{alias}}' は、すでに '{{table}}' からのリレーションシップ '{{relationship}}' のエイリアスです",
+      "relationship_ambiguous_table": "テーブル名 '{{table}}' ({{end}}) は複数のソース ({{sources}}) のテーブルを指しています",
+      "relationship_unknown_source": "ソーステーブル '{{table}}' は登録されていません",
+      "relationship_unknown_target": "ターゲットテーブル '{{table}}' は登録されていません",
+      "relationship_unknown_junction": "結合テーブル '{{table}}' は登録されていません"
     },
     "secrets": {
       "name_refused": "{{name}} は {{service}} 内のこの組織のシークレットに含まれる名前ではありません。名前は組織に対する相対指定であり、組織の外に出ることはできません",

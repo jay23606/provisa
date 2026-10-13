@@ -394,7 +394,12 @@
       "logs_invalid": "Logs 來源 {{source}}：{{error}}",
       "logs_path_refused": "Logs 來源 {{source}}：{{reason}}",
       "file_path_leaves_org": "資料來源 {{source}}：{{path}} 超出了機構的資料夾。",
-      "file_path_local_refused": "資料來源 {{source}}：承載多個機構的伺服器不讀取其本身磁碟上的檔案；請上載檔案，或以 {files}/… 或遠端地址指定它。"
+      "file_path_local_refused": "資料來源 {{source}}：承載多個機構的伺服器不讀取其本身磁碟上的檔案；請上載檔案，或以 {files}/… 或遠端地址指定它。",
+      "relationship_alias_taken": "別名 '{{alias}}' 已是來自 '{{table}}' 的關係 '{{relationship}}' 的別名",
+      "relationship_ambiguous_table": "表名 '{{table}}'（{{end}}）指向多於一個資料來源中的表（{{sources}}）",
+      "relationship_unknown_source": "來源表 '{{table}}' 未註冊",
+      "relationship_unknown_target": "目標表 '{{table}}' 未註冊",
+      "relationship_unknown_junction": "連接表 '{{table}}' 未註冊"
     },
     "secrets": {
       "name_refused": "{{name}} 並非 {{service}} 中本組織密鑰範圍內的名稱：名稱相對於組織，不能超出組織範圍",
