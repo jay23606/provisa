@@ -22,7 +22,11 @@ import pytest
 
 from provisa.cache.store import CachedResult, RedisCacheStore
 
-pytestmark = [pytest.mark.integration, pytest.mark.asyncio(loop_scope="session")]
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.local_platform,
+    pytest.mark.asyncio(loop_scope="session"),
+]
 
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/1")
 

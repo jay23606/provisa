@@ -54,6 +54,7 @@ from tests.integration.test_redshift_source_e2e import (
 )
 
 pytestmark = [
+    pytest.mark.requires_trino,
     pytest.mark.e2e,
     pytest.mark.requires_redshift,
     pytest.mark.requires_warehouse,

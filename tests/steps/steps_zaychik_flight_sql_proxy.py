@@ -15,6 +15,9 @@ from pytest_bdd import given, scenarios, then, when
 
 import provisa.executor.trino_flight as trf
 
+# Reaches a Trino coordinator: the CI side (tests/local_platform.py).
+pytestmark = [pytest.mark.requires_trino]
+
 
 @pytest.fixture
 def shared_data():

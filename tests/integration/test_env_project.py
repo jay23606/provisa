@@ -40,7 +40,7 @@ from provisa.core.schema_org import (
     tracked_functions,
 )
 
-pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
+pytestmark = [pytest.mark.integration, pytest.mark.local_platform, pytest.mark.asyncio]
 
 ENV = "dev"
 

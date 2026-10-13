@@ -33,7 +33,7 @@ import trino.dbapi
 
 from tests.itest_stack import ITEST_PROJECT as _ITEST_PROJECT
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.requires_trino, pytest.mark.integration]
 
 _REPO_ROOT = Path(__file__).parents[2]
 

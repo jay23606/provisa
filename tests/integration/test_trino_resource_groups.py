@@ -24,7 +24,7 @@ import uuid
 import pytest
 import trino
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.requires_trino, pytest.mark.integration]
 
 
 def _connect(user: str, source: str | None):

@@ -27,7 +27,11 @@ import pytest
 
 from provisa.core.trino_catalog_files import write_kafka_catalog_files
 
-pytestmark = [pytest.mark.integration, pytest.mark.asyncio(loop_scope="session")]
+pytestmark = [
+    pytest.mark.requires_trino,
+    pytest.mark.integration,
+    pytest.mark.asyncio(loop_scope="session"),
+]
 
 _KAFKA_SUPPORT_SOURCE = {
     "id": "kafka_support",

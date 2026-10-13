@@ -44,7 +44,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.requires_trino, pytest.mark.integration]
 
 _REPO = Path(__file__).resolve().parents[2]
 _ROLE = "org_admin"

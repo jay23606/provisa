@@ -57,6 +57,13 @@ version_gte() {
     return 0
 }
 
+# ── NixOS ───────────────────────────────────────────────────────────────────
+# A NixOS host needs settings only its own configuration can make. The check, and the steps it
+# names where they are missing, are packaging/nixos/preinstall-check.sh — the one the Linux
+# AppImage's first launch makes too. It is sourced from the project source, which a piped
+# install fetches first, so this script tells NixOS apart itself.
+is_nixos() { [ -e /etc/NIXOS ]; }
+
 # ── Container runtime detection ─────────────────────────────────────────────
 detect_runtime() {
     if command -v docker &>/dev/null; then
@@ -282,6 +289,15 @@ main() {
     printf "\n${BOLD}Provisa Installer${NC}\n"
     printf "═══════════════════════════════════════════\n\n"
 
+    # 0. NixOS: its settings come before anything else is checked or written
+    if is_nixos; then
+        ensure_project_source
+        # shellcheck source=packaging/nixos/preinstall-check.sh
+        . "${SCRIPT_DIR}/packaging/nixos/preinstall-check.sh"
+        # This installer's services run under docker compose.
+        nixos_preinstall "${SCRIPT_DIR}/packaging/nixos/preinstall.nix" true
+    fi
+
     # 1. Detect container runtime
     info "Detecting container runtime..."
     RUNTIME="$(detect_runtime)"
@@ -324,6 +340,10 @@ main() {
     # In airgap mode install to ~/.provisa/bin to avoid needing sudo
     if [ "$AIRGAP" = true ]; then
         CLI_INSTALL_DIR="${PROVISA_HOME}/bin"
+        mkdir -p "${CLI_INSTALL_DIR}"
+    elif is_nixos; then
+        # NixOS has no /usr/local/bin; preinstall.nix puts ~/.local/bin on PATH.
+        CLI_INSTALL_DIR="${HOME}/.local/bin"
         mkdir -p "${CLI_INSTALL_DIR}"
     fi
 

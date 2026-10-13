@@ -17,6 +17,9 @@ from provisa.federation.databricks_store import (
     land_databricks_native,
 )
 
+# Reaches a Trino coordinator: the CI side (tests/local_platform.py).
+pytestmark = [pytest.mark.requires_trino]
+
 COLS = [("id", "bigint"), ("s", "text"), ("amt", "numeric"), ("j", "json")]
 
 

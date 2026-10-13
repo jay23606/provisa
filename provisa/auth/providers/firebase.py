@@ -75,7 +75,7 @@ class FirebaseAuthProvider(AuthProvider):  # REQ-120, REQ-121
         )
 
 
-def delete_user(uid: str) -> None:  # REQ-1630
+def delete_user(uid: str) -> None:  # REQ-1931
     """Permanently delete a Firebase Auth account by uid via the Admin SDK.
 
     Requires an initialized firebase_admin app (``FirebaseAuthProvider.__init__``). Raises

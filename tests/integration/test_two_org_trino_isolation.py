@@ -33,7 +33,7 @@ _CONFIG = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "fixtures", "two_org_trino_config.yaml")
 )
 
-pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
+pytestmark = [pytest.mark.requires_trino, pytest.mark.integration, pytest.mark.asyncio]
 
 
 @pytest.fixture(scope="module")

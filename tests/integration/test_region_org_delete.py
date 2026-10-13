@@ -34,7 +34,7 @@ from provisa.compiler.naming import org_prefixed_catalog
 from provisa.core.environments import SCHEMA_SUFFIXES, org_schema
 from provisa.core.regions import OrgRegion, StoreConfig
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.requires_trino, pytest.mark.integration]
 
 _PLATFORM = {
     "regions": [

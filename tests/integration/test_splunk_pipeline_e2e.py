@@ -71,7 +71,11 @@ from tests.integration.test_splunk_source_e2e import (
     _wait_for_splunk_mgmt_api,
 )
 
-pytestmark = [pytest.mark.e2e, pytest.mark.asyncio(loop_scope="session")]
+pytestmark = [
+    pytest.mark.requires_trino,
+    pytest.mark.e2e,
+    pytest.mark.asyncio(loop_scope="session"),
+]
 
 # Must match the add-on: eventtypes.conf selects `index=provisa_cim sourcetype=provisa:auth`, and
 # local/macros.conf scopes cim_Authentication_indexes to `index=provisa_cim`.

@@ -67,7 +67,11 @@ import trino.exceptions
 
 from tests.itest_stack import ITEST_PROJECT as _ITEST_PROJECT
 
-pytestmark = [pytest.mark.integration, pytest.mark.asyncio(loop_scope="session")]
+pytestmark = [
+    pytest.mark.requires_trino,
+    pytest.mark.integration,
+    pytest.mark.asyncio(loop_scope="session"),
+]
 
 _TRINO_HOST = os.environ.get("TRINO_HOST", "localhost")
 _TRINO_PORT = int(os.environ.get("TRINO_PORT", "8080"))

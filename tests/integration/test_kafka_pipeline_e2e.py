@@ -36,6 +36,7 @@ from httpx import ASGITransport, AsyncClient
 from tests.integration.connector_source_harness import query_semantic, rebuild_schemas
 
 pytestmark = [
+    pytest.mark.requires_trino,
     pytest.mark.integration,
     pytest.mark.requires_kafka,
     pytest.mark.asyncio(loop_scope="session"),

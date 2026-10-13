@@ -32,7 +32,7 @@ from provisa.core.schema_org import domains
 
 from tests.helpers import ready_org_folder
 
-pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
+pytestmark = [pytest.mark.integration, pytest.mark.local_platform, pytest.mark.asyncio]
 
 DEV = "dev"
 DEVELOPER = "uid-developer"

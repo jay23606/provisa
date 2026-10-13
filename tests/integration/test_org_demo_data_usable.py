@@ -46,7 +46,7 @@ _CONFIG = os.path.abspath(
 # The repo default is a session-scoped loop for both fixtures and tests (pyproject asyncio_*).
 # Overriding only the tests to a module loop would leave the module-scoped fixture on the session
 # loop and every engine it opened would be "attached to a different loop" here — so don't override.
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.requires_trino, pytest.mark.integration]
 
 _ORG_ID = "demodata"
 _ACCOUNTS = {"founder": "pw-founder", "creator": "pw-creator"}

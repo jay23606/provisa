@@ -24,6 +24,9 @@ from provisa.mv.models import JoinPattern, MVDefinition, MVStatus
 from provisa.mv.registry import MVRegistry
 from provisa.mv import refresh as mv_refresh
 
+# Reaches a Trino coordinator: the CI side (tests/local_platform.py).
+pytestmark = [pytest.mark.requires_trino]
+
 scenarios("../features/REQ-234.feature")
 
 

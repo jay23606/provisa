@@ -25,7 +25,7 @@ import pytest
 
 from provisa.grpc.server import ProvisaServicer
 
-pytestmark = [pytest.mark.e2e, pytest.mark.asyncio]
+pytestmark = [pytest.mark.requires_trino, pytest.mark.e2e, pytest.mark.asyncio]
 
 
 def _make_pb2_with_descriptor(type_name: str, fields: list[str]):

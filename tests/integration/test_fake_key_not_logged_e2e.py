@@ -25,7 +25,7 @@ from provisa.fakes.digest import digest, fingerprint
 from tests.integration.worker_boot_harness import WorkerBoot
 from tests.itest_stack import COMPOSE_ARGS
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.requires_trino, pytest.mark.integration]
 
 
 def test_neither_the_server_nor_the_engine_logs_the_key(trino_conn):

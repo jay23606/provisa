@@ -54,6 +54,7 @@ import uuid
 import pytest
 
 pytestmark = [
+    pytest.mark.requires_trino,
     pytest.mark.integration,
     pytest.mark.requires_salesforce,
     pytest.mark.requires_warehouse,

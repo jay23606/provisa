@@ -17,7 +17,11 @@ import yaml
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
-pytestmark = [pytest.mark.e2e, pytest.mark.asyncio(loop_scope="session")]
+pytestmark = [
+    pytest.mark.requires_trino,
+    pytest.mark.e2e,
+    pytest.mark.asyncio(loop_scope="session"),
+]
 
 
 @pytest_asyncio.fixture(scope="module", loop_scope="session")

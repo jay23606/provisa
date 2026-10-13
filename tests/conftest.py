@@ -179,7 +179,15 @@ def _needs_shared_stack(items) -> bool:
         return False
     here = os.path.dirname(__file__)
     self_provisioned = tuple(os.path.join(here, sub) + os.sep for sub in ("unit", "mvmvp"))
-    return not all(str(item.path).startswith(self_provisioned) for item in items)
+    # A local_platform test runs on the local platform (tests/local_platform.py), not the stack —
+    # unless the session asks for the real services (PROVISA_TEST_PLATFORM=docker: the nightly run
+    # of the same tests against real Postgres and Redis, to catch divergence).
+    local = os.environ.get("PROVISA_TEST_PLATFORM", "local") != "docker"
+    return not all(
+        str(item.path).startswith(self_provisioned)
+        or (local and item.get_closest_marker("local_platform"))
+        for item in items
+    )
 
 
 _ITEST_COMPOSE_ARGS = list(COMPOSE_ARGS)
@@ -750,6 +758,8 @@ class _DockerServiceManager:
             release_stack_slot()
 
     def pytest_sessionfinish(self, session, exitstatus):  # pyright: ignore
+        if not _needs_shared_stack(session.items):
+            return  # no stack was provisioned (collection_finish returned early)
         # Tests own the services they provision — including reaping them. Tear the
         # whole isolated stack down by default so a run never leaks containers (which
         # starve later runs of memory) and never leaves anything touching dev.
@@ -782,6 +792,9 @@ def pytest_configure(config):
 
     process_region.bind_launch({}, requested=None)
     config.pluginmanager.register(_DockerServiceManager())
+    from tests.local_platform import LocalPlatformManager
+
+    config.pluginmanager.register(LocalPlatformManager(_ITEST_PORTS))
     config.addinivalue_line(
         "markers",
         "requires_provisa_server: skip when Provisa server is not reachable",

@@ -23,7 +23,7 @@ import psycopg2
 import pytest
 import pytest_asyncio
 
-pytestmark = [pytest.mark.integration, pytest.mark.e2e]
+pytestmark = [pytest.mark.requires_trino, pytest.mark.integration, pytest.mark.e2e]
 
 _ORG = f"authsurf{uuid.uuid4().hex[:8]}"
 _JWT_SECRET = "configured-provider-surfaces-signing-secret-48b!"

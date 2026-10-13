@@ -35,7 +35,7 @@ import pytest
 from tests.helpers import PROFILER_RUN_DEFAULTS
 import yaml
 
-pytestmark = [pytest.mark.integration, pytest.mark.requires_hive]
+pytestmark = [pytest.mark.requires_trino, pytest.mark.integration, pytest.mark.requires_hive]
 
 _ROLE = "org_admin"
 _FILES = 40

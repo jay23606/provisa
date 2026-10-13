@@ -16,6 +16,9 @@ from provisa.federation.engine import build_snowflake_engine
 from provisa.federation.runtime import EngineCapability, EngineRuntime
 from provisa.transpiler.transpile import SUPPORTED_DIALECTS, transpile
 
+# Reaches a Trino coordinator: the CI side (tests/local_platform.py).
+pytestmark = [pytest.mark.requires_trino]
+
 
 @pytest.fixture
 def shared_data():

@@ -881,7 +881,7 @@ async def redeem_invite(body: RedeemInviteRequest, request: Request):
         reset_current_org(token)
 
 
-@router.delete("/sandbox-account")  # REQ-1630
+@router.delete("/sandbox-account")  # REQ-1931
 async def delete_sandbox_account(request: Request):
     """Delete the caller's Firebase Auth identity on sandbox logout — sandbox visitors only.
 

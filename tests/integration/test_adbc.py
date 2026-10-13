@@ -23,7 +23,7 @@ import pyarrow as pa
 import pytest
 import pytest_asyncio
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.requires_trino, pytest.mark.integration]
 
 _ISOLATED_ORG = "adbc_test"
 

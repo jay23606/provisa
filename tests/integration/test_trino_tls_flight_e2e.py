@@ -58,7 +58,7 @@ import uuid
 
 import pytest
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.requires_trino, pytest.mark.integration]
 
 _FIXTURE_DIR = os.path.join(os.path.dirname(__file__), "..", "fixtures", "trino_tls")
 _COMPOSE_FILE = os.path.join(_FIXTURE_DIR, "docker-compose.trino-tls.yml")

@@ -37,7 +37,11 @@ from provisa.apq.cache import (
     compute_apq_hash,
 )
 
-pytestmark = [pytest.mark.integration, pytest.mark.asyncio(loop_scope="session")]
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.local_platform,
+    pytest.mark.asyncio(loop_scope="session"),
+]
 
 # ---------------------------------------------------------------------------
 # Helpers

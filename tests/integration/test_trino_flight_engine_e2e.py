@@ -32,7 +32,7 @@ import os
 
 import pytest
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.requires_trino, pytest.mark.integration]
 
 
 def _zaychik_port() -> int:

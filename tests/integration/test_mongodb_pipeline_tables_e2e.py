@@ -37,7 +37,7 @@ import httpx
 import pytest
 import yaml
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.requires_trino, pytest.mark.integration]
 
 _ROLE = "org_admin"
 _ANALYST = "analyst"

@@ -47,6 +47,7 @@ from tests.integration.test_exasol_source_e2e import (
 _UNBOOTABLE = "exasol/docker-db is amd64-only; unbootable under arm64 emulation"
 
 pytestmark = [
+    pytest.mark.requires_trino,
     pytest.mark.e2e,
     pytest.mark.asyncio(loop_scope="session"),
     pytest.mark.skipif(not _AMD64, reason=_UNBOOTABLE),

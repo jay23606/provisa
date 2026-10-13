@@ -14,6 +14,9 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from pytest_bdd import given, when, then, scenario
 
+# Reaches a Trino coordinator: the CI side (tests/local_platform.py).
+pytestmark = [pytest.mark.requires_trino]
+
 # ---------------------------------------------------------------------------
 # Shared fixture
 # ---------------------------------------------------------------------------
