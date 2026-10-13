@@ -273,19 +273,6 @@ async def test_notify_is_delivered_on_the_registering_loop_by_the_listener_threa
         listener.close()
 
 
-def test_listen_is_refused_on_a_backend_without_notify(tmp_path) -> None:
-    db = _file_db(tmp_path)
-
-    async def _listen() -> None:
-        await db.add_listener("ch", lambda *a: None)
-
-    try:
-        with pytest.raises(NotImplementedError, match="sqlite"):
-            asyncio.run(_listen())
-    finally:
-        asyncio.run(db.close())
-
-
 def test_deadline_bound_is_not_applied_outside_a_request(control_plane) -> None:
     """Startup/background work runs with no request budget bound."""
     assert request_deadline.remaining() is None

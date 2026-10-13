@@ -1427,10 +1427,6 @@ class Database:
     # -- PG-only LISTEN/NOTIFY: served by the listener thread's own connection, so a listener
     #    (an SSE stream, the event-trigger manager) never holds a pooled connection. --
     def _pg_listener(self) -> _PgListener:
-        if not self.capabilities.listen_notify:
-            raise NotImplementedError(
-                f"LISTEN/NOTIFY is not available on the {self.dialect} control plane"
-            )
         return self._get_listener()
 
     # Async only to keep the awaitable call-site contract; the LISTEN runs on the listener thread.
@@ -1656,8 +1652,6 @@ def create_engine_from_url(
     if backend == "postgresql":
         return pg_engine(normalized, use_pgbouncer=use_pgbouncer, direct=direct, **kwargs)
     engine = sa.create_engine(normalized, **kwargs)
-    if backend == "sqlite":
-        event.listen(engine, "connect", _on_sqlite_connect)
     return engine
 
 
@@ -1780,31 +1774,6 @@ def _on_pg_connect(dbapi_conn: Any, connection_record: Any) -> None:
     objects."""
     del connection_record
     dbapi_conn.prepared_max = _PREPARED_MAX
-
-
-def _on_sqlite_connect(dbapi_conn: Any, connection_record: Any) -> None:
-    """SQLAlchemy ``connect`` listener: put the control-plane SQLite file in WAL mode.
-
-    WAL is what lets the app's own readers run alongside its writer: rollback-journal mode (the
-    SQLite default) blocks readers during a write commit and yields transient ``database is
-    locked``; WAL lets one writer proceed alongside concurrent readers. ``busy_timeout`` absorbs
-    the brief checkpoint/commit windows. journal_mode=WAL persists in the file; the pragma is
-    idempotent. A no-op on an in-memory DB (which cannot be WAL).
-
-    WAL does NOT extend that guarantee to the DuckDB federation engine: DuckDB's sqlite extension
-    corrupts a file another connection is writing and dies with SIGBUS regardless of journal mode,
-    so the engine attaches a snapshot copy of this file rather than the file itself (see
-    federation.duckdb_runtime.DuckDBFederationRuntime._refresh_control_plane_snapshot)."""
-    del connection_record
-    cur = dbapi_conn.cursor()
-    try:
-        cur.execute("PRAGMA journal_mode=WAL")
-        # 30s, not sqlite3's 5s: a table registration holds the writer through a full schema
-        # rebuild and MV activation, and an admin mutation arriving meanwhile (the e2e lane's
-        # registerFact) failed with "database is locked" rather than waiting it out.
-        cur.execute("PRAGMA busy_timeout=30000")
-    finally:
-        cur.close()
 
 
 class OrgStores(NamedTuple):

@@ -84,8 +84,8 @@ def test_a_scheduler_with_no_holder_runs_every_job():
     assert _submit(None, "live_poll")[0] == ["live_poll"]
 
 
-def test_a_file_control_plane_process_is_the_holder(tmp_path):
-    holder = SchedulerHolder(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}", "default")
+def test_the_first_process_to_ask_is_the_holder(control_plane):
+    holder = SchedulerHolder(control_plane.url, "default")
     try:
         assert holder.holds()
     finally:
@@ -219,10 +219,10 @@ def test_a_region_job_asks_the_regions_claim_not_the_deployments(job_id):
     assert (deployment.asked, region.asked) == (0, 1)
 
 
-def test_each_region_holds_its_own_claim_and_one_region_holds_it_once(tmp_path):
+def test_each_region_holds_its_own_claim_and_one_region_holds_it_once(control_plane):
     """Two regions on one control plane each hold their region's claim; a second worker of a
     region does not."""
-    url = f"sqlite+pysqlite:///{tmp_path / 'cp.db'}"
+    url = control_plane.url
     eu, us, eu_again = (
         SchedulerHolder(url, scope) for scope in ("acme_rg_eu", "acme_rg_us", "acme_rg_eu")
     )
@@ -236,7 +236,7 @@ def test_each_region_holds_its_own_claim_and_one_region_holds_it_once(tmp_path):
 
 @pytest.mark.parametrize(("region", "scope"), [(None, None), ("eu", "acme_rg_eu")])
 def test_a_nodes_region_claim_is_its_regions_and_with_no_regions_the_deployments(
-    tmp_path, monkeypatch, region, scope
+    tmp_path, monkeypatch, region, scope, control_plane
 ):
     from provisa.api import app_startup
     from provisa.core import process_region
@@ -244,7 +244,7 @@ def test_a_nodes_region_claim_is_its_regions_and_with_no_regions_the_deployments
     platform = {"regions": [{"id": "eu", "address": "https://eu.example.com"}]} if region else None
     was = process_region._region
     process_region.bind_launch(platform, requested=region)
-    url = f"sqlite+pysqlite:///{tmp_path / 'cp.db'}"
+    url = control_plane.url
     monkeypatch.setattr(
         "provisa.core.config_loader.load_control_plane",
         lambda _path: SimpleNamespace(

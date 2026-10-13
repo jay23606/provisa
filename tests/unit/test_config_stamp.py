@@ -34,8 +34,7 @@ import pytest
 import sqlalchemy as sa
 
 from provisa.core import config_stamp, config_watch, schema_org
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.db import init_schema
+from provisa.core.database import Database
 from provisa.core.models import Column, Table
 from provisa.core.repositories import table as table_repo
 from provisa.federation.replica_state import RetryPolicy
@@ -237,29 +236,6 @@ def test_installing_twice_changes_nothing(tenant_db):
     with tenant_db.engine.begin() as conn:
         conn.execute(sa.insert(schema_org.roles).values(id="risk_reviewer"))
     assert _model(tenant_db) == before[config_stamp.MODEL] + 1  # one trigger per event, not two
-
-
-def test_an_embedded_duckdb_plane_gets_the_rows_and_no_triggers(tmp_path):
-    """REQ-828: DuckDB has no triggers, and its file admits one process — the one that makes a
-    change and rebuilds itself — so there is no other process for the stamp to tell."""
-    engine = create_engine_from_url(f"duckdb:///{tmp_path / 'tenant.duckdb'}")
-    db = Database(engine, name="org")
-    try:
-        asyncio.run(init_schema(db, "", org_id="default"))
-        assert set(_stamps(db)) == _TENANT_KINDS
-    finally:
-        engine.dispose()
-
-
-def test_another_dialect_is_refused_by_name():
-    class _Dialect:
-        name = "mysql"
-
-    class _Conn:
-        dialect = _Dialect()
-
-    with pytest.raises(NotImplementedError, match="mysql"):
-        config_stamp.install(_Conn(), config_stamp.TENANT_TABLES)
 
 
 def test_a_table_upsert_is_one_transaction(tenant_db):

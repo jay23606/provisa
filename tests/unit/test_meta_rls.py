@@ -23,16 +23,14 @@ import uuid
 import pytest
 from sqlalchemy import delete, insert, select, update
 
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.db import _init_schema_portable
+from provisa.core.database import Database
 from provisa.core.meta_rls import apply_meta_tenant_guard, current_meta_tenant, meta_tenant_scope
 from provisa.core.schema_org import domains
 
 pytestmark = pytest.mark.asyncio
 
-# The control plane is PostgreSQL (REQ-2014); the guard is store-independent, so it is also pinned
-# on the embedded DuckDB dialect.
-_STORES = ["postgres", "duckdb:///:memory:"]
+# The control plane is PostgreSQL (REQ-2014).
+_STORES = ["postgres"]
 
 # tenant_id is a UUID column. Strings are the ambient form (JWT claim → the guard coerces); the
 # raw, un-guarded seed inserts below use UUID objects the column accepts directly.
@@ -41,11 +39,8 @@ _B = "22222222-2222-2222-2222-222222222222"
 
 
 async def _store(uri: str, control_plane) -> Database:
-    if uri == "postgres":
-        return control_plane.org()
-    db = Database(create_engine_from_url(uri), name="meta-rls-test")
-    await _init_schema_portable(db)
-    return db
+    del uri  # the one store: the control plane's PostgreSQL
+    return control_plane.org()
 
 
 async def _seed(conn) -> None:

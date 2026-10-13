@@ -93,7 +93,7 @@ async def test_the_control_plane_attach_answers_a_sorted_page_as_postgres_does(p
     p = _libpq(pg.uri)
     dsn = f"host={p['host']} port={p['port']} dbname={p['database']} user={p['username']}"
     rt = DuckDBFederationRuntime(materialize_dsn=f"duckdb:///{tmp_path / 'store.duckdb'}")
-    rt.attach_control_plane(dsn, "org_default", dialect="postgresql")
+    rt.attach_control_plane(dsn)
     await _pages_match(rt, '"provisa_admin"."org_default"."items"', pg, "org_default")
 
 

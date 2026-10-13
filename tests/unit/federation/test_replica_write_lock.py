@@ -25,10 +25,10 @@ KEY = ("src", "public", "orders")
 
 
 @pytest.fixture
-def url(tmp_path, monkeypatch):
+def url(monkeypatch, control_plane):
     monkeypatch.setattr(replica_locks, "_delta_claims", {})
     monkeypatch.setattr(replica_locks, "_DELTA_POLL_S", 0.01)
-    yield f"sqlite+pysqlite:///{tmp_path / 'cp.db'}"
+    yield control_plane.url
     for claim in replica_locks._delta_claims.values():
         claim.close()
 
