@@ -62,16 +62,37 @@ function Require-Runtime {
   }
 }
 
+# The native tier's control plane (REQ-2014: PostgreSQL only; mirrors scripts/provisa
+# native_control_plane): the PostgreSQL server named in PLATFORM_DATABASE_URL and
+# TENANT_DATABASE_URL, else an embedded PostgreSQL (pgserver) in <native>\control-pg, persistent
+# across runs. On Windows pgserver listens on TCP; its host and port are read back from it.
+function Start-ControlPlane {
+  if ($env:PLATFORM_DATABASE_URL -or $env:TENANT_DATABASE_URL) {
+    if (-not $env:PLATFORM_DATABASE_URL -or -not $env:TENANT_DATABASE_URL -or
+        $env:PLATFORM_DATABASE_URL -ne $env:TENANT_DATABASE_URL) {
+      Write-Err 'Name one PostgreSQL control plane in both PLATFORM_DATABASE_URL and TENANT_DATABASE_URL.'
+      exit 1
+    }
+    return $env:TENANT_DATABASE_URL
+  }
+  $out = & $RuntimePy -m provisa.core.control_plane_pg start (Join-Path $NativeDir 'control-pg') 2>> (Join-Path $LogDir 'control-plane-pg.log')
+  if ($LASTEXITCODE -ne 0) {
+    Write-Err "The embedded control plane did not start; see $(Join-Path $LogDir 'control-plane-pg.log')."
+    exit 1
+  }
+  $pgHost = ($out | Where-Object { $_ -like 'PG_HOST=*' }) -replace '^PG_HOST=',''
+  $pgPort = ($out | Where-Object { $_ -like 'PG_PORT=*' }) -replace '^PG_PORT=',''
+  return "postgresql+psycopg://provisa:provisa@/provisa?host=$pgHost&port=$pgPort"
+}
+
 # Deployment env for the native process (mirrors scripts/provisa native_env_pairs
-# and provisa.core.desktop_profile). SQLite URLs need forward slashes.
-function Native-Env {
-  $platformDb = (Join-Path $NativeDir 'platform.db') -replace '\\','/'
-  $tenantDb   = (Join-Path $NativeDir 'tenant.db')   -replace '\\','/'
+# and provisa.core.desktop_profile).
+function Native-Env([string]$ControlPlaneUrl) {
   $e = @{
     'PROVISA_ENGINE'        = $DeployEngine
     'PROVISA_REDIS_EMBEDDED' = '1'
-    'PLATFORM_DATABASE_URL' = "sqlite+pysqlite:///$platformDb"
-    'TENANT_DATABASE_URL'   = "sqlite+pysqlite:///$tenantDb"
+    'PLATFORM_DATABASE_URL' = $ControlPlaneUrl
+    'TENANT_DATABASE_URL'   = $ControlPlaneUrl
   }
   # Remote MCP on by default for the native/desktop tier (REQ-1101): a ready same-machine Claude
   # Desktop connector. Loopback bind (127.0.0.1) keeps the always-on server off the LAN. The role
@@ -171,7 +192,7 @@ function Start-Native {
   if ($Demo) { Write-Status 'DEMO' 'Starting demo services'; Start-DemoServers }
 
   Write-Status 'START' 'Starting the engine and UI'
-  $baseEnv = Native-Env
+  $baseEnv = Native-Env (Start-ControlPlane)
   foreach ($k in $baseEnv.Keys) { Set-Item -Path "Env:$k" -Value $baseEnv[$k] }
 
   # CWD = {app}: the demo config references ./demo/files/*.sqlite relative to the working dir.

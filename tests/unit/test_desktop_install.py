@@ -139,8 +139,9 @@ class TestREQ979NativeStandaloneRuntime:
         # and ships no OVA/VirtualBox/Trino container images.
         base = (PKG / "windows" / "build-sfx.ps1").read_text().lower()
         assert "python-build-standalone" in base
-        # The native control plane is stdlib sqlite3; the build verifies it is present.
-        assert "import sqlite3" in base
+        # The native control plane is an embedded PostgreSQL (REQ-2014); the build verifies it
+        # and its driver are present.
+        assert "import pgserver, psycopg" in base
         for token in ("vboxmanage", ".ova", "provisa-runtime.ova", "trinosrc"):
             assert token not in base, f"native base installer must not bundle {token}"
 

@@ -20,7 +20,7 @@ while [ "$_i" -lt "${#_ARGV[@]}" ]; do
   case "$arg" in
     --keep-docker) KEEP_DOCKER=true ;;
     --fast) FAST=true; KEEP_DOCKER=true ;;
-    # --demo is always native: no Docker, in-process engine + SQLite control plane. An optional
+    # --demo is always native: no Docker, in-process engine + embedded PostgreSQL control plane. An optional
     # following bare word (not itself a flag) names a demo variant, e.g. `--demo perf` — the same
     # standard demo machinery, but with a named variant's own data/source setup spliced in below.
     --demo)
