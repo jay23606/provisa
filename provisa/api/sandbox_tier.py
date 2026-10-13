@@ -31,22 +31,25 @@ import os
 import secrets
 
 from provisa.api.errors import ApiError
+from provisa.core.org_ids import (
+    SANDBOX_PREFIX,
+    TEMPLATE_PREFIX,
+    is_demo_sandbox,
+    is_sandbox_tier_org,
+    is_template_org,
+)
 
-#: Every org of the sandbox tier: the sandboxes and the demos' template orgs.
-SANDBOX_PREFIX = "sbx"
-#: A demo's template org: ``sbxtpl<demo>``. A sandbox's id is hex after ``sbx``, so the two never
-#: meet (``t`` is not a hex digit).
-TEMPLATE_PREFIX = "sbxtpl"
-_SANDBOX_ID_HEX = 12
-
-
-def is_sandbox_tier_org(org_id: str) -> bool:
-    """Whether ``org_id`` is served by the sandbox tier: a sandbox or a demo's template org."""
-    return org_id.startswith(SANDBOX_PREFIX)
-
-
-def is_template_org(org_id: str) -> bool:
-    return org_id.startswith(TEMPLATE_PREFIX)
+__all__ = [
+    "SANDBOX_PREFIX",
+    "TEMPLATE_PREFIX",
+    "is_demo_sandbox",
+    "is_sandbox_tier_org",
+    "is_template_org",
+    "new_sandbox_org_id",
+    "require_this_tier",
+    "serves_sandboxes",
+    "template_org_id",
+]
 
 
 def template_org_id(demo: str) -> str:
@@ -55,13 +58,14 @@ def template_org_id(demo: str) -> str:
 
 
 def new_sandbox_org_id() -> str:
-    """A fresh sandbox org id: ``sbx`` and 12 random hex digits."""
-    return f"{SANDBOX_PREFIX}{secrets.token_hex(_SANDBOX_ID_HEX // 2)}"
+    """A fresh sandbox org id: ``sbx`` and 12 random hex digits (``t`` is not one, so a sandbox's
+    id never begins as a template's)."""
+    return f"{SANDBOX_PREFIX}{secrets.token_hex(6)}"
 
 
 def serves_sandboxes() -> bool:
-    """Whether this process is the sandbox tier. Set by the deployment (docker-compose.app.yml's
-    provisa-sandbox service), never per request."""
+    """Whether this process is the sandbox tier. Set by the deployment (the control plane's
+    provisa-sandbox service, packaging/linux/first-launch.sh), never per request."""
     value = os.environ.get("PROVISA_SANDBOX_TIER", "false")
     if value not in ("true", "false"):
         raise ValueError(f"PROVISA_SANDBOX_TIER must be true or false, got {value!r}")

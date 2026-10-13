@@ -493,7 +493,9 @@ class AuthMiddleware:  # REQ-120, REQ-125, REQ-273
             current_acting_role.reset(ar_token)
 
     async def _process(self, request: Request):  # REQ-486
-        if request.url.path in _SKIP_PATHS or request.url.path.startswith("/public/invite-info/"):
+        if request.url.path in _SKIP_PATHS or request.url.path.startswith(
+            ("/public/invite-info/", "/public/demos/")  # REQ-1602; REQ-2006: before any sign-in
+        ):
             return None
 
         await self._ensure_resolved()

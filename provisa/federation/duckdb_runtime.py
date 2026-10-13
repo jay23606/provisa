@@ -124,6 +124,31 @@ def _local_store_name(schema: str, table: str) -> str:
     return f'"{_LOCAL_STORE_SCHEMA}"."{schema}__{table}"'
 
 
+class WriteConflict(RuntimeError):
+    """REQ-2006: a statement collided with another transaction's write to the same rows, and DuckDB
+    refused it. Refused by name, never retried here: the caller decides whether to write again."""
+
+    code = "engine.write_conflict"
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(
+            f"Another change to the same data was written at the same time; retry. ({detail})"
+        )
+        self.params = {"detail": detail}
+
+
+@contextmanager
+def named_write_conflict() -> Iterator[None]:
+    """DuckDB's write-write conflict, as :class:`WriteConflict`; every other error unchanged."""
+    try:
+        yield
+    except duckdb.TransactionException as exc:
+        first = str(exc).splitlines()[0]
+        if "conflict" not in first.lower():
+            raise
+        raise WriteConflict(first) from exc
+
+
 class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
     def __init__(
         self, *, materialize_dsn: str | None = None, store_engine: Any | None = None
@@ -138,6 +163,11 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
             if _ext_dir
             else {}
         )
+        # REQ-2006: an org's engine may be capped (a demo sandbox's, sandbox.memory_limit). DuckDB
+        # spills to disk past it and refuses, by name, what cannot spill.
+        _limit = getattr(store_engine, "memory_limit", None)
+        if _limit is not None:
+            _cfg["memory_limit"] = f"{_limit // (1024 * 1024)}MiB"
         self._con = duckdb.connect(config=_cfg)
         from provisa.fakes.duckdb_functions import register as register_fake_functions
 
@@ -1204,7 +1234,8 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
                 cur = self._open_cursor(live_http=live_http)
                 try:
                     with request_deadline.cancel_on_deadline(cur.interrupt):
-                        res = cur.execute(sql, params) if params else cur.execute(sql)
+                        with named_write_conflict():
+                            res = cur.execute(sql, params) if params else cur.execute(sql)
                         cols = [d[0] for d in res.description] if res.description else []
                         types = [str(d[1]) for d in res.description] if res.description else []
                         rows = res.fetchall()
@@ -1265,7 +1296,8 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
             cur = self._open_cursor(live_http=live_http)
             try:
                 with request_deadline.cancel_on_deadline(cur.interrupt):
-                    cur.execute(duck_sql, params) if params else cur.execute(duck_sql)
+                    with named_write_conflict():
+                        cur.execute(duck_sql, params) if params else cur.execute(duck_sql)
             except BaseException:
                 # No stream will own the cursor: it is closed here (REQ-1905).
                 close_cursor(cur)
@@ -1327,7 +1359,8 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
             cur = self._open_cursor(live_http=live_http)
             try:
                 with request_deadline.cancel_on_deadline(cur.interrupt):
-                    res = cur.execute(duck_sql, params) if params else cur.execute(duck_sql)
+                    with named_write_conflict():
+                        res = cur.execute(duck_sql, params) if params else cur.execute(duck_sql)
                     return res.to_arrow_table()
             finally:
                 close_cursor(cur)
@@ -1353,7 +1386,8 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
             cur = self._open_cursor(live_http=live_http)
             try:
                 with request_deadline.cancel_on_deadline(cur.interrupt):
-                    cur.execute(duck_sql, params) if params else cur.execute(duck_sql)
+                    with named_write_conflict():
+                        cur.execute(duck_sql, params) if params else cur.execute(duck_sql)
                     reader = cur.to_arrow_reader(_ARROW_STREAM_BATCH_ROWS)
                 schema = reader.schema
             except BaseException:

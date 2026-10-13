@@ -757,6 +757,24 @@
           "cache_write": "Escritura de caché"
         }
       }
+    },
+    "sandbox": {
+      "max_concurrent": {
+        "label": "Sandboxes de demostración abiertos a la vez",
+        "help": "Cuántos sandboxes de demostración pueden estar abiertos a la vez. Superado ese número, a quien abra una demostración se le pide que lo intente de nuevo en breve."
+      },
+      "memory_limit": {
+        "label": "Memoria por sandbox de demostración",
+        "help": "La memoria máxima que puede usar el motor de un sandbox de demostración. Una consulta que necesite más se rechaza."
+      },
+      "disk_limit": {
+        "label": "Disco por sandbox de demostración",
+        "help": "Lo máximo que un sandbox de demostración puede ocupar en disco: sus datos y sus archivos subidos juntos. Una escritura que lo supere se rechaza."
+      },
+      "idle_ttl": {
+        "label": "Límite de inactividad de un sandbox de demostración",
+        "help": "Un sandbox de demostración que nadie ha usado durante este tiempo se elimina, con todo lo que contiene."
+      }
     }
   }
 }

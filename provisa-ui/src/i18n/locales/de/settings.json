@@ -757,6 +757,24 @@
           "cache_write": "Cache-Schreiben"
         }
       }
+    },
+    "sandbox": {
+      "max_concurrent": {
+        "label": "Gleichzeitig offene Demo-Sandboxes",
+        "help": "Wie viele Demo-Sandboxes gleichzeitig offen sein dürfen. Darüber hinaus wird ein Besucher, der eine Demo öffnet, gebeten, es gleich noch einmal zu versuchen."
+      },
+      "memory_limit": {
+        "label": "Arbeitsspeicher je Demo-Sandbox",
+        "help": "Der meiste Arbeitsspeicher, den die Engine einer Demo-Sandbox nutzen darf. Eine Abfrage, die mehr braucht, wird abgelehnt."
+      },
+      "disk_limit": {
+        "label": "Speicherplatz je Demo-Sandbox",
+        "help": "Das Meiste, was eine Demo-Sandbox auf der Festplatte halten darf: ihre Daten und ihre hochgeladenen Dateien zusammen. Ein Schreibvorgang darüber hinaus wird abgelehnt."
+      },
+      "idle_ttl": {
+        "label": "Inaktivitätsgrenze einer Demo-Sandbox",
+        "help": "Eine Demo-Sandbox, die so lange niemand benutzt hat, wird mit allem darin gelöscht."
+      }
     }
   }
 }

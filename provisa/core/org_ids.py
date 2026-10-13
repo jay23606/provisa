@@ -36,3 +36,24 @@ ORG_ID_PATTERN = re.compile(r"[a-z][a-z0-9]{1,39}")
 def is_org_id(value: str | None) -> bool:  # REQ-1309
     """Whether ``value`` could be an org id at all."""
     return bool(value) and ORG_ID_PATTERN.fullmatch(value) is not None  # type: ignore[arg-type]
+
+
+# REQ-2006: the sandbox tier's orgs -- the demo sandboxes (``sbx`` + hex) and the demos' template
+# orgs (``sbxtpl`` + the demo's name). Ordinary org creation refuses the prefix; which process serves
+# them is provisa/api/sandbox_tier.py.
+SANDBOX_PREFIX = "sbx"
+TEMPLATE_PREFIX = "sbxtpl"
+
+
+def is_sandbox_tier_org(org_id: str) -> bool:
+    """Whether ``org_id`` is served by the sandbox tier: a sandbox or a demo's template org."""
+    return org_id.startswith(SANDBOX_PREFIX)
+
+
+def is_template_org(org_id: str) -> bool:
+    return org_id.startswith(TEMPLATE_PREFIX)
+
+
+def is_demo_sandbox(org_id: str) -> bool:
+    """Whether ``org_id`` is a visitor's or a named demo sandbox (not a demo's template)."""
+    return is_sandbox_tier_org(org_id) and not is_template_org(org_id)

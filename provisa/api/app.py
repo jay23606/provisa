@@ -2047,9 +2047,14 @@ async def _build_org_runtime(
             from provisa.federation.engine import build_engine, embedded_store_dsn
             from provisa.federation.runtime import EngineRuntime
 
+            from provisa.core import settings_registry
+
             rt.isolated_engine = True
             rt.federation_engine = EngineRuntime(build_engine("duckdb"), state)
             rt.federation_engine.engine.pin_materialize_store(embedded_store_dsn(org_id))
+            rt.federation_engine.engine.memory_limit = int(
+                settings_registry.value("sandbox.memory_limit")
+            )
             rt.federation_engine.bind_terminal()
         elif external_engine is not None or engine_url is not None:
             # REQ-1412: the org runs its OWN coordinator. Same dedicated-EngineRuntime shape as an
@@ -2168,6 +2173,14 @@ async def _build_org_runtime(
             from provisa.core.secrets_store import bound_to_request_org
 
             seed = state.seed_config
+            from provisa.api.sandbox_tier import is_template_org
+
+            if is_template_org(org_id):
+                # REQ-2006: a demo's template org is the demo organisation of that demo, rebuilt
+                # from the named demo's own configuration rather than the deployment's file.
+                from provisa.api.demo_templates import template_seed
+
+                seed = template_seed(org_id)
             domain_policy.configure(seed.naming.use_domains, seed.naming.default_domain)
             async with state.model_db.acquire() as conn:
                 if include_demo:
@@ -3413,6 +3426,25 @@ def create_app() -> FastAPI:
             content={"detail": str(exc), "code": exc.code, "params": exc.params},
         )
 
+    from provisa.core.sandbox_limits import SandboxDiskFull as _SandboxDiskFull
+    from provisa.federation.duckdb_runtime import WriteConflict as _WriteConflict
+
+    @app.exception_handler(_SandboxDiskFull)
+    async def _sandbox_disk_full_handler(_req: _Request, exc: _SandboxDiskFull):  # noqa: F841  # pyright: ignore[reportUnusedFunction, reportUnusedVariable]
+        # REQ-2006: a demo sandbox's folder is at its disk cap; the write was not made.
+        return _JSONResponse(
+            status_code=507,
+            content={"detail": str(exc), "code": exc.code, "params": exc.params},
+        )
+
+    @app.exception_handler(_WriteConflict)
+    async def _write_conflict_handler(_req: _Request, exc: _WriteConflict):  # noqa: F841  # pyright: ignore[reportUnusedFunction, reportUnusedVariable]
+        # REQ-2006: another write to the same rows was made at the same time; nothing retried it.
+        return _JSONResponse(
+            status_code=409,
+            content={"detail": str(exc), "code": exc.code, "params": exc.params},
+        )
+
     @app.exception_handler(_ReadRefused)
     async def _read_refused_handler(_req: _Request, exc: _ReadRefused):  # noqa: F841  # pyright: ignore[reportUnusedFunction, reportUnusedVariable]
         # A read the deployment cannot answer now (core/read_refusal.py): a table kept in a
@@ -3707,6 +3739,13 @@ def create_app() -> FastAPI:
 
             # REQ-1266: every org is bound to its own runtime, the deployment's own org included.
             await ensure_serving_runtime(env_org, selected_env)
+            from provisa.api.sandbox_tier import is_sandbox_tier_org, is_template_org
+
+            if is_sandbox_tier_org(env_org) and not is_template_org(env_org):
+                # REQ-2006, REQ-1600: a request to a demo sandbox restarts its idle expiry.
+                from provisa.api.demo_sandbox import touch
+
+                await touch(env_org)
             token = set_current_org(env_org)
             env_token = set_current_env(selected_env)
             try:
@@ -3909,6 +3948,9 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(settings_catalog_router)
+    from provisa.api.demo_sandbox_router import router as demo_sandbox_router  # REQ-2006
+
+    app.include_router(demo_sandbox_router)
     from provisa.api.admin.org_storage_router import (  # REQ-1046, REQ-1048, REQ-1049
         router as org_storage_router,
     )

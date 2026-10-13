@@ -918,6 +918,16 @@ async def watch_engine() -> None:
     await state.shared_federation_engine.watchdog()
 
 
+async def reap_demo_sandboxes() -> None:  # REQ-2006
+    """Delete the demo sandboxes no request has reached for ``sandbox.idle_ttl`` seconds. Run by
+    the sandbox tier, the one process that opens their files."""
+    from provisa.api.demo_sandbox import reap_expired
+
+    reaped = await reap_expired()
+    if reaped:
+        logger.info("demo sandboxes reaped: %s", ", ".join(reaped))
+
+
 @_in_deployment_org
 async def reap_environments() -> None:  # REQ-1523
     """Delete the environments whose expiry has passed, with their schemas and their stores.

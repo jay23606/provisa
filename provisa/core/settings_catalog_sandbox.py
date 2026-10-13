@@ -1,0 +1,71 @@
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+
+"""The demo sandboxes' limits (REQ-2006): how many may be open at once, and what each may use.
+
+A demo sandbox is an org of its own on a single-process DuckDB engine (provisa/api/sandbox_tier.py).
+Each limit is refused by name when reached, and a named sandbox's visitor is told every one of them
+with its value, read from here (the sandbox notice and the hosted-sandbox docs page)."""
+
+# Requirements: REQ-2006, REQ-1913
+
+from __future__ import annotations
+
+from provisa.core.settings_registry import Setting
+
+DECLARED: list[Setting] = [
+    Setting(
+        key="sandbox.max_concurrent",
+        card="limits",
+        type="int",
+        effect="live",  # read when a sandbox is opened
+        # REQ-2006: past it, a new visitor is asked to try again shortly. Sized from the
+        # measurement of the cloud coordinator with every published demo open.
+        req="REQ-2006",
+        env="PROVISA_SANDBOX_MAX_CONCURRENT",
+        default=10,
+        min=1,
+        unit="sandboxes",
+    ),
+    Setting(
+        key="sandbox.memory_limit",
+        card="limits",
+        type="int",
+        effect="live",  # set on each sandbox's engine when it is built
+        req="REQ-2006",
+        env="PROVISA_SANDBOX_MEMORY_LIMIT",
+        default=256 * 1024 * 1024,
+        min=32 * 1024 * 1024,
+        unit="bytes",
+    ),
+    Setting(
+        key="sandbox.disk_limit",
+        card="limits",
+        type="int",
+        effect="live",  # checked before a sandbox writes its store or takes an upload
+        # REQ-2006: the sandbox's whole folder -- its DuckDB file and its uploads.
+        req="REQ-2006",
+        env="PROVISA_SANDBOX_DISK_LIMIT",
+        default=512 * 1024 * 1024,
+        min=16 * 1024 * 1024,
+        unit="bytes",
+    ),
+    Setting(
+        key="sandbox.idle_ttl",
+        card="limits",
+        type="int",
+        effect="live",  # read when a sandbox is opened and on each request it serves
+        # REQ-2006, REQ-1600: a sandbox no request has reached for this long is deleted.
+        req="REQ-2006",
+        env="PROVISA_SANDBOX_IDLE_TTL",
+        default=86400,
+        min=300,
+        unit="seconds",
+    ),
+]

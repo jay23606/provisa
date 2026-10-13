@@ -757,6 +757,24 @@
           "cache_write": "Cache schrijven"
         }
       }
+    },
+    "sandbox": {
+      "max_concurrent": {
+        "label": "Tegelijk geopende demo-sandboxes",
+        "help": "Hoeveel demo-sandboxes tegelijk open mogen zijn. Daarboven wordt een bezoeker die een demo opent gevraagd het zo meteen opnieuw te proberen."
+      },
+      "memory_limit": {
+        "label": "Geheugen per demo-sandbox",
+        "help": "Het meeste geheugen dat de engine van één demo-sandbox mag gebruiken. Een query die meer nodig heeft, wordt geweigerd."
+      },
+      "disk_limit": {
+        "label": "Schijfruimte per demo-sandbox",
+        "help": "Het meeste dat een demo-sandbox op schijf mag bevatten: zijn gegevens en zijn geüploade bestanden samen. Een schrijfactie daarboven wordt geweigerd."
+      },
+      "idle_ttl": {
+        "label": "Inactiviteitslimiet van een demo-sandbox",
+        "help": "Een demo-sandbox die zo lang door niemand is gebruikt, wordt met alles erin verwijderd."
+      }
     }
   }
 }

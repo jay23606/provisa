@@ -757,6 +757,24 @@
           "cache_write": "Cache write"
         }
       }
+    },
+    "sandbox": {
+      "max_concurrent": {
+        "label": "Demo sandboxes open at once",
+        "help": "How many demo sandboxes may be open together. Past it, a visitor opening a demo is asked to try again shortly."
+      },
+      "memory_limit": {
+        "label": "Memory per demo sandbox",
+        "help": "The most memory one demo sandbox's engine may use. A query that needs more is refused."
+      },
+      "disk_limit": {
+        "label": "Disk per demo sandbox",
+        "help": "The most a demo sandbox may hold on disk: its data and its uploaded files together. A write past it is refused."
+      },
+      "idle_ttl": {
+        "label": "Demo sandbox inactivity limit",
+        "help": "A demo sandbox nobody has used for this long is deleted, with everything in it."
+      }
     }
   }
 }
