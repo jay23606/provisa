@@ -24,7 +24,7 @@ CRITICAL: Before answering any question about what existing code does, run a Gre
 CRITICAL: `test`, `local-dev`, and `cloud-dev` are three separate instances. A change in one must never change another.
 
 - **test** — isolated per-worktree/per-test Docker Compose projects on unique unexposed ports, self-provisioned by the suites.
-- **local-dev** — the maintainer's machine, started by the maintainer with `./start-ui-install.sh --demo` (native, `PROVISA_DEMO=true`, SQLite control plane at `~/.provisa/demo`). Never start, stop, restart, reset, or otherwise touch it — not to run tests, not to verify a change, not to demo a feature. To show something in the UI, say what to click.
+- **local-dev** — the maintainer's machine, started by the maintainer with `./start-ui-install.sh --demo` (native, `PROVISA_DEMO=true`, captive embedded PostgreSQL control plane at `~/.provisa/demo/control-pg`). Never start, stop, restart, reset, or otherwise touch it — not to run tests, not to verify a change, not to demo a feature. To show something in the UI, say what to click.
 - **cloud-dev** — cloud.provisa.dev on GCP.
 
 Each has its own control plane, config, ports, and volumes. Before any command that starts a server, touches a database, edits config, or runs docker compose, name which instance it lands on; if it is not the one the task is scoped to, do not run it. Never reuse one instance's connection details or compose project to reach another.
