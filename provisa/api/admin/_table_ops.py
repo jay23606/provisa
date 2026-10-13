@@ -571,17 +571,14 @@ async def _settle_nested_columns(pool, input, columns) -> "MutationResult | None
     given: a column kept as it was registered was settled then, and keeps its attributes (the
     repository's rule), so editing a table does not depend on its source being reachable.
 
-    A table a query produces (a query-API source's: neo4j, SPARQL, ...) has the columns its query
-    returns, typed by its preview, which refuses a column that is not a scalar (REQ-1670/REQ-1683):
-    the source has no listing of them to settle against. Nor has a data-quality checker's result
-    table (REQ-1443): its columns are the checker's result envelope, which Provisa defines and
-    writes (``dq.registration.derive_checker_table``), not anything the source holds."""
+    A source with no listing of its columns -- none through its own driver, and no live attach
+    on the bound engine to list them through (REQ-1912: a query-API source's table, which its
+    query produces; a Data Profiler source's, which a scan lands; a data-quality checker's, whose
+    result envelope Provisa defines and writes, REQ-1443) -- has nothing to settle a column
+    against: its columns are what its registration supplies."""
+    from provisa.api.admin.introspect import SourceNotListable
     from provisa.api.admin.types import MutationResult
     from provisa.core.repositories.table import stored_column_types
-
-    # A checker's result table is the one that carries its contract (derive_checker_table).
-    if input.query_template or getattr(input, "dq_contract", None):
-        return None
 
     async with pool.acquire() as conn:
         stored = await stored_column_types(
@@ -600,9 +597,12 @@ async def _settle_nested_columns(pool, input, columns) -> "MutationResult | None
         return None
     from provisa.api.admin.schema_query import resolve_available_columns_metadata
 
-    meta = await resolve_available_columns_metadata(
-        input.source_id, input.schema_name, input.table_name
-    )
+    try:
+        meta = await resolve_available_columns_metadata(
+            input.source_id, input.schema_name, input.table_name
+        )
+    except SourceNotListable:
+        return None
     by_name = {m.name: m for m in meta}
     for c in unsettled:
         listed = by_name.get(c.name)

@@ -18,9 +18,7 @@ from provisa.api.admin import _table_ops, schema_query
 from provisa.api.admin.types import AvailableColumnType
 from provisa.core.models import Column
 
-_INPUT = SimpleNamespace(
-    source_id="orders-pg", schema_name="public", table_name="orders", query_template=None
-)
+_INPUT = SimpleNamespace(source_id="orders-pg", schema_name="public", table_name="orders")
 
 
 class _Pool:
@@ -178,38 +176,54 @@ async def test_an_embedding_column_stays_the_native_array_a_similarity_search_re
     assert asked == []
 
 
-async def test_a_table_its_query_produces_is_not_listed_from_the_source(monkeypatch):
-    """A neo4j table's columns are what its Cypher returns, typed by the preview: registering it
-    asked the source for a listing a query-API source has no driver or engine attach for, and
-    registerTable failed "cannot list the columns of source 'neo4j_ui_it'"."""
-    asked = _source(monkeypatch, [], stored={})
-    neo4j = SimpleNamespace(
-        source_id="neo4j_ui_it",
-        schema_name="neo4j",
-        table_name="adopters",
-        query_template="MATCH (a:Adopter) RETURN a.id AS adopter_id, a.name AS name",
-    )
+@pytest.mark.parametrize(
+    ("source_id", "source_type"), [("neo4j_ui_it", "neo4j"), ("profiler_it", "data_profiler")]
+)
+async def test_a_source_with_no_listing_keeps_the_columns_its_registration_supplies(
+    monkeypatch, source_id, source_type
+):
+    """A source with neither a driver listing nor a live attach (REQ-1912) has nothing to settle
+    against: registerTable on a neo4j or a Data Profiler source failed "cannot list the columns of
+    source ...: ... its reads are served from replicas"."""
+    from provisa.api.admin.introspect import SourceNotListable
+
+    _source(monkeypatch, [], stored={})
+
+    async def _unlisted(source_id, schema_name, table_name):
+        raise SourceNotListable(source_id, source_type, "duckdb", "columns")
+
+    monkeypatch.setattr(schema_query, "resolve_available_columns_metadata", _unlisted)
+    unlisted = SimpleNamespace(source_id=source_id, schema_name="s", table_name="t")
     columns = [
         Column(name="adopter_id", data_type="integer", visible_to=[]),
-        Column(name="name", data_type="text", visible_to=[]),
+        Column(name="tags", data_type="text", visible_to=[]),
     ]
 
-    assert await _table_ops._settle_nested_columns(_Pool(), neo4j, columns) is None
-    assert asked == []
+    assert await _table_ops._settle_nested_columns(_Pool(), unlisted, columns) is None
+    assert [(c.name, c.data_type, c.native_type) for c in columns] == [
+        ("adopter_id", "integer", None),
+        ("tags", "text", None),
+    ]
 
 
 async def test_a_checkers_result_table_is_not_listed_from_its_source(monkeypatch):
     """A Soda or Great Expectations result table's columns are the checker's result envelope
     (REQ-1443), which Provisa writes; the checker source has no listing of them, and registering
     one failed "cannot list the columns of source 'dq-soda'" (core e2e lane, 87d09e9c5)."""
-    asked = _source(monkeypatch, [], stored={})
+    from provisa.api.admin.introspect import SourceNotListable
+
+    _source(monkeypatch, [], stored={})
+
+    async def _unlisted(source_id, schema_name, table_name):
+        raise SourceNotListable(source_id, "soda", "duckdb", "columns")
+
+    monkeypatch.setattr(schema_query, "resolve_available_columns_metadata", _unlisted)
     checker = SimpleNamespace(
         source_id="dq-soda",
         schema_name="main",
         table_name="orders_rows_soda_dq_dq",
-        query_template=None,
         dq_contract="dataset: provisa/sales/orders\nchecks:\n  - row_count > 0\n",
     )
     columns = [Column(name="outcome", data_type="text", visible_to=[])]
     assert await _table_ops._settle_nested_columns(_Pool(), checker, columns) is None
-    assert asked == []
+    assert columns[0].native_type is None
