@@ -6,6 +6,7 @@
       "domain_required": "{{name}} にドメインが指定されていません。コマンドまたは Webhook はドメインに属します",
       "function_not_found": "関数「{{name}}」が見つかりません",
       "source_not_connected": "ソース「{{source}}」が接続されていません",
+      "statement_invalid": "コマンド {{name}}: {{reason}}",
       "test_endpoint_disabled": "テストエンドポイントは無効です（非本番環境で有効にするには PROVISA_ENABLE_TEST_ENDPOINTS を設定してください）。",
       "unknown_action_type": "不明な actionType「{{action_type}}」です",
       "unknown_role": "不明なロール「{{role}}」です",

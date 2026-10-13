@@ -6,6 +6,7 @@
       "domain_required": "{{name}} noemt geen domein: een opdracht of webhook hoort bij een domein",
       "function_not_found": "Functie '{{name}}' niet gevonden",
       "source_not_connected": "Bron '{{source}}' niet verbonden",
+      "statement_invalid": "Opdracht {{name}}: {{reason}}",
       "test_endpoint_disabled": "Test-endpoint is uitgeschakeld (stel PROVISA_ENABLE_TEST_ENDPOINTS in om dit buiten productie in te schakelen).",
       "unknown_action_type": "Onbekend actionType '{{action_type}}'",
       "unknown_role": "Onbekende rol '{{role}}'",

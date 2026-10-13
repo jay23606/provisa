@@ -68,6 +68,28 @@ describe("CommandFormFields — REQ-885 implementation kinds", () => {
     expect(screen.getByTestId("command-binding-callable")).toBeInTheDocument();
   });
 
+  it("asks a statement command for its SQL and nothing its statement declares", () => {
+    // REQ-2001: the statement declares the kind, the written table and the output.
+    render(
+      <Harness
+        initial={{
+          actionType: "function",
+          implKind: "statement",
+          arguments: [{ name: "since", type: "String", argKind: "column_value" }],
+        }}
+      />,
+    );
+    expect(screen.getByTestId("command-binding-sql")).toBeInTheDocument();
+    expect(screen.queryByTestId("command-writes-table-select")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("command-return-type-select")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("command-materialize-switch")).not.toBeInTheDocument();
+    expect(screen.queryByText("Kind")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Argument kind")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: /Write an argument as \{\{name\}\}/ }),
+    ).toBeInTheDocument();
+  });
+
   it("exposes the materialize identity switch for hosted kinds", () => {
     render(<Harness initial={{ actionType: "function", implKind: "http" }} />);
     expect(screen.getByTestId("command-materialize-switch")).toBeInTheDocument();

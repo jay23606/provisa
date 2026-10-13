@@ -6,6 +6,7 @@
       "domain_required": "{{name}} не указывает домен: команда или вебхук относится к домену",
       "function_not_found": "Функция '{{name}}' не найдена",
       "source_not_connected": "Источник '{{source}}' не подключен",
+      "statement_invalid": "Команда {{name}}: {{reason}}",
       "test_endpoint_disabled": "Тестовая конечная точка отключена (задайте PROVISA_ENABLE_TEST_ENDPOINTS, чтобы включить вне production).",
       "unknown_action_type": "Неизвестный actionType '{{action_type}}'",
       "unknown_role": "Неизвестная роль '{{role}}'",

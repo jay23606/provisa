@@ -44,6 +44,8 @@
     "bindingGrpcMethod": "gRPC मेथड",
     "bindingTls": "TLS उपयोग करें",
     "bindingCallable": "Python कॉलेबल (module:attr)",
+    "bindingSql": "SQL कथन",
+    "bindingSqlHint": "एक Provisa SQL कथन, कॉल करने वाले के रूप में चलाया जाता है। तर्क को {{placeholder}} के रूप में लिखें: हर तर्क आता है और मान के रूप में बाँधा जाता है।",
     "materialize": "मटीरियलाइज़ करें (admin/definer पहचान)",
     "materializeHint": "चालू: admin के रूप में चलाएँ, आउटपुट पर गवर्नेंस लागू करें। बंद: कॉलर के रूप में चलाएँ, इनपुट पर गवर्नेंस लागू करें।",
     "argKind": "आर्ग्युमेंट प्रकार",

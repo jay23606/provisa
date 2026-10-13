@@ -44,6 +44,8 @@
     "bindingGrpcMethod": "Metodo gRPC",
     "bindingTls": "Usa TLS",
     "bindingCallable": "Callable Python (module:attr)",
+    "bindingSql": "Istruzione SQL",
+    "bindingSqlHint": "Un’istruzione SQL di Provisa, eseguita come il chiamante. Scrivi un argomento come {{placeholder}}: ogni argomento compare ed è associato come valore.",
     "materialize": "Materializza (identità admin/definer)",
     "materializeHint": "Attivo: esecuzione come admin, governance dell'output. Disattivo: esecuzione come chiamante, governance degli input.",
     "argKind": "Tipo di argomento",

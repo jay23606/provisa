@@ -244,7 +244,9 @@ async def invoke_command(
             await _require_approval(fn, args, state, role_id, role)
         _record_call(name, args, state, role_id)
         rows = await dispatch_function(fn, args, state, role_id)
-        if fn.get("writes_table"):
+        # A statement command's write passed the pipeline's own write terminal, which already
+        # did what follows a write to its table (REQ-2001).
+        if fn.get("writes_table") and fn.get("impl_kind") != "statement":
             await _table_was_written(fn, state)
         return await govern_action_rows(rows, fn, role_id, state)
     # A webhook is a governed command too (REQ-872): every surface routes here, so a webhook is

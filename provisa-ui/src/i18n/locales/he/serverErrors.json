@@ -6,6 +6,7 @@
       "domain_required": "{{name}} אינו מציין דומיין: פקודה או webhook שייכים לדומיין",
       "function_not_found": "הפונקציה '{{name}}' לא נמצאה",
       "source_not_connected": "המקור '{{source}}' אינו מחובר",
+      "statement_invalid": "פקודה {{name}}: {{reason}}",
       "test_endpoint_disabled": "נקודת הקצה לבדיקות מושבתת (הגדירו את PROVISA_ENABLE_TEST_ENDPOINTS כדי להפעיל בסביבה שאינה ייצור).",
       "unknown_action_type": "actionType לא מוכר '{{action_type}}'",
       "unknown_role": "תפקיד לא מוכר '{{role}}'",

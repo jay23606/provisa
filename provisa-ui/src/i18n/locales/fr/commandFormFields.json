@@ -44,6 +44,8 @@
     "bindingGrpcMethod": "Méthode gRPC",
     "bindingTls": "Utiliser TLS",
     "bindingCallable": "Callable Python (module:attr)",
+    "bindingSql": "Instruction SQL",
+    "bindingSqlHint": "Une instruction SQL Provisa, exécutée en tant qu’appelant. Écrivez un argument sous la forme {{placeholder}} : chaque argument figure et est lié comme une valeur.",
     "materialize": "Matérialiser (identité admin/définisseur)",
     "materializeHint": "Activé : exécution en tant qu'admin, gouvernance de la sortie. Désactivé : exécution en tant qu'appelant, gouvernance des entrées.",
     "argKind": "Type d'argument",

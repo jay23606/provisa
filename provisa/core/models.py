@@ -1693,6 +1693,8 @@ class Function(BaseModel):  # REQ-205, REQ-206, REQ-207, REQ-208
     # named by source_id and function_name and passed through as is.
     # source_query (REQ-1988): a query command running its source's native query -- a MongoDB
     # pipeline, its binding {"inputCollection", "pipeline"} -- with the call's typed arguments.
+    # statement (REQ-2001): a Provisa SQL statement, its binding {"sql"}, an argument written
+    # {{name}}; run through the one pipeline as the caller's role (executor/statement_command).
     impl_kind: str = "source_procedure"
     # Per-kind transport+location. Never a fallback: dispatch fails loud when a hosted kind
     # is registered without the binding keys its transport requires (REQ-885).
@@ -1731,6 +1733,26 @@ class Function(BaseModel):  # REQ-205, REQ-206, REQ-207, REQ-208
         from provisa.mongodb.native_query import check_command
 
         check_command(self.name, self.binding, [a.model_dump() for a in self.arguments])
+        return self
+
+    @model_validator(mode="after")
+    def _statement_is_the_declaration(self) -> "Function":  # REQ-2001
+        """A statement command's kind and written table are what its statement declares: one
+        declared beside it that contradicts the statement is refused naming both; one left
+        undeclared is the statement's."""
+        if self.impl_kind != "statement":
+            return self
+        from provisa.core.statement_declaration import check
+
+        found = check(
+            self.name,
+            self.binding,
+            [a.name for a in self.arguments],
+            self.kind if "kind" in self.model_fields_set else None,
+            self.writes_table,
+        )
+        self.kind = found.kind
+        self.writes_table = found.writes
         return self
 
     @model_validator(mode="before")

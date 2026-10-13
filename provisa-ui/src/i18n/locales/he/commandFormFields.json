@@ -44,6 +44,8 @@
     "bindingGrpcMethod": "מתודת gRPC",
     "bindingTls": "שימוש ב-TLS",
     "bindingCallable": "Python callable (module:attr)",
+    "bindingSql": "משפט SQL",
+    "bindingSqlHint": "משפט SQL אחד של Provisa, שרץ בשם הקורא. כתבו ארגומנט כ-{{placeholder}}: כל ארגומנט מופיע ונקשר כערך.",
     "materialize": "מטריאליזציה (זהות admin/definer)",
     "materializeHint": "פועל: ריצה כ-admin, ממשל על הפלט. כבוי: ריצה כזהות הקורא, ממשל על הקלטים.",
     "argKind": "סוג ארגומנט",

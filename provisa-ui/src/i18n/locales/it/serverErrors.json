@@ -6,6 +6,7 @@
       "domain_required": "{{name}} non indica alcun dominio: un comando o un webhook appartiene a un dominio",
       "function_not_found": "Funzione '{{name}}' non trovata",
       "source_not_connected": "Origine '{{source}}' non connessa",
+      "statement_invalid": "Comando {{name}}: {{reason}}",
       "test_endpoint_disabled": "L'endpoint di test è disabilitato (impostare PROVISA_ENABLE_TEST_ENDPOINTS per abilitarlo in ambienti non di produzione).",
       "unknown_action_type": "actionType '{{action_type}}' sconosciuto",
       "unknown_role": "Ruolo '{{role}}' sconosciuto",

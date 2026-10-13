@@ -17,6 +17,7 @@ import {
   NumberInput,
   Select,
   Switch,
+  Textarea,
   TextInput,
   Title,
 } from "@mantine/core";
@@ -161,6 +162,9 @@ export function CommandFormFields({
   // so its kind, arguments and answer follow from the operation, not from this form.
   const operationSchema = selectedSource ? OPERATION_SCHEMA[selectedSource.type] : undefined;
   const isSourceOperation = form.implKind === "source_operation";
+  // REQ-2001: a statement command's statement declares its kind, its written table and its
+  // output, so the form asks for none of them.
+  const isStatement = form.implKind === "statement";
 
   return (
     <>
@@ -335,6 +339,23 @@ export function CommandFormFields({
                   </FormLayout>
                 </>
               )}
+              {isStatement && (
+                <FormField
+                  help={t("commandFormFields.bindingSqlHint", { placeholder: "{{name}}" })}
+                  size="long"
+                >
+                  <Textarea
+                    label={t("commandFormFields.bindingSql")}
+                    required
+                    autosize
+                    minRows={4}
+                    value={bindingStr("sql")}
+                    onChange={(e) => setBinding("sql", e.currentTarget.value)}
+                    placeholder="INSERT INTO kb.docs (id, title) SELECT id, subject FROM support.tickets WHERE updated_at > {{since}}"
+                    data-testid="command-binding-sql"
+                  />
+                </FormField>
+              )}
               {form.implKind === "python" && (
                 <FormField size="long">
                   <TextInput
@@ -350,7 +371,7 @@ export function CommandFormFields({
               {!essential && (
                 <>
                   <FormChecks>
-                    {form.implKind !== "source_procedure" && !isSourceOperation && (
+                    {form.implKind !== "source_procedure" && !isSourceOperation && !isStatement && (
                       <FormField help={t("commandFormFields.materializeHint")} size="long">
                         <Switch
                           label={t("commandFormFields.materialize")}
@@ -363,7 +384,7 @@ export function CommandFormFields({
                       </FormField>
                     )}
                   </FormChecks>
-                  {!isSourceOperation && (
+                  {!isSourceOperation && !isStatement && (
                     <FormField size="medium">
                       <Select
                         label={t("commandFormFields.returnType")}
@@ -384,7 +405,7 @@ export function CommandFormFields({
                       />
                     </FormField>
                   )}
-                  {!isSourceOperation && form.returnSchemaMode === "table" && (
+                  {!isSourceOperation && !isStatement && form.returnSchemaMode === "table" && (
                     <FormField size="medium">
                       <Select
                         label={t("commandFormFields.returnsTable")}
@@ -410,19 +431,21 @@ export function CommandFormFields({
             {/* REQ-1924, REQ-871: the table a call changes; what is held of it is refreshed after. */}
             {!essential && (
               <>
-                <FormLayout>
-                  <FormField help={t("commandFormFields.writesTableHint")} size="medium">
-                    <Select
-                      label={t("commandFormFields.writesTable")}
-                      placeholder={t("commandFormFields.selectTable")}
-                      data={physicalTableOptions(form.sourceId)}
-                      value={form.writesTable || null}
-                      onChange={(val) => setForm({ ...form, writesTable: val ?? "" })}
-                      clearable
-                      data-testid="command-writes-table-select"
-                    />
-                  </FormField>
-                </FormLayout>
+                {!isStatement && (
+                  <FormLayout>
+                    <FormField help={t("commandFormFields.writesTableHint")} size="medium">
+                      <Select
+                        label={t("commandFormFields.writesTable")}
+                        placeholder={t("commandFormFields.selectTable")}
+                        data={physicalTableOptions(form.sourceId)}
+                        value={form.writesTable || null}
+                        onChange={(val) => setForm({ ...form, writesTable: val ?? "" })}
+                        clearable
+                        data-testid="command-writes-table-select"
+                      />
+                    </FormField>
+                  </FormLayout>
+                )}
                 {/* REQ-1924: a call runs only once the deployment's approval hook approves it. */}
                 <FormLayout>
                   <FormChecks>
@@ -587,7 +610,7 @@ export function CommandFormFields({
         </FormField>
         {!essential && (
           <>
-            {!isSourceOperation && (
+            {!isSourceOperation && !isStatement && (
               <FormField size="medium">
                 <Select
                   label={t("commandFormFields.kind")}
@@ -651,18 +674,22 @@ export function CommandFormFields({
                           allowDeselect={false}
                         />
                       </FormField>
-                      {form.actionType === "function" && form.implKind !== "source_procedure" && (
-                        <FormField size="medium">
-                          <Select
-                            aria-label={t("commandFormFields.argKind")}
-                            value={arg.argKind ?? "column_value"}
-                            onChange={(val) => handleArgChange(i, "argKind", val ?? "column_value")}
-                            data={ARG_KINDS}
-                            allowDeselect={false}
-                            data-testid={`command-arg-kind-${i}`}
-                          />
-                        </FormField>
-                      )}
+                      {form.actionType === "function" &&
+                        form.implKind !== "source_procedure" &&
+                        !isStatement && (
+                          <FormField size="medium">
+                            <Select
+                              aria-label={t("commandFormFields.argKind")}
+                              value={arg.argKind ?? "column_value"}
+                              onChange={(val) =>
+                                handleArgChange(i, "argKind", val ?? "column_value")
+                              }
+                              data={ARG_KINDS}
+                              allowDeselect={false}
+                              data-testid={`command-arg-kind-${i}`}
+                            />
+                          </FormField>
+                        )}
                       <ActionIcon
                         variant="subtle"
                         color="red"
@@ -748,6 +775,7 @@ export function CommandFormFields({
             {form.actionType === "function" &&
               form.implKind !== "source_procedure" &&
               !isSourceOperation &&
+              !isStatement &&
               form.returnSchemaMode === "dataset" && (
                 // The output dataset's columns: each an entry of its row and who sees it and how it
                 // is masked, set apart from the next.

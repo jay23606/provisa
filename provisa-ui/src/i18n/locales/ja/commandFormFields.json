@@ -44,6 +44,8 @@
     "bindingGrpcMethod": "gRPCメソッド",
     "bindingTls": "TLSを使用",
     "bindingCallable": "Python呼び出し可能オブジェクト（module:attr）",
+    "bindingSql": "SQL ステートメント",
+    "bindingSqlHint": "呼び出し元として実行される Provisa SQL ステートメント 1 つ。引数は {{placeholder}} と書きます。各引数は必ず使われ、値としてバインドされます。",
     "materialize": "マテリアライズ（管理者/定義者の権限で実行）",
     "materializeHint": "オン: 管理者として実行し、出力をガバナンスします。オフ: 呼び出し元として実行し、入力をガバナンスします。",
     "argKind": "引数の種別",

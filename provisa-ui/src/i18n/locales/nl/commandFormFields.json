@@ -44,6 +44,8 @@
     "bindingGrpcMethod": "gRPC-methode",
     "bindingTls": "TLS gebruiken",
     "bindingCallable": "Python-callable (module:attr)",
+    "bindingSql": "SQL-instructie",
+    "bindingSqlHint": "Eén Provisa-SQL-instructie, uitgevoerd als de aanroeper. Schrijf een argument als {{placeholder}}: elk argument komt voor en wordt als waarde gebonden.",
     "materialize": "Materialiseren (admin-/definer-identiteit)",
     "materializeHint": "Aan: uitvoeren als admin, de uitvoer governen. Uit: uitvoeren als de aanroeper, de invoer governen.",
     "argKind": "Argumentsoort",
