@@ -77,6 +77,14 @@ ALTER TABLE sources ADD COLUMN IF NOT EXISTS password_ref TEXT NOT NULL DEFAULT 
 -- connection; the ``synthetic`` column names the store schema, the tables generated there and the
 -- type the model gives the source ({schema, tables, model_type}).
 ALTER TABLE sources ADD COLUMN IF NOT EXISTS binding TEXT NOT NULL DEFAULT 'own' CHECK (binding IN ('own', 'copied', 'unbound', 'synthetic'));
+-- REQ-1942: a sources table that predates ``synthetic`` kept the three-binding check (ADD COLUMN IF
+-- NOT EXISTS leaves an existing column's constraint as it was), and generating a model refused it.
+DO $$ BEGIN
+    ALTER TABLE sources DROP CONSTRAINT IF EXISTS sources_binding_check;
+    ALTER TABLE sources ADD CONSTRAINT sources_binding_check
+        CHECK (binding IN ('own', 'copied', 'unbound', 'synthetic'));
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
 ALTER TABLE sources ADD COLUMN IF NOT EXISTS synthetic JSONB;
 
 CREATE TABLE IF NOT EXISTS domains (

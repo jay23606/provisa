@@ -78,6 +78,7 @@ stores = Table(
     Column(
         "binding", Text, nullable=False, server_default="own"
     ),  # REQ-1942: own | copied | unbound
+    CheckConstraint("binding IN ('own', 'copied', 'unbound')", name="stores_binding_check"),
 )
 
 org_regions = Table(
@@ -138,7 +139,10 @@ sources = Table(
     # path refuses a query naming it rather than dialling whatever is local to the node.
     Column(
         "binding", Text, nullable=False, server_default="own"
-    ),  # REQ-1942: own | copied | unbound
+    ),  # REQ-1942: own | copied | unbound | synthetic
+    CheckConstraint(
+        "binding IN ('own', 'copied', 'unbound', 'synthetic')", name="sources_binding_check"
+    ),
     # REQ-1695: the source's password as a SECRET REFERENCE, never a credential. A literal typed
     # into the Sources form is put into the org vault (provisa.core.secrets_store) and what lands
     # here is the ``${secret:NAME}`` that names it; a reference the operator typed themselves is
@@ -406,6 +410,10 @@ relationships = Table(
     Column("via_type_column", Text),
     Column("via_type_value", Text),
     Column("via_label_source", Text),
+    CheckConstraint(
+        "via_label_source IN ('column', 'table', 'fixed')",
+        name="relationships_via_label_source_check",
+    ),
     Column("source_json_key", Text),
     Column("owner", Text),
     Column("version", Integer, nullable=False, server_default="1"),
@@ -835,6 +843,7 @@ kafka_sources = Table(
     Column(
         "binding", Text, nullable=False, server_default="own"
     ),  # REQ-1942: own | copied | unbound
+    CheckConstraint("binding IN ('own', 'copied', 'unbound')", name="kafka_sources_binding_check"),
 )
 
 kafka_topics = Table(
@@ -873,6 +882,7 @@ kafka_sinks = Table(
     Column(
         "binding", Text, nullable=False, server_default="own"
     ),  # REQ-1942: own | copied | unbound
+    CheckConstraint("binding IN ('own', 'copied', 'unbound')", name="kafka_sinks_binding_check"),
 )
 
 api_sources = Table(
@@ -892,6 +902,7 @@ api_sources = Table(
     Column(
         "binding", Text, nullable=False, server_default="own"
     ),  # REQ-1942: own | copied | unbound
+    CheckConstraint("binding IN ('own', 'copied', 'unbound')", name="api_sources_binding_check"),
     CheckConstraint(
         "type IN ('openapi', 'graphql_api', 'grpc_api', 'neo4j', 'sparql')",
         name="api_sources_type_check",
@@ -1271,6 +1282,10 @@ email_send_authority_audit = Table(
     Column("granted_by", Text),
     Column("org_id", Text),
     Column("action", Text, nullable=False),
+    CheckConstraint(
+        "action IN ('granted', 'revoked', 'verified')",
+        name="email_send_authority_audit_action_check",
+    ),
     Column("reason", Text),
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
 )
