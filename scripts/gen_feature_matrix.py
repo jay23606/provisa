@@ -6,8 +6,12 @@
 # This source code is licensed under the Business Source License 1.1
 """Generate docs/exports/feature_matrix.csv for buyer-facing feature evaluation.
 
-Includes all non-rejected requirements. Columns:
-  ID, Group, Category, Priority, Status, Description, Use Case
+One row per published feature (docs/arch/features.yaml; internal features are left out). Columns:
+  Feature, Section, Audience, Kind, Status, Description, Paragraphs
+
+Description is the feature's paragraphs. Paragraphs lists each paragraph id with the requirements
+that serve it ("paragraph-id: REQ-1 REQ-2; ..."). Status is Available when none of the feature's
+requirements is still open, else In development.
 
 Usage:
   python scripts/gen_feature_matrix.py
@@ -20,51 +24,50 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
+from provisa.tools.feature_schema import FeaturesFile, feature_status  # type: ignore[import]
 from provisa.tools.req_schema import RequirementsFile, Status  # type: ignore[import]
 
 YAML_PATH = Path("docs/arch/requirements.yaml")
 OUT_PATH = Path("docs/exports/feature_matrix.csv")
 
-_STATUS_LABEL = {
-    "complete": "Available",
-    "in-progress": "In Development",
-    "proposed": "Planned",
-    "accepted": "Accepted",
-    "rejected": "Not Planned",
-    "superseded": "Superseded",
-}
-
 
 def main() -> int:
     try:
         rf = RequirementsFile.load(YAML_PATH)
+        ff = FeaturesFile.load()
     except Exception as e:
         print(f"ERROR: {e}", file=sys.stderr)
         return 2
 
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-    rows = [r for r in rf.requirements if r.status not in {Status.rejected, Status.superseded}]
+    reqs = [r for r in rf.requirements if r.status != Status.rejected]
+    by_paragraph: dict[str, list[str]] = {}
+    for r in reqs:
+        by_paragraph.setdefault(r.feature or "", []).append(r.id)
+    features = [f for f in ff.features if f.published]
 
     with OUT_PATH.open("w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(
-            ["ID", "Group", "Category", "Priority", "Status", "Description", "Use Case"]
+            ["Feature", "Section", "Audience", "Kind", "Status", "Description", "Paragraphs"]
         )
-        for req in rows:
+        for feat in features:
             writer.writerow(
                 [
-                    req.id,
-                    req.group,
-                    req.category,
-                    req.priority.value,
-                    _STATUS_LABEL.get(req.status.value, req.status.value),
-                    req.description.replace("\n", " ").strip(),
-                    (req.use_case or "").replace("\n", " ").strip(),
+                    feat.name,
+                    feat.section,
+                    feat.audience.value if feat.audience else "",
+                    feat.visibility.value,
+                    feature_status({p.id for p in feat.paragraphs}, reqs),
+                    "\n\n".join(" ".join(p.text.split()) for p in feat.paragraphs),
+                    "; ".join(
+                        f"{p.id}: {' '.join(by_paragraph.get(p.id, []))}" for p in feat.paragraphs
+                    ),
                 ]
             )
 
-    print(f"Written: {OUT_PATH} ({len(rows)} features)")
+    print(f"Written: {OUT_PATH} ({len(features)} features)")
     return 0
 
 

@@ -23,6 +23,7 @@ lint-imports:
 
 sync-reqs:
 	python scripts/gen_requirements_md.py
+	python scripts/gen_features_doc.py
 	python scripts/gen_features.py
 	python scripts/gen_feature_matrix.py
 	python scripts/gen_traceability_matrix.py

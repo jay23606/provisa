@@ -102,6 +102,9 @@ class Requirement(BaseModel):
     rejection_reason: Optional[str] = None
     superseded_by: Optional[str] = None
     competitive_position: Optional[CompetitivePosition] = None
+    # The feature paragraph (docs/arch/features.yaml) this requirement serves; checked against
+    # that file by scripts/validate_requirements.py.
+    feature: Optional[str] = None
 
     @field_validator("id")
     @classmethod
