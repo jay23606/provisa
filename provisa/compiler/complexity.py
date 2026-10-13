@@ -45,6 +45,13 @@ REMOTE_API_SOURCE_TYPES = frozenset({"openapi", "graphql_remote", "grpc_remote"}
 REMOTE_RELATION_POINTS = 10
 
 
+def api_source_types() -> frozenset[str]:
+    """The source types whose tables are backed by an API."""
+    from provisa.api_source.models import ApiSourceType
+
+    return frozenset(e.value for e in ApiSourceType) | REMOTE_API_SOURCE_TYPES
+
+
 @dataclass(frozen=True)
 class Complexity:
     """What a statement asks for, and the score those add up to."""

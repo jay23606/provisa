@@ -37,12 +37,9 @@ def compile_view_sql_to_physical(sql: str, ctx) -> str:
     catalog-qualified *physical* plan. Normalize first (sqlglot parse) so unquoted
     semantic refs resolve, then catalog-qualify — the exact rewrite the query path
     applies to inline views. Idempotent on already-physical SQL."""
-    from provisa.compiler.sql_rewrite import (
-        normalize_table_refs,
-        rewrite_semantic_to_catalog_physical,
-    )
+    from provisa.compiler.sql_rewrite import lower_to_catalog_physical
 
-    return rewrite_semantic_to_catalog_physical(normalize_table_refs(sql, ctx), ctx)
+    return lower_to_catalog_physical(sql, ctx)
 
 
 def compile_registry_mvs_to_physical(mv_registry, ctx) -> None:

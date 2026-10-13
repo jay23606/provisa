@@ -428,6 +428,16 @@ def _all_table_metas(ctx: CompilationContext) -> list[TableMeta]:
     return metas
 
 
+def lower_to_catalog_physical(sql: str, ctx: CompilationContext) -> str:  # REQ-641
+    """A governed semantic statement lowered to catalog-physical, the one way every surface lowers
+    one: its table refs normalized first -- an unaliased ref pinned to its own name as an alias,
+    which the statement's column qualifiers bind to (``normalize_table_refs``) -- then renamed to
+    their physical names. Lowered without the first step, a ref the statement reads unaliased
+    (a Cypher node's star projection, ``SELECT "pets"."id" ... FROM "pet_store"."pets"``) was
+    renamed under its qualifiers, which then named a table the statement no longer had."""
+    return rewrite_semantic_to_catalog_physical(normalize_table_refs(sql, ctx), ctx)
+
+
 def rewrite_semantic_to_catalog_physical(sql: str, ctx: CompilationContext) -> str:  # REQ-641
     """Replace semantic and physical table refs with catalog-qualified physical refs.
 

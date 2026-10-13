@@ -190,6 +190,26 @@ class TestStarExpansion:
         result = apply_governance(sql, gov)
         assert "NULL" in result
 
+    def test_an_api_parameter_is_not_expanded_from_star(self):  # REQ-301
+        """A native filter column (``_nf_status``) is an input the payload never carries: no
+        relation an API table is read from (hot CTE, engine-cache table) holds it, and ``SELECT *``
+        naming it answered "Table pet_by_status does not have a column named _nf_status"."""
+        ctx = SimpleNamespace(tables={}, refusal=None, kept={}, columns_outside_relation=set())
+        columns = [
+            {"column_name": "id", "visible_to": []},
+            {"column_name": "status", "visible_to": []},
+            {"column_name": "_nf_status", "visible_to": [], "native_filter_type": "query_param"},
+        ]
+        gov = build_governance_context(
+            "analyst",
+            None,
+            {},
+            ctx,
+            [{"id": 1, "source_id": "pet-store", "domain_id": "d", "columns": columns}],
+            role={"domain_access": ["*"]},
+        )
+        assert [name for name, _ in gov.all_columns[1]] == ["id", "status"]
+
 
 class TestUnionGovernance:
     def test_union_branches_governed_independently(self):
