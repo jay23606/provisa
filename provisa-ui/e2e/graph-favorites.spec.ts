@@ -65,10 +65,11 @@ test("clicking favorite label loads query into editor (edit mode)", async ({ pag
 
   await favItem.locator(".graph-fav-label").click();
 
-  // Query loads into the top-bar collapsed display (not a frame editor)
+  // Query loads into the top-bar collapsed display (not a frame editor). The display shows the
+  // query as its text; the full query is its hover tip (the shared Tip), not a native title.
   const queryDisplay = page.locator(".gf-header-query-collapsed");
   await expect(queryDisplay).toBeVisible({ timeout: 5000 });
-  await expect(queryDisplay).toHaveAttribute("title", QUERY);
+  await expect(queryDisplay).toHaveText(QUERY);
 });
 
 test("rename inline: click ✎ shows input, Enter commits", async ({ page }) => {
