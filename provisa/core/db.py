@@ -57,12 +57,13 @@ def _validate_org_id(org_id: str) -> None:
 
 # Default domain rows seeded by schema.sql; FK targets other tenant rows depend
 # on (domain_id='' must always resolve). Re-seeded on the portable path.
-# REQ-1386: ops ships with org_admin as steward (REQ-609 — never PENDING).
+# REQ-1386: ops ships with org_admin as steward (REQ-609 — never PENDING). A demo's own domains
+# (the pet store's pet-store and shelter) are its config's, never seeded: a seeded one appeared in
+# every org and every other demo.
 _SEED_DOMAINS: tuple[tuple[str, str, str | None], ...] = (
     ("", "No domain", None),
     ("meta", "System metadata", None),
     ("ops", "Operational telemetry", "org_admin"),
-    ("shelter", "Animal shelter staff and breed management", None),
 )
 
 # REQ-1266/REQ-1297/REQ-1597: the six system template roles, mirrored from schema.sql's seed (lines

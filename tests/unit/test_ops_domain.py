@@ -355,6 +355,7 @@ async def test_report_views_functional(uri):
     from provisa.core.database import Database, create_engine_from_url
     from provisa.core.db import _init_schema_portable
     from provisa.core.schema_org import (
+        domains,
         query_audit_log,
         registered_tables,
         sources,
@@ -367,6 +368,8 @@ async def test_report_views_functional(uri):
     await _init_schema_portable(db)
     try:
         async with db.acquire() as conn:
+            # The tables' domain, as a config declares it: no demo domain is seeded.
+            await conn.execute_core(insert(domains).values(id="shelter", description="shelter"))
             await conn.execute_core(insert(sources).values(id="s1", type="postgres"))
             await conn.execute_core(
                 insert(registered_tables).values(

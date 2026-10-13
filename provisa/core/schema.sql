@@ -102,10 +102,6 @@ INSERT INTO domains (id, description, steward) VALUES ('ops', 'Operational telem
 ON CONFLICT (id) DO NOTHING;
 
 
--- Seed demo shelter domain
-INSERT INTO domains (id, description) VALUES ('shelter', 'Animal shelter staff and breed management')
-ON CONFLICT (id) DO NOTHING;
-
 -- REQ-1634: a data product groups tables within a single domain for governed publication.
 -- REQ-1660: fields aligned to the ODPS (Open Data Product Standard) metamodel where Provisa
 -- already has the underlying source of truth -- team_role/owner_role resolve to individuals
