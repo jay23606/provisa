@@ -255,7 +255,8 @@
       "cannot_modify_administrative": "Administrative Rollen können nicht geändert werden",
       "has_dependents": "Auf die Rolle {{role}} verweisen noch {{count}} Objekt(e); entfernen Sie zuerst diese Verweise",
       "not_found": "Rolle nicht gefunden",
-      "org_selection_required": "Organisationsauswahl erforderlich"
+      "org_selection_required": "Organisationsauswahl erforderlich",
+      "already_exists": "Die Rolle '{{role}}' existiert bereits"
     },
     "schema": {
       "allowed_domains_updated": "Zulässige Domänen für Quelle '{{source}}' aktualisiert",
@@ -399,7 +400,8 @@
       "relationship_ambiguous_table": "Der Tabellenname '{{table}}' ({{end}}) bezeichnet eine Tabelle in mehr als einer Quelle ({{sources}})",
       "relationship_unknown_source": "Die Quelltabelle '{{table}}' ist nicht registriert",
       "relationship_unknown_target": "Die Zieltabelle '{{table}}' ist nicht registriert",
-      "relationship_unknown_junction": "Die Verknüpfungstabelle '{{table}}' ist nicht registriert"
+      "relationship_unknown_junction": "Die Verknüpfungstabelle '{{table}}' ist nicht registriert",
+      "source_id_taken": "Die Quelle '{{source}}' existiert bereits"
     },
     "secrets": {
       "name_refused": "{{name}} ist kein Name innerhalb der Secrets dieser Organisation in {{service}}: Ein Name ist relativ zur Organisation und kann sie nicht verlassen",
@@ -465,7 +467,8 @@
       "no_active_org": "An diese Anfrage ist keine Organisation gebunden. Melden Sie sich zuerst bei einer Organisation an.",
       "no_fields_to_update": "Keine Felder zu aktualisieren",
       "self_role_change": "Ein Benutzer kann seine eigene Rolle nicht ändern. Bitten Sie einen anderen Administrator.",
-      "user_not_found": "Benutzer nicht gefunden"
+      "user_not_found": "Benutzer nicht gefunden",
+      "username_taken": "Der Benutzer '{{username}}' existiert bereits"
     },
     "cypher": {
       "command_call_refused": "{{reason}}"

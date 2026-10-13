@@ -255,7 +255,8 @@
       "cannot_modify_administrative": "Нельзя изменять административные роли",
       "has_dependents": "На роль {{role}} всё ещё ссылаются объекты ({{count}}); сначала удалите эти ссылки",
       "not_found": "Роль не найдена",
-      "org_selection_required": "Требуется выбор организации"
+      "org_selection_required": "Требуется выбор организации",
+      "already_exists": "Роль '{{role}}' уже существует"
     },
     "schema": {
       "allowed_domains_updated": "Разрешенные домены обновлены для источника '{{source}}'",
@@ -399,7 +400,8 @@
       "relationship_ambiguous_table": "Имя таблицы '{{table}}' ({{end}}) обозначает таблицу более чем в одном источнике ({{sources}})",
       "relationship_unknown_source": "Исходная таблица '{{table}}' не зарегистрирована",
       "relationship_unknown_target": "Целевая таблица '{{table}}' не зарегистрирована",
-      "relationship_unknown_junction": "Связующая таблица '{{table}}' не зарегистрирована"
+      "relationship_unknown_junction": "Связующая таблица '{{table}}' не зарегистрирована",
+      "source_id_taken": "Источник '{{source}}' уже существует"
     },
     "secrets": {
       "name_refused": "{{name}} не является именем в пределах секретов этой организации в {{service}}: имя задаётся относительно организации и не может выходить за её пределы",
@@ -465,7 +467,8 @@
       "no_active_org": "К этому запросу не привязана организация. Сначала войдите в организацию.",
       "no_fields_to_update": "Нет полей для обновления",
       "self_role_change": "Пользователь не может изменить собственную роль. Обратитесь к другому администратору.",
-      "user_not_found": "Пользователь не найден"
+      "user_not_found": "Пользователь не найден",
+      "username_taken": "Пользователь '{{username}}' уже существует"
     },
     "cypher": {
       "command_call_refused": "{{reason}}"

@@ -2008,7 +2008,15 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
             )
         pool = await _get_pool()
         async with pool.acquire() as conn:
-            renamed = await source_repo.rename(cast("Connection", conn), old_id, new_id)
+            try:
+                renamed = await source_repo.rename(cast("Connection", conn), old_id, new_id)
+            except source_repo.SourceIdTaken as taken:
+                return MutationResult(
+                    success=False,
+                    message=str(taken),
+                    code="schema.source_id_taken",
+                    params={"source": taken.source_id},
+                )
         if renamed:
             return MutationResult(
                 success=True,

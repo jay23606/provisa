@@ -255,7 +255,8 @@
       "cannot_modify_administrative": "Não é possível modificar funções administrativas",
       "has_dependents": "O papel {{role}} ainda é referenciado por {{count}} objeto(s); remova primeiro essas referências",
       "not_found": "Função não encontrada",
-      "org_selection_required": "Seleção de organização necessária"
+      "org_selection_required": "Seleção de organização necessária",
+      "already_exists": "A função '{{role}}' já existe"
     },
     "schema": {
       "allowed_domains_updated": "Domínios permitidos atualizados para a fonte '{{source}}'",
@@ -399,7 +400,8 @@
       "relationship_ambiguous_table": "O nome de tabela '{{table}}' ({{end}}) designa uma tabela em mais de uma origem ({{sources}})",
       "relationship_unknown_source": "A tabela de origem '{{table}}' não está registrada",
       "relationship_unknown_target": "A tabela de destino '{{table}}' não está registrada",
-      "relationship_unknown_junction": "A tabela de junção '{{table}}' não está registrada"
+      "relationship_unknown_junction": "A tabela de junção '{{table}}' não está registrada",
+      "source_id_taken": "A origem '{{source}}' já existe"
     },
     "secrets": {
       "name_refused": "{{name}} não é um nome dentro dos segredos desta organização em {{service}}: um nome é relativo à organização e não pode sair dela",
@@ -465,7 +467,8 @@
       "no_active_org": "Nenhuma organização está vinculada a esta solicitação. Entre primeiro em uma organização.",
       "no_fields_to_update": "Nenhum campo para atualizar",
       "self_role_change": "Um usuário não pode alterar a própria função. Peça a outro administrador.",
-      "user_not_found": "Usuário não encontrado"
+      "user_not_found": "Usuário não encontrado",
+      "username_taken": "O usuário '{{username}}' já existe"
     },
     "cypher": {
       "command_call_refused": "{{reason}}"

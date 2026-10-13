@@ -255,7 +255,8 @@
       "cannot_modify_administrative": "Impossible de modifier les rôles administratifs",
       "has_dependents": "Le rôle {{role}} est encore référencé par {{count}} objet(s) ; supprimez d’abord ces références",
       "not_found": "Rôle introuvable",
-      "org_selection_required": "Sélection d'une organisation requise"
+      "org_selection_required": "Sélection d'une organisation requise",
+      "already_exists": "Le rôle '{{role}}' existe déjà"
     },
     "schema": {
       "allowed_domains_updated": "Domaines autorisés mis à jour pour la source « {{source}} »",
@@ -399,7 +400,8 @@
       "relationship_ambiguous_table": "Le nom de table '{{table}}' ({{end}}) désigne une table dans plus d'une source ({{sources}})",
       "relationship_unknown_source": "La table source '{{table}}' n'est pas enregistrée",
       "relationship_unknown_target": "La table cible '{{table}}' n'est pas enregistrée",
-      "relationship_unknown_junction": "La table de jonction '{{table}}' n'est pas enregistrée"
+      "relationship_unknown_junction": "La table de jonction '{{table}}' n'est pas enregistrée",
+      "source_id_taken": "La source '{{source}}' existe déjà"
     },
     "secrets": {
       "name_refused": "{{name}} n'est pas un nom situé dans les secrets de cette organisation dans {{service}} : un nom est relatif à l'organisation et ne peut pas en sortir",
@@ -465,7 +467,8 @@
       "no_active_org": "Aucune organisation n'est liée à cette requête. Connectez-vous d'abord à une organisation.",
       "no_fields_to_update": "Aucun champ à mettre à jour",
       "self_role_change": "Un utilisateur ne peut pas changer son propre rôle. Demandez à un autre administrateur.",
-      "user_not_found": "Utilisateur introuvable"
+      "user_not_found": "Utilisateur introuvable",
+      "username_taken": "L'utilisateur '{{username}}' existe déjà"
     },
     "cypher": {
       "command_call_refused": "{{reason}}"

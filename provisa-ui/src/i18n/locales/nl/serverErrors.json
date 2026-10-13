@@ -255,7 +255,8 @@
       "cannot_modify_administrative": "Beheerdersrollen kunnen niet worden gewijzigd",
       "has_dependents": "Naar rol {{role}} wordt nog verwezen door {{count}} object(en); verwijder eerst die verwijzingen",
       "not_found": "Rol niet gevonden",
-      "org_selection_required": "Organisatieselectie vereist"
+      "org_selection_required": "Organisatieselectie vereist",
+      "already_exists": "Rol '{{role}}' bestaat al"
     },
     "schema": {
       "allowed_domains_updated": "Toegestane domeinen bijgewerkt voor bron '{{source}}'",
@@ -399,7 +400,8 @@
       "relationship_ambiguous_table": "De tabelnaam '{{table}}' ({{end}}) wijst een tabel aan in meer dan één bron ({{sources}})",
       "relationship_unknown_source": "Brontabel '{{table}}' is niet geregistreerd",
       "relationship_unknown_target": "Doeltabel '{{table}}' is niet geregistreerd",
-      "relationship_unknown_junction": "Koppeltabel '{{table}}' is niet geregistreerd"
+      "relationship_unknown_junction": "Koppeltabel '{{table}}' is niet geregistreerd",
+      "source_id_taken": "Bron '{{source}}' bestaat al"
     },
     "secrets": {
       "name_refused": "{{name}} is geen naam binnen de secrets van deze organisatie in {{service}}: een naam is relatief ten opzichte van de organisatie en kan deze niet verlaten",
@@ -465,7 +467,8 @@
       "no_active_org": "Er is geen organisatie aan dit verzoek gekoppeld. Meld u eerst aan bij een organisatie.",
       "no_fields_to_update": "Geen velden om bij te werken",
       "self_role_change": "Een gebruiker kan de eigen rol niet wijzigen. Vraag een andere beheerder.",
-      "user_not_found": "Gebruiker niet gevonden"
+      "user_not_found": "Gebruiker niet gevonden",
+      "username_taken": "Gebruiker '{{username}}' bestaat al"
     },
     "cypher": {
       "command_call_refused": "{{reason}}"

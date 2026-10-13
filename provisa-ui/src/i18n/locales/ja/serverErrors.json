@@ -255,7 +255,8 @@
       "cannot_modify_administrative": "管理ロールは変更できません",
       "has_dependents": "ロール {{role}} はまだ {{count}} 個のオブジェクトから参照されています。先にそれらの参照を削除してください",
       "not_found": "ロールが見つかりません",
-      "org_selection_required": "組織の選択が必要です"
+      "org_selection_required": "組織の選択が必要です",
+      "already_exists": "ロール '{{role}}' はすでに存在します"
     },
     "schema": {
       "allowed_domains_updated": "ソース「{{source}}」の許可ドメインを更新しました",
@@ -399,7 +400,8 @@
       "relationship_ambiguous_table": "テーブル名 '{{table}}' ({{end}}) は複数のソース ({{sources}}) のテーブルを指しています",
       "relationship_unknown_source": "ソーステーブル '{{table}}' は登録されていません",
       "relationship_unknown_target": "ターゲットテーブル '{{table}}' は登録されていません",
-      "relationship_unknown_junction": "結合テーブル '{{table}}' は登録されていません"
+      "relationship_unknown_junction": "結合テーブル '{{table}}' は登録されていません",
+      "source_id_taken": "ソース '{{source}}' はすでに存在します"
     },
     "secrets": {
       "name_refused": "{{name}} は {{service}} 内のこの組織のシークレットに含まれる名前ではありません。名前は組織に対する相対指定であり、組織の外に出ることはできません",
@@ -465,7 +467,8 @@
       "no_active_org": "このリクエストに組織が関連付けられていません。先に組織にサインインしてください。",
       "no_fields_to_update": "更新するフィールドがありません",
       "self_role_change": "ユーザーは自分自身のロールを変更できません。別の管理者に依頼してください。",
-      "user_not_found": "ユーザーが見つかりません"
+      "user_not_found": "ユーザーが見つかりません",
+      "username_taken": "ユーザー '{{username}}' はすでに存在します"
     },
     "cypher": {
       "command_call_refused": "{{reason}}"

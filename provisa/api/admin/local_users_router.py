@@ -114,6 +114,18 @@ async def create_user(body: CreateUserBody, request: Request):  # REQ-124, REQ-1
     pool = _admin_pool(request)
     user_id = str(uuid.uuid4())
     async with pool.acquire() as conn:
+        # A username names one user: a taken one is refused by name, before anything is written.
+        if (
+            await conn.execute_core(
+                select(local_users.c.id).where(local_users.c.username == body.username)
+            )
+        ).fetchone() is not None:
+            raise ApiError(
+                409,
+                "users.username_taken",
+                f"User {body.username!r} already exists",
+                username=body.username,
+            )
         # id is generated app-side (portable) rather than via a PG-specific
         # server-side UUID default — the platform control plane may be
         # any SQLAlchemy backend.
