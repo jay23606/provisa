@@ -841,7 +841,7 @@ export function GraphFrame({
               clusterLevel={clusterLevel}
               hullSvgRef={canvasHullSvgRef}
               isExpanded={expanded}
-              note={frame.truncated && <GraphCutNote count={frame.rows.length} />}
+              note={frame.truncated && <GraphCutNote count={frame.nodes.size} />}
             />
             {!inspectorVisible && (
               <Tip text={t("graphFrame.showPropertiesPanel")} named>

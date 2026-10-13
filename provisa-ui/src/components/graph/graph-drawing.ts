@@ -8,10 +8,10 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
-// What the explorer draws of a Cypher result: the first "max nodes" rows of one that returns
-// nodes, relationships or paths. Max nodes is the viewer's own setting, saved per scope, and is
-// held to the server's drawing ceiling (graph-schema's node_cap: the smaller of the row limit and
-// the large-result redirect threshold), which the server holds it to. A result that returns rows only is not drawn or capped.
+// What the explorer draws of a Cypher result that returns nodes, relationships or paths: its rows
+// up to "max nodes" distinct nodes, answered inline (never delivered to a file). Max nodes is the
+// viewer's own setting, saved per scope, held to graph-schema's node_cap (the row limit), which
+// the server holds it to. A result that returns rows only is not drawn or capped.
 
 import { useCallback, useState } from "react";
 import { getStored, setStored } from "../../lib/browserStorage";

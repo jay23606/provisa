@@ -8,23 +8,24 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 
-"""What the graph explorer draws of a Cypher read (REQ-392): the first ``max_nodes`` rows of one
-that returns nodes, relationships or paths, said as cut when there are more. A read that returns
-none of them is rows, answered as any other surface answers them; ``max_nodes`` does not apply.
-Leaf module (no route handlers).
+"""What the graph explorer draws of a Cypher read (REQ-392): one that returns nodes,
+relationships or paths is answered inline, bounded by the row limit, and cut at the explorer's max
+nodes -- distinct nodes, which a row can repeat. A read that returns none of them is rows, answered
+as any other surface answers them. Leaf module (no route handlers).
 """
 
 # Requirements: REQ-392, REQ-768, REQ-769, REQ-1949
 
 from __future__ import annotations
 
+from typing import Any
+
 import sqlglot
 import sqlglot.expressions as exp
 
-from provisa.core.limits import default_row_limit
 from provisa.cypher.translator_types import GraphVarKind
 
-__all__ = ["bounded", "drawing_ceiling", "graph_columns", "was_cut"]
+__all__ = ["bounded", "first_nodes", "graph_columns"]
 
 #: The result columns the explorer draws: a node, a relationship, a path, or the pre-built
 #: node/relationship JSON of a union subquery. A map or a scalar is a value in a row.
@@ -34,15 +35,6 @@ _DRAWN = {
     GraphVarKind.PATH: "path",
     GraphVarKind.PASSTHROUGH: "node",
 }
-
-
-def drawing_ceiling() -> int:
-    """The most rows the explorer may ask to draw: the smaller of the row limit
-    (``limits.default_row_limit``) and the large-result redirect threshold, the org's where it set
-    one (REQ-1349), so a drawing is never cut by the one nor delivered to a file by the other."""
-    from provisa.executor.redirect import RedirectConfig
-
-    return min(default_row_limit(), RedirectConfig.from_env().threshold)
 
 
 def graph_columns(graph_vars: dict[str, GraphVarKind]) -> dict[str, str]:
@@ -69,7 +61,29 @@ def bounded(sql: str, rows: int) -> str:
     return tree.sql(dialect="postgres")
 
 
-def was_cut(rows: int, max_nodes: int, warning_codes: list[str]) -> bool:
-    """Whether a read bounded at ``max_nodes`` + 1 rows has more than the explorer draws: the row
-    after the first ``max_nodes`` came back, or the row limit cut the answer first (REQ-1949)."""
-    return rows > max_nodes or "statement.rows_cut" in warning_codes
+def _node_keys(value: Any, into: set[str]) -> None:
+    """The identities of the nodes in one serialized value: a node, a relationship's two ends, a
+    path's nodes, or any of them nested in a list or map."""
+    if isinstance(value, list):
+        for item in value:
+            _node_keys(item, into)
+    elif isinstance(value, dict):
+        if "label" in value and "properties" in value and "startNode" not in value:
+            into.add(f"{value['label']}:{value['id']}")
+            return
+        for item in value.values():
+            _node_keys(item, into)
+
+
+def first_nodes(rows: list[Any], max_nodes: int) -> tuple[list[Any], bool]:
+    """The rows, in order, whose nodes number at most ``max_nodes`` distinct, and whether a row was
+    left out because its nodes would have passed it."""
+    seen: set[str] = set()
+    for i, row in enumerate(rows):
+        found: set[str] = set()
+        _node_keys(row, found)
+        new = found - seen
+        if len(seen) + len(new) > max_nodes:
+            return rows[:i], True
+        seen |= new
+    return rows, False

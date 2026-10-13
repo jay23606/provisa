@@ -155,11 +155,12 @@ describe("GraphPage — max nodes", () => {
     serve({ type: "cypher", columns: [], rows: [], graph_columns: {} });
     renderPage("RETURN 1");
     fireEvent.click(screen.getByTestId("graph-sidebar-tab-settings"));
-    const input = (await screen.findByTestId("graph-max-nodes")) as HTMLInputElement;
     // The default, 1,000, is above the ceiling the server said (500): the rail shows the ceiling.
-    await waitFor(() => expect(input.value).toBe("500"));
+    // The field is drawn again once the ceiling is known (its hint appears), so it is read anew.
+    const input = () => screen.getByTestId("graph-max-nodes") as HTMLInputElement;
+    await waitFor(() => expect(input().value).toBe("500"));
     expect(screen.getByText("Nodes drawn per query, up to 500")).toBeTruthy();
-    fireEvent.change(input, { target: { value: "120" } });
+    fireEvent.change(input(), { target: { value: "120" } });
     await waitFor(() => expect(getStored(MAX_NODES_KEY)).toBe("120"));
     act(() => screen.getByText("run").click());
     await waitFor(() => expect(cypherBodies.at(-1)?.max_nodes).toBe(120));

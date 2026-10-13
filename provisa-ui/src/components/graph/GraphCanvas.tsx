@@ -842,7 +842,7 @@ export function GraphCanvas({
   );
 }
 
-/** Over the canvas: the frame drew the first `count` rows of a result that has more. */
+/** Over the canvas: the frame drew `count` nodes of a result that has more. */
 export function GraphCutNote({ count }: { count: number }) {
   const { t } = useTranslation();
   return (

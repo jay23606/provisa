@@ -12,6 +12,7 @@
 
 import { NumberInput } from "@mantine/core";
 import { useTranslation } from "react-i18next";
+import { FormField, FormLayout } from "../form/FormLayout";
 
 interface GraphViewSettingsProps {
   maxNodes: number;
@@ -25,24 +26,28 @@ export function GraphViewSettings({ maxNodes, nodeCap, onMaxNodesChange }: Graph
   return (
     <div className="graph-schema-section">
       <div className="graph-schema-heading">{t("graphSidebar.tabSettings")}</div>
-      <NumberInput
-        className="graph-view-setting"
-        size="xs"
-        label={t("graphSidebar.maxNodes")}
-        description={
-          nodeCap === null ? undefined : t("graphSidebar.maxNodesHint", { ceiling: nodeCap })
-        }
-        value={nodeCap === null ? maxNodes : Math.min(maxNodes, nodeCap)}
-        min={1}
-        max={nodeCap ?? undefined}
-        clampBehavior="strict"
-        allowDecimal={false}
-        allowNegative={false}
-        onChange={(v) => {
-          if (typeof v === "number" && Number.isInteger(v) && v > 0) onMaxNodesChange(v);
-        }}
-        data-testid="graph-max-nodes"
-      />
+      <FormLayout>
+        <FormField
+          size="short"
+          hint={nodeCap === null ? undefined : t("graphSidebar.maxNodesHint", { ceiling: nodeCap })}
+        >
+          <NumberInput
+            className="graph-view-setting"
+            size="xs"
+            label={t("graphSidebar.maxNodes")}
+            value={nodeCap === null ? maxNodes : Math.min(maxNodes, nodeCap)}
+            min={1}
+            max={nodeCap ?? undefined}
+            clampBehavior="strict"
+            allowDecimal={false}
+            allowNegative={false}
+            onChange={(v) => {
+              if (typeof v === "number" && Number.isInteger(v) && v > 0) onMaxNodesChange(v);
+            }}
+            data-testid="graph-max-nodes"
+          />
+        </FormField>
+      </FormLayout>
     </div>
   );
 }
