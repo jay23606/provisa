@@ -42,6 +42,7 @@ import httpx
 import pytest
 import yaml
 
+from tests.integration.polly_bakeoff_questions import QUESTIONS, Question
 from tests.integration.test_weblogs_demo import (
     _DEMO,
     WeblogsStack,
@@ -58,62 +59,6 @@ pytestmark = [
 
 _ROLE = "org_admin"
 _BUDGET_USD = 0.25
-
-
-@dataclass(frozen=True)
-class Question:
-    text: str
-    # The SQL whose rows are the right answers: a reply is right when it names any of them (a tie
-    # for "the most" makes each tied value right).
-    answer_sql: str
-
-
-QUESTIONS = (
-    Question(
-        "How many customers does the shop have?", 'SELECT COUNT(*) AS a FROM "shop"."customers"'
-    ),
-    Question("How many orders have been placed?", 'SELECT COUNT(*) AS a FROM "shop"."orders"'),
-    Question(
-        "How many requests are in the web access log?",
-        'SELECT COUNT(*) AS a FROM "shop"."access_log"',
-    ),
-    Question(
-        "How many requests were answered with a server error (a 5xx status)?",
-        'SELECT COUNT(*) AS a FROM "shop"."access_log" WHERE status >= 500',
-    ),
-    Question(
-        "Which product category has the most products?",
-        'SELECT category AS a FROM "shop"."products" GROUP BY category '
-        'HAVING COUNT(*) = (SELECT MAX(n) FROM (SELECT COUNT(*) AS n FROM "shop"."products" '
-        "GROUP BY category) AS c)",
-    ),
-    Question(
-        "What is the name of the most expensive product?",
-        'SELECT name AS a FROM "shop"."products" '
-        'WHERE price = (SELECT MAX(price) FROM "shop"."products")',
-    ),
-    Question(
-        "Which city has the most customers?",
-        'SELECT city AS a FROM "shop"."customers" GROUP BY city '
-        'HAVING COUNT(*) = (SELECT MAX(n) FROM (SELECT COUNT(*) AS n FROM "shop"."customers" '
-        "GROUP BY city) AS c)",
-    ),
-    Question(
-        "Which page path was requested most often?",
-        'SELECT path AS a FROM "shop"."access_log" GROUP BY path '
-        'HAVING COUNT(*) = (SELECT MAX(n) FROM (SELECT COUNT(*) AS n FROM "shop"."access_log" '
-        "GROUP BY path) AS c)",
-    ),
-    Question(
-        "How many distinct customers have placed at least one order?",
-        'SELECT COUNT(DISTINCT customer_id) AS a FROM "shop"."orders"',
-    ),
-    Question(
-        "Which database table did the shop's SQL statements touch most often?",
-        'SELECT table_name AS a FROM "shop"."slow_statements_by_table" '
-        'WHERE statements = (SELECT MAX(statements) FROM "shop"."slow_statements_by_table")',
-    ),
-)
 
 
 def _expected(server: Any, question: Question) -> list[str]:
