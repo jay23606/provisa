@@ -24,7 +24,16 @@ All three are in one zone, under one compact placement policy, so the round trip
 
 `terraform/perf` creates the three instances from variables (machine type per device, zone, image), the compact placement policy, a firewall rule that lets only the three devices reach each other, and one for the operator's SSH from the addresses given. The maintainer applies it. The repository is checked out at the commit under test on all three, at the same path, with its virtual environment.
 
-`demo/named/perf/bench/three_device_run.sh`, run on the operator's machine, does the rest over `gcloud compute ssh`:
+One command runs a session from the operator's machine, and nothing outlives it, so nothing bills between sessions:
+
+```bash
+demo/named/perf/bench/bench_lifecycle.sh --project P --zone us-east1-b --commit <sha on GitHub> \
+  --ssh-cidr <operator address>/32 [--provisioning-model ON_DEMAND] [--reps 5] [--keep] [--dry-run]
+```
+
+It applies `terraform/perf` (its state in a run directory of its own under `~/.provisa-bench/runs`), waits until every device's ready marker names the commit (its startup script has finished; on device 3 that includes the first seed), refusing by name a device not ready within `--ready-timeout` (7200 s), runs the repetitions, copies the results back into the run directory, and destroys every device. Destroy runs on failure and on interrupt too, unless `--keep` is given. `--dry-run` prints the terraform plan and every command of the run, and creates nothing.
+
+Within a session, `demo/named/perf/bench/three_device_run.sh` does the run over `gcloud compute ssh`:
 
 - **Device 3, once:** `docker compose --profile three-device up -d` in `demo/named/perf` (adding `--profile three-device-trino` for a Trino run), with `PROVISA_BENCH_BIND` set to device 3's private address. That brings up the source, the engine Postgres, the control-plane Postgres, Redis, the collector, otlp2sql and its ops Postgres. It waits for `seeder` to finish, then starts `host_agent.py`.
 - **Device 1, each run:** `orchestrate.sh serve --telemetry off|on --engine pg` (`serve_three_device.sh`). It starts Provisa only, every backend address pointing at device 3, and waits until every worker serves. Then it starts `host_agent.py` with Provisa's pid, the run's facts (telemetry, engine, workers) and a round-trip target on device 3.
@@ -33,11 +42,11 @@ All three are in one zone, under one compact placement policy, so the round trip
 
 The results are copied back and reported by `three_device.py report`.
 
-Each device sets itself up at every boot (`terraform/perf/startup.sh.tftpl`): Docker and the compose plugin, the repository at the `commit` variable in `repo_dir`, `uv sync`, and the idle shutdown (power off after 30 idle minutes, `vm_idle_shutdown.sh`). Device 3 also brings up its data stack and runs the first seed (20 million orders, which takes a while; later boots find the data seeded). `three_device_run.sh` holds every device up for the length of a run.
+Each device sets itself up at boot (`terraform/perf/startup.sh.tftpl`): Docker and the compose plugin, the repository at the `commit` variable in `repo_dir`, `uv sync`, and the idle shutdown (power off after 30 idle minutes, `vm_idle_shutdown.sh`). Device 3 also brings up its data stack and runs the first seed (20 million orders, which takes a while; a device kept with `--keep` finds it seeded at its next boot). When every step has passed, the script writes the commit to its ready marker. `three_device_run.sh` holds every device up for the length of a run; the idle shutdown matters only for a device kept with `--keep`.
 
 The devices are Spot by default (`provisioning_model = "SPOT"`) while the harness is made to work; the final measured run sets `provisioning_model = "ON_DEMAND"`. A reclaimed Spot device stops, keeping its disk.
 
-Before the first apply: the project's quota must allow three 32-vCPU devices (96 vCPUs, all regions), and `operator_ssh_cidrs` names the operator's own address (required, no default).
+Before the first apply: the project's quota must allow three 32-vCPU devices (96 vCPUs, all regions); `--ssh-cidr` names the operator's own address; and `--commit` names a commit on GitHub, which every device clones.
 
 `three_device_run.sh --dry-run` prints every command it would run on each device, and runs none.
 

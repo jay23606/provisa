@@ -13,12 +13,16 @@
 # idempotent: Docker and the compose plugin, the repository at ${commit} in ${repo_dir}, its virtual
 # environment (uv sync), the idle shutdown (vm_idle_shutdown.sh: power off after 30 idle minutes),
 # and on the backends device the data stack and its first seed. The hold file keeps the device up
-# while this runs (a first seed takes a while).
+# while this runs (a first seed takes a while). When every step has passed it writes the commit to
+# the ready marker, which bench_lifecycle.sh waits for; a boot clears it first.
 set -euo pipefail
 exec > >(logger -t provisa-perf-startup) 2>&1
 
 DEVICE="${device}"
 REPO_DIR="${repo_dir}"
+READY=/var/lib/provisa-perf/ready
+mkdir -p "$(dirname "$READY")"
+rm -f "$READY"
 HOLD_DIR=/var/lib/provisa-idle
 mkdir -p "$HOLD_DIR"
 touch "$HOLD_DIR/hold"
@@ -58,3 +62,5 @@ if [ "$DEVICE" = backends ]; then
   docker compose --profile three-device up -d --build
   docker compose up seeder
 fi
+
+echo "${commit}" > "$READY"

@@ -407,3 +407,63 @@ def test_the_driver_dry_run_runs_nothing_and_says_what_it_would() -> None:
     assert out.index("--telemetry off") < out.index("--telemetry on")
     assert "--setup setups/three-device.yaml" in out
     assert "PROVISA_BENCH_SERVER_HOST=10.90.0.2" in out
+
+
+_LIFECYCLE = BENCH / "bench_lifecycle.sh"
+_STARTUP = BENCH.parents[3] / "terraform" / "perf" / "startup.sh.tftpl"
+
+
+@pytest.mark.parametrize("missing", ["--project", "--zone", "--commit", "--ssh-cidr"])
+def test_the_lifecycle_refuses_a_run_missing_what_it_needs(missing: str) -> None:
+    import subprocess
+
+    given = {
+        "--project": "p",
+        "--zone": "us-east1-b",
+        "--commit": "abc",
+        "--ssh-cidr": "203.0.113.10/32",
+    }
+    del given[missing]
+    args = [a for k, v in given.items() for a in (k, v)]
+    done = subprocess.run(
+        ["bash", str(_LIFECYCLE), *args, "--dry-run"], capture_output=True, text=True
+    )
+    assert done.returncode == 2
+    assert f"{missing} is required" in done.stdout
+
+
+def test_the_lifecycle_destroys_on_any_exit_unless_kept() -> None:
+    text = _LIFECYCLE.read_text()
+    # destroy is armed before apply, so a failed apply or run still tears down what exists
+    assert text.index("trap destroy EXIT") < text.index("apply -input=false -auto-approve")
+    assert 'if [ -n "$KEEP" ]' in text
+
+
+def test_a_device_is_ready_only_when_every_setup_step_passed() -> None:
+    script = _STARTUP.read_text()
+    assert "set -euo pipefail" in script
+    # cleared at boot, written last: the marker names the commit only after every step
+    assert script.index('rm -f "$READY"') < script.index("docker compose up seeder")
+    assert script.rstrip().endswith('echo "${commit}" > "$READY"')
+
+
+def test_the_results_go_where_the_lifecycle_says() -> None:
+    import os
+    import subprocess
+
+    out = subprocess.run(
+        ["bash", str(BENCH / "three_device_run.sh"), "--reps", "1", "--dry-run"],
+        env={
+            **os.environ,
+            "PERF_ZONE": "us-east1-b",
+            "PERF_REPO": "/opt/provisa",
+            "PERF_SERVER_IP": "10.90.0.2",
+            "PERF_BACKENDS_IP": "10.90.0.4",
+            "PERF_LOCAL_OUT": "/runs/x/results",
+            "PATH": "/usr/bin:/bin",
+        },
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    assert "/runs/x/results/" in out and "--out /runs/x/results-report" in out
