@@ -23078,6 +23078,18 @@ The documentation has a sizing guide for a customer, and the steps to run the si
 
 **Tests:** —
 
+### REQ-2006 · Demo Provisioning {#REQ-2006}
+
+**Status:** ⚙ in-progress · **Priority:** SHOULD · **Type:** behavioral
+
+provisa.dev has a live demos page with one card for each published named demo: its title, description and screenshot, and an "Open live demo" button. The button opens a cloud.provisa.dev sandbox of that demo that needs no signup, with the demo's example queries and the product tour. A named demo says whether it is published, and what its card shows, in demo/named/<name>/demo.yaml (title, description, screenshot, published: true or false); the site build generates the page from those files, as it generates the source picker, and CI fails when the page is out of step with them. Every published demo is lightweight, and its data is seeded ahead of time: never at a visitor's request, and never by a live traffic generator. Opening the page warms the cloud coordinator in the background through the front door's wake-on-hit, so that a visitor's click rarely meets the waking page.
+
+**Use case:** A visitor to provisa.dev picks a scenario close to their own (a web shop's logs, say) and is querying it in Provisa a few seconds later, without an account.
+
+**Code:** `scripts/gen-site-demos.mjs`, `site/demos.html`
+
+**Tests:** —
+
 ## 4. Source Connectors
 
 ### REQ-1998 · Source Connectors {#REQ-1998}
@@ -23119,3 +23131,17 @@ A table Provisa reads itself for each statement (a parameterized or native-query
 **Code:** `provisa/api/data/materialization.py`, `provisa/pgwire/_pipeline.py`
 
 **Tests:** `tests/unit/test_landing_ttl.py`
+
+## 5. Query Languages, Compilation & Operations
+
+### REQ-2007 · Aggregate & Group-by Queries {#REQ-2007}
+
+**Status:** ✅ complete · **Priority:** SHOULD · **Type:** behavioral
+
+A group-by is ordered by its keys and its aggregates. The <Type>GroupBy field's order_by is a list of <Type>GroupByOrderBy entries, applied in order, that mirror the result and having: {aggregate: {count: dir}}, {aggregate: {sum|avg|stddev|variance|min|max: {<field>: dir}}} with each column under the field name the row type gives it, and {groupKey: {<key>: dir}}. groupKey offers every column the by argument can name; a key the statement does not group by is refused when it is compiled, naming it. The compiler emits ORDER BY <AGG>(<column>) or the key, before LIMIT and OFFSET, so a limit returns the top N groups. A group-by is not ordered by the table's plain columns, and the <Type>Aggregate root, which returns no rows, takes no order_by. gRPC carries the order: {Type}GroupByRequest.order_by is a list of {func, column, direction} entries (func count, sum, avg, stddev, variance, min, max or group_key; column the physical name), with limit and offset applied; the HTTP gRPC proxy takes the same body. REST's and JSON:API's group-by sort orders by group keys, and a sort on any other field is refused (400).
+
+**Use case:** A modeler asks for the ten slowest pages by average query time and gets exactly those ten groups, computed by the source, not a whole grouping sorted in the client.
+
+**Code:** `provisa/compiler/aggregate_gen.py`, `provisa/compiler/aggregates.py`, `provisa/compiler/schema_gen.py`, `provisa/grpc/proto_gen.py`, `provisa/grpc/query_ir.py`, `provisa/grpc/server.py`, `provisa/api/data/endpoint_grpc_proxy.py`, `provisa/api/rest/generator.py`, `provisa/api/jsonapi/generator.py`
+
+**Tests:** `tests/unit/test_aggregate_field_names.py`, `tests/unit/test_rest_aggregates.py`, `tests/unit/test_jsonapi_aggregates.py`

@@ -135,7 +135,8 @@
     text: Every table can offer an aggregate query and a group-by query in the style Hasura users know.
       A modeler turns them on per table, and roles are gated on whether they may aggregate at all. Gated
       tables get these on the gRPC, JSON:API and OpenAPI surfaces too. Expensive aggregates can be served
-      from a materialized copy when one matches.
+      from a materialized copy when one matches. A group-by is ordered by its keys and its aggregates,
+      so a limit returns the top groups, such as the ten slowest pages by average time.
   - id: metrics-and-aggregates-metric-objects
     text: A metric is a named, governed aggregate with its own definition. You write it once and every
       query surface can use it with that surface's native syntax. Fact and entity roles you assign to

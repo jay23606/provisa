@@ -261,6 +261,18 @@ def _emit_aggregate_messages(
         # even a set) `funcs` still meant "every eligible column of that type" with no way to
         # narrow further. Empty/unset means every eligible column, same convention as `funcs`.
         lines.append("  repeated string columns = 8;")
+        # REQ-2006: the group-by's order, as GraphQL's {Type}GroupByOrderBy list.
+        lines.append(f"  repeated {t.type_name}GroupByOrder order_by = 9;")
+        lines.append("}")
+        lines.append("")
+
+        # REQ-2006: one entry of a group-by's order. ``func`` is count, sum, avg, stddev,
+        # variance, min, max, or group_key (order by a key the request groups by); ``column`` is
+        # the column (none for count); ``direction`` is asc, desc, or one with nulls_first/last.
+        lines.append(f"message {t.type_name}GroupByOrder {{")
+        lines.append("  string func = 1;")
+        lines.append("  string column = 2;")
+        lines.append("  string direction = 3;")
         lines.append("}")
         lines.append("")
 

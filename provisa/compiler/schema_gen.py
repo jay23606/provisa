@@ -38,6 +38,7 @@ from graphql import (
 from provisa.compiler.aggregate_gen import (
     build_agg_fields_type,
     build_aggregate_types,
+    build_group_by_order_by_type,
     build_having_exp_type,
 )
 from provisa.compiler.naming import (
@@ -678,7 +679,6 @@ def _build_group_by_query_field(
     t: _TableInfo,
     gql_type: GraphQLObjectType,
     where_type: GraphQLInputObjectType | None,
-    order_by_type: GraphQLInputObjectType | None,
     distinct_enum: GraphQLEnumType | None,
     enum_types: dict,
     agg_fields_type: GraphQLObjectType | None = None,
@@ -728,8 +728,15 @@ def _build_group_by_query_field(
     }
     if where_type:
         gb_args["where"] = GraphQLArgument(where_type)
-    if order_by_type:
-        gb_args["order_by"] = GraphQLArgument(GraphQLList(GraphQLNonNull(order_by_type)))
+    # REQ-2006: a group-by is ordered by its keys and its aggregates, not by the table's columns.
+    gb_order_by = build_group_by_order_by_type(
+        t.type_name,
+        t.visible_columns,
+        t.column_metadata,
+        _agg_field_names(t),
+        list(by_enum.values),
+    )
+    gb_args["order_by"] = GraphQLArgument(GraphQLList(GraphQLNonNull(gb_order_by)))
     if distinct_enum:
         gb_args["distinct_on"] = GraphQLArgument(GraphQLList(GraphQLNonNull(distinct_enum)))
     if having_exp:
@@ -1014,7 +1021,6 @@ def generate_schema(
                 t,
                 gql_type,
                 where_types.get(t.table_id),
-                order_by_types.get(t.table_id),
                 distinct_enums.get(t.table_id),
                 si.enum_types,
                 shared_agg_fields_type,

@@ -1407,7 +1407,11 @@ class ProvisaServicer:  # REQ-045, REQ-143
 
         from provisa.compiler.parser import GraphQLValidationError, parse_query
         from provisa.compiler.sql_gen import compile_query
-        from provisa.grpc.query_ir import FilterError, grpc_table_to_group_by_graphql_text
+        from provisa.grpc.query_ir import (
+            FilterError,
+            GroupByOrderError,
+            grpc_table_to_group_by_graphql_text,
+        )
         from provisa.pgwire._pipeline import _execute_plan, _govern_and_route_compiled
 
         state = self._state
@@ -1440,8 +1444,11 @@ class ProvisaServicer:  # REQ-045, REQ-143
                 include=include,
                 filter_msg=filter_msg,
                 columns=columns,
+                order_by=list(getattr(request, "order_by", [])),  # REQ-2006
+                limit=request.limit or None,
+                offset=request.offset or None,
             )
-        except FilterError as exc:
+        except (FilterError, GroupByOrderError) as exc:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))
             return
         if gql_text is None:

@@ -110,7 +110,7 @@ A view can be built from metrics, choosing the metrics, dimensions and filters t
 
 **Available**
 
-Every table can offer an aggregate query and a group-by query in the style Hasura users know. A modeler turns them on per table, and roles are gated on whether they may aggregate at all. Gated tables get these on the gRPC, JSON:API and OpenAPI surfaces too. Expensive aggregates can be served from a materialized copy when one matches.
+Every table can offer an aggregate query and a group-by query in the style Hasura users know. A modeler turns them on per table, and roles are gated on whether they may aggregate at all. Gated tables get these on the gRPC, JSON:API and OpenAPI surfaces too. Expensive aggregates can be served from a materialized copy when one matches. A group-by is ordered by its keys and its aggregates, so a limit returns the top groups, such as the ten slowest pages by average time.
 { #metrics-and-aggregates-aggregates }
 
 A metric is a named, governed aggregate with its own definition. You write it once and every query surface can use it with that surface's native syntax. Fact and entity roles you assign to tables carry through, and the Explore page builds SQL from metrics, facts and dimensions, limited to the domains you have checked. Metrics are managed on their own page with inline editing.
@@ -118,7 +118,7 @@ A metric is a named, governed aggregate with its own definition. You write it on
 
 ??? note "Requirements"
 
-    - [Every table can offer an aggregate query and a group-by query in the style Hasura users...](#metrics-and-aggregates-aggregates): [REQ-196](arch/requirements.md#REQ-196), [REQ-197](arch/requirements.md#REQ-197), [REQ-198](arch/requirements.md#REQ-198), [REQ-199](arch/requirements.md#REQ-199), [REQ-479](arch/requirements.md#REQ-479), [REQ-653](arch/requirements.md#REQ-653), [REQ-654](arch/requirements.md#REQ-654), [REQ-655](arch/requirements.md#REQ-655), [REQ-733](arch/requirements.md#REQ-733), [REQ-734](arch/requirements.md#REQ-734), [REQ-1359](arch/requirements.md#REQ-1359), [REQ-1405](arch/requirements.md#REQ-1405)
+    - [Every table can offer an aggregate query and a group-by query in the style Hasura users...](#metrics-and-aggregates-aggregates): [REQ-196](arch/requirements.md#REQ-196), [REQ-197](arch/requirements.md#REQ-197), [REQ-198](arch/requirements.md#REQ-198), [REQ-199](arch/requirements.md#REQ-199), [REQ-479](arch/requirements.md#REQ-479), [REQ-653](arch/requirements.md#REQ-653), [REQ-654](arch/requirements.md#REQ-654), [REQ-655](arch/requirements.md#REQ-655), [REQ-733](arch/requirements.md#REQ-733), [REQ-734](arch/requirements.md#REQ-734), [REQ-1359](arch/requirements.md#REQ-1359), [REQ-1405](arch/requirements.md#REQ-1405), [REQ-2006](arch/requirements.md#REQ-2006)
     - [A metric is a named, governed aggregate with its own definition.](#metrics-and-aggregates-metric-objects): [REQ-1317](arch/requirements.md#REQ-1317), [REQ-1319](arch/requirements.md#REQ-1319), [REQ-1320](arch/requirements.md#REQ-1320), [REQ-1322](arch/requirements.md#REQ-1322), [REQ-1323](arch/requirements.md#REQ-1323), [REQ-1324](arch/requirements.md#REQ-1324), [REQ-1723](arch/requirements.md#REQ-1723)
 
 ### Glossary, tags and ontology

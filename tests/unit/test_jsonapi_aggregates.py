@@ -222,7 +222,7 @@ class TestBuildGroupByGraphqlQuery:
             None,
             None,
         )
-        assert "order_by: {region: asc}" in q
+        assert "order_by: [{groupKey: {region: asc}}]" in q
 
     def test_by_columns_translated_to_gql_convention(self):
         """REQ-1361: ?groupBy= takes API-native (physical) column names; the

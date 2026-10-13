@@ -508,8 +508,10 @@ def _build_group_by_graphql_query(  # REQ-1359
         args_parts.append(f"offset: {offset}")
     args_parts.extend(variables.arguments)
     if sort:
-        ob_parts = [f"{o['field']}: {o['dir']}" for o in sort]
-        args_parts.append("order_by: {" + ", ".join(ob_parts) + "}")
+        # REQ-2006: a group-by is ordered by its group keys (the caller has checked each sort
+        # field is one).
+        ob_parts = [f"{{groupKey: {{{o['field']}: {o['dir']}}}}}" for o in sort]
+        args_parts.append("order_by: [" + ", ".join(ob_parts) + "]")
     args_str = f"({', '.join(args_parts)})"
     nodes_part = f" nodes {{ {node_selection} }}" if node_selection else ""
     return variables.operation(
@@ -821,6 +823,17 @@ def create_jsonapi_router(state: Any) -> APIRouter:  # REQ-256, REQ-257, REQ-266
                             400, "Invalid Include", bad_include, source_parameter="include"
                         )
 
+                keys = {apply_gql_name(c) for c in group_cols}
+                for o in sort:
+                    if o["field"] not in keys:
+                        # REQ-2006: a group-by is sorted by its group keys only.
+                        return _jsonapi_error_response(
+                            400,
+                            "Invalid Sort",
+                            f"sort field {gql_to_physical.get(o['field'], o['field'])!r} is not "
+                            "one of the groupBy columns",
+                            source_parameter="sort",
+                        )
                 gql_query = _build_group_by_graphql_query(
                     target_field,
                     group_cols,

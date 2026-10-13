@@ -81534,3 +81534,41 @@
   tests:
   - tests/unit/test_landing_ttl.py
   notes: 'Maintainer 2026-10-12, through the lead: "if the ttl is zero just always goes to live", and "if the engine is say databricks writing a parquet file could be slower". The lead''s design: 0 means 0 (first non-null, as cache/policy.resolve_policy resolves a TTL, removing the `or` fallback that turned 0 into the source''s TTL or the default); a TTL above 0 lands as before; a TTL of 0 inlines a small result through the existing VALUES CTE path and lands a large one in a scratch table dropped after the statement; "small" reuses the org''s large-result threshold, with no new setting. A statement with a scratch table is run through the pipeline terminal, which drops it, rather than streamed by a surface that would not. Lead 2026-10-12: buffering a large TTL-0 read instead of streaming it is acceptable for now; dropping the scratch table when each streaming surface''s drain ends is not worth it yet. And a gRPC remote query''s TTL resolves first-non-null too, a missing one no longer becoming 300 by itself.'
+- id: REQ-2007
+  status: complete
+  since: 2026-10
+  group: 5. Query Languages, Compilation & Operations
+  category: Aggregate & Group-by Queries
+  feature: metrics-and-aggregates-aggregates
+  priority: SHOULD
+  type: behavioral
+  description: 'A group-by is ordered by its keys and its aggregates. The <Type>GroupBy field''s order_by is a list of <Type>GroupByOrderBy entries, applied in order, that mirror the result and having: {aggregate: {count: dir}}, {aggregate: {sum|avg|stddev|variance|min|max: {<field>: dir}}} with each column under the field name the row type gives it, and {groupKey: {<key>: dir}}. groupKey offers every column the by argument can name; a key the statement does not group by is refused when it is compiled, naming it. The compiler emits ORDER BY <AGG>(<column>) or the key, before LIMIT and OFFSET, so a limit returns the top N groups. A group-by is not ordered by the table''s plain columns, and the <Type>Aggregate root, which returns no rows, takes no order_by. gRPC carries the order: {Type}GroupByRequest.order_by is a list of {func, column, direction} entries (func count, sum, avg, stddev, variance, min, max or group_key; column the physical name), with limit and offset applied; the HTTP gRPC proxy takes the same body. REST''s and JSON:API''s group-by sort orders by group keys, and a sort on any other field is refused (400).'
+  use_case: A modeler asks for the ten slowest pages by average query time and gets exactly those ten groups, computed by the source, not a whole grouping sorted in the client.
+  scenario: 'Given a table with group-by enabled and a numeric column
+
+    When a group-by over one key is ordered by the average of that column, descending, with a limit of two
+
+    Then the two groups with the highest average are returned, highest first
+
+    And ordering by a key the statement does not group by is refused, naming the key'
+  code:
+  - provisa/compiler/aggregate_gen.py
+  - provisa/compiler/aggregates.py
+  - provisa/compiler/schema_gen.py
+  - provisa/grpc/proto_gen.py
+  - provisa/grpc/query_ir.py
+  - provisa/grpc/server.py
+  - provisa/api/data/endpoint_grpc_proxy.py
+  - provisa/api/rest/generator.py
+  - provisa/api/jsonapi/generator.py
+  tests:
+  - tests/unit/test_aggregate_field_names.py
+  - tests/unit/test_rest_aggregates.py
+  - tests/unit/test_jsonapi_aggregates.py
+  related_reqs:
+  - REQ-196
+  - REQ-197
+  - REQ-654
+  - REQ-655
+  - REQ-1359
+  notes: 'Maintainer 2026-10-13, through the lead, approving it as an addition to the aggregate naming fix: GroupBy gets its own order_by mirroring the result and having; groupKey entries offer only the by dimensions and a key not in by is refused at compile; plain column sorting is removed from GroupBy; the Aggregate root is left alone; carried to gRPC.'

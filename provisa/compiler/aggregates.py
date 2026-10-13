@@ -381,6 +381,59 @@ def _compile_having(
     return " AND ".join(parts) if parts else "TRUE"
 
 
+_ORDER_FUNCS = {
+    "sum": "SUM",
+    "avg": "AVG",
+    "stddev": "STDDEV",
+    "variance": "VARIANCE",
+    "min": "MIN",
+    "max": "MAX",
+}
+
+
+def _order_direction(direction: str) -> str:
+    sql_dir = _sw._DIRECTION_SQL.get(direction)
+    if sql_dir is None:
+        raise ValueError(f"Unknown order direction: {direction!r}")
+    return sql_dir
+
+
+def _compile_group_by_order(  # REQ-2006
+    order_by: list[dict],
+    by_cols: list[str],
+    table_id: int,
+    exposed_to_physical: dict,
+) -> str:
+    """A group-by's ORDER BY, from its ``order_by`` entries in order: ``{aggregate: {count: dir}}``
+    or ``{aggregate: {func: {column: dir}}}`` orders by that aggregate, ``{groupKey: {key: dir}}``
+    by a group key. A key the statement does not group by is refused, naming it."""
+    parts: list[str] = []
+    for entry in order_by:
+        for kind, spec in entry.items():
+            if kind == "aggregate":
+                for func, value in spec.items():
+                    if func == "count":
+                        parts.append(f"COUNT(*) {_order_direction(value)}")
+                        continue
+                    for col_name, direction in value.items():
+                        phys = exposed_to_physical.get((table_id, col_name), col_name)
+                        parts.append(
+                            f"{_ORDER_FUNCS[func]}({_q(phys)}) {_order_direction(direction)}"
+                        )
+            elif kind == "groupKey":
+                for col_name, direction in spec.items():
+                    if col_name not in by_cols:
+                        raise ValueError(
+                            f"order_by groupKey {col_name!r} is not a group key of this "
+                            f"statement; it groups by {', '.join(by_cols)}"
+                        )
+                    phys = exposed_to_physical.get((table_id, col_name), col_name)
+                    parts.append(f"{_q(phys)} {_order_direction(direction)}")
+            else:
+                raise ValueError(f"Unknown group-by order_by entry {kind!r}")
+    return ", ".join(parts)
+
+
 def _compile_group_by_field(  # REQ-196, REQ-197, REQ-213
     field_node: FieldNode,
     ctx: CompilationContext,
@@ -552,7 +605,9 @@ def _compile_group_by_field(  # REQ-196, REQ-197, REQ-213
         order_by_val = args["order_by"]
         if isinstance(order_by_val, dict):
             order_by_val = [order_by_val]
-        ob_sql = _sw._compile_order_by(order_by_val, None, table.table_id, ctx.exposed_to_physical)
+        ob_sql = _compile_group_by_order(
+            order_by_val, by_cols, table.table_id, ctx.exposed_to_physical
+        )
         if ob_sql:
             sql += f" ORDER BY {ob_sql}"
 

@@ -307,3 +307,61 @@ def build_aggregate_types(  # REQ-196
     )
 
     return aggregate_type
+
+
+def build_group_by_order_by_type(  # REQ-2006
+    type_name: str,
+    visible_columns: list[dict],
+    column_metadata: dict[str, ColumnMetadata],
+    field_names: dict[str, str],
+    key_names: list[str],
+) -> GraphQLInputObjectType:
+    """Build {TypeName}GroupByOrderBy: one entry of a group-by's ``order_by`` list, shaped like
+    the result and ``having``. ``aggregate`` orders by count or by a function of a column (under
+    the column's row-type field name); ``groupKey`` orders by a group key, offered for every
+    column ``by`` can name -- one the statement does not group by is refused when it is compiled.
+    """
+    from provisa.compiler.schema_directives import OrderDirection
+
+    numeric_cols, comparable_cols = _named(
+        *_classify_columns(visible_columns, column_metadata), field_names
+    )
+    agg_fields: dict[str, GraphQLInputField] = {"count": GraphQLInputField(OrderDirection)}
+    for fname, cols in (
+        ("sum", numeric_cols),
+        ("avg", numeric_cols),
+        ("stddev", numeric_cols),
+        ("variance", numeric_cols),
+        ("min", comparable_cols),
+        ("max", comparable_cols),
+    ):
+        if not cols:
+            continue
+        sub_fields = {name: GraphQLInputField(OrderDirection) for name, _ in cols}
+        agg_fields[fname] = GraphQLInputField(
+            cast(
+                GraphQLInputObjectType,
+                GraphQLInputObjectType(
+                    f"{type_name}GroupByOrderBy{fname.capitalize()}", lambda f=sub_fields: f
+                ),
+            )
+        )
+    aggregate_type = cast(
+        GraphQLInputObjectType,
+        GraphQLInputObjectType(f"{type_name}GroupByOrderByAggregate", lambda f=agg_fields: f),
+    )
+    key_fields = {name: GraphQLInputField(OrderDirection) for name in key_names}
+    key_type = cast(
+        GraphQLInputObjectType,
+        GraphQLInputObjectType(f"{type_name}GroupByOrderByKey", lambda f=key_fields: f),
+    )
+    return cast(
+        GraphQLInputObjectType,
+        GraphQLInputObjectType(
+            f"{type_name}GroupByOrderBy",
+            lambda: {
+                "aggregate": GraphQLInputField(aggregate_type),
+                "groupKey": GraphQLInputField(key_type),
+            },
+        ),
+    )
