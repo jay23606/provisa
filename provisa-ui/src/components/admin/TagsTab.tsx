@@ -29,7 +29,7 @@ import { List, Lock, Pencil, Plus, Tag as TagIcon, Trash2, X } from "lucide-reac
 import {
   useTags,
   useTagAssignments,
-  useUpsertTag,
+  useSaveTag,
   useDeleteTag,
   useUpsertTagParamValue,
   useDeleteTagParamValue,
@@ -62,7 +62,7 @@ export function TagsTab() {
   const { t } = useTranslation();
   const { tags } = useTags();
   const { tagAssignments } = useTagAssignments();
-  const { upsertTag } = useUpsertTag();
+  const { createTag, updateTag } = useSaveTag();
   const { deleteTag } = useDeleteTag();
   const refusal = useDependentsDialog();
   const { upsertTagParamValue } = useUpsertTagParamValue();
@@ -146,7 +146,9 @@ export function TagsTab() {
 
   const handleSubmit = async () => {
     if (!formId.trim() || formScopes.length === 0) return;
-    const result = await upsertTag(
+    // A new tag is created; the open one updated (a create refuses an id that exists).
+    const save = editingId === null ? createTag : updateTag;
+    const result = await save(
       formId.trim(),
       formDescription.trim(),
       formScopes,

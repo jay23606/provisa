@@ -885,8 +885,14 @@ mutation DeleteDataProduct($id: String!) {
   }
 }
 
-mutation UpsertTag($input: TagInput!) {
-  upsertTag(input: $input) {
+mutation CreateTag($input: TagInput!) {
+  createTag(input: $input) {
+    ...MutationResult
+  }
+}
+
+mutation UpdateTag($input: TagInput!) {
+  updateTag(input: $input) {
     ...MutationResult
   }
 }

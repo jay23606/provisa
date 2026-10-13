@@ -467,6 +467,116 @@ async def _save_role(
     )
 
 
+async def _save_tag(
+    info: StrawberryInfo, input: TagInput, *, creating: bool
+) -> MutationResult:  # REQ-1373, REQ-1375, REQ-1944
+    """A tag saved: a create makes a new one, an update changes one that exists."""
+    _require_tag_editor(info)
+    from provisa.core.models import (
+        DERIVED_TAG_IDS,
+        SYSTEM_TAG_IDS,
+        TAG_FIELD_POLICIES,
+        TAG_OBJECT_TYPES,
+        TAG_PARAM_POLICIES,
+        TAG_PARAM_SEPARATOR,
+        Tag as TagModel,
+    )
+    from provisa.core.repositories import tag as tag_repo
+
+    # REQ-1467: a registry id is a base id. Accepting "entity:customer" here would define a
+    # tag whose id parses as the system `entity` tag carrying a parameter, and every base-id
+    # comparison downstream would then resolve the user tag to the intrinsic.
+    if TAG_PARAM_SEPARATOR in input.id:
+        return MutationResult(
+            success=False,
+            message=(
+                f"Tag id {input.id!r} may not contain {TAG_PARAM_SEPARATOR!r} — "
+                "the separator introduces a parameter value on an assignment"
+            ),
+            code="schema.tag_id_has_separator",
+            params={"tag": input.id},
+        )
+    # REQ-1443: a derived tag is code-defined like a system tag, so it is reserved the same way.
+    if input.id in SYSTEM_TAG_IDS + DERIVED_TAG_IDS:
+        return MutationResult(
+            success=False,
+            message=f"Tag {input.id!r} is a system tag and cannot be redefined",
+            code="schema.tag_system_immutable",
+            params={"tag": input.id},
+        )
+    bad_scopes = [s for s in input.applies_to if s not in TAG_OBJECT_TYPES]
+    if bad_scopes or not input.applies_to:
+        return MutationResult(
+            success=False,
+            message=f"applies_to must be a non-empty subset of {list(TAG_OBJECT_TYPES)}",
+            code="schema.tag_bad_scope",
+            params={"tag": input.id, "scopes": ",".join(bad_scopes)},
+        )
+    for policy in (input.reason_policy, input.expires_policy):
+        if policy not in TAG_FIELD_POLICIES:
+            return MutationResult(
+                success=False,
+                message=f"Field policy must be one of {list(TAG_FIELD_POLICIES)}",
+                code="schema.tag_bad_policy",
+                params={"tag": input.id, "policy": policy},
+            )
+    if input.param_policy not in TAG_PARAM_POLICIES:  # REQ-1467
+        return MutationResult(
+            success=False,
+            message=f"Parameter policy must be one of {list(TAG_PARAM_POLICIES)}",
+            code="schema.tag_bad_param_policy",
+            params={"tag": input.id, "policy": input.param_policy},
+        )
+    model = TagModel(
+        id=input.id,
+        description=input.description,
+        applies_to=list(input.applies_to),
+        reason_policy=input.reason_policy,
+        expires_policy=input.expires_policy,
+        param_policy=input.param_policy,
+        sensitive=input.sensitive,
+    )
+    pool = await _get_pool()
+    async with pool.acquire() as conn:
+        existing = await tag_repo.get(cast("Connection", conn), input.id)
+        # A create makes a new tag and an update changes one: an id another tag holds, or one
+        # no tag holds, is refused by name, and nothing is written.
+        if creating and existing is not None:
+            return MutationResult(
+                success=False,
+                message=f"Tag {input.id!r} already exists",
+                code="schema.tag_id_taken",
+                params={"tag": input.id},
+            )
+        if not creating and existing is None:
+            return MutationResult(
+                success=False,
+                message=f"Tag {input.id!r} not found",
+                code="schema.tag_not_found",
+                params={"tag": input.id},
+            )
+        was_sensitive = bool(existing is not None and existing["sensitive"])
+        if input.sensitive != was_sensitive:
+            # REQ-1943: setting or clearing the Sensitive data option reveals or hides every
+            # column carrying the tag -- in every domain, so the right must reach them all
+            # (REQ-1944).
+            require_right_in_domains(info, SENSITIVE_DATA, {ALL_DOMAINS})
+        elif was_sensitive:
+            # REQ-1944: a sensitive tag's definition is maintained by whoever governs
+            # sensitive columns across the org, or by a table editor as before.
+            _require_sensitive_tag_definer(info)
+        else:
+            require_capability(info, "table_registration")
+        await tag_repo.upsert(cast("Connection", conn), model)
+    await _refresh_config_tags()
+    return MutationResult(
+        success=True,
+        message=f"Tag {input.id!r} saved",
+        code="schema.tag_saved",
+        params={"tag": input.id},
+    )
+
+
 def _cardinality_problem(input: RelationshipInput) -> "MutationResult | None":
     from provisa.core.models import Cardinality
 
@@ -2418,97 +2528,16 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
         )
 
     @strawberry.mutation
-    async def upsert_tag(
+    async def create_tag(
         self, info: StrawberryInfo, input: TagInput
     ) -> MutationResult:  # REQ-1373, REQ-1375, REQ-1944
-        _require_tag_editor(info)
-        from provisa.core.models import (
-            DERIVED_TAG_IDS,
-            SYSTEM_TAG_IDS,
-            TAG_FIELD_POLICIES,
-            TAG_OBJECT_TYPES,
-            TAG_PARAM_POLICIES,
-            TAG_PARAM_SEPARATOR,
-            Tag as TagModel,
-        )
-        from provisa.core.repositories import tag as tag_repo
+        return await _save_tag(info, input, creating=True)
 
-        # REQ-1467: a registry id is a base id. Accepting "entity:customer" here would define a
-        # tag whose id parses as the system `entity` tag carrying a parameter, and every base-id
-        # comparison downstream would then resolve the user tag to the intrinsic.
-        if TAG_PARAM_SEPARATOR in input.id:
-            return MutationResult(
-                success=False,
-                message=(
-                    f"Tag id {input.id!r} may not contain {TAG_PARAM_SEPARATOR!r} — "
-                    "the separator introduces a parameter value on an assignment"
-                ),
-                code="schema.tag_id_has_separator",
-                params={"tag": input.id},
-            )
-        # REQ-1443: a derived tag is code-defined like a system tag, so it is reserved the same way.
-        if input.id in SYSTEM_TAG_IDS + DERIVED_TAG_IDS:
-            return MutationResult(
-                success=False,
-                message=f"Tag {input.id!r} is a system tag and cannot be redefined",
-                code="schema.tag_system_immutable",
-                params={"tag": input.id},
-            )
-        bad_scopes = [s for s in input.applies_to if s not in TAG_OBJECT_TYPES]
-        if bad_scopes or not input.applies_to:
-            return MutationResult(
-                success=False,
-                message=f"applies_to must be a non-empty subset of {list(TAG_OBJECT_TYPES)}",
-                code="schema.tag_bad_scope",
-                params={"tag": input.id, "scopes": ",".join(bad_scopes)},
-            )
-        for policy in (input.reason_policy, input.expires_policy):
-            if policy not in TAG_FIELD_POLICIES:
-                return MutationResult(
-                    success=False,
-                    message=f"Field policy must be one of {list(TAG_FIELD_POLICIES)}",
-                    code="schema.tag_bad_policy",
-                    params={"tag": input.id, "policy": policy},
-                )
-        if input.param_policy not in TAG_PARAM_POLICIES:  # REQ-1467
-            return MutationResult(
-                success=False,
-                message=f"Parameter policy must be one of {list(TAG_PARAM_POLICIES)}",
-                code="schema.tag_bad_param_policy",
-                params={"tag": input.id, "policy": input.param_policy},
-            )
-        model = TagModel(
-            id=input.id,
-            description=input.description,
-            applies_to=list(input.applies_to),
-            reason_policy=input.reason_policy,
-            expires_policy=input.expires_policy,
-            param_policy=input.param_policy,
-            sensitive=input.sensitive,
-        )
-        pool = await _get_pool()
-        async with pool.acquire() as conn:
-            existing = await tag_repo.get(cast("Connection", conn), input.id)
-            was_sensitive = bool(existing is not None and existing["sensitive"])
-            if input.sensitive != was_sensitive:
-                # REQ-1943: setting or clearing the Sensitive data option reveals or hides every
-                # column carrying the tag -- in every domain, so the right must reach them all
-                # (REQ-1944).
-                require_right_in_domains(info, SENSITIVE_DATA, {ALL_DOMAINS})
-            elif was_sensitive:
-                # REQ-1944: a sensitive tag's definition is maintained by whoever governs
-                # sensitive columns across the org, or by a table editor as before.
-                _require_sensitive_tag_definer(info)
-            else:
-                require_capability(info, "table_registration")
-            await tag_repo.upsert(cast("Connection", conn), model)
-        await _refresh_config_tags()
-        return MutationResult(
-            success=True,
-            message=f"Tag {input.id!r} saved",
-            code="schema.tag_saved",
-            params={"tag": input.id},
-        )
+    @strawberry.mutation
+    async def update_tag(
+        self, info: StrawberryInfo, input: TagInput
+    ) -> MutationResult:  # REQ-1373, REQ-1375, REQ-1944
+        return await _save_tag(info, input, creating=False)
 
     @strawberry.mutation
     async def delete_tag(

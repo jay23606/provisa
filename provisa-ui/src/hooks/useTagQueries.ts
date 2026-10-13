@@ -13,7 +13,8 @@ import type { MutationResult, Tag, TagAssignment } from "../types/admin";
 import {
   TagsQuery as TAGS_QUERY,
   TagAssignmentsQuery as TAG_ASSIGNMENTS_QUERY,
-  UpsertTag as UPSERT_TAG_MUTATION,
+  CreateTag as CREATE_TAG_MUTATION,
+  UpdateTag as UPDATE_TAG_MUTATION,
   DeleteTag as DELETE_TAG_MUTATION,
   AssignTag as ASSIGN_TAG_MUTATION,
   UnassignTag as UNASSIGN_TAG_MUTATION,
@@ -49,27 +50,35 @@ export function useTagAssignments() {
   };
 }
 
-export function useUpsertTag() {
-  const [upsertTag, { loading }] = useMutation<{ upsertTag: MutationResult }>(UPSERT_TAG_MUTATION, {
-    refetchQueries: [{ query: TAGS_QUERY }],
-  });
+/** A tag saved: a new one is created (an id that exists is refused), one that exists updated. */
+export function useSaveTag() {
+  const saved = { refetchQueries: [{ query: TAGS_QUERY }] };
+  const [createTag, { loading: creating }] = useMutation<{ createTag: MutationResult }>(
+    CREATE_TAG_MUTATION,
+    saved,
+  );
+  const [updateTag, { loading: updating }] = useMutation<{ updateTag: MutationResult }>(
+    UPDATE_TAG_MUTATION,
+    saved,
+  );
+  const input = (
+    id: string,
+    description: string,
+    appliesTo: string[],
+    reasonPolicy: string,
+    expiresPolicy: string,
+    paramPolicy: string, // REQ-1467
+  ) => ({ input: { id, description, appliesTo, reasonPolicy, expiresPolicy, paramPolicy } });
   return {
-    upsertTag: async (
-      id: string,
-      description: string,
-      appliesTo: string[],
-      reasonPolicy: string = "optional",
-      expiresPolicy: string = "optional",
-      paramPolicy: string = "none", // REQ-1467
-    ) => {
-      const result = await upsertTag({
-        variables: {
-          input: { id, description, appliesTo, reasonPolicy, expiresPolicy, paramPolicy },
-        },
-      });
-      return (result.data?.upsertTag ?? { success: false, message: "" }) as MutationResult;
+    createTag: async (...fields: Parameters<typeof input>) => {
+      const result = await createTag({ variables: input(...fields) });
+      return (result.data?.createTag ?? { success: false, message: "" }) as MutationResult;
     },
-    loading,
+    updateTag: async (...fields: Parameters<typeof input>) => {
+      const result = await updateTag({ variables: input(...fields) });
+      return (result.data?.updateTag ?? { success: false, message: "" }) as MutationResult;
+    },
+    loading: creating || updating,
   };
 }
 
