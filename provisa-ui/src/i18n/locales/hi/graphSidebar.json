@@ -26,6 +26,9 @@
     "rename": "नाम बदलें",
     "remove": "हटाएँ",
     "renameFavoriteInput": "पसंदीदा का नाम",
-    "resizeSidebar": "साइडबार का आकार बदलें"
+    "resizeSidebar": "साइडबार का आकार बदलें",
+    "tabSettings": "दृश्य सेटिंग्स",
+    "maxNodes": "अधिकतम नोड",
+    "maxNodesHint": "प्रति क्वेरी बनाए गए नोड, {{ceiling}} तक"
   }
 }

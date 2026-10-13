@@ -26,6 +26,9 @@
     "rename": "שינוי שם",
     "remove": "הסרה",
     "renameFavoriteInput": "שם המועדף",
-    "resizeSidebar": "שינוי גודל סרגל הצד"
+    "resizeSidebar": "שינוי גודל סרגל הצד",
+    "tabSettings": "הגדרות תצוגה",
+    "maxNodes": "מקסימום צמתים",
+    "maxNodesHint": "צמתים המוצגים בכל שאילתה, עד {{ceiling}}"
   }
 }

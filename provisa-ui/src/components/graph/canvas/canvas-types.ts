@@ -8,12 +8,15 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
+import type { ReactNode } from "react";
 import type { Relationship } from "../../../types/admin";
 import type { GNode, GEdge, GraphStats, RelLineOverride } from "../graph-model";
 import type { ClusterLevel } from "../graph-clusters";
 import type { CyLayoutOptions, CyInstance } from "../cytoscape-types";
 
 export interface CanvasProps {
+  /** A short note drawn over the canvas itself (the frame's first-N note). */
+  note?: ReactNode;
   nodes: Map<string, GNode>;
   edges: Map<string, GEdge>;
   overlayNodes: Map<string, GNode>;

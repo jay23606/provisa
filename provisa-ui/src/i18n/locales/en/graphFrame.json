@@ -32,6 +32,7 @@
     "viewCode": "Code",
     "showPropertiesPanel": "Show properties panel",
     "copyErrorTitle": "Copy error",
-    "expandedDialogLabel": "Expanded graph view"
+    "expandedDialogLabel": "Expanded graph view",
+    "firstNodesShown": "Showing the first {{count}} nodes; there are more. Raise the limit in the side menu."
   }
 }

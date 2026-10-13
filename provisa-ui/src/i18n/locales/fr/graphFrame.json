@@ -32,6 +32,7 @@
     "viewCode": "Code",
     "showPropertiesPanel": "Afficher le panneau des propriétés",
     "copyErrorTitle": "Erreur de copie",
-    "expandedDialogLabel": "Vue agrandie du graphe"
+    "expandedDialogLabel": "Vue agrandie du graphe",
+    "firstNodesShown": "Affichage des {{count}} premiers nœuds ; il y en a d'autres. Augmentez la limite dans le menu latéral."
   }
 }

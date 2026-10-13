@@ -830,6 +830,23 @@
   height: 100%;
 }
 
+/* The frame's first-N note, over the canvas: the result has more rows than were drawn. */
+.gf-cut-note {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 24px);
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  pointer-events: none;
+  z-index: 2;
+}
+
 .gf-canvas-controls {
   position: absolute;
   bottom: 12px;

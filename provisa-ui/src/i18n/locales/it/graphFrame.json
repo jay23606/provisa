@@ -32,6 +32,7 @@
     "viewCode": "Codice",
     "showPropertiesPanel": "Mostra pannello proprietà",
     "copyErrorTitle": "Copia errore",
-    "expandedDialogLabel": "Vista grafo espansa"
+    "expandedDialogLabel": "Vista grafo espansa",
+    "firstNodesShown": "Vengono mostrati i primi {{count}} nodi; ce ne sono altri. Aumenta il limite nel menu laterale."
   }
 }

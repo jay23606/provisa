@@ -26,6 +26,9 @@
     "rename": "重命名",
     "remove": "移除",
     "renameFavoriteInput": "收藏名称",
-    "resizeSidebar": "调整侧边栏大小"
+    "resizeSidebar": "调整侧边栏大小",
+    "tabSettings": "视图设置",
+    "maxNodes": "最大节点数",
+    "maxNodesHint": "每次查询绘制的节点数，最多 {{ceiling}}"
   }
 }

@@ -26,6 +26,9 @@
     "rename": "Rinomina",
     "remove": "Rimuovi",
     "renameFavoriteInput": "Nome del preferito",
-    "resizeSidebar": "Ridimensiona barra laterale"
+    "resizeSidebar": "Ridimensiona barra laterale",
+    "tabSettings": "Impostazioni di visualizzazione",
+    "maxNodes": "Nodi max",
+    "maxNodesHint": "Nodi disegnati per query, fino a {{ceiling}}"
   }
 }

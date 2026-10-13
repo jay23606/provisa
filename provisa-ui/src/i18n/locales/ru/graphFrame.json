@@ -32,6 +32,7 @@
     "viewCode": "Код",
     "showPropertiesPanel": "Показать панель свойств",
     "copyErrorTitle": "Копировать ошибку",
-    "expandedDialogLabel": "Развёрнутый вид графа"
+    "expandedDialogLabel": "Развёрнутый вид графа",
+    "firstNodesShown": "Показаны первые {{count}} узлов; есть и другие. Увеличьте лимит в боковом меню."
   }
 }

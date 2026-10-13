@@ -56,3 +56,22 @@ async def test_graph_schema_includes_singular_pk(monkeypatch):
     assert "pk" in by_label["Orders"]
     assert by_label["Orders"]["pk"] == cr._cql_prop("customer_id")
     assert by_label["Events"]["pk"] is None
+
+
+async def test_graph_schema_says_the_drawing_ceiling(monkeypatch):
+    """The explorer's max-nodes setting can ask for at most node_cap: the smaller of the row limit
+    and the redirect threshold."""
+    import provisa.api.rest.cypher_drawing as drawing
+    from provisa.executor.redirect import RedirectConfig
+
+    label_map = types.SimpleNamespace(nodes={}, relationships={})
+    monkeypatch.setattr(cr, "_resolve_role_id", lambda *_: "admin")
+    monkeypatch.setattr(cr, "_build_label_map", lambda *_: label_map)
+    monkeypatch.setattr(appmod.state, "contexts", {"admin": object()})
+    monkeypatch.setattr(appmod.state, "schema_build_cache", {"tables": []})
+    monkeypatch.setattr(drawing, "default_row_limit", lambda: 700)
+    monkeypatch.setattr(
+        RedirectConfig, "from_env", staticmethod(lambda: types.SimpleNamespace(threshold=500))
+    )
+    resp = await cr.graph_schema(cast(Any, types.SimpleNamespace()))
+    assert json.loads(bytes(resp.body))["node_cap"] == 500

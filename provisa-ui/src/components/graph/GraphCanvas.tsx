@@ -15,6 +15,7 @@
    imperative graph engine and are intentional throughout this module */
 
 import { useRef, useEffect, useLayoutEffect, useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { labelColor, darkenColor } from "./graph-model";
 import type { GNode, GEdge, GraphStats } from "./graph-model";
 import {
@@ -68,6 +69,7 @@ export function GraphCanvas({
   clusterLevel,
   hullSvgRef,
   isExpanded,
+  note,
 }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<CyInstance | null>(null);
@@ -777,6 +779,7 @@ export function GraphCanvas({
       }}
     >
       <div ref={containerRef} className="gf-canvas" />
+      {note}
       <HullSvgOverlay
         hullCircles={hullCircles}
         hullSvgRef={hullSvgRef}
@@ -835,6 +838,16 @@ export function GraphCanvas({
           showingParentsCircular={showingParentsCircular}
         />
       )}
+    </div>
+  );
+}
+
+/** Over the canvas: the frame drew the first `count` rows of a result that has more. */
+export function GraphCutNote({ count }: { count: number }) {
+  const { t } = useTranslation();
+  return (
+    <div className="gf-cut-note" role="status" data-testid="graph-cut-note">
+      {t("graphFrame.firstNodesShown", { count })}
     </div>
   );
 }

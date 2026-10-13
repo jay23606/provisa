@@ -38,7 +38,7 @@ import { CopySymbolButton } from "../../components/CopyButton";
 import type { CyInstance } from "./cytoscape-types";
 import type { ClusterLevel } from "./graph-clusters";
 import { downloadBlob, compositeGraphDownload, downloadGraphSvg, toCSV } from "./graph-export";
-import { GraphCanvas } from "./GraphCanvas";
+import { GraphCanvas, GraphCutNote } from "./GraphCanvas";
 import { GraphStatsPanel } from "./GraphStatsModal";
 import { Inspector } from "./Inspector";
 import { TableView, JsonCopyButton } from "./TableView";
@@ -841,6 +841,7 @@ export function GraphFrame({
               clusterLevel={clusterLevel}
               hullSvgRef={canvasHullSvgRef}
               isExpanded={expanded}
+              note={frame.truncated && <GraphCutNote count={frame.rows.length} />}
             />
             {!inspectorVisible && (
               <Tip text={t("graphFrame.showPropertiesPanel")} named>

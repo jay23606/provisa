@@ -15,7 +15,6 @@ import { Text } from "@mantine/core";
 import { useDomainFilter } from "../context/DomainFilterContext";
 import { GraphFrame } from "../components/graph/GraphFrame";
 import {
-  extractElements,
   type FrameData,
   type RelLineOverride,
   type GNode,
@@ -42,6 +41,7 @@ import { Neo4jExportModal } from "../components/graph/Neo4jExportModal";
 import { buildDropExpansion } from "./graph-drop";
 import { getStored, removeStored, setStored } from "../lib/browserStorage";
 import { toResultRedirect } from "../api/admin";
+import { drawnElements, useMaxNodes } from "../components/graph/graph-drawing";
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export function GraphPage() {
@@ -78,6 +78,9 @@ export function GraphPage() {
   });
   const [schemaNodeLabels, setSchemaNodeLabels] = useState<SchemaNodeLabel[]>([]);
   const [schemaRels, setSchemaRels] = useState<SchemaRel[]>([]);
+  // The viewer's max-nodes setting, and the server's ceiling for it (graph-schema's node_cap).
+  const [maxNodes, setMaxNodes] = useMaxNodes();
+  const [nodeCap, setNodeCap] = useState<number | null>(null);
   const [schemaLoading, setSchemaLoading] = useState(true);
   const [totalNodeCount, setTotalNodeCount] = useState<number | null>(null);
   const [totalRelCount, setTotalRelCount] = useState<number | null>(null);
@@ -247,6 +250,7 @@ export function GraphPage() {
           if (node.domainLabel) newClusterMap[`${node.domainLabel}:${node.tableLabel}`] = entry;
         }
         clusterMapRef.current = newClusterMap;
+        setNodeCap(data.node_cap);
         setSchemaNodeLabels(uniqueNodeLabels);
         setSchemaRels(rels.sort((a, b) => a.type.localeCompare(b.type)));
       })
@@ -334,7 +338,7 @@ export function GraphPage() {
         const res = await fetch("/data/cypher", {
           method: "POST",
           headers: hdrs,
-          body: JSON.stringify({ query, params: {} }),
+          body: JSON.stringify({ query, params: {}, max_nodes: maxNodes }),
         });
         const elapsed = Date.now() - start;
         if (!res.ok) {
@@ -362,7 +366,9 @@ export function GraphPage() {
         // REQ-1224: a result over the large-result threshold comes back as a handle to the file
         // it was delivered to, with no rows; the frame says so rather than drawing nothing.
         const redirect = data.redirect ? toResultRedirect(data.redirect) : undefined;
-        const { nodes, edges } = extractElements(rows);
+        // A result that returns nodes, relationships or paths is drawn, up to max nodes; one that
+        // returns rows only is a table (the server says which, from the translation).
+        const { nodes, edges, truncated } = drawnElements(data);
         nodes.forEach((node) => {
           const clusters = clusterMapRef.current[node.label];
           if (clusters)
@@ -383,6 +389,7 @@ export function GraphPage() {
                   rows,
                   columns,
                   redirect,
+                  truncated,
                   elapsed,
                   queryStats,
                 }
@@ -403,7 +410,7 @@ export function GraphPage() {
         });
       }
     },
-    [roleHeaderValue],
+    [roleHeaderValue, maxNodes],
   );
 
   // Auto-execute a query forwarded from another page (e.g. NL "Open in Cypher", or the Cypher panel).
@@ -470,6 +477,7 @@ export function GraphPage() {
                 elapsed: undefined,
                 error: undefined,
                 redirect: undefined,
+                truncated: undefined,
               }
             : fr,
         );
@@ -484,7 +492,7 @@ export function GraphPage() {
         const res = await fetch("/data/cypher", {
           method: "POST",
           headers: hdrs2,
-          body: JSON.stringify({ query, params: {} }),
+          body: JSON.stringify({ query, params: {}, max_nodes: maxNodes }),
         });
         const elapsed = Date.now() - start;
         if (!res.ok) {
@@ -512,7 +520,9 @@ export function GraphPage() {
         // REQ-1224: a result over the large-result threshold comes back as a handle to the file
         // it was delivered to, with no rows; the frame says so rather than drawing nothing.
         const redirect = data.redirect ? toResultRedirect(data.redirect) : undefined;
-        const { nodes, edges } = extractElements(rows);
+        // A result that returns nodes, relationships or paths is drawn, up to max nodes; one that
+        // returns rows only is a table (the server says which, from the translation).
+        const { nodes, edges, truncated } = drawnElements(data);
         nodes.forEach((node) => {
           const clusters = clusterMapRef.current[node.label];
           if (clusters)
@@ -533,6 +543,7 @@ export function GraphPage() {
                   rows,
                   columns,
                   redirect,
+                  truncated,
                   elapsed,
                   queryStats,
                 }
@@ -553,7 +564,7 @@ export function GraphPage() {
         });
       }
     },
-    [roleHeaderValue],
+    [roleHeaderValue, maxNodes],
   );
 
   const framesRef = useRef(frames);
@@ -900,6 +911,9 @@ export function GraphPage() {
         totalNodeCount={totalNodeCount}
         totalRelCount={totalRelCount}
         labelCounts={labelCounts}
+        maxNodes={maxNodes}
+        nodeCap={nodeCap}
+        onMaxNodesChange={setMaxNodes}
       />
 
       <div className="graph-content">
