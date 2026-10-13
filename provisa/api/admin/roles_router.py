@@ -147,9 +147,9 @@ async def create_role(body: CreateRoleBody, request: Request):  # REQ-042, REQ-0
     pool = _pool(request)
     async with pool.acquire() as conn:
         # A create makes a new role: an existing id is refused by name, before anything is written.
-        if (
-            await conn.execute_core(select(roles.c.id).where(roles.c.id == body.id))
-        ).fetchone() is not None:
+        from provisa.core.repositories import role as role_repo
+
+        if any(r["id"] == body.id for r in await role_repo.list_all(conn)):
             raise ApiError(
                 409, "roles.already_exists", f"Role {body.id!r} already exists", role=body.id
             )
