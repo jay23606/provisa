@@ -29,8 +29,7 @@ from sqlalchemy import insert, select
 import provisa.api.app as appmod
 from provisa.api.admin import actions_router, schema_mutation
 from provisa.api.errors import ApiError
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.db import _init_schema_portable
+from provisa.core.database import Database
 from provisa.core.schema_org import (
     domains,
     metrics,
@@ -50,11 +49,10 @@ TABLES = {"orders": "sales", "customers": "sales", "invoices": "finance", "ledge
 
 
 @pytest.fixture
-async def plane(monkeypatch) -> Database:
+async def plane(monkeypatch, control_plane) -> Database:
     """Two domains; a relationship inside sales, one inside finance and one across the two; a
     metric per domain; a command and a webhook per domain and one of each in no domain."""
-    db = Database(create_engine_from_url("sqlite+pysqlite:///:memory:"), name="delete-domain-test")
-    await _init_schema_portable(db)
+    db = control_plane.org()
     async with db.acquire() as conn:
         await conn.execute_core(insert(sources).values(id="pg", type="postgresql"))
         for domain_id in ("sales", "finance"):
@@ -98,6 +96,10 @@ async def plane(monkeypatch) -> Database:
                 source_table_id=ids["orders"],
                 target_table_id=ids["customers"],
                 via_table_id=ids["ledgers"],
+                # a junction relationship is whole: both junction columns and its label source
+                via_source_column="order_id",
+                via_target_column="customer_id",
+                via_label_source="table",
                 source_column="id",
                 target_column="id",
                 cardinality="many-to-one",

@@ -18,29 +18,25 @@ from contextlib import asynccontextmanager
 
 import pytest
 from sqlalchemy import insert
-from provisa.core.database import create_engine_from_url
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from provisa.core.database import Database
 from provisa.core.repositories import calendar as calendar_repo
-from provisa.core.schema_org import calendars, registered_tables
+from provisa.core.schema_org import domains, registered_tables, sources
 
 pytestmark = pytest.mark.asyncio
 
 
 @asynccontextmanager
-async def _db(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cal.db'}")
-    with engine.begin() as c:
-        # The whole org schema: a delete asks the dependency guard, which reads every table
-        # that can refer to the object.
-        calendars.metadata.create_all(c)
-    try:
-        yield Database(engine, name="cp")
-    finally:
-        engine.dispose()
+async def _db(control_plane):
+    yield control_plane.org()
 
 
 async def _register_mv(conn, *, source_id, table_name, mv_calendar):
+    # the table's source and domain exist: the control plane's foreign keys hold
+    await conn.execute_core(insert(sources).values(id=source_id, type="postgresql"))
+    await conn.execute_core(
+        pg_insert(domains).values(id="d").on_conflict_do_nothing(index_elements=["id"])
+    )
     await conn.execute_core(
         insert(registered_tables).values(
             source_id=source_id,
@@ -52,8 +48,8 @@ async def _register_mv(conn, *, source_id, table_name, mv_calendar):
     )
 
 
-async def test_upsert_list_and_versioning(tmp_path):
-    async with _db(tmp_path) as db:
+async def test_upsert_list_and_versioning(control_plane):
+    async with _db(control_plane) as db:
         async with db.acquire() as conn:
             await calendar_repo.upsert(
                 conn, {"name": "fy", "version": "v1", "base_system": "fiscal"}
@@ -69,8 +65,8 @@ async def test_upsert_list_and_versioning(tmp_path):
     assert latest is not None and latest["version"] in {"v1", "v2"}
 
 
-async def test_usage_count_and_delete_when_unused(tmp_path):
-    async with _db(tmp_path) as db:
+async def test_usage_count_and_delete_when_unused(control_plane):
+    async with _db(control_plane) as db:
         async with db.acquire() as conn:
             await calendar_repo.upsert(conn, {"name": "eom", "version": "v1"})
             assert await calendar_repo.usage_count(conn, "eom") == 0  # no MV references it
@@ -79,8 +75,8 @@ async def test_usage_count_and_delete_when_unused(tmp_path):
             assert await calendar_repo.get_latest(conn, "eom") is None
 
 
-async def test_usage_count_reports_referencing_mvs(tmp_path):
-    async with _db(tmp_path) as db:
+async def test_usage_count_reports_referencing_mvs(control_plane):
+    async with _db(control_plane) as db:
         async with db.acquire() as conn:
             await calendar_repo.upsert(conn, {"name": "eom", "version": "v1"})
             await calendar_repo.upsert(conn, {"name": "eom", "version": "v2"})

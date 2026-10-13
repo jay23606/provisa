@@ -32,8 +32,7 @@ from provisa.api.errors import ApiError
 from provisa.compiler.actions_schema import _build_action_fields
 from provisa.compiler.schema_types import SchemaInput
 from provisa.core import domain_policy
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.db import _init_schema_portable
+from provisa.core.database import Database
 from provisa.core.models import Function, Webhook
 from provisa.core.repositories import function as function_repo
 from provisa.core.schema_org import domains, sources, tracked_functions, tracked_webhooks
@@ -46,9 +45,8 @@ ROLES = {
 
 
 @pytest.fixture
-async def plane(monkeypatch) -> Database:
-    db = Database(create_engine_from_url("sqlite+pysqlite:///:memory:"), name="command-domain-test")
-    await _init_schema_portable(db)
+async def plane(monkeypatch, control_plane) -> Database:
+    db = control_plane.org()
     async with db.acquire() as conn:
         await conn.execute_core(insert(sources).values(id="pg", type="postgresql"))
         for domain_id in ("sales", "finance"):

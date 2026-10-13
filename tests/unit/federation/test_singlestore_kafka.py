@@ -169,28 +169,19 @@ def test_new_batches_sums_changed_rows_per_pipeline():
 
 
 @asynccontextmanager
-async def _queue_db(tmp_path):
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.schema_org import event_status, events, node_freshness_state
-
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'q.db'}")
-    with engine.begin() as c:
-        events.metadata.create_all(c, tables=[events, event_status, node_freshness_state])
-    try:
-        yield Database(engine, name="q")
-    finally:
-        engine.dispose()
+async def _queue_db(control_plane):
+    yield control_plane.org()
 
 
 @pytest.mark.asyncio
 async def test_the_batch_poll_ripples_a_changed_table_once_and_remembers_the_batch(
-    tmp_path, monkeypatch
+    monkeypatch, control_plane
 ):
     from provisa.events import queue
     from provisa.events.processor import SourceTableProcessor
 
     node, view = "kafka_src/s.orders", "view-orders_by_day"
-    async with _queue_db(tmp_path) as db:
+    async with _queue_db(control_plane) as db:
         processor = SourceTableProcessor(
             node,
             change_signal="kafka",

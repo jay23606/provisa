@@ -12,24 +12,15 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 import pytest
-from provisa.core.database import create_engine_from_url
 
-from provisa.core.database import Database
-from provisa.core.schema_org import event_status, events, node_freshness_state
 from provisa.events import queue
 from provisa.events.injector import check_node
 
 
 @asynccontextmanager
-async def _conn(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'q.db'}")
-    with engine.begin() as c:
-        events.metadata.create_all(c, tables=[events, event_status, node_freshness_state])
-    try:
-        async with Database(engine, name="q").acquire() as conn:
-            yield conn
-    finally:
-        engine.dispose()
+async def _conn(control_plane):
+    async with control_plane.org().acquire() as conn:
+        yield conn
 
 
 def _probe(token: str | None = "tok"):
@@ -42,8 +33,8 @@ def _probe(token: str | None = "tok"):
 
 
 @pytest.mark.asyncio
-async def test_unchanged_posts_nothing(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_unchanged_posts_nothing(control_plane):
+    async with _conn(control_plane) as conn:
         # baseline token already persisted; the probe returns the same token → unchanged
         await queue.set_node_state(conn, "s.orders", probe_token="tok")
         eid = await check_node(
@@ -59,14 +50,14 @@ async def test_unchanged_posts_nothing(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_an_unchanged_token_tells_whoever_keeps_the_copy(tmp_path):
+async def test_an_unchanged_token_tells_whoever_keeps_the_copy(control_plane):
     """REQ-855: an unchanged token keeps the rows, and the copy is current as of the probe."""
     told: list[str] = []
 
     async def verified() -> None:
         told.append("verified")
 
-    async with _conn(tmp_path) as conn:
+    async with _conn(control_plane) as conn:
         await queue.set_node_state(conn, "s.orders", probe_token="tok")
         given = {
             "node": "s.orders",
@@ -84,9 +75,9 @@ async def test_an_unchanged_token_tells_whoever_keeps_the_copy(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_none_token_degrades_to_ttl_and_posts(tmp_path):
+async def test_none_token_degrades_to_ttl_and_posts(control_plane):
     # a source with no token capability (None) is not gated — it re-posts every cadence (TTL degrade)
-    async with _conn(tmp_path) as conn:
+    async with _conn(control_plane) as conn:
         eid = await check_node(
             conn,
             node="s.orders",
@@ -101,8 +92,8 @@ async def test_none_token_degrades_to_ttl_and_posts(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_changed_poll_watermark_posts_append_and_fans_out(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_changed_poll_watermark_posts_append_and_fans_out(control_plane):
+    async with _conn(control_plane) as conn:
         eid = await check_node(
             conn,
             node="s.orders",
@@ -123,9 +114,9 @@ async def test_changed_poll_watermark_posts_append_and_fans_out(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_probe_type_watermark_drives_append_shape(tmp_path):
+async def test_probe_type_watermark_drives_append_shape(control_plane):
     # probe_type is the shape source of truth: watermark → append regardless of change_signal hints
-    async with _conn(tmp_path) as conn:
+    async with _conn(control_plane) as conn:
         await check_node(
             conn,
             node="s.wm",
@@ -140,8 +131,8 @@ async def test_probe_type_watermark_drives_append_shape(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_event_kind_from_change_signal(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_event_kind_from_change_signal(control_plane):
+    async with _conn(control_plane) as conn:
         # ttl, no watermark → replace
         await check_node(
             conn,
@@ -166,7 +157,7 @@ async def test_event_kind_from_change_signal(tmp_path):
 
 @pytest.mark.asyncio
 async def test_a_probe_that_answers_only_unchanged_or_cannot_tell_asks_for_one_read_per_change(
-    tmp_path,
+    control_plane,
 ):
     """A Microsoft 365 mailbox has no token to compare: its probe follows the links its last
     completed read kept and answers the constant "unchanged", or None when something changed
@@ -181,7 +172,7 @@ async def test_a_probe_that_answers_only_unchanged_or_cannot_tell_asks_for_one_r
     async def verified() -> None:
         told.append("verified")
 
-    async with _conn(tmp_path) as conn:
+    async with _conn(control_plane) as conn:
         given = {
             "node": "mail/default.messages",
             "change_signal": "ttl_probe",
