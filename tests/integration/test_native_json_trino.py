@@ -74,17 +74,19 @@ def _read_sql(trino_type: str, value: str) -> str:
     marker = native_json_marker(exp.column("v", "t", quoted=True), nested)
     return transpile_to_trino(
         f'SELECT {marker.sql(dialect="postgres")} AS "v" FROM src AS "t"'
-    ).replace("FROM src", f"FROM (VALUES (CAST({value} AS {trino_type})), (NULL)) ")
+        # Not VALUES: Trino spreads a row-typed expression in a VALUES row into one column per field.
+    ).replace("FROM src", f"FROM (SELECT CAST({value} AS {trino_type}) UNION ALL SELECT NULL) ")
 
 
 @pytest.mark.parametrize(("trino_type", "value", "expected"), _CASES)
 def test_trino_hands_a_native_nested_value_over_as_json(trino_conn, trino_type, value, expected):
     cur = trino_conn.cursor()
     cur.execute(_read_sql(trino_type, value).replace('AS "t"', 'AS "t"("v")'))
-    rows = cur.fetchall()
+    # A UNION ALL keeps no row order: the value's row and the NULL's, in whichever order.
+    read = sorted((row[0] for row in cur.fetchall()), key=lambda v: v is None)
     # The exact JSON text Trino writes: nothing for Provisa to convert.
-    assert rows[0][0] == json.dumps(expected, separators=(",", ":"))
-    assert rows[1][0] is None  # a NULL column stays NULL
+    assert read[0] == json.dumps(expected, separators=(",", ":"))
+    assert read[1] is None  # a NULL column stays NULL
 
 
 @pytest.mark.parametrize("value", ["nan()", "infinity()", "-infinity()"])

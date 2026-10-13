@@ -165,10 +165,12 @@ _DUCKDB_FINITE = (
 )
 _TRINO_FINITE = f"IF({{x}} IS NULL OR is_finite({{x}}), {{x}}, fail('{NON_FINITE}'))"
 # PostgreSQL has no function that raises; a cast that cannot succeed raises with the rule's name
-# in the source's own message ("invalid input syntax for type double precision").
+# in the source's own message ("invalid input syntax for type double precision"). The cast reads
+# the element: a cast of a constant is evaluated when the statement is planned, branch taken or
+# not, and refused every array of finite numbers.
 _POSTGRES_FINITE = (
     "CASE WHEN {x} IS NULL OR ({x} <> 'NaN' AND {x} <> 'Infinity' AND {x} <> '-Infinity') "
-    f"THEN {{x}} ELSE CAST('{NON_FINITE}' AS DOUBLE PRECISION) END"
+    f"THEN {{x}} ELSE CAST('{NON_FINITE}: ' || CAST({{x}} AS TEXT) AS DOUBLE PRECISION) END"
 )
 
 
@@ -232,9 +234,11 @@ _BACKENDS: dict[str, _Backend] = {
             "numeric": _sized_decimal(_AS_VARCHAR),
             "date": _AS_VARCHAR,
             "uuid": _AS_VARCHAR,
+            # date_format's %f carries milliseconds only: a timestamp(6) lost its microseconds.
+            # A timestamp(6) written as text keeps all six digits, whatever precision it held.
             "timestamp": _timestamp(
-                "date_format({x}, '%Y-%m-%dT%H:%i:%s.%f')",
-                "date_format({x} AT TIME ZONE 'UTC', '%Y-%m-%dT%H:%i:%s.%f')",
+                "replace(CAST(CAST({x} AS TIMESTAMP(6)) AS VARCHAR), ' ', 'T')",
+                "replace(CAST(CAST({x} AT TIME ZONE 'UTC' AS TIMESTAMP(6)) AS VARCHAR), ' ', 'T')",
             ),
             "bytea": "'\\x' || lower(to_hex({x}))",
             "float": _TRINO_FINITE,
