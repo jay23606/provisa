@@ -1,0 +1,9 @@
+{
+  "motherDuckFields": {
+    "database": "Banco de dados",
+    "databaseHint": "O banco de dados do MotherDuck, ou um compartilhamento pelo seu endereço (_share/…).",
+    "token": "Token do MotherDuck",
+    "tokenHint": "Uma referência a segredo, como ${secret:NAME}, é resolvida quando a fonte é lida.",
+    "dataMovement": "Uma instrução que une um arquivo DuckDB local a esta fonte pode enviar linhas do arquivo para sua conta do MotherDuck: o MotherDuck decide onde cada parte é executada."
+  }
+}

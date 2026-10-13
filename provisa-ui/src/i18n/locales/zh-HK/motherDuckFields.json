@@ -1,0 +1,9 @@
+{
+  "motherDuckFields": {
+    "database": "資料庫",
+    "databaseHint": "MotherDuck 資料庫，或按地址指定的共享 (_share/…)。",
+    "token": "MotherDuck 權杖",
+    "tokenHint": "密鑰參照（例如 ${secret:NAME}）會在讀取資料來源時解析。",
+    "dataMovement": "將本機 DuckDB 檔案與此資料來源聯結的語句，可能會把檔案中的行傳送到您的 MotherDuck 帳戶：由 MotherDuck 決定每一部分在何處執行。"
+  }
+}

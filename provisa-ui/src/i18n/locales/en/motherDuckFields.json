@@ -1,0 +1,9 @@
+{
+  "motherDuckFields": {
+    "database": "Database",
+    "databaseHint": "The MotherDuck database, or a share by its address (_share/…).",
+    "token": "MotherDuck token",
+    "tokenHint": "A secret reference, such as ${secret:NAME}, is resolved when the source is read.",
+    "dataMovement": "A statement that joins a local DuckDB file with this source may send the file's rows to your MotherDuck account: MotherDuck decides where each part of it runs."
+  }
+}

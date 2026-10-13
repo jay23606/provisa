@@ -572,6 +572,56 @@ class DuckDBSnowflakeConnector(_DuckDBExtensionConnector):  # REQ-899
         }
 
 
+class DuckDBMotherDuckConnector(_DuckDBExtensionConnector):  # REQ-1998
+    """A MotherDuck database attached in place by DuckDB's motherduck extension (``md:<db>``).
+
+    The source's token (its password, already resolved when the engine registers the source) is
+    never part of these details: the runtime gives it to the connection as a bound value
+    (``SET GLOBAL motherduck_token = ?``) before this ATTACH, so no statement text, log, trace or
+    error carries it. With no token the extension starts an interactive sign-in and waits for a
+    minute, so a source without one is refused here, before anything is attached. One DuckDB
+    instance is signed in to one MotherDuck account (``motherduck_token`` is the instance's).
+
+    Hybrid execution needs nothing of its own: the engine's one connection holds every source,
+    so a statement joining a local DuckDB file's table with this one's is one DuckDB statement,
+    and MotherDuck decides where each part runs -- which may move local rows to its side."""
+
+    source_type = "motherduck"
+    key = "duckdb_motherduck"
+    extension = "motherduck"
+    install_from_community = False  # DuckDB's core extension repository
+
+    def capability(self) -> Capability:
+        # Writes reach the MotherDuck database through the engine, as on the Postgres engine.
+        return Capability(
+            predicate_pushdown=True, join_pushdown=True, aggregate_pushdown=True, write=True
+        )
+
+    def _registered_query(self) -> str:
+        return "SELECT count(*) AS n FROM duckdb_settings() WHERE name = 'motherduck_token'"
+
+    def _registered_what(self) -> str:
+        return "the motherduck_token setting"
+
+    def details(self, source: Source) -> dict:
+        if not source.password:
+            raise ValueError(
+                f"Source {source.id!r}: a MotherDuck source signs in with its token (the password "
+                "field); none is set"
+            )
+        database = source.database
+        if not database:
+            raise ValueError(f"Source {source.id!r}: name the MotherDuck database to attach")
+        from provisa.compiler.sql_literals import sql_literal
+
+        alias = f"_src_{source.id}"
+        return {
+            "attach": f'ATTACH {sql_literal("md:" + database, "duckdb")} AS "{alias}"',
+            "raw_alias": alias,
+            "signs_in": "motherduck",
+        }
+
+
 class DuckDBBigQueryConnector(_DuckDBExtensionConnector):  # REQ-899
     """BigQuery, attached read-only via the bigquery extension. The GCP project id comes from the
     source's federation_hints; auth is ADC / GOOGLE_APPLICATION_CREDENTIALS in the engine environment."""

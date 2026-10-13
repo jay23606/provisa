@@ -227,6 +227,8 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         self._catalog_gate = _CatalogGate()
         # REQ-1997: local DuckDB files held by this connection, by attach alias: (path, token).
         self._file_holders: dict[str, tuple[str, int]] = {}
+        # REQ-1998: a digest of the MotherDuck token this connection is signed in with, if any.
+        self._motherduck_account: str | None = None
         # One store connection, so one write on it at a time (two lands interleaving on it was a
         # confirmed regression). A lock serializes it, and each write runs on the thread that asked
         # for it — a read-triggered land stays on its request's thread (REQ-1882), where a
@@ -473,6 +475,23 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
             install_and_load(self._con, "postgres", from_community=False)
             self._pg_ext_loaded = True
 
+    def _sign_in_motherduck(self, source: Any) -> None:
+        """REQ-1998: sign this connection in to MotherDuck with the source's token, given as a
+        bound value so it is in no statement's text. The instance is signed in to one account: a
+        source signed in with another token is refused by name."""
+        import hashlib
+
+        token = source.password
+        account = hashlib.sha256(token.encode()).hexdigest()
+        if self._motherduck_account is None:
+            self._con.execute("SET GLOBAL motherduck_token = ?", [token])
+            self._motherduck_account = account
+        elif self._motherduck_account != account:
+            raise ValueError(
+                f"Source {source.id!r}: this engine is signed in to another MotherDuck account; "
+                "one DuckDB engine reads one MotherDuck account"
+            )
+
     def _reach_location(self, details: dict) -> None:
         """Load the extensions a file source's location needs on this connection and create its
         secret (``connector_duckdb.file_location_details``, REQ-1997)."""
@@ -510,6 +529,8 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
                 )
                 self._ext_loaded.add(ext)
         self._reach_location(details)  # REQ-1997: a file database in a remote location
+        if details.get("signs_in") == "motherduck":
+            self._sign_in_motherduck(source)  # REQ-1998: before its ATTACH
         raw_alias = details.get("raw_alias", source.id)
         attach = details["attach"]
         if raw_alias in self._raw_attached and self._raw_attach_ddl[raw_alias] != attach:

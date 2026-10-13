@@ -81315,3 +81315,59 @@
   description: 'The documentation has a sizing guide for a customer, and the steps to run the sizing tool that produces it. The tool measures the customer''s own deployment under the customer''s own workload and writes a sizing and tuning guide from those measurements. The guide is for a customer: nothing about how Provisa itself is benchmarked goes in it.'
   use_case: An operator sizes a deployment for their own workload from measurements of that deployment, not from a generic table.
   notes: 'Maintainer 2026-10-12: "the sizing guide and the how to run the sizing tool should be in docs"; "The guide is for a customer". Built as docs/sizing.md with demo/named/perf/bench/sizing.py and sizing_guide.py on feat/bench-sizing-guide and feat/bench-3-device, queued for alpha.482.'
+- id: REQ-1998
+  status: proposed
+  since: 2026-10
+  group: 4. Source Connectors
+  category: Source Connectors
+  feature: connector-catalog-relational-and-warehouses
+  priority: SHOULD
+  type: behavioral
+  description: 'A MotherDuck database is reached in place on the DuckDB engine as well as on the Postgres engine: the DuckDB engine attaches it with DuckDB''s MotherDuck extension (md:<database>), signed in with the source''s MotherDuck token (its password field) resolved with the standard resolution. The token is given to the connection as a bound value, never in a statement''s text, so no log, trace or error carries it; a MotherDuck source with no token is refused by name before anything is attached. One engine connection is signed in to one MotherDuck account: a second MotherDuck source signed in with another token is refused by name. Writes reach the MotherDuck database through the engine, as on the Postgres engine. MotherDuck''s hybrid (dual) execution needs no setting of its own: on the DuckDB engine every source is attached on one connection, so a statement that joins a DuckDB file source''s table with a MotherDuck source''s table runs as one DuckDB statement on it, with MotherDuck deciding where each part executes, instead of being federated across two sources. Under dual execution MotherDuck may move local rows to its side for the parts it runs, so such a statement can send data from the local file into the organization''s MotherDuck account. On an engine that reaches neither in place, the tables land as replicas as today.'
+  use_case: 'An analyst keeps shared reference tables in MotherDuck and a large local DuckDB file of event data; a join between them runs as one DuckDB statement under hybrid execution.'
+  scenario: 'Given a MotherDuck source with a token, on the DuckDB engine
+
+    When a table of it is read
+
+    Then it is read in place through md:, not landed
+
+    Given a DuckDB file source and a MotherDuck source on the DuckDB engine
+
+    When a statement joins a local table with a MotherDuck table
+
+    Then it runs as one DuckDB statement on the engine''s connection
+
+    Given a MotherDuck source with no token
+
+    When it is attached
+
+    Then it is refused by name, and no sign-in is started'
+  related_reqs:
+  - REQ-900
+  - REQ-1868
+  - REQ-1997
+  notes: 'Maintainer 2026-10-12, through the lead: "does duckdb datasource support motherduck + local file?", then "yes" to adding md: attach on the DuckDB engine and a hybrid option. The lead''s ruling: hybrid needs no new source setting, the shared engine connection does it; writes stay on the engine route, as the Postgres connector has them; the note on data moving into the MotherDuck account goes in the docs and here. Measured live with duckdb 1.5.5 against the maintainer''s account (2026-10-12): the motherduck extension installs from the core repository; SET motherduck_token takes the token as a bound parameter (the documented md:db?motherduck_token= form was ignored); with no token the extension begins an interactive single sign-on and waits a minute; motherduck_token is per DuckDB instance; a local DuckDB file attached read-only and the MotherDuck workspace on one connection ran a join as one statement, its plan showing dual-execution operators.'
+- id: REQ-1999
+  status: proposed
+  since: 2026-10
+  group: 6. Execution, Routing, Caching & Performance
+  category: Federation Engines
+  feature: federation-and-routing-engines
+  priority: SHOULD
+  type: behavioral
+  description: 'MotherDuck is a federation engine, the production counterpart of the embedded DuckDB engine: an organization that chooses it has its replicas kept in a database of its own MotherDuck account and its governed SQL run there, in the same DuckDB dialect it runs in on the embedded engine, so what was built and checked on local DuckDB in development runs unchanged in production. Every node of the deployment reads the same replicas from MotherDuck, so replicas need no shared file mount; the coordinator builds and refreshes them (REQ-1916). The engine signs in with the organization''s MotherDuck token, resolved with the standard resolution and given to the connection as a bound value that no log, trace or error carries. Choosing it commits the organization to three things, said where it is chosen: every replica of every source is stored in its MotherDuck account (data residency); its engine is signed in to one MotherDuck account; and a source the engine can read only from the node (a database on a private network) is still read there, MotherDuck''s dual execution moving its rows to MotherDuck for the parts it runs.'
+  use_case: 'A team develops against the embedded DuckDB engine on a laptop and runs production on MotherDuck: the same model and the same SQL, its replicas shared by every node of the production deployment.'
+  scenario: 'Given an organization whose engine is MotherDuck
+
+    When a replica of one of its sources is built
+
+    Then it is kept in the organization''s MotherDuck database, built by the coordinator
+
+    When any node serves a read of that table
+
+    Then it reads the same replica from MotherDuck'
+  related_reqs:
+  - REQ-1998
+  - REQ-1916
+  - REQ-988
+  notes: 'Maintainer 2026-10-12, to the ui teammate directly: "can motherduck also be an engine - and its there a valid use case for that", then "it seems to me that duckdb local is for dev and motherduck is a valid production choice", then "as the engine". The lead took "as the engine" as the go-ahead (2026-10-12), to follow the warehouse engines'' pattern (provisa/federation/engine.py _ENGINE_BUILDERS) and REQ-1916, with the costs stated where it is chosen. The lead''s rulings on the design (2026-10-12): the token rides in the engine URL as its motherduck_token parameter, redacted on read and restored on write as an engine URL''s password is, so no new column; the store is attached on the engine connection, not reached through the embedded store''s file broker; the costs are stated in the engine''s description where it is chosen; the live test builds into a scratch database created and dropped for the run, the drop also sweeping such databases left more than a day; v1 selects the engine for the whole deployment, choosing it per organization is a follow-up. One account per engine: measured 2026-10-12 with duckdb 1.5.5, motherduck_token is the DuckDB instance''s setting.'

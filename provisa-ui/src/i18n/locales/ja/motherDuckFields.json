@@ -1,0 +1,9 @@
+{
+  "motherDuckFields": {
+    "database": "データベース",
+    "databaseHint": "MotherDuck のデータベース、またはアドレス (_share/…) で指定する共有。",
+    "token": "MotherDuck トークン",
+    "tokenHint": "${secret:NAME} のようなシークレット参照は、ソースを読み取るときに解決されます。",
+    "dataMovement": "ローカルの DuckDB ファイルとこのソースを結合するステートメントは、ファイルの行をお使いの MotherDuck アカウントに送ることがあります。どの部分をどこで実行するかは MotherDuck が決めます。"
+  }
+}

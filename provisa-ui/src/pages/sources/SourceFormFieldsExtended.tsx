@@ -44,6 +44,7 @@ import { Microsoft365Fields } from "./Microsoft365Fields";
 import { CodeSourceFields } from "./CodeSourceFields";
 import { CODE_SOURCE_TYPES } from "./codeSource";
 import { CosmosDbFields } from "./CosmosDbFields";
+import { MOTHERDUCK, MotherDuckFields } from "./MotherDuckFields";
 import { COSMOSDB } from "./cosmosdb";
 import { QdrantFields } from "./QdrantFields";
 import { QDRANT } from "./qdrant";
@@ -674,6 +675,7 @@ export function SourceFormFieldsExtended({
       {CODE_SOURCE_TYPES.has(form.type) && ( // REQ-1984, REQ-1993
         <CodeSourceFields type={form.type} fields={authFields} setFields={setAuthFields} />
       )}
+      {form.type === MOTHERDUCK && <MotherDuckFields form={form} setForm={setForm} />}
       {form.type === COSMOSDB && ( // REQ-1982
         <CosmosDbFields
           form={form}

@@ -23077,3 +23077,31 @@ The documentation has a sizing guide for a customer, and the steps to run the si
 **Code:** —
 
 **Tests:** —
+
+## 4. Source Connectors
+
+### REQ-1998 · Source Connectors {#REQ-1998}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+A MotherDuck database is reached in place on the DuckDB engine as well as on the Postgres engine: the DuckDB engine attaches it with DuckDB's MotherDuck extension (md:<database>), signed in with the source's MotherDuck token (its password field) resolved with the standard resolution. The token is given to the connection as a bound value, never in a statement's text, so no log, trace or error carries it; a MotherDuck source with no token is refused by name before anything is attached. One engine connection is signed in to one MotherDuck account: a second MotherDuck source signed in with another token is refused by name. Writes reach the MotherDuck database through the engine, as on the Postgres engine. MotherDuck's hybrid (dual) execution needs no setting of its own: on the DuckDB engine every source is attached on one connection, so a statement that joins a DuckDB file source's table with a MotherDuck source's table runs as one DuckDB statement on it, with MotherDuck deciding where each part executes, instead of being federated across two sources. Under dual execution MotherDuck may move local rows to its side for the parts it runs, so such a statement can send data from the local file into the organization's MotherDuck account. On an engine that reaches neither in place, the tables land as replicas as today.
+
+**Use case:** An analyst keeps shared reference tables in MotherDuck and a large local DuckDB file of event data; a join between them runs as one DuckDB statement under hybrid execution.
+
+**Code:** —
+
+**Tests:** —
+
+## 6. Execution, Routing, Caching & Performance
+
+### REQ-1999 · Federation Engines {#REQ-1999}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+MotherDuck is a federation engine, the production counterpart of the embedded DuckDB engine: an organization that chooses it has its replicas kept in a database of its own MotherDuck account and its governed SQL run there, in the same DuckDB dialect it runs in on the embedded engine, so what was built and checked on local DuckDB in development runs unchanged in production. Every node of the deployment reads the same replicas from MotherDuck, so replicas need no shared file mount; the coordinator builds and refreshes them ([REQ-1916](#REQ-1916)). The engine signs in with the organization's MotherDuck token, resolved with the standard resolution and given to the connection as a bound value that no log, trace or error carries. Choosing it commits the organization to three things, said where it is chosen: every replica of every source is stored in its MotherDuck account (data residency); its engine is signed in to one MotherDuck account; and a source the engine can read only from the node (a database on a private network) is still read there, MotherDuck's dual execution moving its rows to MotherDuck for the parts it runs.
+
+**Use case:** A team develops against the embedded DuckDB engine on a laptop and runs production on MotherDuck: the same model and the same SQL, its replicas shared by every node of the production deployment.
+
+**Code:** —
+
+**Tests:** —
