@@ -25,6 +25,7 @@ CREATE TABLE customers (
     name text NOT NULL,
     email text NOT NULL UNIQUE,
     city text NOT NULL,
+    region text NOT NULL,
     joined_on date NOT NULL
 );
 
@@ -58,24 +59,38 @@ CREATE SEQUENCE order_items_id_seq START 5001 OWNED BY order_items.id;
 
 SELECT setseed(0.1858);
 
+-- A customer's name is a first name and a last initial, unique: customer i takes first name
+-- (i - 1) % 20 and last initial (i - 1) / 20, so no two of the 200 share one. Its region is a
+-- bucket of its id: of every ten customers four are North, three South, two East and one West
+-- (80, 60, 40 and 20 of the 200).
 INSERT INTO customers
 SELECT i,
        (ARRAY['Ada', 'Ben', 'Chloe', 'Dev', 'Elena', 'Femi', 'Grace', 'Hiro', 'Ines', 'Jonas',
               'Kemi', 'Liam', 'Mara', 'Noor', 'Omar', 'Priya', 'Quinn', 'Rosa', 'Sven', 'Tara'])
-           [1 + (i % 20)]
-       || ' ' ||
-       (ARRAY['Adams', 'Baker', 'Costa', 'Diaz', 'Evans', 'Fischer', 'Garcia', 'Haddad', 'Ito',
-              'Jensen', 'Kowalski', 'Lopez', 'Moreau', 'Nakamura', 'Okafor'])[1 + (i * 7 % 15)],
+           [1 + ((i - 1) % 20)]
+       || ' ' || (ARRAY['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'])[1 + ((i - 1) / 20)]
+       || '.',
        'customer' || i || '@example.com',
        (ARRAY['Leeds', 'Lyon', 'Porto', 'Osaka', 'Austin', 'Accra', 'Pune', 'Bergen'])[1 + (i % 8)],
+       (ARRAY['North', 'North', 'North', 'North', 'South', 'South', 'South', 'East', 'East',
+              'West'])[1 + (i % 10)],
        date '2024-01-01' + (random() * 600)::int
 FROM generate_series(1, 200) AS i;
 
+-- A product's name is a style and a thing of its category, unique: product i is in category
+-- i % 6, and takes thing ((i - 1) / 6) % 5 of that category and style (i - 1) / 30, so the 20 of
+-- a category are its 5 things in 4 styles.
 INSERT INTO products
 SELECT i,
-       (ARRAY['Trail', 'City', 'Studio', 'Harbor', 'Summit', 'Meadow'])[1 + (i % 6)] || ' '
-       || (ARRAY['Backpack', 'Lamp', 'Kettle', 'Jacket', 'Mug', 'Notebook', 'Chair', 'Speaker'])
-           [1 + (i % 8)] || ' ' || i,
+       (ARRAY['Trail', 'City', 'Studio', 'Harbor'])[1 + ((i - 1) / 30)] || ' '
+       || (ARRAY[
+             ARRAY['Pack', 'Tent', 'Flask', 'Boots', 'Stove'],
+             ARRAY['Lamp', 'Rug', 'Vase', 'Clock', 'Pillow'],
+             ARRAY['Kettle', 'Mug', 'Pan', 'Bowl', 'Knife'],
+             ARRAY['Jacket', 'Scarf', 'Cap', 'Socks', 'Vest'],
+             ARRAY['Notebook', 'Pen', 'Desk', 'Folder', 'Chair'],
+             ARRAY['Speaker', 'Headset', 'Radio', 'Mic', 'Earbuds']
+           ])[1 + (i % 6)][1 + (((i - 1) / 6) % 5)],
        (ARRAY['outdoor', 'home', 'kitchen', 'apparel', 'office', 'audio'])[1 + (i % 6)],
        round((5 + random() * 245)::numeric, 2),
        (random() * 40)::int,

@@ -228,6 +228,26 @@ def test_customers_served_errors_are_counted_with_their_orders(server):
     assert any(r["orders"] for r in rows)
 
 
+def test_customers_are_in_four_regions_and_names_are_short_and_unique(server):
+    """A customer's region is North, South, East or West, 80, 60, 40 and 20 of the 200; a customer
+    is named by a first name and a last initial, a product by a style and a thing, each unique, so
+    a graph node's label tells it apart."""
+    regions = query(server, 'SELECT region, COUNT(*) AS n FROM "shop"."customers" GROUP BY region')
+    assert {r["region"]: r["n"] for r in regions} == {
+        "North": 80,
+        "South": 60,
+        "East": 40,
+        "West": 20,
+    }
+    for table, count in (("customers", 200), ("products", 120)):
+        (row,) = query(
+            server,
+            f'SELECT COUNT(DISTINCT name) AS names, MAX(LENGTH(name)) AS longest FROM "shop"."{table}"',
+        )
+        assert row["names"] == count, table
+        assert row["longest"] <= 15, table
+
+
 def test_viewed_products_no_order_includes(server):
     rows = query(server, 'SELECT product_id, views FROM "shop"."view_viewed_not_bought"')
     assert rows and all(r["views"] >= 1 for r in rows)

@@ -86,7 +86,7 @@ async def test_the_derived_terms_are_approved_but_four_left_proposed(loaded):
     derived = {name for name, t in terms.items() if not t.is_abstract}
     assert PROPOSED <= derived
     assert {name for name in derived if terms[name].id not in live} == PROPOSED
-    assert len(derived) == 72  # every column's business name, as the load derives it
+    assert len(derived) == 73  # every column's business name, as the load derives it
 
 
 async def test_the_views_name_their_columns_so_they_derive_the_shops_own_terms(loaded):
@@ -98,6 +98,7 @@ async def test_the_views_name_their_columns_so_they_derive_the_shops_own_terms(l
     for name in (
         "page status",
         "customer name",
+        "region",
         "product name",
         "product category",
         "product price",
@@ -125,6 +126,7 @@ async def test_the_ontology_is_grounded_in_the_derived_terms(loaded):
         ("table name", "PART_OF", "database statement"),
         ("views", "PART_OF", "customer journey"),
         ("order", "PART_OF", "customer journey"),
+        ("region", "PART_OF", "customer journey"),
         ("server error", "KIND_OF", "web request"),
         ("database error", "KIND_OF", "database statement"),
         ("page latency", "DERIVED_FROM", "duration ms"),

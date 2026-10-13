@@ -97,6 +97,7 @@ tables:
   - {name: name, data_type: varchar, description: The customer's name, visible_to: [org_admin, analyst]}
   - {name: email, data_type: varchar, description: The customer's email address, visible_to: [org_admin]}
   - {name: city, data_type: varchar, description: Where the customer lives, visible_to: [org_admin, analyst]}
+  - {name: region, data_type: varchar, description: 'The customer''s sales region: North, South, East or West', visible_to: [org_admin, analyst]}
   - {name: joined_on, data_type: date, description: When the customer signed up, visible_to: [org_admin, analyst]}
 - source_id: shop-db
   domain_id: shop
@@ -277,18 +278,19 @@ views:
   enable_group_by: true
   description: Customers who were served a server error, with how many and their orders so far
   sql: >-
-    SELECT c.id AS customer_id, c.name AS customer_name, c.city, COUNT(*) AS server_errors, MAX(a."time") AS last_error_at,
+    SELECT c.id AS customer_id, c.name AS customer_name, c.city, c.region, COUNT(*) AS server_errors, MAX(a."time") AS last_error_at,
       MAX(o.orders) AS orders
     FROM "shop"."customers" AS c
     JOIN "shop"."access_log" AS a ON a.customer_id = c.id
     LEFT JOIN (SELECT customer_id, COUNT(*) AS orders FROM "shop"."orders" GROUP BY customer_id) AS o
       ON o.customer_id = c.id
     WHERE a.status >= 500
-    GROUP BY c.id, c.name, c.city
+    GROUP BY c.id, c.name, c.city, c.region
   columns:
   - {name: customer_id, data_type: integer, description: The customer, visible_to: [org_admin, analyst]}
   - {name: customer_name, data_type: varchar, description: The customer's name, visible_to: [org_admin, analyst]}
   - {name: city, data_type: varchar, description: Where the customer lives, visible_to: [org_admin, analyst]}
+  - {name: region, data_type: varchar, description: 'The customer''s sales region: North, South, East or West', visible_to: [org_admin, analyst]}
   - {name: server_errors, data_type: bigint, description: Server errors the customer was served, visible_to: [org_admin, analyst]}
   - {name: last_error_at, data_type: timestamp, description: When the last one was, visible_to: [org_admin, analyst]}
   - {name: orders, data_type: bigint, description: Orders the customer has placed, visible_to: [org_admin, analyst]}
@@ -392,7 +394,8 @@ glossary_terms:
   domains:
   - shop
 - name: customer name
-  definition: A customer's full name.
+  definition: 'A customer''s name as the shop shows it: a first name and a last initial, such as Ada B.,
+    unique to the customer.'
   domains:
   - shop
 - name: db log message
@@ -549,7 +552,8 @@ glossary_terms:
   domains:
   - shop
 - name: product name
-  definition: The name a product is sold under.
+  definition: 'The name a product is sold under: a style and a thing, such as Trail Pack, unique to the
+    product.'
   domains:
   - shop
 - name: product price
@@ -561,6 +565,13 @@ glossary_terms:
     INSERT.
   domains:
   - shop
+- name: region
+  definition: 'The sales region a customer belongs to: North, South, East or West.'
+  domains:
+  - shop
+  edges:
+  - to: customer journey
+    rel_type: PART_OF
 - name: remote host
   definition: 'The address of the client a database session served: here, the shop''s application server.'
   domains:
