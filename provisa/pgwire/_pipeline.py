@@ -1150,6 +1150,11 @@ async def vector_registry(state: Any) -> Any:  # REQ-419, REQ-423
     )
 
 
+def context_parameters(ctx: Any) -> set[str]:  # REQ-1986
+    """The parameter columns of ``ctx``, every table's (``native_filter_columns``)."""
+    return {name for columns in ctx.native_filter_columns.values() for name in columns}
+
+
 async def _govern_and_route(
     sql: str,
     role_id: str,
@@ -1918,7 +1923,7 @@ async def route_governed(
         ),
     )
     _physical_sql, _nf_clean_params, _extracted_nf = extract_nf_args(
-        _physical_sql, embedded_params or []
+        _physical_sql, embedded_params or [], context_parameters(ctx)
     )
     exec_params = (
         _nf_clean_params if _nf_clean_params != (embedded_params or []) else embedded_params
@@ -4425,7 +4430,9 @@ async def _route_compiled(
         exec_params = await _similarity.bind_query_vectors(
             governed_sql, exec_params, await vector_registry(state)
         )
-    _exec_sql, _nf_clean_params, _extracted_nf = extract_nf_args(_exec_sql, exec_params or [])
+    _exec_sql, _nf_clean_params, _extracted_nf = extract_nf_args(
+        _exec_sql, exec_params or [], context_parameters(ctx)
+    )
     exec_params = _nf_clean_params if _nf_clean_params != (exec_params or []) else exec_params
     _nf_args = {**(api_args or {}), **(_extracted_nf or {})} or None
     if api_compiled is not None:

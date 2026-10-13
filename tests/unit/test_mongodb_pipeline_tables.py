@@ -571,6 +571,7 @@ def test_sql_gives_a_query_vector_as_an_array_literal():
         "SELECT title FROM similar WHERE similar._nf_query_vector = ARRAY[0.5, -0.25, 1] "
         "AND _nf_k = -3 AND genre = 'Drama'",
         [],
+        {"_nf_query_vector", "_nf_k"},
     )
     assert args == {"query_vector": [0.5, -0.25, 1], "k": -3}
     assert sql == "SELECT title FROM similar WHERE genre = 'Drama'" and params == []

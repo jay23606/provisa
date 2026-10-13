@@ -1072,7 +1072,7 @@ tables:
     - org_admin
     - analyst
   - description: Order id to fetch - sent to the Petstore API as a path parameter
-    name: orderId
+    name: _nf_orderId
     data_type: integer
     native_filter_type: path_param
     native_filter_required: true
@@ -1192,11 +1192,15 @@ tables:
   - description: Login name the account was created under
     name: username
     data_type: varchar
-    native_filter_type: path_param
-    native_filter_required: true
     visible_to:
     - org_admin
     - analyst
+  - description: Login name to fetch - sent to the Petstore API as a path parameter
+    name: _nf_username
+    data_type: varchar
+    native_filter_type: path_param
+    native_filter_required: true
+    visible_to: []
   description: User account by username from Petstore API
   domain_id: pet-store
   schema: default

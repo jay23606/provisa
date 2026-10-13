@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import functools
 import re
+from collections.abc import Collection
 from typing import Any
 
 import sqlglot
@@ -90,9 +91,14 @@ def _resolve_value(val_expr: exp.Expr, params: list[Any]) -> tuple[Any, int | No
 
 
 def extract_nf_args(
-    sql: str, params: list[Any]
-) -> tuple[str, list[Any], dict[str, Any]]:  # REQ-301
+    sql: str, params: list[Any], parameters: Collection[str]
+) -> tuple[str, list[Any], dict[str, Any]]:  # REQ-301, REQ-1986
     """Extract _nf_* WHERE conditions from SQL (postgres dialect).
+
+    ``parameters`` are the parameter columns of the statement's context
+    (``CompilationContext.native_filter_columns``): only a condition on one of them is a native
+    argument. A ``_nf_`` column that is no parameter there -- a generated table's parameter in a
+    Test (synthetic) environment, an ordinary column of its copy (REQ-1942) -- stays a filter.
 
     Returns (clean_sql, clean_params, nf_args) where:
     - clean_sql has _nf_* conditions removed and $N refs renumbered
@@ -110,6 +116,7 @@ def extract_nf_args(
     if where is None:
         return sql, params, {}
 
+    known = {p.lower() for p in parameters if p.startswith(_NF_PREFIX)}
     conditions = _flatten_and(where.this)
     nf_args: dict[str, Any] = {}
     consumed_indices: set[int] = set()
@@ -121,9 +128,9 @@ def extract_nf_args(
 
         if isinstance(cond, exp.EQ):
             left, right = cond.left, cond.right
-            if isinstance(left, exp.Column) and left.name.startswith(_NF_PREFIX):
+            if isinstance(left, exp.Column) and left.name.lower() in known:
                 nf_col, val_expr = left.name[len(_NF_PREFIX) :], right
-            elif isinstance(right, exp.Column) and right.name.startswith(_NF_PREFIX):
+            elif isinstance(right, exp.Column) and right.name.lower() in known:
                 nf_col, val_expr = right.name[len(_NF_PREFIX) :], left
 
         if nf_col is not None and val_expr is not None:

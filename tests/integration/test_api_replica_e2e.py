@@ -162,7 +162,7 @@ def _config(spec_path: str, base_url: str) -> dict:
                     {"name": "id", "data_type": "integer", **visible},
                     {"name": "name", "data_type": "varchar", **visible},
                     {
-                        "name": "petId",
+                        "name": "_nf_petId",
                         "data_type": "integer",
                         "native_filter_type": "path_param",
                         # REQ-1986: a path parameter is one its source cannot be read without.

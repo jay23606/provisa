@@ -909,7 +909,7 @@ class Column(
 
     @model_validator(mode="after")
     def _parameter_is_stated(self) -> "Column":  # REQ-1986
-        from provisa.core.parameters import PARAMETER_KINDS
+        from provisa.core.parameters import NF_PREFIX, PARAMETER_KINDS
 
         if self.native_filter_type is None:
             if self.native_filter_required is not None or self.required_by_steward:
@@ -924,6 +924,12 @@ class Column(
             raise ValueError(
                 f"parameter column {self.name!r}: native_filter_required must say whether the "
                 "source requires it"
+            )
+        if not self.name.startswith(NF_PREFIX):
+            # REQ-1986: a parameter is the column _nf_<name>; a statement gives it by that column.
+            raise ValueError(
+                f"parameter column {self.name!r}: a parameter column is named "
+                f"{NF_PREFIX}<parameter>, e.g. {NF_PREFIX + self.name!r}"
             )
         return self
 
