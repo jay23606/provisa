@@ -118,10 +118,21 @@ class _Atlas:
 
         (self.port,) = lease_ports(1)
         self._name = f"provisa-itest-atlas-{os.getpid()}"
+        # One address for both readers: this process, and Trino in the test stack's container,
+        # which reads ``reviews`` itself and cannot dial the host's loopback. The default bridge's
+        # gateway is a host address, and the one the stack's host.docker.internal names
+        # (docker-compose.e2e-mounts.yml).
+        self.host = subprocess.run(
+            ["docker", "network", "inspect", "bridge"]
+            + ["--format", "{{(index .IPAM.Config 0).Gateway}}"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
 
     @property
     def uri(self) -> str:
-        return f"mongodb://127.0.0.1:{self.port}/?directConnection=true"
+        return f"mongodb://{self.host}:{self.port}/?directConnection=true"
 
     def client(self):
         import pymongo
@@ -134,7 +145,7 @@ class _Atlas:
 
         subprocess.run(
             ["docker", "run", "-d", "--rm", "--memory", "2g", "--name", self._name]
-            + ["-p", f"127.0.0.1:{self.port}:27017", _IMAGE],
+            + ["-p", f"{self.host}:{self.port}:27017", _IMAGE],
             check=True,
             capture_output=True,
         )
