@@ -11,7 +11,9 @@
       "unknown_action_type": "Неизвестный actionType '{{action_type}}'",
       "unknown_role": "Неизвестная роль '{{role}}'",
       "webhook_not_found": "Вебхук '{{name}}' не найден",
-      "written_table_not_registered": "'{{table}}' не является зарегистрированной таблицей источника '{{source_id}}'"
+      "written_table_not_registered": "'{{table}}' не является зарегистрированной таблицей источника '{{source_id}}'",
+      "function_exists": "Функция '{{name}}' уже существует",
+      "webhook_exists": "Вебхук '{{name}}' уже существует"
     },
     "ai_models": {
       "vector_model_fields_required": "каждая запись vector_models требует id, provider и dimensions"

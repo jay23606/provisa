@@ -22,6 +22,8 @@ Covers pure logic with no real DB or HTTP connections:
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -435,8 +437,13 @@ class TestWebhookResponseMapping:
 
 
 class _FakeConn:
+    """A store with no webhook in it yet: every read finds nothing, every upsert is recorded."""
+
     def __init__(self):
         self.upserts: list[tuple] = []
+
+    async def execute_core(self, _statement):
+        return SimpleNamespace(fetchone=lambda: None)
 
     async def upsert(
         self, table, values, *, index_elements=None, update_columns=None, set_extra=None

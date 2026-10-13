@@ -11,7 +11,9 @@
       "unknown_action_type": "未知的 actionType '{{action_type}}'",
       "unknown_role": "未知角色 '{{role}}'",
       "webhook_not_found": "未找到 Webhook '{{name}}'",
-      "written_table_not_registered": "'{{table}}' 不是数据源 '{{source_id}}' 的已注册表"
+      "written_table_not_registered": "'{{table}}' 不是数据源 '{{source_id}}' 的已注册表",
+      "function_exists": "函数 '{{name}}' 已存在",
+      "webhook_exists": "Webhook '{{name}}' 已存在"
     },
     "ai_models": {
       "vector_model_fields_required": "每个 vector_models 条目都需要 id、provider 和 dimensions"

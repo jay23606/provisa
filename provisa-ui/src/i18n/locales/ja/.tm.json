@@ -6172,5 +6172,7 @@
   "ja/serverErrors.json::serverErrors.users.username_taken": "User '{{username}}' already exists",
   "ja/serverErrors.json::serverErrors.schema.domain_id_taken": "Domain '{{domain}}' already exists",
   "ja/serverErrors.json::serverErrors.schema.role_id_taken": "Role '{{role}}' already exists",
-  "ja/serverErrors.json::serverErrors.schema.role_updated": "Role '{{role}}' updated"
+  "ja/serverErrors.json::serverErrors.schema.role_updated": "Role '{{role}}' updated",
+  "ja/serverErrors.json::serverErrors.actions.function_exists": "Function '{{name}}' already exists",
+  "ja/serverErrors.json::serverErrors.actions.webhook_exists": "Webhook '{{name}}' already exists"
 }

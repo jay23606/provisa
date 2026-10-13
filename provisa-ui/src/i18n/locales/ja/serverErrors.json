@@ -11,7 +11,9 @@
       "unknown_action_type": "不明な actionType「{{action_type}}」です",
       "unknown_role": "不明なロール「{{role}}」です",
       "webhook_not_found": "Webhook「{{name}}」が見つかりません",
-      "written_table_not_registered": "'{{table}}' はソース '{{source_id}}' の登録済みテーブルではありません"
+      "written_table_not_registered": "'{{table}}' はソース '{{source_id}}' の登録済みテーブルではありません",
+      "function_exists": "関数「{{name}}」はすでに存在します",
+      "webhook_exists": "Webhook「{{name}}」はすでに存在します"
     },
     "ai_models": {
       "vector_model_fields_required": "各 vector_models エントリには id、provider、dimensions が必要です"

@@ -11,7 +11,9 @@
       "unknown_action_type": "Unknown actionType '{{action_type}}'",
       "unknown_role": "Unknown role '{{role}}'",
       "webhook_not_found": "Webhook '{{name}}' not found",
-      "written_table_not_registered": "'{{table}}' is not a registered table of source '{{source_id}}'"
+      "written_table_not_registered": "'{{table}}' is not a registered table of source '{{source_id}}'",
+      "function_exists": "Function '{{name}}' already exists",
+      "webhook_exists": "Webhook '{{name}}' already exists"
     },
     "ai_models": {
       "vector_model_fields_required": "each vector_models entry requires id, provider, and dimensions"

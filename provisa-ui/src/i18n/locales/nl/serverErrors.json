@@ -11,7 +11,9 @@
       "unknown_action_type": "Onbekend actionType '{{action_type}}'",
       "unknown_role": "Onbekende rol '{{role}}'",
       "webhook_not_found": "Webhook '{{name}}' niet gevonden",
-      "written_table_not_registered": "'{{table}}' is geen geregistreerde tabel van bron '{{source_id}}'"
+      "written_table_not_registered": "'{{table}}' is geen geregistreerde tabel van bron '{{source_id}}'",
+      "function_exists": "Functie '{{name}}' bestaat al",
+      "webhook_exists": "Webhook '{{name}}' bestaat al"
     },
     "ai_models": {
       "vector_model_fields_required": "elk vector_models-item vereist id, provider en dimensions"

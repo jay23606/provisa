@@ -11,7 +11,9 @@
       "unknown_action_type": "actionType לא מוכר '{{action_type}}'",
       "unknown_role": "תפקיד לא מוכר '{{role}}'",
       "webhook_not_found": "Webhook '{{name}}' לא נמצא",
-      "written_table_not_registered": "'{{table}}' אינה טבלה רשומה של המקור '{{source_id}}'"
+      "written_table_not_registered": "'{{table}}' אינה טבלה רשומה של המקור '{{source_id}}'",
+      "function_exists": "הפונקציה '{{name}}' כבר קיימת",
+      "webhook_exists": "ה-webhook '{{name}}' כבר קיים"
     },
     "ai_models": {
       "vector_model_fields_required": "כל רשומת vector_models דורשת id, provider ו-dimensions"

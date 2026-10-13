@@ -284,3 +284,19 @@ async def test_a_spec_with_commands_needs_no_domain_because_it_saves_no_command(
         assert (await conn.execute_core(select(registered_tables.c.id))).fetchall() == []
     assert await _domain_of(plane, tracked_functions, "create_pet") is None
     assert await _domain_of(plane, tracked_functions, "createPet") is None
+
+
+@pytest.mark.parametrize(("create", "update", "table"), SAVES)
+async def test_a_create_on_a_name_that_exists_is_refused_and_writes_nothing(
+    plane, create, update, table
+):
+    """A create makes a new one; changing one is its update (PUT)."""
+    with pytest.raises(ApiError) as err:
+        await create(_request("everywhere"), "in_finance", "sales")
+    kind = "function" if table is tracked_functions else "webhook"
+    assert (err.value.status_code, err.value.code, err.value.params) == (
+        409,
+        f"actions.{kind}_exists",
+        {"name": "in_finance"},
+    )
+    assert await _domain_of(plane, table, "in_finance") == "finance"
