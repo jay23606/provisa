@@ -26,7 +26,7 @@ Every query ultimately executes through the federation engine, which provides fe
 
 ## All Sources
 
-Provisa registers **70** source types, the ones the Sources form offers. The tables below cover all 70; the index is the count. [tool-verified: `provisa-ui/src/pages/sources/constants.ts` `SOURCE_TYPES`, where `graphql` and `grpc` are `graphql_remote` and `grpc_remote`; Kaggle, Wikipedia, GitHub, GitLab and Stripe are counted as distinct sources even though they register through the `files`, `graphql_remote` and `openapi` connectors internally]
+Provisa registers **72** source types, the ones the Sources form offers. The tables below cover all 72; the index is the count. [tool-verified: `provisa-ui/src/pages/sources/constants.ts` `SOURCE_TYPES`, where `graphql` and `grpc` are `graphql_remote` and `grpc_remote`; Kaggle, Wikipedia, GitHub, GitLab and Stripe are counted as distinct sources even though they register through the `files`, `graphql_remote` and `openapi` connectors internally]
 
 | # | Group | Source types |
 | --- | --- | --- |
@@ -35,18 +35,19 @@ Provisa registers **70** source types, the ones the Sources form offers. The tab
 | 25–29 | [Analytics / OLAP](#analytics-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
 | 30–33 | [Data lake / open table formats](#data-lake-open-table-formats) | `iceberg`, `delta_lake`, `hive`, `hive_s3` |
 | 34–38 | [NoSQL](#nosql) | `mongodb`, `cosmosdb`, `qdrant`, `cassandra`, `redis` |
-| 39–41 | [Streaming](#streaming) | `kafka`, `websocket`, `rss` |
-| 42 | [Push receiver](#push-receiver) | `ingest` |
-| 43–44 | [Graph & semantic](#graph-semantic) | `neo4j`, `sparql` |
-| 45–49 | [File-based](#file-based) | `sqlite`, `csv`, `parquet`, `files`, `logs` |
-| 50–51 | [Observability & other](#observability-other) | `google_sheets`, `prometheus` |
-| 52–58 | [Enterprise SaaS](#enterprise-saas-connectors) | `sharepoint`, `salesforce`, `servicenow`, `cloudops`, `splunk`, `google_workspace`, `microsoft_365` |
-| 59–64 | [API sources](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote`, GitHub, GitLab, Stripe |
-| 65 | [GovData](#govdata) | `govdata` |
-| 66–67 | [Data quality checkers](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
-| 68 | [Data profiler](#data-profiler) | `data_profiler` |
-| 69 | [Kaggle datasets](#kaggle-datasets) | Kaggle (staged via Sources form; registers as a `files` source — see [Kaggle datasets](#kaggle-datasets)) |
-| 70 | [Wikipedia](#wikipedia) | Wikipedia (registers as a `files` source that crawls the named pages — see [Wikipedia](#wikipedia)) |
+| 39–40 | [Code sources](arch/code-sources.md) | `node`, `python` |
+| 41–43 | [Streaming](#streaming) | `kafka`, `websocket`, `rss` |
+| 44 | [Push receiver](#push-receiver) | `ingest` |
+| 45–46 | [Graph & semantic](#graph-semantic) | `neo4j`, `sparql` |
+| 47–51 | [File-based](#file-based) | `sqlite`, `csv`, `parquet`, `files`, `logs` |
+| 52–53 | [Observability & other](#observability-other) | `google_sheets`, `prometheus` |
+| 54–60 | [Enterprise SaaS](#enterprise-saas-connectors) | `sharepoint`, `salesforce`, `servicenow`, `cloudops`, `splunk`, `google_workspace`, `microsoft_365` |
+| 61–66 | [API sources](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote`, GitHub, GitLab, Stripe |
+| 67 | [GovData](#govdata) | `govdata` |
+| 68–69 | [Data quality checkers](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
+| 70 | [Data profiler](#data-profiler) | `data_profiler` |
+| 71 | [Kaggle datasets](#kaggle-datasets) | Kaggle (staged via Sources form; registers as a `files` source — see [Kaggle datasets](#kaggle-datasets)) |
+| 72 | [Wikipedia](#wikipedia) | Wikipedia (registers as a `files` source that crawls the named pages — see [Wikipedia](#wikipedia)) |
 
 Reference for every source type Provisa supports. "Direct driver" means single-source queries execute against the source natively (sub-100ms) (REQ-027). "Connector Name" is the federated connector used when the source participates in multi-source JOINs (REQ-028). [tool-verified: `provisa/core/source_registry.py` `SOURCE_TO_DIALECT`; `provisa/federation/trino_connectors.py` `trino_connector_name`]
 

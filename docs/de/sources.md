@@ -26,27 +26,28 @@ Jede Abfrage wird letztlich über die Federation-Engine ausgeführt, die Federat
 
 ## Alle Quellen
 
-Provisa registriert **69** Quelltypen, die das Sources-Formular anbietet. Die folgenden Tabellen decken alle 69 ab; der Index ist die Zählung. [tool-verified: `provisa-ui/src/pages/sources/constants.ts` `SOURCE_TYPES`, wobei `graphql` und `grpc` für `graphql_remote` und `grpc_remote` stehen; Kaggle, Wikipedia, GitHub, GitLab und Stripe zählen als eigenständige Quellen, obwohl sie intern über die Connectors `files`, `graphql_remote` und `openapi` registrieren]
+Provisa registriert **72** Quelltypen, die das Sources-Formular anbietet. Die folgenden Tabellen decken alle 72 ab; der Index ist die Zählung. [tool-verified: `provisa-ui/src/pages/sources/constants.ts` `SOURCE_TYPES`, wobei `graphql` und `grpc` für `graphql_remote` und `grpc_remote` stehen; Kaggle, Wikipedia, GitHub, GitLab und Stripe zählen als eigenständige Quellen, obwohl sie intern über die Connectors `files`, `graphql_remote` und `openapi` registrieren]
 
 | # | Gruppe | Quelltypen |
 | --- | --- | --- |
 | 1–15 | [RDBMS](#rdbms) | `postgresql`, `mysql`, `mariadb`, `singlestore`, `sqlserver`, `oracle`, `duckdb`, `cockroachdb`, `yugabytedb`, `greenplum`, `tidb`, `firebird`, `airport`, `saphana`, `hiveserver2` |
-| 16–23 | [Cloud-Data-Warehouses](#cloud-data-warehouses) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
-| 24–28 | [Analytics / OLAP](#analytics-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
-| 29–32 | [Data-Lake / offene Tabellenformate](#data-lake-offene-tabellenformate) | `iceberg`, `delta_lake`, `hive`, `hive_s3` |
-| 33–37 | [NoSQL](#nosql) | `mongodb`, `cosmosdb`, `qdrant`, `cassandra`, `redis` |
-| 38–40 | [Streaming](#streaming) | `kafka`, `websocket`, `rss` |
-| 41 | [Push-Empfänger](#push-empfänger) | `ingest` |
-| 42–43 | [Graph & Semantic](#graph-semantic) | `neo4j`, `sparql` |
-| 44–48 | [Dateibasiert](#dateibasiert) | `sqlite`, `csv`, `parquet`, `files`, `logs` |
-| 49–50 | [Observability & Sonstiges](#observability-sonstiges) | `google_sheets`, `prometheus` |
-| 51–57 | [Enterprise-SaaS](#enterprise-saas-connectors) | `sharepoint`, `salesforce`, `servicenow`, `cloudops`, `splunk`, `google_workspace`, `microsoft_365` |
-| 58–63 | [API-Quellen](#api-quellen) | `openapi`, `graphql_remote`, `grpc_remote`, GitHub, GitLab, Stripe |
-| 64 | [GovData](#govdata) | `govdata` |
-| 65–66 | [Data-Quality-Checker](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
-| 67 | [Data-Profiler](#data-profiler) | `data_profiler` |
-| 68 | [Kaggle-Datasets](#kaggle-datasets) | Kaggle (über das Sources-Formular bereitgestellt; registriert als `files`-Quelle — siehe [Kaggle-Datasets](#kaggle-datasets)) |
-| 69 | [Wikipedia](#wikipedia) | Wikipedia (registriert als `files`-Quelle, die die benannten Seiten crawlt — siehe [Wikipedia](#wikipedia)) |
+| 16–24 | [Cloud-Data-Warehouses](#cloud-data-warehouses) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino`, [`motherduck`](#motherduck) |
+| 25–29 | [Analytics / OLAP](#analytics-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
+| 30–33 | [Data-Lake / offene Tabellenformate](#data-lake-offene-tabellenformate) | `iceberg`, `delta_lake`, `hive`, `hive_s3` |
+| 34–38 | [NoSQL](#nosql) | `mongodb`, `cosmosdb`, `qdrant`, `cassandra`, `redis` |
+| 39–40 | [Code-Quellen](arch/code-sources.md) | `node`, `python` |
+| 41–43 | [Streaming](#streaming) | `kafka`, `websocket`, `rss` |
+| 44 | [Push-Empfänger](#push-empfänger) | `ingest` |
+| 45–46 | [Graph & Semantic](#graph-semantic) | `neo4j`, `sparql` |
+| 47–51 | [Dateibasiert](#dateibasiert) | `sqlite`, `csv`, `parquet`, `files`, `logs` |
+| 52–53 | [Observability & Sonstiges](#observability-sonstiges) | `google_sheets`, `prometheus` |
+| 54–60 | [Enterprise-SaaS](#enterprise-saas-connectors) | `sharepoint`, `salesforce`, `servicenow`, `cloudops`, `splunk`, `google_workspace`, `microsoft_365` |
+| 61–66 | [API-Quellen](#api-quellen) | `openapi`, `graphql_remote`, `grpc_remote`, GitHub, GitLab, Stripe |
+| 67 | [GovData](#govdata) | `govdata` |
+| 68–69 | [Data-Quality-Checker](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
+| 70 | [Data-Profiler](#data-profiler) | `data_profiler` |
+| 71 | [Kaggle-Datasets](#kaggle-datasets) | Kaggle (über das Sources-Formular bereitgestellt; registriert als `files`-Quelle — siehe [Kaggle-Datasets](#kaggle-datasets)) |
+| 72 | [Wikipedia](#wikipedia) | Wikipedia (registriert als `files`-Quelle, die die benannten Seiten crawlt — siehe [Wikipedia](#wikipedia)) |
 
 Referenz für jeden Quelltyp, den Provisa unterstützt. „Direkter Treiber" bedeutet, dass Einzelquellen-Abfragen nativ gegen die Quelle ausgeführt werden (unter 100 ms) (REQ-027). „Connector-Name" ist der föderierte Connector, der verwendet wird, wenn die Quelle an Mehrquellen-JOINs teilnimmt (REQ-028). [tool-verified: `provisa/core/source_registry.py` `SOURCE_TO_DIALECT`; `provisa/federation/trino_connectors.py` `trino_connector_name`]
 
@@ -143,6 +144,32 @@ Mit einer pro Aufruf übernommenen Rolle (Credential-Chain für die Basis-Sitzun
     role_arn: arn:aws:iam::123456789012:role/AthenaQueryRole
     s3_staging_dir: s3://my-bucket/athena-results/
 ```
+
+### MotherDuck
+
+`motherduck` (REQ-1998) ist eine bei MotherDuck gehostete DuckDB-Datenbank. Auf der DuckDB-Engine wird sie direkt angehängt; auf der Postgres-Engine bleibt sie der Connector über den Foreign Data Wrapper `pg_duckdb` (REQ-1868). [tool-verified: `provisa/federation/connector_duckdb.py` `DuckDBMotherDuckConnector`, `PgDuckdbMotherDuckConnector`]
+
+**Verbindung.** `database` benennt die MotherDuck-Datenbank oder eine Freigabe über ihre Freigabeadresse. `password` ist das MotherDuck-Token und wird wie jedes Quellen-Secret aufgelöst. [tool-verified: `DuckDBMotherDuckConnector.details`]
+
+```yaml
+- id: reference
+  type: motherduck
+  database: analytics            # attached as md:analytics
+  password: ${secret:<name>}     # the MotherDuck token, or a reference to it
+```
+
+Die DuckDB-Engine setzt `ATTACH 'md:<database>'` ab; bei einer Freigabe ist `database` die Freigabeadresse (`_share/...`), das Anhängen lautet also `md:_share/...`. [tool-verified: `details` builds `"md:" + database`; `tests/integration/test_motherduck_duckdb_e2e.py` attaches MotherDuck's public sample-data share this way]
+
+- **Token-Behandlung.** Die Engine meldet sich mit `SET GLOBAL motherduck_token = ?` an, wobei das Token als gebundener Wert übergeben wird. Es steht im Text keiner Anweisung, daher enthält es kein Log, kein Trace und kein Fehler. [tool-verified: `provisa/federation/duckdb_runtime.py` `_sign_in_motherduck`]
+- **Kein Token.** Eine Quelle ohne `password` wird unter Nennung des Grundes abgelehnt, bevor etwas angehängt wird (`a MotherDuck source signs in with its token (the password field); none is set`). Ohne diese Prüfung würde die Erweiterung eine interaktive Anmeldung starten und etwa eine Minute warten. Eine Quelle ohne `database` wird ebenfalls abgelehnt. [tool-verified: `details`]
+- **Ein Konto pro Engine.** Eine Engine meldet sich bei einem MotherDuck-Konto an. Eine zweite MotherDuck-Quelle mit einem anderen Token wird unter Nennung des Grundes abgelehnt: "one DuckDB engine reads one MotherDuck account". [tool-verified: `_sign_in_motherduck` compares a SHA-256 of the token]
+- **Schreiboperationen** laufen über die Engine, wie auf der Postgres-Engine. [tool-verified: `DuckDBMotherDuckConnector.capability` `write=True`]
+
+**Hybride (duale) Ausführung** braucht keine Einstellung. Auf der DuckDB-Engine ist jede Quelle an einer Verbindung angehängt, daher läuft eine Anweisung, die eine Tabelle einer DuckDB-Dateiquelle mit einer MotherDuck-Tabelle verknüpft, als eine DuckDB-Anweisung, und MotherDuck entscheidet, wo jeder Teil läuft. [tool-verified: `DuckDBMotherDuckConnector` docstring; REQ-1998 notes record a live join showing dual-execution operators]
+
+> **Datenbewegung.** Bei dualer Ausführung kann MotherDuck lokale Zeilen für die Teile, die es ausführt, auf seine Seite verschieben. Eine solche Anweisung kann daher Daten aus der lokalen Datei in das MotherDuck-Konto der Organisation senden. Verknüpfen Sie eine Datei mit Daten, die auf dem Knoten bleiben müssen, nicht mit einer MotherDuck-Quelle, es sei denn, das Senden an dieses Konto ist akzeptabel. [tool-verified: `DuckDBMotherDuckConnector` docstring: "which may move local rows to its side"]
+
+Eine MotherDuck-Quelle wird nur von der DuckDB- und der Postgres-Engine bedient. Keine andere Engine hat einen Connector dafür, und nichts landet ihre Tabellen dort als Replikate. [tool-verified: `provisa/federation/engine.py` registers `DuckDBMotherDuckConnector` and `PgDuckdbMotherDuckConnector` and no other MotherDuck connector]
 
 ### Analytics / OLAP
 
@@ -248,17 +275,49 @@ Eine Suche wird pro Anweisung unter ihren Argumenten gelesen, ihre Zeilen für d
 
 Drei Mechanismen decken Dateien ab. Einzeldatei-Quellen und der Datei-Crawler verwenden das Feld `path` statt `host`/`port`. [tool-verified: `provisa/core/models.py`] (REQ-553) Der dritte, [Logs](#logs), benennt seine Dateien durch einen Glob in seinem `mapping` und liest nur Dateien auf dem Provisa-Server. [tool-verified: `provisa/logs/settings.py`]
 
-**Einzeldatei-Quellen** — `sqlite`, `csv`, `parquet` richten `path` auf eine Datei.
+**Dateidatenbank- und Einzeldatei-Quellen** — `sqlite`, `duckdb`, `csv`, `parquet` richten `path` auf eine Datei. (Eine `duckdb`-Quelle hält ihren Speicherort im Feld `database` des Formulars.) [tool-verified: `provisa-ui/src/pages/sources/FileLocationFields.tsx`]
 
-| Quelltyp | Transporte | Mutations |
+| Quelltyp | Speicherorte | Mutations |
 | --- | --- | --- |
-| `sqlite` | lokal | Ja |
-| `csv` | lokal | Nein |
-| `parquet` | lokal, `s3://` | Nein |
+| `sqlite` | lokaler Pfad, `https://`, `s3://`, `gs://`, `az://` | Ja bei einer lokalen Datei; keine bei einer entfernten |
+| `duckdb` | lokaler Pfad, `https://`, `s3://`, `gs://`, `az://` | Ja bei einer lokalen Datei; keine bei einer entfernten |
+| `csv` | lokaler Pfad, `https://`, `s3://`, `gs://`, `az://` (DuckDB-Engine) | Nein |
+| `parquet` | lokaler Pfad, `https://`, `s3://`, `gs://`, `az://` (DuckDB-Engine) | Nein |
 
-Private Buckets benötigen Zugangsdaten (AWS-Region und Keys aus der Umgebung). Für CSV über `s3://` oder `http(s)://`, oder um viele Dateien auf einmal zu registrieren, verwenden Sie die `files`-Quelle. [tool-verified: `provisa/file_source/source.py`]
+[tool-verified: `provisa/federation/connector_duckdb.py` `location_kind`, `file_location_details`; `provisa/executor/write_capability.py` `table_write_ops`. The table describes the DuckDB engine, where the connectors above take every location. On other engines, CSV and Parquet over `s3://` or `http(s)://` are better registered through the `files` source. [inferred]] (REQ-1997)
 
-**`files`-Quelle** — richtet `path` auf ein Glob-Muster, durchläuft es rekursiv und registriert das Verzeichnis als föderierten Katalog von Tabellen. Sie liest viele Formate über viele Transporte; die untenstehenden Mengen stammen vom File-Connector (kenstott/calcite-Fork). [tool-verified: `provisa/core/catalog.py` `files` branch and `provisa/core/models.py` `SOURCE_TO_CONNECTOR`; Format- und Transportlisten vom Calcite-`file`-Adapter — `FileSchema.java`, `storage/StorageProviderFactory.java`]
+Ein Pfad mit einem anderen Schema (etwa `ftp://`) wird abgelehnt: "DuckDB reads no file at a `ftp://` location". [tool-verified: `location_kind` raises `ValueError`]
+
+**Zugangsdaten für einen entfernten Speicherort.** Legen Sie sie in den `federation_hints` der Quelle ab. Jede gilt nur für den Bucket oder Container des eigenen Pfads, daher werden die Zugangsdaten einer Quelle nie für den Speicherort einer anderen Quelle verwendet. Eine Quelle ohne Zugangsdaten wird als öffentlicher Speicherort gelesen. [tool-verified: `object_store_secret_ddl`]
+
+| Speicherort | `federation_hints`-Schlüssel |
+| --- | --- |
+| `s3://` | `access_key_id`, `secret_access_key`; optional `region`, `endpoint` (ein S3-kompatibler Speicher wie R2 oder MinIO) |
+| `gs://` | `gcs_access_id`, `gcs_secret_key` (ein HMAC-Schlüssel) |
+| `az://` | `azure_account_name`, `azure_account_key` |
+
+**Entfernte SQLite- und DuckDB-Dateien sind schreibgeschützt.** Die DuckDB-Engine hängt sie direkt mit `READ_ONLY` an, und eine Tabelle darauf bietet kein Insert, Update oder Delete. Auf einer Engine, die SQLite nicht anhängt, wird eine entfernte SQLite-Datei über eine temporäre DuckDB-Verbindung gelesen, die sie schreibgeschützt anhängt, und ihre Zeilen landen wie üblich. [tool-verified: `_attach_options`; `table_write_ops`; `provisa/events/source_loader.py` `make_sqlite_loader` `_remote`]
+
+**Eine Datei hochladen.** Im Quellformular einer `sqlite`-, `duckdb`-, `csv`- oder `parquet`-Quelle laden Sie die Datei hoch, statt einen Pfad einzugeben. Die Datei wird auf die Platte gestreamt, nie im Speicher gehalten, in den Ordner der Organisation unter `files/<source id>/<file name>`, und der Pfad der Quelle wird darauf gesetzt. [tool-verified: `provisa/core/source_uploads.py` `receive`, `upload_dir`; `provisa/api/admin/source_files_router.py` `upload_file`]
+
+- **Ersetzen.** Ein erneuter Upload tritt an die Stelle der früheren Datei, gleich welchen Namen sie hat, und die Quelle wird neu bereitgestellt, sodass der nächste Lesevorgang die neue Datei sieht. [tool-verified: `receive` removes other files in the directory; `upload_file` calls `reprovision_source_after_registration`]
+- **Entfernen.** Das Entfernen der Quelle entfernt ihre hochgeladene Datei. Nichts anderes entfernt sie. [tool-verified: `provisa/api/admin/schema_mutation.py` `source_uploads.remove(id)`]
+- **Wer.** Nur Rollen mit der Fähigkeit `source_registration` dürfen hochladen. [tool-verified: `upload_file` `require_capability_request(request, "source_registration")`]
+- **Größenlimit.** Die Einstellung `sources.max_upload_bytes` (Umgebung `PROVISA_SOURCES_MAX_UPLOAD_BYTES`) begrenzt die Datei, standardmäßig 1 GiB (1073741824 Bytes), Minimum 1, gelesen beim Beginn eines Uploads. Eine größere Datei wird mit HTTP 413 unter Nennung des Limits abgelehnt, und nichts davon wird behalten. [tool-verified: `provisa/core/settings_catalog.py`; `UploadTooLarge`]
+- **Pfad.** Solange der Pfad der Upload der Quelle ist, ist das Pfadfeld des Formulars schreibgeschützt. [tool-verified: `FileLocationFields.tsx` `readOnly={uploaded}`]
+- **Namen.** Quell-ID und Dateiname dürfen nur Buchstaben, Ziffern, `.`, `_` und `-` enthalten. [tool-verified: `source_uploads._SEGMENT`]
+- **Speicherung.** [inferred from the `source_uploads` docstring] Ein Upload wird wie jede Org-Datei gespeichert: im Ordner der Organisation, verschlüsselt, wenn der Ordner der Organisation verschlüsselt ist, und für jeden Knoten auf einem gemeinsam genutzten Mount sichtbar.
+
+**Schreiboperationen auf eine lokale SQLite- oder DuckDB-Datei, und Sperren.** Eine Schreiboperation nimmt die Sperre der Datei und wartet nie darauf. Hält ein anderer Prozess oder Knoten die Datei, wird die Schreiboperation abgelehnt, unter Nennung der Quelle und der Tatsache, dass ihre Datei gesperrt ist. [tool-verified: `provisa/federation/file_locks.py` `FileLocked`; REQ-1997 notes quote the maintainer: "writes back to file databases in a multi-node env - just error them out when they can't a lock on it."]
+
+- **SQLite.** Die Schreiboperation setzt `PRAGMA busy_timeout = 0`, sodass eine gesperrte Datei sofort fehlschlägt. [tool-verified: `provisa/executor/drivers/sqlalchemy_driver.py` `_write_sqlite`]
+- **DuckDB.** DuckDB teilt eine Datei nur zwischen schreibgeschützten Öffnungen. Daher halten das Anhängen der Engine und die eigene Verbindung der Quelle die Datei schreibgeschützt, und jeder Knoten liest sie gleichzeitig. Eine Schreiboperation pausiert die Halter dieses Prozesses, öffnet die Datei nur für diese Anweisung lesend und schreibend und schließt sie wieder. Kann das Öffnen die Sperre nicht nehmen, wird die Schreiboperation abgelehnt. [tool-verified: `provisa/executor/drivers/duckdb_driver.py` `_write`: `with file_locks.exclusive(self._database):` then `duckdb.connect(self._database)`; `connector_duckdb._attach_options`]
+
+**Gemeinsam genutzte Mounts.** In einem verschlüsselten Org-Ordner, dessen Mount von mehreren Knoten gemeinsam genutzt wird (Einstellung `org_files.shared_mount`), wird eine Schreiboperation auf eine SQLite- oder DuckDB-Datei darin grundsätzlich abgelehnt, unter Nennung der Quelle. Die Ordnerverschlüsselungsschicht (gocryptfs) überträgt Dateisperren nicht an die anderen Knoten, sodass nichts zwei Knoten daran hindern würde, gleichzeitig zu schreiben. Lesen funktioniert weiterhin. [tool-verified: `file_locks.refuse_unprotected`, `UnprotectedWrite`; both drivers call it before a write]
+
+Ein ohne Verschlüsselung gemeinsam genutzter Ordner muss mit Sperren gemountet werden, die jeden Knoten erreichen: ein NFS-Mount mit aktiviertem Locking, nicht `nolock` und nicht `local_lock`. Keine Prüfung kontrolliert das; es ist eine Anforderung an das Deployment. [tool-verified: REQ-1997 description in `docs/arch/requirements.yaml`; no check exists in source [inferred]]
+
+**Datei-Crawler (`files`-Quelle)** — richtet `path` auf ein Glob-Muster, durchläuft es rekursiv und registriert das Verzeichnis als föderierten Katalog von Tabellen. Sie liest viele Formate über viele Transporte; die untenstehenden Mengen stammen vom File-Connector (kenstott/calcite-Fork). [tool-verified: `provisa/core/catalog.py` `files` branch and `provisa/core/models.py` `SOURCE_TO_CONNECTOR`; Format- und Transportlisten vom Calcite-`file`-Adapter — `FileSchema.java`, `storage/StorageProviderFactory.java`]
 
 | Formate | Transporte |
 | --- | --- |

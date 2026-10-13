@@ -23,27 +23,28 @@
 ---
 
 ## 所有數據來源
-Provisa 註冊了 **69** 種數據來源類型，即 Sources 表單所提供的類型。下方表格涵蓋全部 69 種；索引即為計數。 [tool-verified: `provisa-ui/src/pages/sources/constants.ts` `SOURCE_TYPES`，其中 `graphql` 與 `grpc` 即 `graphql_remote` 與 `grpc_remote`; Kaggle、Wikipedia、GitHub、GitLab 與 Stripe 雖然內部經 `files`、`graphql_remote` 與 `openapi` 連接器註冊，仍計為獨立的數據來源]
+Provisa 註冊了 **72** 種數據來源類型，即 Sources 表單所提供的類型。下方表格涵蓋全部 72 種；索引即為計數。 [tool-verified: `provisa-ui/src/pages/sources/constants.ts` `SOURCE_TYPES`，其中 `graphql` 與 `grpc` 即 `graphql_remote` 與 `grpc_remote`; Kaggle、Wikipedia、GitHub、GitLab 與 Stripe 雖然內部經 `files`、`graphql_remote` 與 `openapi` 連接器註冊，仍計為獨立的數據來源]
 
 | # | 群組 | 數據來源類型 |
 | --- | --- | --- |
 | 1–15 | [RDBMS](#rdbms) | `postgresql`, `mysql`, `mariadb`, `singlestore`, `sqlserver`, `oracle`, `duckdb`, `cockroachdb`, `yugabytedb`, `greenplum`, `tidb`, `firebird`, `airport`, `saphana`, `hiveserver2` |
-| 16–23 | [雲端數據倉庫](#cloud-data-warehouses) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
-| 24–28 | [分析／OLAP](#analytics-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
-| 29–32 | [數據湖／開放表格式](#data-lake-open-table-formats) | `iceberg`, `delta_lake`, `hive`, `hive_s3` |
-| 33–37 | [NoSQL](#nosql) | `mongodb`, `cosmosdb`, `qdrant`, `cassandra`, `redis` |
-| 38–40 | [串流](#streaming) | `kafka`, `websocket`, `rss` |
-| 41 | [推送接收器](#push-receiver) | `ingest` |
-| 42–43 | [圖形與語意](#graph-semantic) | `neo4j`, `sparql` |
-| 44–48 | [檔案式](#file-based) | `sqlite`, `csv`, `parquet`, `files`, `logs` |
-| 49–50 | [可觀測性與其他](#observability-other) | `google_sheets`, `prometheus` |
-| 51–57 | [企業 SaaS](#enterprise-saas-connectors) | `sharepoint`, `salesforce`, `servicenow`, `cloudops`, `splunk`, `google_workspace`, `microsoft_365` |
-| 58–63 | [API 數據來源](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote`, GitHub, GitLab, Stripe |
-| 64 | [GovData](#govdata) | `govdata` |
-| 65–66 | [數據品質檢查器](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
-| 67 | [數據剖析器](#data-profiler) | `data_profiler` |
-| 68 | [Kaggle 數據集](#kaggle-datasets) | Kaggle（經 Sources 表單暫存；註冊為 `files` 數據來源——見 [Kaggle 數據集](#kaggle-datasets)） |
-| 69 | [Wikipedia](#wikipedia) | Wikipedia（註冊為爬取所指定頁面的 `files` 數據來源——見 [Wikipedia](#wikipedia)） |
+| 16–24 | [雲端數據倉庫](#cloud-data-warehouses) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino`, [`motherduck`](#motherduck) |
+| 25–29 | [分析／OLAP](#analytics-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
+| 30–33 | [數據湖／開放表格式](#data-lake-open-table-formats) | `iceberg`, `delta_lake`, `hive`, `hive_s3` |
+| 34–38 | [NoSQL](#nosql) | `mongodb`, `cosmosdb`, `qdrant`, `cassandra`, `redis` |
+| 39–40 | [程式碼來源](arch/code-sources.md) | `node`, `python` |
+| 41–43 | [串流](#streaming) | `kafka`, `websocket`, `rss` |
+| 44 | [推送接收器](#push-receiver) | `ingest` |
+| 45–46 | [圖形與語意](#graph-semantic) | `neo4j`, `sparql` |
+| 47–51 | [檔案式](#file-based) | `sqlite`, `csv`, `parquet`, `files`, `logs` |
+| 52–53 | [可觀測性與其他](#observability-other) | `google_sheets`, `prometheus` |
+| 54–60 | [企業 SaaS](#enterprise-saas-connectors) | `sharepoint`, `salesforce`, `servicenow`, `cloudops`, `splunk`, `google_workspace`, `microsoft_365` |
+| 61–66 | [API 數據來源](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote`, GitHub, GitLab, Stripe |
+| 67 | [GovData](#govdata) | `govdata` |
+| 68–69 | [數據品質檢查器](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
+| 70 | [數據剖析器](#data-profiler) | `data_profiler` |
+| 71 | [Kaggle 數據集](#kaggle-datasets) | Kaggle（經 Sources 表單暫存；註冊為 `files` 數據來源——見 [Kaggle 數據集](#kaggle-datasets)） |
+| 72 | [Wikipedia](#wikipedia) | Wikipedia（註冊為爬取所指定頁面的 `files` 數據來源——見 [Wikipedia](#wikipedia)） |
 
 Provisa 支援的每一種數據來源類型的參照。「直接驅動程式」指單一來源查詢原生地針對該數據來源執行（低於 100 毫秒）（REQ-027）。「連接器名稱」是該數據來源參與多來源 JOIN 時所用的聯邦連接器（REQ-028）。 [tool-verified: `provisa/core/source_registry.py` `SOURCE_TO_DIALECT`; `provisa/federation/trino_connectors.py` `trino_connector_name`]
 
@@ -140,6 +141,32 @@ Amazon Athena 是一項針對 S3 資料的無伺服器查詢服務，按掃描�
     s3_staging_dir: s3://my-bucket/athena-results/
 ```
 
+
+### MotherDuck
+
+`motherduck`（REQ-1998）是託管在 MotherDuck 上的 DuckDB 數據庫。在 DuckDB 引擎上它會就地附加；在 Postgres 引擎上它仍是 `pg_duckdb` 外部數據包裝器（foreign data wrapper）連接器（REQ-1868）。 [tool-verified: `provisa/federation/connector_duckdb.py` `DuckDBMotherDuckConnector`, `PgDuckdbMotherDuckConnector`]
+
+**連接。** `database` 指定 MotherDuck 數據庫，或按共享地址指定一個共享。`password` 是 MotherDuck 權杖，與任何數據來源密鑰一樣解析。 [tool-verified: `DuckDBMotherDuckConnector.details`]
+
+```yaml
+- id: reference
+  type: motherduck
+  database: analytics            # attached as md:analytics
+  password: ${secret:<name>}     # the MotherDuck token, or a reference to it
+```
+
+DuckDB 引擎執行 `ATTACH 'md:<database>'`；對於共享，`database` 是共享地址（`_share/...`），因此附加的是 `md:_share/...`。 [tool-verified: `details` builds `"md:" + database`; `tests/integration/test_motherduck_duckdb_e2e.py` attaches MotherDuck's public sample-data share this way]
+
+- **權杖處理。** 引擎以 `SET GLOBAL motherduck_token = ?` 登入，權杖作為綁定值傳入。它不會出現在任何語句的文字中，因此任何日誌、追蹤或錯誤都不包含它。 [tool-verified: `provisa/federation/duckdb_runtime.py` `_sign_in_motherduck`]
+- **沒有權杖。** 沒有 `password` 的數據來源在附加任何內容之前即被按名拒絕(`a MotherDuck source signs in with its token (the password field); none is set`)。若沒有這項檢查，擴充功能會啟動互動式登入並等待約一分鐘。沒有 `database` 的數據來源同樣會被拒絕。 [tool-verified: `details`]
+- **每個引擎一個帳戶。** 一個引擎登入一個 MotherDuck 帳戶。權杖不同的第二個 MotherDuck 數據來源會被按名拒絕："one DuckDB engine reads one MotherDuck account"。 [tool-verified: `_sign_in_motherduck` compares a SHA-256 of the token]
+- **寫入**經由引擎進行，與 Postgres 引擎相同。 [tool-verified: `DuckDBMotherDuckConnector.capability` `write=True`]
+
+**混合（雙重）執行**毋須任何設定。在 DuckDB 引擎上，所有數據來源都附加在同一個連線上，因此將 DuckDB 檔案數據來源的表與 MotherDuck 表聯結的語句會作為一條 DuckDB 語句執行，由 MotherDuck 決定每個部分在哪裡執行。 [tool-verified: `DuckDBMotherDuckConnector` docstring; REQ-1998 notes record a live join showing dual-execution operators]
+
+> **數據移動。** 在雙重執行下，MotherDuck 可能會把本地列移到它那一側，用於它執行的部分。因此這樣的語句可能把本地檔案中的數據傳送到機構的 MotherDuck 帳戶。除非可以接受把數據傳送到該帳戶，否則不要將存有必須留在節點上的數據的檔案與 MotherDuck 數據來源聯結。 [tool-verified: `DuckDBMotherDuckConnector` docstring: "which may move local rows to its side"]
+
+MotherDuck 數據來源只由 DuckDB 和 Postgres 引擎提供服務。其他引擎都沒有它的連接器，也沒有任何機制把它的表作為副本落地到那裡。 [tool-verified: `provisa/federation/engine.py` registers `DuckDBMotherDuckConnector` and `PgDuckdbMotherDuckConnector` and no other MotherDuck connector]
 
 ### 分析／OLAP {#analytics-olap}
 [tool-verified: `executor/drivers/clickhouse.py`]
@@ -239,17 +266,49 @@ Amazon Athena 是一項針對 S3 資料的無伺服器查詢服務，按掃描�
 ### 檔案式 {#file-based}
 三種機制涵蓋檔案。單一檔案數據來源與檔案爬取器使用 `path` 欄位而非 `host`／`port`。 [tool-verified: `provisa/core/models.py`] (REQ-553) 第三種 [Logs](#logs) 在其 `mapping` 中以萬用字元（glob）指定檔案，而且只讀取 Provisa 伺服器上的檔案。 [tool-verified: `provisa/logs/settings.py`]
 
-**單一檔案數據來源**——`sqlite`、`csv`、`parquet` 把 `path` 指向單一檔案。
+**檔案數據庫與單一檔案數據來源**——`sqlite`、`duckdb`、`csv`、`parquet` 把 `path` 指向單一檔案。（`duckdb` 數據來源把位置保存在表單的 `database` 欄位中。） [tool-verified: `provisa-ui/src/pages/sources/FileLocationFields.tsx`]
 
-| 數據來源類型 | 傳輸 | 變更操作 |
+| 數據來源類型 | 位置 | 變更操作 |
 | --- | --- | --- |
-| `sqlite` | 本機 | 是 |
-| `csv` | 本機 | 否 |
-| `parquet` | 本機、`s3://` | 否 |
+| `sqlite` | 本機路徑、`https://`, `s3://`, `gs://`, `az://` | 本機檔案上為是；遠端檔案上無 |
+| `duckdb` | 本機路徑、`https://`, `s3://`, `gs://`, `az://` | 本機檔案上為是；遠端檔案上無 |
+| `csv` | 本機路徑、`https://`, `s3://`, `gs://`, `az://` （DuckDB 引擎） | 否 |
+| `parquet` | 本機路徑、`https://`, `s3://`, `gs://`, `az://` （DuckDB 引擎） | 否 |
 
-私有貯體需要憑證（自環境取得的 AWS 區域與金鑰）。若 CSV 走 `s3://` 或 `http(s)://`，或要一次註冊多個檔案，請用 `files` 數據來源。 [tool-verified: `provisa/file_source/source.py`]
+[tool-verified: `provisa/federation/connector_duckdb.py` `location_kind`, `file_location_details`; `provisa/executor/write_capability.py` `table_write_ops`. The table describes the DuckDB engine, where the connectors above take every location. On other engines, CSV and Parquet over `s3://` or `http(s)://` are better registered through the `files` source. [inferred]] (REQ-1997)
 
-**`files` 數據來源**——把 `path` 指向一個 glob，遞迴爬取，並把該目錄註冊為一個由表構成的聯邦目錄。它讀取多種格式、經多種傳輸；下列集合來自檔案連接器（kenstott/calcite fork）。 [tool-verified: `provisa/core/catalog.py` `files` branch and `provisa/core/models.py` `SOURCE_TO_CONNECTOR`; format and transport lists from the calcite `file` adapter — `FileSchema.java`, `storage/StorageProviderFactory.java`]
+使用其他任何協定（例如 `ftp://`）的路徑會被拒絕："DuckDB reads no file at a `ftp://` location"。 [tool-verified: `location_kind` raises `ValueError`]
+
+**遠端位置的憑證。** 把它們放在數據來源的 `federation_hints` 中。每項憑證只作用於該路徑自身的貯體或容器，因此一個數據來源的憑證永遠不會用於另一個數據來源的位置。沒有提供憑證的數據來源按公開位置讀取。 [tool-verified: `object_store_secret_ddl`]
+
+| 位置 | `federation_hints` 鍵 |
+| --- | --- |
+| `s3://` | `access_key_id`、`secret_access_key`；可選 `region`、`endpoint`（R2 或 MinIO 等 S3 相容儲存） |
+| `gs://` | `gcs_access_id`、`gcs_secret_key`（HMAC 金鑰） |
+| `az://` | `azure_account_name`, `azure_account_key` |
+
+**遠端 SQLite 與 DuckDB 檔案為唯讀。** DuckDB 引擎以 `READ_ONLY` 就地附加它們，建於其上的表不提供 insert、update 或 delete。在不附加 SQLite 的引擎上，遠端 SQLite 檔案經由一個以唯讀方式附加它的臨時 DuckDB 連線讀取，其資料列照常落地。 [tool-verified: `_attach_options`; `table_write_ops`; `provisa/events/source_loader.py` `make_sqlite_loader` `_remote`]
+
+**上載檔案。** 在 `sqlite`、`duckdb`、`csv` 或 `parquet` 數據來源的表單中，上載檔案而不是輸入路徑。檔案以串流方式寫入磁碟，從不保存在記憶體中，存放到機構資料夾下的 `files/<source id>/<file name>`，數據來源的路徑隨即指向它。 [tool-verified: `provisa/core/source_uploads.py` `receive`, `upload_dir`; `provisa/api/admin/source_files_router.py` `upload_file`]
+
+- **取代。** 再次上載會取代先前的檔案，無論其名稱為何，而且數據來源會重新佈建，使下一次讀取看到新檔案。 [tool-verified: `receive` removes other files in the directory; `upload_file` calls `reprovision_source_after_registration`]
+- **移除。** 移除數據來源會移除其上載的檔案。其他操作都不會移除它。 [tool-verified: `provisa/api/admin/schema_mutation.py` `source_uploads.remove(id)`]
+- **權限。** 只有具備 `source_registration` 能力的角色才可上載。 [tool-verified: `upload_file` `require_capability_request(request, "source_registration")`]
+- **大小上限。** 設定 `sources.max_upload_bytes`（環境變數 `PROVISA_SOURCES_MAX_UPLOAD_BYTES`）限制檔案大小，預設 1 GiB（1073741824 位元組），最小為 1，於上載開始時讀取。較大的檔案會以 HTTP 413 被拒絕並註明上限，且不保留任何部分。 [tool-verified: `provisa/core/settings_catalog.py`; `UploadTooLarge`]
+- **路徑。** 當路徑為該數據來源的上載檔案時，表單的路徑欄位為唯讀。 [tool-verified: `FileLocationFields.tsx` `readOnly={uploaded}`]
+- **名稱。** 數據來源 id 與檔案名稱只能使用字母、數字、`.`、`_` 與 `-`。 [tool-verified: `source_uploads._SEGMENT`]
+- **儲存。** [inferred from the `source_uploads` docstring] 上載的檔案與任何機構檔案一樣儲存：位於機構資料夾下，機構資料夾加密時隨之加密，並在共用掛載上對每個節點可見。
+
+**寫入本機 SQLite 或 DuckDB 檔案，以及鎖。** 寫入會取得檔案鎖，而且從不等待。當另一個程序或節點持有該檔案時，寫入會被拒絕，並註明數據來源及其檔案已被鎖定。 [tool-verified: `provisa/federation/file_locks.py` `FileLocked`; REQ-1997 notes quote the maintainer: "writes back to file databases in a multi-node env - just error them out when they can't a lock on it."]
+
+- **SQLite。** 寫入設定 `PRAGMA busy_timeout = 0`，因此被鎖定的檔案會立即失敗。 [tool-verified: `provisa/executor/drivers/sqlalchemy_driver.py` `_write_sqlite`]
+- **DuckDB。** DuckDB 只在唯讀開啟之間共用檔案。因此引擎的附加與數據來源自身的連線都以唯讀方式持有檔案，每個節點可同時讀取。寫入會暫停本程序的持有者，僅為該語句以讀寫方式開啟檔案，然後關閉。若開啟時無法取得鎖，寫入會被拒絕。 [tool-verified: `provisa/executor/drivers/duckdb_driver.py` `_write`: `with file_locks.exclusive(self._database):` then `duckdb.connect(self._database)`; `connector_duckdb._attach_options`]
+
+**共用掛載。** 在掛載由多個節點共用的加密機構資料夾中（設定 `org_files.shared_mount`），對其中 SQLite 或 DuckDB 檔案的寫入會直接被拒絕，並註明數據來源。資料夾加密層（gocryptfs）不會把檔案鎖傳遞到其他節點，因此沒有任何機制能阻止兩個節點同時寫入。讀取仍然可用。 [tool-verified: `file_locks.refuse_unprotected`, `UnprotectedWrite`; both drivers call it before a write]
+
+未加密共用的資料夾必須以能到達每個節點的鎖進行掛載：啟用鎖定的 NFS 掛載，而不是 `nolock`，也不是 `local_lock`。沒有任何探測檢查這一點；這是部署要求。 [tool-verified: REQ-1997 description in `docs/arch/requirements.yaml`; no check exists in source [inferred]]
+
+**檔案爬取器（`files` 數據來源）**——把 `path` 指向一個 glob，遞迴爬取，並把該目錄註冊為一個由表構成的聯邦目錄。它讀取多種格式、經多種傳輸；下列集合來自檔案連接器（kenstott/calcite fork）。 [tool-verified: `provisa/core/catalog.py` `files` branch and `provisa/core/models.py` `SOURCE_TO_CONNECTOR`; format and transport lists from the calcite `file` adapter — `FileSchema.java`, `storage/StorageProviderFactory.java`]
 
 | 格式 | 傳輸 |
 | --- | --- |
