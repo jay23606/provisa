@@ -298,8 +298,6 @@ def test_the_guide_sizes_a_workload() -> None:
     sized = sz.size(_report(), _setup(_raw()), DRAWS)
     text = guide.render(_report(), sized)
     assert "## Sizing this workload" in text
-    assert (
-        f"**{sized.physical_cores} physical cores, {sized.workers} worker processes, "
-        f"{sized.in_flight_per_worker} in-flight requests per worker.**"
-    ) in text
+    assert (sized.physical_cores, sized.workers, sized.in_flight_per_worker) == (1, 2, 2)
+    assert "**1 physical core, 2 worker processes, 2 in-flight requests per worker.**" in text
     assert "`server.<transport>.capacity_factor`" in text

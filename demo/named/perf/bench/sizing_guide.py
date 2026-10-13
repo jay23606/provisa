@@ -40,6 +40,10 @@ def _n(value: float, digits: int = 2) -> str:
     return f"{value:,.{digits}f}"
 
 
+def _count(n: int, one: str, many: str | None = None) -> str:
+    return f"{n} {one if n == 1 else many or one + 's'}"
+
+
 def _from(*paths: str) -> str:
     return "From the report: " + ", ".join(f"`{p}`" for p in paths) + "."
 
@@ -230,7 +234,7 @@ def _sizing(sized: sz.Sizing) -> list[str]:
         "",
         f"{_n(sized.rate_per_s, 0)} requests per second. Each transport's requests were drawn "
         f"from the workload's own description ({sized.draws:,} per transport) and costed by the "
-        "models above: a hit at the hit cost, a miss at the source's model for its fields, "
+        "models below: a hit at the hit cost, a miss at the source's model for its fields, "
         "filters, rows and joins. Physical cores are the Provisa CPU per second over what a "
         "physical core delivers (its capacity factor).",
         "",
@@ -259,8 +263,9 @@ def _sizing(sized: sz.Sizing) -> list[str]:
         )
     out += [
         "",
-        f"**{sized.physical_cores} physical cores, {sized.workers} worker processes, "
-        f"{sized.in_flight_per_worker} in-flight requests per worker.** One worker count and one "
+        f"**{_count(sized.physical_cores, 'physical core')}, "
+        f"{_count(sized.workers, 'worker process', 'worker processes')}, "
+        f"{_count(sized.in_flight_per_worker, 'in-flight request')} per worker.** One worker count and one "
         "in-flight bound serve every transport, so each is the largest any of the workload's "
         "transports needs.",
         "",
