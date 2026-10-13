@@ -280,7 +280,8 @@ def _insn(code: int, jt: int, jf: int, k: int) -> bytes:
 
 def socket_filter(machine: str | None = None) -> bytes:
     """The BPF program, for ``machine`` (this host's by default): ``socket()`` is allowed only for
-    TCP over IPv4 or IPv6; ``socketpair()`` never; io_uring never (it opens sockets without the
+    TCP over IPv4 or IPv6; ``socketpair()`` allowed (an unnamed connected pair reaches nothing,
+    and asyncio's event loop wakes itself through one); io_uring never (it opens sockets without the
     ``socket()`` call); on x86_64, no x32 call at all (the same calls under other numbers); a call
     from another architecture never. Every other system call is allowed. A refusal is EPERM.
 
@@ -297,7 +298,7 @@ def socket_filter(machine: str | None = None) -> bytes:
     ]
     if machine == "x86_64":
         program += [_insn(_BPF_JGE_K, 0, 1, _X32_SYSCALL_BIT), refuse]
-    for name in ("socketpair", "io_uring_setup", "io_uring_enter", "io_uring_register"):
+    for name in ("io_uring_setup", "io_uring_enter", "io_uring_register"):
         program += [_insn(_BPF_JEQ_K, 0, 1, calls[name]), refuse]
     program += [
         _insn(_BPF_JEQ_K, 1, 0, calls["socket"]),
@@ -410,7 +411,7 @@ def _probe() -> int:
     )
     expect("UDP socket", True, lambda: socket.socket(socket.AF_INET, socket.SOCK_DGRAM))
     expect("Unix socket", True, lambda: socket.socket(socket.AF_UNIX, socket.SOCK_STREAM))
-    expect("socketpair", True, lambda: socket.socketpair())
+    expect("socketpair", False, lambda: [s.close() for s in socket.socketpair()])
     print("PASS" if not failures else f"FAIL ({failures})")
     return 1 if failures else 0
 

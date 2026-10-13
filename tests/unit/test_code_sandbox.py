@@ -68,7 +68,7 @@ def _judge(program: bytes, *, arch: int, nr: int, args: tuple[int, ...] = ()) ->
         ("socket", (AF_UNIX, SOCK_STREAM), REFUSE),  # the host's Docker or Postgres socket
         ("socket", (AF_NETLINK, SOCK_RAW), REFUSE),
         ("socket", (AF_PACKET, SOCK_RAW), REFUSE),
-        ("socketpair", (AF_UNIX, SOCK_STREAM), REFUSE),
+        ("socketpair", (AF_UNIX, SOCK_STREAM), ALLOW),  # asyncio's self-pipe; reaches nothing
         ("io_uring_setup", (), REFUSE),  # opens sockets without socket()
         ("io_uring_enter", (), REFUSE),
         ("seccomp", (), ALLOW),  # a stricter filter of the code's own may be added
