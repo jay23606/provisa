@@ -174,6 +174,8 @@ class TestServicerRejectsBeforeAnyStatement:
             by=["region"],
             funcs=["count"],
             filter=_filter(amount=10.5),
+            limit=0,  # a proto3 int32 left unset reads as 0
+            offset=0,
             HasField=lambda name: name == "filter",
         )
         with (
