@@ -49,14 +49,14 @@ BENCH="$PERF_REPO/demo/named/perf/bench"
 PY="$PERF_REPO/.venv/bin/python3"
 OUT="results/three-device"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
-LOCAL_OUT="$(cd "$(dirname "$0")" && pwd)/results/three-device-$STAMP"
+LOCAL_OUT="${PERF_LOCAL_OUT:-$(cd "$(dirname "$0")" && pwd)/results/three-device-$STAMP}"
 
 on() {  # on <instance> <command>
   if [ -n "$DRY_RUN" ]; then
     printf '\n[%s]\n%s\n' "$1" "$2"
     return 0
   fi
-  gcloud compute ssh "$1" --zone "$PERF_ZONE" --command "$2"
+  gcloud compute ssh "$1" --zone "$PERF_ZONE" --quiet --command "$2"
 }
 
 # The containers whose CPU each step reports beside the source's (compose project "perf").
