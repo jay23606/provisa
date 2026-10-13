@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: 591449d0-719a-46ec-8f67-3177bdd82f11
 #
 # This source code is licensed under the Business Source License 1.1
 """REQ-2008: the control plane's id is created once, at its first start, and kept."""
