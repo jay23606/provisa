@@ -221,9 +221,12 @@ def _per_source(raw: Any, path: str, sources: Collection[str]) -> dict[str, Any]
 # --------------------------------------------------------------------------------------------
 
 
-def _host_port(raw: Any, path: str) -> HostPort:
+def _host_port(raw: Any, path: str, environ: Mapping[str, str]) -> HostPort:
+    """A host (a string, or ``{env: NAME}``: the three-device benchmark names device 1 by its
+    private address, known only once the devices exist) and its port."""
     _mapping(raw, path, required=("host", "port"))
-    return HostPort(_str(raw["host"], f"{path}.host"), _int(raw["port"], f"{path}.port", minimum=1))
+    host = _resolve(raw["host"], f"{path}.host", environ)
+    return HostPort(host, _int(raw["port"], f"{path}.port", minimum=1))
 
 
 def _endpoints(raw: Any, path: str, environ: Mapping[str, str]) -> Endpoints:
@@ -231,10 +234,10 @@ def _endpoints(raw: Any, path: str, environ: Mapping[str, str]) -> Endpoints:
     http = _mapping(raw["http"], f"{path}.http", required=("base_url",))
     return Endpoints(
         http_base_url=_resolve(http["base_url"], f"{path}.http.base_url", environ),
-        pgwire=_host_port(raw["pgwire"], f"{path}.pgwire"),
-        bolt=_host_port(raw["bolt"], f"{path}.bolt"),
-        flight=_host_port(raw["flight"], f"{path}.flight"),
-        grpc=_host_port(raw["grpc"], f"{path}.grpc"),
+        pgwire=_host_port(raw["pgwire"], f"{path}.pgwire", environ),
+        bolt=_host_port(raw["bolt"], f"{path}.bolt", environ),
+        flight=_host_port(raw["flight"], f"{path}.flight", environ),
+        grpc=_host_port(raw["grpc"], f"{path}.grpc", environ),
     )
 
 

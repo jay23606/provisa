@@ -33,6 +33,15 @@ All three are in one zone, under one compact placement policy, so the round trip
 
 The results are copied back and reported by `three_device.py report`.
 
+Before the first run, by hand (terraform gives each device only its operating system):
+
+- the project's quota: three 32-vCPU devices need 96 vCPUs, and the all-regions CPU quota must allow them;
+- `operator_ssh_cidrs`: the operator's own address;
+- on each device: Docker with the compose plugin, the repository cloned at the commit under test to the same path (`PERF_REPO`), and its virtual environment (`uv sync`);
+- device 3's first `docker compose up seeder` seeds 20 million orders, which takes a while; later runs find the data seeded.
+
+`three_device_run.sh --dry-run` prints every command it would run on each device, and runs none.
+
 ## Reported per device
 
 Read off each machine by its host agent, never typed in:

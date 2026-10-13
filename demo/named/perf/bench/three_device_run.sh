@@ -16,25 +16,30 @@
 # The devices are the ones terraform/perf creates. The repository is checked out at the commit
 # under test on all three, at the same path.
 #
-# Usage: three_device_run.sh [--reps 5] [--engine pg]
+# Usage: three_device_run.sh [--reps 5] [--engine pg] [--dry-run]
+#   --dry-run prints every command it would run on each device, and runs none.
 # Needs:
 #   PERF_ZONE                    the devices' zone
 #   PERF_REPO                    the repository's path on every device
 #   PERF_SERVER_IP, PERF_BACKENDS_IP   private addresses (terraform output private_ip)
-#   PERF_CONTRACT                the setup contract, a path on device 2 relative to the bench dir,
-#                                its endpoints naming PERF_SERVER_IP
+#   PERF_CONTRACT                the setup contract, a path on device 2 relative to the bench dir
+#                                (default setups/three-device.yaml: its endpoints name device 1
+#                                through PROVISA_BENCH_SERVER_HOST, set here to PERF_SERVER_IP)
 set -euo pipefail
 
 REPS=5
 ENGINE=pg
+DRY_RUN=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --reps) REPS="$2"; shift 2 ;;
     --engine) ENGINE="$2"; shift 2 ;;
+    --dry-run) DRY_RUN=1; shift ;;
     *) echo "Unknown option: $1"; exit 2 ;;
   esac
 done
-: "${PERF_ZONE:?}" "${PERF_REPO:?}" "${PERF_SERVER_IP:?}" "${PERF_BACKENDS_IP:?}" "${PERF_CONTRACT:?}"
+: "${PERF_ZONE:?}" "${PERF_REPO:?}" "${PERF_SERVER_IP:?}" "${PERF_BACKENDS_IP:?}"
+PERF_CONTRACT="${PERF_CONTRACT:-setups/three-device.yaml}"
 
 SERVER=provisa-perf-server
 CLIENT=provisa-perf-client
@@ -47,6 +52,10 @@ STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 LOCAL_OUT="$(cd "$(dirname "$0")" && pwd)/results/three-device-$STAMP"
 
 on() {  # on <instance> <command>
+  if [ -n "$DRY_RUN" ]; then
+    printf '\n[%s]\n%s\n' "$1" "$2"
+    return 0
+  fi
   gcloud compute ssh "$1" --zone "$PERF_ZONE" --command "$2"
 }
 
@@ -76,7 +85,9 @@ run_one() {  # run_one <rep> <telemetry>
   # serving once the server's agent answers: serve_three_device.sh starts it after every worker
   # is ready
   on "$CLIENT" "for i in \$(seq 1 210); do curl -sf http://$PERF_SERVER_IP:$AGENT_PORT/host >/dev/null && exit 0; sleep 2; done; exit 1"
-  on "$CLIENT" "cd $BENCH && $PY run_benchmark.py --engine $ENGINE --optimistic \
+  on "$CLIENT" "cd $BENCH && PROVISA_BENCH_SERVER_HOST=$PERF_SERVER_IP \
+    PROVISA_HTTP_BASE_URL=http://$PERF_SERVER_IP:8001 \
+    $PY run_benchmark.py --engine $ENGINE --optimistic \
     --setup $PERF_CONTRACT \
     --server-cpu-url http://$PERF_SERVER_IP:$AGENT_PORT/cpu \
     --source-cpu-url http://$PERF_BACKENDS_IP:$AGENT_PORT/docker-stats $_containers \
@@ -91,6 +102,11 @@ for rep in $(seq 1 "$REPS"); do
   run_one "$rep" on
 done
 
+if [ -n "$DRY_RUN" ]; then
+  printf '\n[operator]\ngcloud compute scp --recurse %s:%s/%s/* %s/\nthree_device.py report --root %s --out %s-report\n' \
+    "$CLIENT" "$BENCH" "$OUT" "$LOCAL_OUT" "$LOCAL_OUT" "$LOCAL_OUT"
+  exit 0
+fi
 mkdir -p "$LOCAL_OUT"
 gcloud compute scp --recurse --zone "$PERF_ZONE" "$CLIENT:$BENCH/$OUT/*" "$LOCAL_OUT/"
 "$(cd "$(dirname "$0")/../../../.." && pwd)/.venv/bin/python3" "$(dirname "$0")/three_device.py" \
