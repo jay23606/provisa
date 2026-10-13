@@ -789,6 +789,53 @@ def _kebab(operand_key: str) -> str:
     return re.sub(r"(?<=[a-z])(?=[A-Z])", "-", operand_key).lower()
 
 
+#: Whether Trino reads a pgwire-adapter source LIVE through its built-in PostgreSQL connector
+#: (``TrinoPgwireAdapterConnector``) rather than a replica landed through the adapter.
+#:
+#: REQ-540: off until tests/integration/test_govdata_trino_source_e2e.py is green in CI's Trino lane.
+#: That test is the first time Trino's PostgreSQL connector (pgjdbc) meets the adapter's pg_catalog
+#: emulation, and what it settles cannot be read from source: that the driver's metadata queries
+#: return correct rows, the binary result format for every column type, and how lower-cased
+#: identifiers resolve against the adapter. A stated, temporary condition, not a fallback: while
+#: it is False a govdata source federates on Trino as every pgwire type without a Trino connector
+#: does (``strategy._CONNECTOR_PGWIRE_REPLICA``). Turning it on is this one line.
+TRINO_READS_PGWIRE_ADAPTER_LIVE = False
+
+
+class TrinoPgwireAdapterConnector(_TrinoConnector):
+    """A source read through its bundled Calcite pgwire server, as a catalog of Trino's own
+    PostgreSQL connector pointed at that server — the endpoint every other engine attaches. One
+    catalog per source; a table is addressed in the adapter schema it names, as a table of any
+    PostgreSQL catalog is. Read-only: the adapter serves no DML for these types."""
+
+    trino_connector = "postgresql"
+    mechanism = Mechanism.ATTACH_R
+
+    def capability(self) -> Capability:
+        return Capability(predicate_pushdown=True)
+
+    def details(self, source: Source) -> dict:
+        from provisa.federation.pgwire_endpoint import engine_endpoint
+
+        host, port = engine_endpoint(source)  # starts (once) the source's bundled server
+        return {
+            # The server serves one database and checks no credentials (pgwire_write).
+            "connection-url": f"jdbc:postgresql://{host}:{port}/provisa",
+            "connection-user": "provisa",
+            "connection-password": "",
+            # The adapter serves no pg_stats / pg_statistic, which the connector reads for
+            # table statistics.
+            "statistics.enabled": "false",
+            # TO CONFIRM by the test named above: the adapter's default lexer is not
+            # PostgreSQL's, and Trino sends lower-cased quoted names.
+            "case-insensitive-name-matching": "true",
+        }
+
+
+class TrinoGovdataConnector(TrinoPgwireAdapterConnector):  # REQ-540
+    source_type = "govdata"
+
+
 class TrinoCloudopsConnector(_TrinoConnector):
     """REQ-1947: Azure / AWS / GCP resource inventory read through the trino-cloudops plugin,
     which reads only. The catalog carries the settings the source's pgwire server is given
@@ -1103,6 +1150,8 @@ def build_trino_connectors() -> list[_TrinoConnector]:
         TrinoGsheetsConnector(),
         TrinoKafkaConnector(),
     ]
+    if TRINO_READS_PGWIRE_ADAPTER_LIVE:
+        connectors.append(TrinoGovdataConnector())
     connectors.extend(
         cls() for cls in (_jdbc_trino(st, tc) for st, tc in _TRINO_JDBC_TYPES.items())
     )

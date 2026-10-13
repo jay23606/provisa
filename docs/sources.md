@@ -852,11 +852,12 @@ is read with; the key is refused there by name if it is unknown or revoked. [too
 The source is then a Postgres-wire source like the SharePoint, Salesforce and cloud inventory
 sources: Provisa starts the bundled `pgwire-govdata` server for it, with the key and those
 credentials in the server's environment, and each engine reaches that server the way it reaches a
-sibling's. DuckDB, Postgres and ClickHouse attach it and read its tables in place, so an
+sibling's. DuckDB, Postgres and ClickHouse attach it live and read its tables in place, so an
 AskAmerica table joins tables of other sources, sits under views and is delivered like any other.
-Trino has no connector for it and reads a replica landed through the server: a copy of the
-table kept in the materialization store, as fresh as its last refresh under the table's cache
-and replication settings rather than read at query time. A table is read from
+Trino reads it live, as a catalog of its own PostgreSQL connector pointed at the same server,
+once that route's integration test passes in CI; until then Trino reads a replica landed through
+the server: a copy of the table kept in the materialization store, as fresh as its last refresh
+under the table's cache and replication settings rather than read at query time. A table is read from
 the adapter schema it names (`sec`, `econ`, and so on). [tool-verified:
 `provisa/federation/pgwire_replica.py`, `provisa/federation/connector_duckdb.py`,
 `provisa/federation/clickhouse_connectors.py`]

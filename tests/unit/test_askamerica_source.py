@@ -1582,3 +1582,82 @@ def test_the_engines_attach_pass_never_waits_on_a_source_whose_catalog_is_being_
     assert elapsed < 2, f"the attach pass waited {elapsed:.1f}s on the starting source"
     assert backend._runtime.attached == ["pg-a", "pg-b"]
     assert complete is False  # retried by the next pass, when the catalog is prepared
+
+
+# -- Trino: live through its own PostgreSQL connector, once its CI test has passed --------------
+
+
+def test_trino_reads_a_replica_until_the_live_route_is_proven():
+    from provisa.federation import trino_connectors as tc
+
+    assert tc.TRINO_READS_PGWIRE_ADAPTER_LIVE is False
+    assert "govdata" not in tc.TRINO_CONNECTORS
+    assert tc.trino_connector_name("govdata") is None
+
+
+def test_the_switch_registers_the_live_trino_connector(monkeypatch):
+    from provisa.federation import trino_connectors as tc
+
+    monkeypatch.setattr(tc, "TRINO_READS_PGWIRE_ADAPTER_LIVE", True)
+    built = {c.source_type: c for c in tc.build_trino_connectors()}
+    connector = built["govdata"]
+    assert connector.trino_connector == "postgresql"
+    assert connector.mechanism == Mechanism.ATTACH_R
+    assert not connector.capability().write
+
+
+def test_the_live_trino_catalog_is_the_postgresql_connector_at_the_servers_endpoint(monkeypatch):
+    from provisa.federation import pgwire_endpoint
+    from provisa.federation.trino_connectors import TrinoGovdataConnector
+
+    monkeypatch.setattr(pgwire_endpoint, "_resolver", lambda source: ("host.docker.internal", 5440))
+    assert TrinoGovdataConnector().details(_source()) == {
+        "connection-url": "jdbc:postgresql://host.docker.internal:5440/provisa",
+        "connection-user": "provisa",
+        "connection-password": "",
+        "statistics.enabled": "false",
+        "case-insensitive-name-matching": "true",
+    }
+
+
+def test_the_catalog_carries_no_key_or_credential(monkeypatch):
+    from provisa.federation import pgwire_endpoint
+    from provisa.federation.trino_connectors import TrinoGovdataConnector
+
+    monkeypatch.setattr(pgwire_endpoint, "_resolver", lambda source: ("127.0.0.1", 5440))
+    written = json.dumps(TrinoGovdataConnector().details(_source()))
+    for secret in _SECRETS:
+        assert secret not in written
+
+
+def test_the_server_module_tells_engines_where_its_endpoint_is(monkeypatch, endpoint):
+    from provisa.federation import pgwire_endpoint
+
+    monkeypatch.delenv(pr.ENGINE_HOST_ENV, raising=False)
+    assert pgwire_endpoint.engine_endpoint(_source()) == ("127.0.0.1", 5440)
+    monkeypatch.setenv(pr.ENGINE_HOST_ENV, "host.docker.internal")
+    assert pgwire_endpoint.engine_endpoint(_source()) == ("host.docker.internal", 5440)
+
+
+def test_an_endpoint_asked_for_before_the_server_module_is_loaded_is_refused_by_name(monkeypatch):
+    from provisa.federation import pgwire_endpoint
+
+    monkeypatch.setattr(pgwire_endpoint, "_resolver", None)
+    with pytest.raises(RuntimeError, match="test-askamerica.*has not been imported"):
+        pgwire_endpoint.engine_endpoint(_source())
+
+
+def test_a_server_listens_on_loopback_unless_the_deployment_names_an_address(tmp_path, monkeypatch):
+    def command() -> list[str]:
+        return pr.PgwireServer(
+            bundle_dir=tmp_path,
+            spec=rd.bundle_spec_for("govdata"),
+            model=_BUNDLE_MODEL,
+            ports=pr.PortPair(5440, "127.0.0.1", 5540),
+        ).command()
+
+    monkeypatch.delenv(pr.BIND_HOST_ENV, raising=False)
+    assert "--host" not in command()  # the launcher's own default: loopback
+    monkeypatch.setenv(pr.BIND_HOST_ENV, "172.17.0.1")
+    listed = command()
+    assert listed[listed.index("--host") + 1] == "172.17.0.1"
