@@ -152,7 +152,7 @@ def governed_table_scan_stream(
             )
             # REQ-1909: the permits ride the batch generator until the scan is fully pulled.
             permits = acquire_plan_permits(state, plan)
-            schema, batch_gen = state.federation_engine.execute_engine_stream(plan.physical_sql, [])
+            schema, batch_gen = _declared_engine_stream(state, plan)
             _finalize_scan_audit(plan, 200, state)
             return ScanStream(schema, permits.guard(_audited(plan, batch_gen)), plan.warnings)
         if plan.route == Route.DIRECT:
@@ -180,11 +180,14 @@ def governed_table_scan_stream(
                         plan.exec_params or [],
                     )
                 )
-            typed = _direct_typed_schema(stream.column_names, stream.column_types)
+            declared = _declared_types(plan, stream.column_names)
+            typed = _direct_typed_schema(stream.column_names, stream.column_types, declared)
             _finalize_scan_audit(plan, 200, state)
             return ScanStream(
                 typed,
-                permits.guard(_audited(plan, _typed_batches_from_rows(stream, typed))),
+                permits.guard(
+                    _audited(plan, _typed_batches_from_rows(stream, typed, declared=declared))
+                ),
                 plan.warnings,
             )
     except Exception:
@@ -271,7 +274,7 @@ def governed_table_scan_schema(
 
         # REQ-1909: binding the probe reads the live source too; held only while it opens.
         with acquire_plan_permits(state, plan):
-            schema, batch_gen = state.federation_engine.execute_engine_stream(plan.physical_sql, [])
+            schema, batch_gen = _declared_engine_stream(state, plan)
             close = getattr(batch_gen, "close", None)
             if close is not None:
                 close()
@@ -292,7 +295,11 @@ def governed_table_scan_schema(
                     plan.exec_params or [],
                     run=run_on_connection_loop,
                 )
-                typed = _direct_typed_schema(stream.column_names, stream.column_types)
+                typed = _direct_typed_schema(
+                    stream.column_names,
+                    stream.column_types,
+                    _declared_types(plan, stream.column_names),
+                )
                 stream.close()  # release the eagerly-opened server-side cursor; no rows fetched
                 return typed
             result = run_on_connection_loop(
@@ -303,12 +310,43 @@ def governed_table_scan_schema(
                     plan.exec_params or [],
                 )
             )
-        return _direct_typed_schema(result.column_names, result.column_types)
+        return _direct_typed_schema(
+            result.column_names,
+            result.column_types,
+            _declared_types(plan, result.column_names),
+        )
     raise ValueError(f"Route {plan.route!r} is not supported for the airport service")
 
 
-def _direct_typed_schema(column_names: list[str], column_types: list[str] | None) -> pa.Schema:
-    """Byte-stable Arrow schema for a DIRECT scan, from the native driver's own result-column types.
+def _declared_engine_stream(state: AppState, plan) -> tuple[pa.Schema, Iterator[pa.RecordBatch]]:
+    """The engine's Arrow stream for the scan with each registered column as the model declares
+    it (REQ-1961, ``runtime_support.declared_arrow_stream``) — the one both the scan and its
+    schema-only probe open, so what is advertised is what is streamed."""
+    from provisa.federation.runtime_support import declared_arrow_stream
+
+    schema, batch_gen = state.federation_engine.execute_engine_stream(plan.physical_sql, [])
+    kept = plan.result_shape
+    return declared_arrow_stream(schema, batch_gen, None if kept is None else kept.now())
+
+
+def _declared_types(plan, column_names: list[str]) -> list[pa.DataType | None]:  # REQ-1961
+    """For each result column of the scan, the Arrow type the model declares for it — the one
+    rule every read path types a registered column by (``runtime_support.read_targets`` over the
+    plan's kept result shape) — or None for a column that is not a registered column. Read on
+    this handler's own thread; the derivation needs nothing of the loop."""
+    from provisa.federation.runtime_support import read_targets
+
+    kept = plan.result_shape
+    return read_targets(column_names, None if kept is None else kept.now())
+
+
+def _direct_typed_schema(
+    column_names: list[str],
+    column_types: list[str] | None,
+    declared: list[pa.DataType | None] | None = None,
+) -> pa.Schema:
+    """Byte-stable Arrow schema for a DIRECT scan: a registered column as the model declares it
+    (``declared``, REQ-1961), every other column from the native driver's own result-column type.
 
     Row-independent (identical for a 0-row and an N-row result), so the airport advertises and
     streams ONE schema regardless of row content — the empty-scan retyping REQ-1218 patched around
@@ -322,10 +360,22 @@ def _direct_typed_schema(column_names: list[str], column_types: list[str] | None
             f"{None if column_types is None else len(column_types)} column types — cannot form a "
             "byte-stable schema"
         )
+    from provisa.core.numeric_type import numeric_arrow_type, numeric_size_of, numeric_type
+
+    declared = declared if declared is not None else [None] * len(column_names)
+
+    def _reported(ctype: str) -> pa.DataType:
+        # A decimal the driver reports a size for is exact at that size; one it reports none
+        # for is floating point — the row stream's rule (runtime_support.arrow_array_for_rows).
+        size = numeric_size_of(ctype)
+        if size is not None:
+            return numeric_arrow_type(numeric_type(*size))
+        return _ir_to_arrow(to_ir(ctype, "postgresql"))
+
     return pa.schema(
         [
-            pa.field(name, _ir_to_arrow(to_ir(ctype, "postgresql")))
-            for name, ctype in zip(column_names, column_types)
+            pa.field(name, model_type or _reported(ctype))
+            for name, ctype, model_type in zip(column_names, column_types, declared)
         ]
     )
 
@@ -334,22 +384,31 @@ def _typed_batches_from_rows(
     stream: ResultStream,
     typed_schema: pa.Schema,
     *,
+    declared: list[pa.DataType | None] | None = None,
     batch_rows: int = 65_536,
 ) -> Iterator[pa.RecordBatch]:
     """Adapt a lazy row ``ResultStream`` into RecordBatches cast to ``typed_schema``.
+
+    A column the model declares (``declared``, REQ-1961) is read as that type by the row
+    stream's own reader, which refuses values that are not that type naming the column.
 
     Memory-bounded — only ``batch_rows`` rows are held at once — so a large DIRECT scan streams
     instead of materializing. Draining the generator drains (and closes) the underlying source
     cursor via the stream's own ``finally``.
     """
+    from provisa.federation.runtime_support import typed_arrow_array
+
     names = stream.column_names
+    declared = declared if declared is not None else [None] * len(names)
 
     def _conv(v: Any) -> Any:
         return float(v) if isinstance(v, Decimal) else v
 
     def _to_batch(rows: list[tuple]) -> pa.RecordBatch:
         arrays = [
-            pa.array([_conv(r[i]) for r in rows], type=typed_schema.field(i).type)
+            typed_arrow_array([r[i] for r in rows], typed_schema.field(i).type, names[i])
+            if declared[i] is not None or pa.types.is_decimal(typed_schema.field(i).type)
+            else pa.array([_conv(r[i]) for r in rows], type=typed_schema.field(i).type)
             for i in range(len(names))
         ]
         return pa.RecordBatch.from_arrays(arrays, schema=typed_schema)

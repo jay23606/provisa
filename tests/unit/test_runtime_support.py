@@ -124,13 +124,14 @@ def test_arrow_batches_locks_schema_from_first_batch():
     assert tbl.column("name").to_pylist() == ["a", "b"]
 
 
-def test_arrow_batches_keep_a_decimal_exact():
-    # REQ-1897: rows -> Arrow is lossless; a Decimal is never narrowed to a double.
-    res = _rows_result(["amount"], [(Decimal("1.5"),), (Decimal("2.25"),)])
+def test_arrow_batches_read_a_decimal_with_no_size_as_its_nearest_double():
+    # REQ-1961, #202: a decimal the source reports no size for is floating point, so its type
+    # depends on no row. (REQ-1897's exactness holds where a size is known: the next test.)
+    res = _rows_result(["amount"], [(Decimal("1.5"),), (Decimal("0.3"),)])
     schema, batches = arrow_batches_from_rows(res)
-    assert schema.field("amount").type == pa.decimal128(38, 2)
+    assert schema.field("amount").type == pa.float64()
     tbl = pa.Table.from_batches(list(batches), schema=schema)
-    assert tbl.column("amount").to_pylist() == [Decimal("1.50"), Decimal("2.25")]
+    assert tbl.column("amount").to_pylist() == [1.5, 0.3]
 
 
 def test_arrow_batches_take_a_declared_decimal_precision():

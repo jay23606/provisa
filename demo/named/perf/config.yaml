@@ -1818,25 +1818,25 @@ tables:
     - analyst
     - org_admin_unguarded
   - name: amount
-    data_type: numeric
+    data_type: numeric(12,2)
     visible_to:
     - org_admin
     - analyst
     - org_admin_unguarded
   - name: discount
-    data_type: numeric
+    data_type: numeric(12,2)
     visible_to:
     - org_admin
     - analyst
     - org_admin_unguarded
   - name: tax
-    data_type: numeric
+    data_type: numeric(12,2)
     visible_to:
     - org_admin
     - analyst
     - org_admin_unguarded
   - name: shipping_cost
-    data_type: numeric
+    data_type: numeric(10,2)
     visible_to:
     - org_admin
     - analyst
@@ -1965,31 +1965,31 @@ tables:
     - analyst
     - org_admin_unguarded
   - name: unit_price
-    data_type: numeric
+    data_type: numeric(10,2)
     visible_to:
     - org_admin
     - analyst
     - org_admin_unguarded
   - name: discount_pct
-    data_type: numeric
+    data_type: numeric(6,4)
     visible_to:
     - org_admin
     - analyst
     - org_admin_unguarded
   - name: line_total
-    data_type: numeric
+    data_type: numeric(12,2)
     visible_to:
     - org_admin
     - analyst
     - org_admin_unguarded
   - name: cost_of_goods
-    data_type: numeric
+    data_type: numeric(10,2)
     visible_to:
     - org_admin
     - analyst
     - org_admin_unguarded
   - name: margin
-    data_type: numeric
+    data_type: numeric(12,2)
     visible_to:
     - org_admin
     - analyst
@@ -2138,7 +2138,7 @@ tables:
     - analyst
     - org_admin_unguarded
   - name: revenue_impact
-    data_type: numeric
+    data_type: numeric(12,2)
     visible_to:
     - org_admin
     - analyst

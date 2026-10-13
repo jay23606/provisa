@@ -60,3 +60,38 @@ export function toIrType(native: string): string {
   const base = native.split("(")[0].trim().toLowerCase();
   return NATIVE_TO_IR[base] ?? base;
 }
+
+// REQ-1961: a numeric column's size. Stored in one spelling, `numeric(p,s)`; a bare `numeric`
+// declares none and is read as floating point.
+export const NUMERIC_MAX_PRECISION = 76;
+
+export interface NumericSize {
+  precision: number;
+  scale: number;
+}
+
+const SIZED_NUMERIC = /^\s*(?:numeric|decimal)\s*\(\s*(\d+)\s*(?:,\s*(\d+)\s*)?\)\s*$/i;
+
+/** The precision and scale a column type declares, or null when it declares none. */
+export function numericSize(dataType: string): NumericSize | null {
+  const sized = SIZED_NUMERIC.exec(dataType);
+  if (!sized) return null;
+  return { precision: Number(sized[1]), scale: sized[2] === undefined ? 0 : Number(sized[2]) };
+}
+
+/** Whether a precision and scale size a numeric column: 1 to 76 digits, 0 to all of them after the point. */
+export function isNumericSize(precision: number, scale: number): boolean {
+  return (
+    Number.isInteger(precision) &&
+    Number.isInteger(scale) &&
+    precision >= 1 &&
+    precision <= NUMERIC_MAX_PRECISION &&
+    scale >= 0 &&
+    scale <= precision
+  );
+}
+
+/** The stored type of a numeric column: sized, or bare when it declares no size. */
+export function numericType(size: NumericSize | null): string {
+  return size ? `numeric(${size.precision},${size.scale})` : "numeric";
+}

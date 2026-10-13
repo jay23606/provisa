@@ -2918,6 +2918,18 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                     code="schema.view_reads_itself",
                     params={"view": _loop.loop[0], "loop": _loop.loop},
                 )
+            except table_repo.NumericSizeRefused as _size:
+                # REQ-1961: a size no numeric can have is not saved; the column is named.
+                return MutationResult(
+                    success=False,
+                    message=str(_size),
+                    code="schema.numeric_size_invalid",
+                    params={
+                        "table": _size.table_name,
+                        "column": _size.column,
+                        "declared": _size.declared,
+                    },
+                )
             except table_repo.ColumnDropRefused as _drop:
                 # REQ-1918: a column something still refers to is not dropped; each is named.
                 return MutationResult(

@@ -81,3 +81,42 @@ def test_every_invalidation_goes_through_the_tenant_helper():
         if re.search(r"\.invalidate_by_table\(", line)
     ]
     assert offenders == []
+
+
+@pytest.mark.asyncio
+async def test_an_answer_stored_under_one_model_is_not_served_under_the_next():
+    """REQ-1914, REQ-1961: every entry is written under the acting place AND the model the
+    runtime has loaded (``cache_tenant`` ends ``:m<model stamp>``). The control plane advances
+    that stamp, by trigger, in the transaction of any write to the model — a table update, a
+    registration, a configuration apply, an MCP table tool — so once the runtime has reloaded,
+    an answer stored before the change is under a prefix nothing reads. A column whose
+    precision was changed is therefore never replayed with the type it was stored as, whether
+    the entry holds rows or a serialized Arrow table."""
+    from provisa.cache import raw_sql
+    from provisa.cache.codec import decode_cache_payload as decode
+    from provisa.cache.codec import encode_cache_payload as encode
+    from provisa.cache.tenancy import cache_tenant
+    from provisa.core.request_context import reset_current_org, set_current_org
+
+    import pyarrow as pa
+
+    store = _store()
+    before = SimpleNamespace(response_cache_store=store, org_id="default", model_stamp=7)
+    after = SimpleNamespace(response_cache_store=store, org_id="default", model_stamp=8)
+    stored_as = pa.table({"amount": pa.array([1.5], type=pa.float64())})  # the old declaration
+    entries = {
+        "rows": raw_sql.rows_entry([(1.5,)], ["amount"]),
+        "arrow": raw_sql.arrow_entry(stored_as.schema, stored_as.to_batches()),
+    }
+    token = set_current_org("org-a")
+    try:
+        assert cache_tenant(before) != cache_tenant(after)
+        assert cache_tenant(before).endswith(":m7") and cache_tenant(after).endswith(":m8")
+        for key, entry in entries.items():
+            await store.set(key, encode(entry), 60, tenant_id=cache_tenant(before), table_ids={7})
+        for key, entry in entries.items():
+            held = await store.get(key, tenant_id=cache_tenant(before))
+            assert held is not None and decode(held.data)["kind"] == entry["kind"]
+            assert await store.get(key, tenant_id=cache_tenant(after)) is None, key
+    finally:
+        reset_current_org(token)

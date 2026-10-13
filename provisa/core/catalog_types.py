@@ -19,6 +19,7 @@ from __future__ import annotations
 import pyarrow as pa
 
 from provisa.core.ir_types import to_ir
+from provisa.core.numeric_type import numeric_arrow_type, numeric_size
 
 # the engine type -> Arrow type mapping
 _ARROW_TYPE_MAP: dict[str, pa.DataType] = {
@@ -85,18 +86,33 @@ def _is_nested(text: str) -> bool:
     return text.endswith("[]") or text.partition("(")[0].strip() in _NESTED
 
 
-def _physical_type_to_arrow(column_type: str) -> pa.DataType:
-    """The Arrow type a registered column type is listed under.
+def _is_numeric(text: str) -> bool:
+    base = text.partition("(")[0].strip()
+    if base in ("numeric", "decimal"):
+        return True
+    try:
+        return to_ir(text) == "numeric"
+    except ValueError:
+        return False
 
-    A nested type is JSON (REQ-1965), listed as the catalog lists any ``json`` column. A scalar
-    is named by the catalog's own table or by the product's one type vocabulary. A type neither
-    names raises ``KeyError``: the caller lists the column as text and says so.
+
+def _physical_type_to_arrow(column_type: str) -> pa.DataType:
+    """The Arrow type of a registered column type: the type a catalog lists it under AND the
+    type a read of the column returns (REQ-1961 — one function, so the two cannot differ).
+
+    A nested type is JSON (REQ-1965), listed as the catalog lists any ``json`` column. A numeric
+    is exact where the model records its precision and scale and floating point where it does
+    not (``core.numeric_type``). Any other scalar is named by the catalog's own table or by the
+    product's one type vocabulary. A type neither names raises ``KeyError``: the catalog lists
+    the column as text and says so; a read keeps the type its source or engine gave it.
     """
     text = column_type.strip().lower()
     if _is_nested(text):
         return _ARROW_TYPE_MAP["json"]
+    if _is_numeric(text):
+        return numeric_arrow_type(text)
     base = text.partition("(")[0].strip()
-    # Parameterized scalars: decimal(10,2) -> decimal, varchar(20) -> varchar.
+    # Parameterized scalars: varchar(20) -> varchar.
     if base in _ARROW_TYPE_MAP:
         return _ARROW_TYPE_MAP[base]
     # Any other spelling an engine or a source reports (``character varying``, ``int4``,
@@ -108,3 +124,38 @@ def _physical_type_to_arrow(column_type: str) -> pa.DataType:
     if canonical in _IR_ARROW:
         return _IR_ARROW[canonical]
     raise KeyError(f"Unmapped engine type: {column_type!r}")
+
+
+def is_undeclared_numeric(registered: str | None) -> bool:
+    """A numeric column the model records no precision and scale for (REQ-1961): floating point
+    on every read path and in every listing."""
+    if not registered:
+        return False
+    text = registered.strip().lower()
+    return not _is_nested(text) and _is_numeric(text) and numeric_size(text) is None
+
+
+def column_arrow_type(registered: str | None) -> pa.DataType | None:
+    """:func:`_physical_type_to_arrow` for a read: None for a column with no registered type and
+    for one neither vocabulary names — a read of such a column keeps the type its source or
+    engine gave it."""
+    if not registered:
+        return None
+    try:
+        return _physical_type_to_arrow(registered)
+    except KeyError:
+        return None
+
+
+def is_json_type(registered: str | None) -> bool:
+    """Whether a column registered as ``registered`` is a JSON column (REQ-1965): ``json`` itself
+    or a nested spelling."""
+    if not registered:
+        return False
+    text = registered.strip().lower()
+    if _is_nested(text):
+        return True
+    try:
+        return to_ir(text) == "json"
+    except ValueError:
+        return False

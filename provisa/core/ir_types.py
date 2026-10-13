@@ -477,9 +477,11 @@ def to_sqlalchemy(type_name: str, *, indexed: bool = False) -> Any:
     if sa_type is Numeric:
         # A decimal named with its precision and scale lands with them: an unqualified NUMERIC is
         # the store's own default, which on some stores holds fewer digits than the value.
-        sized = _NUMERIC_SIZE.search(type_name)
-        if sized is not None:
-            return Numeric(int(sized[1]), int(sized[2]))
+        from provisa.core.numeric_type import numeric_size
+
+        size = numeric_size(type_name)
+        if size is not None:
+            return Numeric(*size)
     if indexed and sa_type is Text:
         from sqlalchemy import String
 

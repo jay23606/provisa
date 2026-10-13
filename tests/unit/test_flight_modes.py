@@ -104,7 +104,9 @@ class TestTrinoTypeToArrow:
         assert _physical_type_to_arrow("double") == pa.float64()
 
     def test_decimal_parameterized(self):
-        assert _physical_type_to_arrow("decimal(10,2)") == pa.float64()
+        # REQ-1961: exact where the model records the size, floating point where it does not.
+        assert _physical_type_to_arrow("decimal(10,2)") == pa.decimal128(10, 2)
+        assert _physical_type_to_arrow("decimal") == pa.float64()
 
     def test_timestamp(self):
         assert _physical_type_to_arrow("timestamp") == pa.timestamp("us")
@@ -193,8 +195,8 @@ class TestCatalogTableToArrowSchema:
         schema = catalog_table_to_arrow_schema(table)
         assert schema.field("id").type == pa.int32()
         assert schema.field("customer_name").type == pa.utf8()
-        # decimal(10,2) maps to float64
-        assert schema.field("total").type == pa.float64()
+        # REQ-1961: the type a read of the column returns
+        assert schema.field("total").type == pa.decimal128(10, 2)
 
     def test_nullable(self):
         table = _make_table()

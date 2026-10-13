@@ -346,6 +346,94 @@ async def test_the_raw_stage_governs_a_statement_with_placeholders_once_for_any_
     )
 
 
+def _registered_types(pipeline) -> None:
+    """The registry's per-table column types, as a schema build leaves them on the state."""
+    ctx = pipeline.state.contexts["analyst"]
+    pipeline.state.schema_build_cache = {
+        "column_types": {
+            meta.table_id: [SimpleNamespace(column_name="id", data_type="integer")]
+            for meta in ctx.tables.values()
+        }
+    }
+
+
+async def test_a_plan_carries_its_result_shape_derived_once_and_kept(pipeline, monkeypatch):
+    """REQ-1961, REQ-1877: every surface that types its answer reads the statement's result
+    columns off the plan. They are derived from registered metadata when first asked for and
+    kept with the governed statement: asking again, on this plan or on a repeat of the
+    statement, derives nothing."""
+    from provisa.compiler import result_shape
+
+    derived = {"n": 0}
+    real = result_shape.derive_result_shape
+
+    def _derive(*args, **kwargs):
+        derived["n"] += 1
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(result_shape, "derive_result_shape", _derive)
+    _registered_types(pipeline)
+    sql = "SELECT o.id FROM sales.orders o"
+    first = await pipeline.mod._govern_and_route(sql, "analyst")
+    assert derived["n"] == 0, "a surface that does not ask pays nothing"
+    shape = await first.result_shape()
+    assert shape is not None and [name for name, _type in shape] == ["id"]
+    assert await first.result_shape() == shape and derived["n"] == 1
+    again = await pipeline.mod._govern_and_route(sql, "analyst")
+    assert await again.result_shape() == shape and derived["n"] == 1
+    # A caller already on a thread of its own reads the kept shape without crossing to the loop.
+    assert again.result_shape.now() == shape and derived["n"] == 1
+
+
+async def test_a_statement_whose_columns_cannot_be_typed_says_so_once(pipeline, monkeypatch):
+    """The shape is None, never a guess, and why is kept beside it."""
+    from provisa.compiler import result_shape
+
+    derived = {"n": 0}
+
+    def _derive(*args, **kwargs):
+        derived["n"] += 1
+        raise result_shape.UnderivableColumn("cannot describe column 'x'")
+
+    monkeypatch.setattr(result_shape, "derive_result_shape", _derive)
+    _registered_types(pipeline)
+    plan = await pipeline.mod._govern_and_route("SELECT o.id FROM sales.orders o", "analyst")
+    assert await plan.result_shape() is None
+    assert await plan.result_shape() is None and derived["n"] == 1
+
+
+async def test_a_plans_shape_types_each_column_on_its_own(pipeline):
+    """REQ-1961: an expression whose type cannot be derived does not lose the typing of the
+    registered column beside it, and why it could not be typed is kept with the statement."""
+    from provisa.compiler.result_shape import RegisteredType, Underived
+
+    _registered_types(pipeline)
+    plan = await pipeline.mod._govern_and_route(
+        "SELECT o.id, date_trunc('day', now()) AS d FROM sales.orders o", "analyst"
+    )
+    shape = await plan.result_shape()
+    assert shape is not None and [name for name, _type in shape] == ["id", "d"]
+    assert isinstance(shape[0][1], RegisteredType) and shape[0][1] == "integer"
+    assert isinstance(shape[1][1], Underived)
+
+
+async def test_a_plans_shape_is_the_description_pgwire_already_made(pipeline, monkeypatch):
+    """A statement Describe has described whole is not derived again for a read."""
+    from provisa.compiler import result_shape
+
+    _registered_types(pipeline)
+    sql = "SELECT o.id FROM sales.orders o"
+    governed = await pipeline.mod.govern_statement(sql, "analyst")
+    governed.memo["result_shape"] = [("id", "integer")]
+
+    def _derive(*args, **kwargs):
+        raise AssertionError("derived again")
+
+    monkeypatch.setattr(result_shape, "derive_result_shape", _derive)
+    plan = await pipeline.mod._govern_and_route(sql, "analyst")
+    assert await plan.result_shape() == [("id", "integer")]
+
+
 async def test_the_two_stages_never_share_a_plan_for_the_same_text(pipeline):
     await pipeline.mod._govern_and_route(_SQL, "analyst")
     await _compiled(pipeline)

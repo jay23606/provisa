@@ -23,6 +23,7 @@ from decimal import Decimal
 from itertools import islice
 from typing import Any, Callable
 
+from provisa.core.read_refusal import ReadRefused
 from provisa.core import request_deadline
 from provisa.executor.result import (
     QueryResult,
@@ -134,36 +135,202 @@ def stream_from_dbapi(
 
 
 _DECLARED_DECIMAL = re.compile(r"^\s*(?:decimal|numeric)\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)\s*$", re.I)
+_UNSIZED_DECIMAL = re.compile(r"^\s*(?:decimal|numeric)\s*$", re.I)
 _DECIMAL128_MAX_PRECISION = 38
+
+
+def _exact_decimals(values: list) -> Any:
+    """``values`` (Decimals and None) as the exact decimal they are, at the widest scale held."""
+    import pyarrow as pa
+
+    # A non-finite Decimal (NaN, Infinity) has no decimal128 form: pyarrow refuses it below.
+    exponents = [
+        e
+        for e in (v.as_tuple().exponent for v in values if isinstance(v, Decimal))
+        if isinstance(e, int)
+    ]
+    scale = max([0, *(-e for e in exponents)])
+    return pa.array(values, type=pa.decimal128(_DECIMAL128_MAX_PRECISION, scale))
+
+
+def _as_double(decimals: Any) -> Any:
+    """An Arrow decimal column as the nearest double of each value, column-wise. Through text:
+    Arrow's direct decimal-to-double cast is not correctly rounded (0.3 becomes
+    0.30000000000000004); its text-to-double parse is."""
+    import pyarrow as pa
+
+    return decimals.cast(pa.string()).cast(pa.float64())
+
+
+def _array_as(values: list, locked: Any) -> Any:
+    """A later batch's column as the type its first batch locked: a decimal column that is
+    floating point is converted as the first batch was; anything else is built as ``locked``,
+    and values that are not that type raise."""
+    import pyarrow as pa
+
+    if pa.types.is_floating(locked) and any(isinstance(v, Decimal) for v in values):
+        return _as_double(_exact_decimals(values)).cast(locked)
+    return pa.array(values, type=locked)
 
 
 def arrow_array_for_rows(values: list, declared: str | None) -> Any:  # REQ-1219, REQ-1897
     """One column of row values as an Arrow array: the one rows->Arrow typing Flight uses for a
     live row stream and for a cached ``rows`` entry alike, so a miss and its hit share a schema.
 
-    Lossless: a declared ``DECIMAL(p,s)``/``NUMERIC(p,s)`` is ``decimal128(p, s)``; a ``Decimal``
-    column declared without precision (Postgres reports plain ``numeric``) is
-    ``decimal128(38, s)`` at the widest scale it holds, so its type does not depend on how many
-    digits the rows at hand happen to have; anything else is pyarrow's inference (an aware
-    datetime keeps its zone)."""
+    A decimal column is exact where its size is known and floating point where it is not
+    (REQ-1961, the rule for a registered numeric applied to a result's): a declared
+    ``DECIMAL(p,s)``/``NUMERIC(p,s)`` is ``decimal128(p, s)``; a ``Decimal`` column the source
+    reports no size for (Postgres reports plain ``numeric`` for any computed decimal) is
+    ``float64``. Its type therefore never depends on how many digits the rows at hand happen to
+    have — typing it by the first batch's widest scale failed the read on a later, wider value.
+    A statement that wants such a column exact states its size: ``CAST(... AS numeric(p,s))``.
+    Anything else is pyarrow's inference (an aware datetime keeps its zone)."""
     import pyarrow as pa
 
     m = _DECLARED_DECIMAL.match(declared) if declared else None
     if m is not None:
         return pa.array(values, type=pa.decimal128(int(m.group(1)), int(m.group(2))))
-    decimals = [v for v in values if isinstance(v, Decimal)]
-    if decimals:
-        # A non-finite Decimal (NaN, Infinity) has no decimal128 form: pyarrow refuses it below.
-        exponents = [e for e in (v.as_tuple().exponent for v in decimals) if isinstance(e, int)]
-        scale = max([0, *(-e for e in exponents)])
-        return pa.array(values, type=pa.decimal128(_DECIMAL128_MAX_PRECISION, scale))
+    if any(isinstance(v, Decimal) for v in values):
+        return _as_double(_exact_decimals(values))
+    if declared and _UNSIZED_DECIMAL.match(declared):
+        return pa.array(values, type=pa.float64())
     return pa.array(values)
+
+
+class ColumnTypeMismatch(ReadRefused):
+    """A column's values cannot be read as the type the column is registered with (REQ-1961).
+
+    The model says what a column is and a read returns it as that; values that are not that are
+    never rounded, widened or passed through as something else. The statement is good and the
+    server has not failed: the registration and the source disagree, and a registrar puts it
+    right — by registering the column with the type its source returns (for a numeric, the
+    precision and scale it really has), or by correcting the source. One of the refusals for a
+    read the deployment cannot answer now (``core.read_refusal``), so every surface answers it
+    in one place with this code and these parameters.
+    """
+
+    code = "query.column_type_mismatch"
+
+    def __init__(self, column: str, registered: Any, found: Any) -> None:
+        self.column = column
+        self.params = {"column": column, "registered": str(registered), "found": str(found)}
+        super().__init__(
+            f"column {column!r} is registered as {registered} and its values arrived as "
+            f"{found}, which cannot be read as that without changing them. Register the column "
+            f"with the type its source returns, or correct the source."
+        )
+
+
+def typed_arrow_array(values: list, target: Any, column: str) -> Any:  # REQ-1961
+    """One column of row values as an Arrow array of ``target``, the type the column is
+    registered with — never a type read off the values. Where Arrow cannot build ``target``
+    from the Python values directly (a ``Decimal`` read as floating point), the values are built
+    as what they are and cast by Arrow, column-wise. Values that cannot be read as the
+    registered type are an error naming the column (:class:`ColumnTypeMismatch`)."""
+    import pyarrow as pa
+
+    try:
+        return pa.array(values, type=target)
+    except (pa.ArrowInvalid, pa.ArrowTypeError, pa.ArrowNotImplementedError):
+        decimals = any(isinstance(v, Decimal) for v in values)
+        found = _exact_decimals(values) if decimals else pa.array(values)
+    try:
+        if decimals and pa.types.is_floating(target):
+            return _as_double(found).cast(target)
+        return found.cast(target)
+    except (pa.ArrowInvalid, pa.ArrowNotImplementedError) as mismatch:
+        raise ColumnTypeMismatch(column, target, found.type) from mismatch
+
+
+def declared_arrow_stream(  # REQ-1961
+    schema: Any, batches: Iterator[Any], shape: list[tuple[str, str]] | None
+) -> tuple[Any, Iterator[Any]]:
+    """An engine's own Arrow stream with each registered column as the model declares it.
+
+    The engine's reader types its result by the engine's own catalog, which is the model's for
+    most columns and not for all (an attached source's integer read 64-bit, a replica's decimal
+    sized by the engine). A result column that is a registered column (:func:`read_targets`) and
+    arrives as another type is cast to the registered one by Arrow, a column of a batch at a
+    time, and the schema says so before the first batch — the same schema for no rows as for
+    many. A cast that would change a value is refused naming the column
+    (:class:`ColumnTypeMismatch`). A stream in which nothing differs is handed back untouched.
+    """
+    import pyarrow as pa
+
+    targets = read_targets(list(schema.names), shape)
+    differing = [
+        i
+        for i, target in enumerate(targets)
+        if target is not None and schema.field(i).type != target
+    ]
+    if not differing:
+        return schema, batches
+    declared = pa.schema(
+        [
+            field.with_type(targets[i]) if i in differing else field
+            for i, field in enumerate(schema)
+        ],
+        metadata=schema.metadata,
+    )
+
+    def _as_declared() -> Iterator[Any]:
+        try:
+            for batch in batches:
+                columns = list(batch.columns)
+                for i in differing:
+                    try:
+                        columns[i] = columns[i].cast(targets[i])
+                    except (pa.ArrowInvalid, pa.ArrowNotImplementedError) as mismatch:
+                        raise ColumnTypeMismatch(
+                            schema.field(i).name, targets[i], schema.field(i).type
+                        ) from mismatch
+                yield pa.RecordBatch.from_arrays(columns, schema=declared)
+        finally:
+            close = getattr(batches, "close", None)
+            if close is not None:
+                close()
+
+    return declared, _as_declared()
+
+
+def read_targets(names: list[str], shape: list[tuple[str, str]] | None) -> list[Any]:  # REQ-1961
+    """For each result column, the Arrow type it is read as, or None — the column keeps the type
+    its values give it.
+
+    A result column that IS a registered column (projected bare, aliased or through a star:
+    ``compiler.result_shape.RegisteredType``) is read as that column's registered type, by the
+    one rule (``core.catalog_types.column_arrow_type``): what the model declares for a column is
+    what a read of it returns. None for everything else: a computed expression (the model
+    declares columns, not expressions, and its engine sizes the result — a sum of a two-digit
+    decimal is the engine's wider decimal, exact), a statement with no derivable shape, a result
+    column the shape does not name, a registered type neither vocabulary names, and a JSON
+    column (REQ-1965: what a JSON column reads as is its reader's to produce). One computed
+    column IS typed: a numeric whose size the statement states with a CAST
+    (``compiler.result_shape.StatedType``)."""
+    from provisa.compiler.result_shape import RegisteredType, StatedType
+    from provisa.core.catalog_types import column_arrow_type, is_json_type
+    from provisa.core.numeric_type import numeric_arrow_type, numeric_size
+
+    by_name = dict(shape or [])
+    targets: list[Any] = []
+    for name in names:
+        declared = by_name.get(name)
+        if isinstance(declared, RegisteredType) and not is_json_type(declared):
+            targets.append(column_arrow_type(declared))
+        elif isinstance(declared, StatedType) and numeric_size(declared) is not None:
+            # The statement states a numeric's size (CAST(... AS numeric(p,s))): read exact, at
+            # that size, on every path — the way to keep a computed decimal exact.
+            targets.append(numeric_arrow_type(declared))
+        else:
+            targets.append(None)
+    return targets
 
 
 def arrow_batches_from_rows(
     result: ResultStream,
     *,
     batch_rows: int = _ARROW_STREAM_BATCH_ROWS,
+    shape: list[tuple[str, str]] | None = None,
 ) -> tuple[Any, Iterator[Any]]:
     """Adapt a lazy row ``ResultStream`` into ``(pa.Schema, RecordBatch generator)`` — the generic
     Arrow-stream face for a ROWS-only engine (pg / sqlalchemy) that has no native Arrow reader
@@ -171,27 +338,47 @@ def arrow_batches_from_rows(
     ``batch_rows`` rows are held at once, so Flight-SQL / airport stream from a row engine instead of
     materializing the whole result.
 
-    The schema is LOCKED from the first batch (pyarrow type inference) and every later batch is cast
+    ``shape`` is the governed statement's result columns and their registered types (the plan's
+    ``result_shape``, REQ-1961). A column it types is read as its registered type — an integer
+    column is 32 bits, a numeric is exact where the model records its size and floating point
+    where it does not — whatever the driver reported and whatever the first rows held, and a
+    result with no rows has the same schema as one with rows. Without a shape, and for a column
+    the shape does not type, the type is read off the values as before:
+
+    the schema is LOCKED from the first batch (pyarrow type inference) and every later batch is cast
     to it, so all record batches share one schema. An incompatible later value (e.g. a column that was
     all-``NULL`` in the first batch but typed afterward) raises loudly rather than silently corrupting.
-    A zero-row result yields a null-typed schema (column names only) and an empty generator."""
+    A zero-row result yields a null type for such a column."""
     import pyarrow as pa
 
     def _to_batch(rows: list[tuple], schema: Any | None) -> Any:
         cols = [[r[i] for r in rows] for i in range(len(names))]
         if schema is None:
             declared = result.column_types or [None] * len(names)
-            arrays = [arrow_array_for_rows(c, declared[i]) for i, c in enumerate(cols)]
+            arrays = [
+                arrow_array_for_rows(c, declared[i])
+                if targets[i] is None
+                else typed_arrow_array(c, targets[i], names[i])
+                for i, c in enumerate(cols)
+            ]
             return pa.RecordBatch.from_arrays(arrays, names=names)
-        arrays = [pa.array(c, type=schema.field(i).type) for i, c in enumerate(cols)]
+        arrays = [
+            _array_as(c, schema.field(i).type)
+            if targets[i] is None
+            else typed_arrow_array(c, targets[i], names[i])
+            for i, c in enumerate(cols)
+        ]
         return pa.RecordBatch.from_arrays(arrays, schema=schema)
 
     row_iter = result.iter_rows()
     first_rows = list(islice(row_iter, batch_rows))
     # A lazy stream opens on its first read, which is when it learns its columns.
     names = result.column_names
+    targets = read_targets(names, shape)
     if not first_rows:
-        empty = pa.schema([pa.field(n, pa.null()) for n in names])
+        empty = pa.schema(
+            [pa.field(n, pa.null() if t is None else t) for n, t in zip(names, targets)]
+        )
         return empty, iter(())
     first_batch = _to_batch(first_rows, None)
     schema = first_batch.schema

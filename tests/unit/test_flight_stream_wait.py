@@ -118,9 +118,15 @@ def _no_real_pipeline():
 
 def _stream(server, cached=None):
     """One ticket through the engine route: (cached_table, schema, batches)."""
-    # REQ-1909: as _Plan — no capped live source bound at mint.
+    # REQ-1909: as _Plan — no capped live source bound at mint. REQ-1961: and built from no
+    # governed statement, so it carries no result shape.
     plan = SimpleNamespace(
-        physical_sql="SELECT 1", live_caps=(), live_caps_org=None, tier_caps=None, tier_plan=None
+        physical_sql="SELECT 1",
+        live_caps=(),
+        live_caps_org=None,
+        tier_caps=None,
+        tier_plan=None,
+        result_shape=None,
     )
     _cache_answer.table = cached
     try:
