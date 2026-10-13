@@ -245,7 +245,8 @@
       "spool_full": "La build della replica di {{table}} è stata rifiutata: lo spooling della risposta della sorgente richiede {{needed}} byte della directory di spool di questo nodo, oltre il limite di {{limit}} (replication.spool_max_bytes).",
       "table_gone": "La tabella {{schema}}.{{table}} della sorgente {{source}} non è più registrata, quindi la sua replica non viene creata.",
       "waiting_engine_jobs": "il motore ha raggiunto il limite di job in background (replication.engine_jobs)",
-      "waiting_source_cap": "la sorgente ha raggiunto il limite di letture live (max_live_concurrency)"
+      "waiting_source_cap": "la sorgente ha raggiunto il limite di letture live (max_live_concurrency)",
+      "waiting_shutdown": "il nodo che lo aveva preso in carico si stava arrestando; il prossimo passaggio lo costruisce"
     },
     "roles": {
       "cannot_delete_system": "Impossibile eliminare i ruoli di sistema",

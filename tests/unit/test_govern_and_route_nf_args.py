@@ -73,6 +73,8 @@ def _ctx() -> CompilationContext:
             domain_id=DOMAIN_ID,
         )
     }
+    # The table's parameter column (REQ-1986): only a condition on one is a native argument.
+    ctx.native_filter_columns = {TABLE_ID: {"_nf_petId": "integer"}}
     return ctx
 
 

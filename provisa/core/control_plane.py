@@ -18,20 +18,24 @@ by any SQLAlchemy URI (not necessarily PostgreSQL). See REQ-837, REQ-839.
 
 from __future__ import annotations
 
-from provisa.core.database import Database, create_engine_from_url
+from typing import TYPE_CHECKING
+
+from provisa.core.database import Database
 from provisa.core.schema_admin import init_registry_schema
 
+if TYPE_CHECKING:
+    from sqlalchemy.engine import Engine
 
-async def bring_up_platform(
-    url: str, *, pool_size: int, pool_min: int, org_id: str, initialise: bool = True
-) -> Database:
-    """Build the platform-plane ``Database`` from *url* and initialise its schema
-    (org/user/invite registry + SaaS billing). Unscoped — no ``search_path``.
+
+async def bring_up_platform(engine: Engine, *, org_id: str, initialise: bool = True) -> Database:
+    """Build the platform-plane ``Database`` over *engine* (the process's platform engine, see
+    ``provisa.api.startup_seed``) and initialise its schema (org/user/invite registry + SaaS
+    billing). Unscoped — no ``search_path``.
 
     *org_id* is the control plane's resolved org id; the registry's default org row is
     seeded under it so the row and the ``org_<id>`` tenant schema always agree (REQ-1286)."""
     db = Database(
-        create_engine_from_url(url, pool_size=pool_size, max_overflow=max(pool_size - pool_min, 0)),
+        engine,
         name="platform",
         # REQ-1922: the platform registry's handle; it refuses org and platform-state tables
         # (provisa/core/store_sides.py).

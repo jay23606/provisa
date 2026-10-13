@@ -460,3 +460,47 @@ async def test_a_pass_builds_in_its_own_org_whoever_started_it(plane, tmp_path):
     await node.drain()
     assert seen == [ORG]
     assert current_org.get() is None
+
+
+async def test_a_stopped_runner_starts_no_build(plane, tmp_path):
+    """Process shutdown stops the runner before the engine closes: a pass after it claims and
+    starts nothing, and the requested build stays requested for the next start."""
+    url, connect = plane
+    db = connect()
+    await _request(db, _key(0))
+    built: list = []
+
+    async def build(key, progress):
+        built.append(key)
+        return BuildOutcome(rows_copied=0, method="stream_batches")
+
+    node = _Node("a", url, db, tmp_path, build=build, permits=_Permits())
+    node.runner.stop()
+    assert await node.runner.run_pass() == 0
+    await node.drain()
+    assert built == []
+    assert [r.build_state for r in (await _records(db)).values()] == [build_state.REQUESTED]
+
+
+async def test_a_build_finishing_after_the_stop_chains_into_no_further_build(plane, tmp_path):
+    """A build still running at shutdown ends as it ends; the pass it would chain into does not
+    start the next requested build."""
+    url, connect = plane
+    db = connect()
+    await _request(db, _key(0), _key(1))
+    release = asyncio.Event()
+    built: list = []
+
+    async def build(key, progress):
+        await release.wait()
+        built.append(key)
+        return BuildOutcome(rows_copied=0, method="stream_batches")
+
+    node = _Node("a", url, db, tmp_path, build=build, permits=_Permits(), per_node=1)
+    assert await node.runner.run_pass() == 1
+    node.runner.stop()
+    release.set()
+    await node.drain()
+    assert len(built) == 1
+    states = sorted(r.build_state for r in (await _records(db)).values())
+    assert states == [build_state.IDLE, build_state.REQUESTED]

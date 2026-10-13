@@ -12,6 +12,8 @@
 
 from __future__ import annotations
 
+import re
+
 from provisa.compiler.nf_extractor import (
     drop_joined_table,
     drop_union_branches_for_table,
@@ -22,12 +24,26 @@ from provisa.compiler.nf_extractor import (
 )
 
 
+def _extract(sql, params):
+    """Every _nf_ column the statement names is a parameter of its context here."""
+    return extract_nf_args(sql, params, set(re.findall(r"_nf_\w+", sql)))
+
+
+def test_a_nf_column_that_is_no_parameter_of_the_context_stays_a_filter():
+    """REQ-1942: in a Test (synthetic) environment a generated table's parameter is an ordinary
+    column; an equality on it is a filter of the rows, never a native argument taken away."""
+    sql = 'SELECT * FROM t WHERE "_nf_petId" = 3 AND "_nf_region" = \'EU\''
+    clean, _, args = extract_nf_args(sql, [], {"_nf_region"})
+    assert args == {"region": "EU"}
+    assert '"_nf_petId" = 3' in clean
+
+
 # --- extract_nf_args -----------------------------------------------------------
 
 
 def test_extract_nf_args_no_where_clause():
     sql = "SELECT * FROM widgets"
-    clean_sql, clean_params, nf_args = extract_nf_args(sql, [])
+    clean_sql, clean_params, nf_args = _extract(sql, [])
     assert clean_sql == sql
     assert clean_params == []
     assert nf_args == {}
@@ -35,7 +51,7 @@ def test_extract_nf_args_no_where_clause():
 
 def test_extract_nf_args_no_nf_conditions():
     sql = "SELECT * FROM widgets WHERE name = 'x'"
-    clean_sql, clean_params, nf_args = extract_nf_args(sql, [])
+    clean_sql, clean_params, nf_args = _extract(sql, [])
     assert clean_sql == sql
     assert clean_params == []
     assert nf_args == {}
@@ -43,7 +59,7 @@ def test_extract_nf_args_no_nf_conditions():
 
 def test_extract_nf_args_literal_value_left_side():
     sql = "SELECT * FROM widgets WHERE _nf_id = 42"
-    clean_sql, clean_params, nf_args = extract_nf_args(sql, [])
+    clean_sql, clean_params, nf_args = _extract(sql, [])
     assert nf_args == {"id": 42}
     assert "_nf_id" not in clean_sql
     assert "WHERE" not in clean_sql
@@ -51,32 +67,32 @@ def test_extract_nf_args_literal_value_left_side():
 
 def test_extract_nf_args_literal_value_right_side():
     sql = "SELECT * FROM widgets WHERE 42 = _nf_id"
-    clean_sql, clean_params, nf_args = extract_nf_args(sql, [])
+    clean_sql, clean_params, nf_args = _extract(sql, [])
     assert nf_args == {"id": 42}
 
 
 def test_extract_nf_args_string_literal():
     sql = "SELECT * FROM widgets WHERE _nf_name = 'acme'"
-    clean_sql, clean_params, nf_args = extract_nf_args(sql, [])
+    clean_sql, clean_params, nf_args = _extract(sql, [])
     assert nf_args == {"name": "acme"}
 
 
 def test_extract_nf_args_float_literal():
     sql = "SELECT * FROM widgets WHERE _nf_price = 3.5"
-    _, _, nf_args = extract_nf_args(sql, [])
+    _, _, nf_args = _extract(sql, [])
     assert nf_args == {"price": 3.5}
 
 
 def test_extract_nf_args_positional_param():
     sql = "SELECT * FROM widgets WHERE _nf_id = $1"
-    clean_sql, clean_params, nf_args = extract_nf_args(sql, [99])
+    clean_sql, clean_params, nf_args = _extract(sql, [99])
     assert nf_args == {"id": 99}
     assert clean_params == []
 
 
 def test_extract_nf_args_param_renumbering_after_extraction():
     sql = "SELECT * FROM widgets WHERE _nf_id = $1 AND name = $2"
-    clean_sql, clean_params, nf_args = extract_nf_args(sql, [10, "acme"])
+    clean_sql, clean_params, nf_args = _extract(sql, [10, "acme"])
     assert nf_args == {"id": 10}
     assert clean_params == ["acme"]
     assert "$1" in clean_sql
@@ -85,7 +101,7 @@ def test_extract_nf_args_param_renumbering_after_extraction():
 
 def test_extract_nf_args_multiple_nf_conditions_and_mixed():
     sql = "SELECT * FROM widgets WHERE _nf_id = $1 AND _nf_kind = 'x' AND status = $2"
-    clean_sql, clean_params, nf_args = extract_nf_args(sql, [10, "active"])
+    clean_sql, clean_params, nf_args = _extract(sql, [10, "active"])
     assert nf_args == {"id": 10, "kind": "x"}
     assert clean_params == ["active"]
     assert "status" in clean_sql
@@ -94,7 +110,7 @@ def test_extract_nf_args_multiple_nf_conditions_and_mixed():
 
 def test_extract_nf_args_all_conditions_consumed_drops_where():
     sql = "SELECT * FROM widgets WHERE _nf_id = 1"
-    clean_sql, clean_params, nf_args = extract_nf_args(sql, [])
+    clean_sql, clean_params, nf_args = _extract(sql, [])
     assert "WHERE" not in clean_sql
     assert nf_args == {"id": 1}
 
@@ -104,13 +120,13 @@ def test_extract_nf_args_param_index_out_of_range_ignored():
     # Out-of-range param index resolves to None, so it's kept as an ordinary
     # condition (value is None and param_idx is not None -> still counts as consumed
     # since param_idx is not None). Verify no crash and consistent behavior.
-    clean_sql, clean_params, nf_args = extract_nf_args(sql, [])
+    clean_sql, clean_params, nf_args = _extract(sql, [])
     assert "id" in nf_args
 
 
 def test_extract_nf_args_non_eq_condition_kept():
     sql = "SELECT * FROM widgets WHERE _nf_id > 1"
-    clean_sql, clean_params, nf_args = extract_nf_args(sql, [])
+    clean_sql, clean_params, nf_args = _extract(sql, [])
     assert nf_args == {}
     assert "_nf_id" in clean_sql
 

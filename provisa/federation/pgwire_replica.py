@@ -61,6 +61,28 @@ PGWIRE_REPLICA_TYPES = frozenset(
 # ONE schema, named after the source id.
 BUNDLE_MODEL_TYPES = frozenset({"govdata"})
 
+#: Where a source's server listens, and the name an engine in a container reaches it by. Both
+#: are the deployment's to say (its environment), since they describe its network: unset, a
+#: server listens on loopback and an engine on the same host reaches it there. A server checks
+#: no credentials, so it is bound beyond loopback only to an address the engine alone reaches —
+#: the container bridge's — never to every interface by default.
+BIND_HOST_ENV = "PROVISA_PGWIRE_BIND_HOST"
+ENGINE_HOST_ENV = "PROVISA_PGWIRE_ENGINE_HOST"
+
+
+def bind_host() -> str | None:
+    """The address the deployment has its pgwire servers listen on, or None for the launcher's
+    own (loopback)."""
+    return os.environ.get(BIND_HOST_ENV) or None
+
+
+def engine_visible_host(ports: "PortPair") -> str:
+    """The host an engine that is not on this host's loopback (Trino in a container) reaches
+    the server by: the deployment's ``PROVISA_PGWIRE_ENGINE_HOST``, else the host the server
+    listens on."""
+    return os.environ.get(ENGINE_HOST_ENV) or ports.calcite_child_host
+
+
 # Default ports (REQ-955): the pgwire endpoint (--port) and the Calcite child JVM (--calcite-child).
 # Each source gets a UNIQUE pair allocated up from these bases so servers never collide.
 PGWIRE_DEFAULT_PORT = 5433
@@ -777,6 +799,9 @@ class PgwireServer:  # REQ-955
         launcher = self._bundle_dir / "bin" / self._spec.artifact_name
         child = f"{self._ports.calcite_child_host}:{self._ports.calcite_child_port}"
         cmd = [str(launcher), "--port", str(self._ports.pgwire_port), "--calcite-child", child]
+        host = bind_host()
+        if host is not None:
+            cmd += ["--host", host]  # the launcher's own default is loopback
         if bundle_supports_owner_pid(self._spec.version):
             cmd += ["--owner-pid", str(os.getpid())]
         return cmd
@@ -1598,3 +1623,18 @@ def make_pgwire_keyed_loader(
         return await replica.load_keys(table, pk_columns, keys)
 
     return _load
+
+
+def _engine_endpoint(source: Any) -> tuple[str, int]:
+    """The (host, port) an engine's catalog dials for the source's server (``pgwire_endpoint``)."""
+    ports = ensure_endpoint(source)
+    return engine_visible_host(ports), ports.pgwire_port
+
+
+def _register_engine_endpoint() -> None:
+    from provisa.federation import pgwire_endpoint
+
+    pgwire_endpoint.register(_engine_endpoint)
+
+
+_register_engine_endpoint()

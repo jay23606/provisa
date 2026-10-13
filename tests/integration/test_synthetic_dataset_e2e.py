@@ -1313,7 +1313,7 @@ def pets():
             table(
                 "get_pet_by_id",
                 {
-                    "name": "petId",
+                    "name": "_nf_petId",
                     "data_type": "integer",
                     "native_filter_type": "path_param",
                     # REQ-1986: a path parameter is one its source cannot be read without.
@@ -1349,7 +1349,7 @@ def test_a_synthetic_environment_generates_api_tables_and_calls_no_api(pets):
     assert listed["tableName"] == "list_pets" and listed["api"] is True, plan
     assert listed["requiredParameters"] == [] and plan["ready"] is False, plan
     (by_id,) = plan["unavailable"]
-    assert by_id["tableName"] == "get_pet_by_id" and by_id["requiredParameters"] == ["petId"]
+    assert by_id["tableName"] == "get_pet_by_id" and by_id["requiredParameters"] == ["_nf_petId"]
     assert "Declare a profile of it" in by_id["reason"], by_id
     assert plan["sources"][0]["id"] == "petstore" and plan["sources"][0]["type"] == "openapi"
 
@@ -1382,7 +1382,9 @@ def test_a_synthetic_environment_generates_api_tables_and_calls_no_api(pets):
 
     called = len(asked)
     assert _one(boot, "SELECT COUNT(*) AS n FROM sales.list_pets", env="apisyn") == 10
-    status, body = _sql(boot, 'SELECT * FROM sales.get_pet_by_id WHERE "petId" = 3', env="apisyn")
+    status, body = _sql(
+        boot, 'SELECT * FROM sales.get_pet_by_id WHERE "_nf_petId" = 3', env="apisyn"
+    )
     assert status != 200, body
     assert "is not available in a Test (synthetic) environment" in str(body), body
     assert "Declare a profile of it" in str(body), body
@@ -1392,23 +1394,28 @@ def test_a_synthetic_environment_generates_api_tables_and_calls_no_api(pets):
     declare(
         by_id["tableId"],
         20,
-        petId={"nullShare": 0, "distinctCount": 5, "range": {"min": 1, "max": 5}},
+        _nf_petId={"nullShare": 0, "distinctCount": 5, "range": {"min": 1, "max": 5}},
     )
     status, plan = _call(boot, "GET", f"{base}/apisyn/synthetic/plan")
     assert plan["unavailable"] == [] and plan["ready"] is True, plan
     assert {t["tableName"]: t["requiredParameters"] for t in plan["tables"]} == {
         "list_pets": [],
-        "get_pet_by_id": ["petId"],
+        "get_pet_by_id": ["_nf_petId"],
     }, plan
     _generate_whole_model(boot, "apisyn", {"seed": 2, "scale": 1})
     called = len(asked)
     assert _one(boot, "SELECT COUNT(*) AS n FROM sales.get_pet_by_id", env="apisyn") == 20
     status, rows = _sql(
         boot,
-        'SELECT COUNT(*) AS n, MIN("petId") AS lo, MAX("petId") AS hi FROM sales.get_pet_by_id '
-        'WHERE "petId" BETWEEN 2 AND 4',
+        'SELECT COUNT(*) AS n, MIN("_nf_petId") AS lo, MAX("_nf_petId") AS hi '
+        'FROM sales.get_pet_by_id WHERE "_nf_petId" BETWEEN 2 AND 4',
         env="apisyn",
     )
     assert status == 200 and 0 < rows[0]["n"] < 20, rows
     assert rows[0]["lo"] >= 2 and rows[0]["hi"] <= 4, rows
+    # An equality on it is a filter too, never taken away as an API argument.
+    equal = _one(
+        boot, 'SELECT COUNT(*) AS n FROM sales.get_pet_by_id WHERE "_nf_petId" = 3', env="apisyn"
+    )
+    assert 0 < equal < 20, equal
     assert len(asked) == called, asked[called:]

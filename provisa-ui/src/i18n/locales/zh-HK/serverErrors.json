@@ -245,7 +245,8 @@
       "spool_full": "{{table}} 的複本建置被拒絕：暫存其來源的回應需要此節點暫存目錄中的 {{needed}} 位元組，超過了 {{limit}} 的上限 (replication.spool_max_bytes)。",
       "table_gone": "來源 {{source}} 的資料表 {{schema}}.{{table}} 已不再註冊，因此不會建置其複本。",
       "waiting_engine_jobs": "引擎已達到背景作業上限 (replication.engine_jobs)",
-      "waiting_source_cap": "來源已達到即時讀取上限 (max_live_concurrency)"
+      "waiting_source_cap": "來源已達到即時讀取上限 (max_live_concurrency)",
+      "waiting_shutdown": "認領它的節點正在關閉；下一輪會建置它"
     },
     "roles": {
       "cannot_delete_system": "無法刪除系統角色",

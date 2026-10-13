@@ -690,6 +690,26 @@ async def _seed_ops_pg(conn: "Connection") -> None:  # REQ-016
         await _seed_cols(table_id, view_name, cols)
 
 
+# The URL each control plane's engine was built from, by plane.
+_PLANE_URLS: dict[str, str] = {}
+
+
+def _plane_engine(plane: str, previous: Any, url: str, *, pool_size: int, max_overflow: int) -> Any:
+    """The engine for a control plane at ``url``. The bring-up runs again when a config is
+    re-applied (the settings and setup routers call ``_load_and_build``): a plane still at the
+    same url keeps the engine it has, since every handle the process built over it -- the live
+    engine's, the build runner's, the event processors' -- would otherwise be left holding a pool
+    nothing closes. A plane at another url gets a new engine and the one it replaces is
+    disposed."""
+    if previous is not None and _PLANE_URLS.get(plane) == url:
+        return previous
+    if previous is not None:
+        previous.dispose()
+    engine = create_engine_from_url(url, pool_size=pool_size, max_overflow=max_overflow)
+    _PLANE_URLS[plane] = url
+    return engine
+
+
 async def _init_control_planes(
     config_path: str | None,
     initialise: bool = True,
@@ -712,8 +732,12 @@ async def _init_control_planes(
     # Tenant plane: schema-scoped to ``org_<id>`` via search_path (the tenant-scope
     # mechanism). Platform plane (bring_up_platform): global registry + billing,
     # never org-scoped. Two independent engines, each its own SQLAlchemy URI.
-    tenant_engine = create_engine_from_url(
-        cp.resolved_tenant_url(), pool_size=cp.pool_max, max_overflow=cp.max_overflow
+    tenant_engine = _plane_engine(
+        "tenant",
+        state.tenant_engine,
+        cp.resolved_tenant_url(),
+        pool_size=cp.pool_max,
+        max_overflow=cp.max_overflow,
     )
     # REQ-1316: every later org runtime reuses THIS engine (see build_org_runtime) — one tenant
     # pool for the whole process, orgs separated by the per-checkout search_path.
@@ -727,9 +751,13 @@ async def _init_control_planes(
         org_schema(org_id, PROD), ModelPlane(org_id, PROD), model_engine=tenant_engine
     )
     state.admin_db = await bring_up_platform(
-        cp.resolved_platform_url(),
-        pool_size=cp.pool_max,
-        pool_min=cp.pool_min,
+        _plane_engine(
+            "platform",
+            state.admin_db.engine if state.admin_db is not None else None,
+            cp.resolved_platform_url(),
+            pool_size=cp.pool_max,
+            max_overflow=max(cp.pool_max - cp.pool_min, 0),
+        ),
         org_id=org_id,
         initialise=initialise,
     )

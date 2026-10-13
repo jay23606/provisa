@@ -103,3 +103,23 @@ def test_an_old_row_is_resolved_only_where_required_is_certain():
     assert resolved(None, "query_param", "openapi") is None
     assert resolved(None, "grpc_input", "grpc_remote") is None
     assert resolved(None, None, "graphql_remote") is None  # not a parameter
+
+
+def test_a_parameter_column_is_named_by_its_prefix():
+    # REQ-1986: a parameter is the column _nf_<name>; a statement gives it by that column.
+    with pytest.raises(pydantic.ValidationError, match="is named _nf_<parameter>"):
+        Column(
+            name="petId",
+            visible_to=[],
+            native_filter_type="path_param",
+            native_filter_required=True,
+        )
+    assert (
+        Column(
+            name="_nf_petId",
+            visible_to=[],
+            native_filter_type="path_param",
+            native_filter_required=True,
+        ).name
+        == "_nf_petId"
+    )

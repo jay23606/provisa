@@ -245,7 +245,8 @@
       "spool_full": "Se rechazó la compilación de la réplica de {{table}}: almacenar temporalmente la respuesta de su origen necesita {{needed}} bytes del directorio de spool de este nodo, por encima del límite de {{limit}} (replication.spool_max_bytes).",
       "table_gone": "La tabla {{schema}}.{{table}} del origen {{source}} ya no está registrada, por lo que su réplica no se compila.",
       "waiting_engine_jobs": "el motor está en su límite de trabajos en segundo plano (replication.engine_jobs)",
-      "waiting_source_cap": "el origen está en su límite de lecturas en vivo (max_live_concurrency)"
+      "waiting_source_cap": "el origen está en su límite de lecturas en vivo (max_live_concurrency)",
+      "waiting_shutdown": "el nodo que lo reclamó se estaba apagando; la siguiente pasada lo construye"
     },
     "roles": {
       "cannot_delete_system": "No se pueden eliminar los roles del sistema",

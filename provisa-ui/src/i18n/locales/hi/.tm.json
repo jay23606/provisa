@@ -3642,6 +3642,7 @@
   "hi/serverErrors.json::serverErrors.replication.spool_full": "The replica build of {{table}} was refused: spooling its source's answer needs {{needed}} bytes of this node's spool directory, over the limit of {{limit}} (replication.spool_max_bytes).",
   "hi/serverErrors.json::serverErrors.replication.table_gone": "Table {{schema}}.{{table}} of source {{source}} is no longer registered, so its replica is not built.",
   "hi/serverErrors.json::serverErrors.replication.waiting_engine_jobs": "the engine is at its background job cap (replication.engine_jobs)",
+  "hi/serverErrors.json::serverErrors.replication.waiting_shutdown": "the node that claimed it was shutting down; the next pass builds it",
   "hi/serverErrors.json::serverErrors.replication.waiting_source_cap": "the source is at its live-read cap (max_live_concurrency)",
   "hi/serverErrors.json::serverErrors.requests.already_approved": "You have already approved this request",
   "hi/serverErrors.json::serverErrors.requests.approvals_incomplete": "This request needs approvals from {{required}} different users",

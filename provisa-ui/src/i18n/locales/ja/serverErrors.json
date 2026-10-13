@@ -245,7 +245,8 @@
       "spool_full": "{{table}} のレプリカのビルドは拒否されました: ソースの応答をスプールするには、このノードのスプールディレクトリに {{needed}} バイトが必要で、上限の {{limit}} を超えます (replication.spool_max_bytes)。",
       "table_gone": "ソース {{source}} のテーブル {{schema}}.{{table}} は登録されなくなったため、レプリカはビルドされません。",
       "waiting_engine_jobs": "エンジンがバックグラウンドジョブの上限に達しています (replication.engine_jobs)",
-      "waiting_source_cap": "ソースがライブ読み取りの上限に達しています (max_live_concurrency)"
+      "waiting_source_cap": "ソースがライブ読み取りの上限に達しています (max_live_concurrency)",
+      "waiting_shutdown": "これを取得したノードがシャットダウン中でした。次のパスでビルドされます"
     },
     "roles": {
       "cannot_delete_system": "システムロールは削除できません",
