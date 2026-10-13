@@ -12,13 +12,13 @@ The optimistic benchmark measures Provisa's own ceiling per transport: one row, 
 | 2, client | `run_benchmark.py --optimistic` (the load generator) | No Provisa, no source |
 | 3, backends | The Postgres source (`orders`), the control-plane Postgres, Redis (the shared response cache), the OTel collector and the OTel-to-table processing (otlp2parquet, otlp2sql); the host agent for container CPU | No Provisa, no load generator |
 
-Redis is listed on device 3; it is a server Provisa reaches over the network, as it would be in production. Moving it to device 1 is the alternative: state which in the report.
+Redis is on device 3: a server Provisa reaches over the network, as in production.
 
 All three are in one zone. A compact placement policy keeps the round trip stable between runs.
 
 ## Provisioning
 
-There is no `terraform/perf` today: the single perf VM was made by hand. Proposed: a `terraform/perf` module that creates the three instances from variables (machine type per device, zone, image), one compact placement policy, and a firewall rule that opens each device's ports to the other two only. The maintainer applies it. No public addresses are opened beyond SSH.
+A `terraform/perf` module creates the three instances from variables (machine type per device, zone, image), one compact placement policy, and firewall rules that let only the three devices reach each other, plus the operator's SSH. The maintainer applies it.
 
 Per device, after provisioning:
 
@@ -76,10 +76,8 @@ The language and transport pairs are those already published: SQL over pgwire (c
 2. Compose profiles on device 3 for the control-plane Postgres, the collector and otlp2parquet/otlp2sql.
 3. The host agent grows from `server_cpu_agent.py`. It stays read-only and needs an explicit `--listen`. It adds machine facts, container CPU (on device 3) and a round-trip probe to a named host and port.
 4. `run_benchmark.py`: a `--source-cpu-url` (device 3's agent) beside `--server-cpu-url`, a timed warm-up step, repetitions with off and on alternating, and the per-device block in the report.
-5. `terraform/perf`, if approved.
+5. `terraform/perf`.
 
 ## Open for review
 
-- Redis on device 3 (proposed) or device 1.
-- Whether `terraform/perf` is wanted, or the three instances are made by hand from a written list.
 - The machine types: 16 physical cores for device 1 was the reference before. Devices 2 and 3 must not be the limit; their CPU in the report shows whether they were.
