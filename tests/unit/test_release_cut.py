@@ -216,3 +216,29 @@ def test_the_release_body_is_the_tags_notes_page():
     assert 'notes="docs/releases/$TAG.md"' in action
     assert '--notes-file "$notes"' in action
     assert 'if [ ! -f "$notes" ]; then' in action
+
+
+_UI_LANES = ("ui-e2e-core.yml", "ui-e2e-trino.yml", "ui-e2e-swap-amd64.yml")
+
+
+def test_every_ui_e2e_lane_runs_on_a_push_to_main():
+    # The maintainer's rule: the three UI e2e lanes run on every push to main, as the
+    # integration suite does, so the commit a release is cut from has a run of each.
+    suite = _on(_load("integration-suite.yml"))["push"]["paths"]
+    for name in _UI_LANES:
+        push = _on(_load(name))["push"]
+        assert "main" in push["branches"], name
+        assert push["paths"] == [p for p in suite if p != "docs/metadata-export.md"], name
+
+
+def test_a_cut_is_refused_by_name_unless_every_ui_e2e_lane_is_green_on_its_commit():
+    runs = [step.get("run", "") for step in _steps()]
+    gate = next(i for i, r in enumerate(runs) if "gh run list" in r)
+    assert gate < next(i for i, r in enumerate(runs) if "release_cut_check.py --version" in r)
+    script = runs[gate]
+    assert script.startswith("set -euo pipefail")
+    assert "for workflow in " + " ".join(_UI_LANES) + "; do" in script
+    assert "--branch main --event push" in script and '--commit "$GITHUB_SHA"' in script
+    assert '"${run#completed success }" = "$run"' in script
+    assert 'echo "::error::$workflow is not green on $GITHUB_SHA: $run"' in script
+    assert 'exit "$refused"' in script

@@ -15,20 +15,18 @@ name: UI e2e (swap lane, amd64-only sources)
 
 on:
   push:
-    branches: ["release/**"]
+    branches: [main, "release/**"]
     tags: ["v*"]
+    # Every push to main runs this lane alongside the integration suite, filtered as that suite is
+    # (no run for a push of only the website, the docs or markdown), and a release is cut only
+    # from a main commit every UI e2e lane passed (release-cut.yml). Tag pushes ignore paths.
     paths:
-      - "provisa-ui/e2e/engine-swap.spec.ts"
-      - "provisa-ui/e2e/engine-swap-registrars.ts"
-      - "provisa-ui/e2e/engine-swap-helpers.ts"
-      - "provisa-ui/playwright.config.ts"
-      - "provisa/federation/**"
-      - "demo/sources/exasol/**"
-      - "demo/sources/saphana/**"
-      - "main.py"
-      - "config/provisa-trino-e2e.yaml"
-      - "docker-compose.core.yml"
-      - ".github/workflows/ui-e2e-swap-amd64.yml"
+      - "**"
+      - "!site/**"
+      - "!docs/**"
+      - "!**/*.md"
+      - "!.github/workflows/docs.yml"
+      - "!scripts/gen-site-*.mjs"
   workflow_dispatch:
   # Callable: by an orchestrator, and by the proof of the CI's own structure. Reads no secret.
   workflow_call:
