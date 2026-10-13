@@ -47,7 +47,7 @@ test("create a calendar and configure an MV snapshot schedule", async ({ page })
   // dim_pet is already materialized (materialize: true) — verify the MV checkbox is present
   // and checked. Mantine's Checkbox renders <input> and <label> as siblings; getByLabel resolves
   // the `for` association — label-then-descendant-input never matches.
-  const matCheckbox = page.getByLabel(/Materialized View/i);
+  const matCheckbox = page.getByRole("checkbox", { name: "Materialized View" });
   await expect(matCheckbox).toBeVisible({ timeout: 5000 });
   if (!(await matCheckbox.isChecked())) await matCheckbox.check();
 

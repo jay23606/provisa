@@ -7,6 +7,7 @@
 
 import { test, expect, BACKEND_URL } from "./coverage";
 import { deleteSourceAndItsTables } from "./delete-source";
+import { addSourceOfType } from "./source-to-query-helpers";
 
 const SOURCE_ID = "e2e-northwind";
 const SCHEMA_NAME = "e2e_northwind";
@@ -67,8 +68,7 @@ test("file connector: add northwind source and query customers", async ({ page }
   // five other workers competing. 15 s covered the render but not the bootstrap in front of it.
   await page.waitForSelector(".page-header", { timeout: 60000 });
 
-  await page.getByRole("button", { name: /\+ Source/i }).click();
-  await page.waitForSelector(".form-card", { timeout: 5000 });
+  await addSourceOfType(page, "files");
 
   await page.getByTestId("sources-id-input").fill(SOURCE_ID);
   await page.getByTestId("sources-type-select").selectOption("files");

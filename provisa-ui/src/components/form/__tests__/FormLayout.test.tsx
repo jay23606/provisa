@@ -26,6 +26,29 @@ const t = i18n.getFixedT("en");
 
 // REQ-1968: one shared form layout; identifiers in a section of their own above the flow.
 describe("FormLayout", () => {
+  // First in the file: React warns of an unknown prop once per run, and a later tick would find
+  // it already said. The UI e2e core lane failed on every page with such a tick (alpha.477 to .481): React's
+  // "does not recognize the withAsterisk prop on a DOM element", an uncaught browser error.
+  it("gives a tick with a (?) no prop its DOM input does not take", () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      render(
+        <FormLayout>
+          <FormChecks>
+            <FormField size="short" help="Precompute this view.">
+              <Checkbox label="Materialized View" />
+            </FormField>
+          </FormChecks>
+        </FormLayout>,
+      );
+      const box = screen.getByRole("checkbox", { name: "Materialized View" });
+      expect(box).not.toHaveAttribute("withasterisk");
+      expect(errors.mock.calls.flat().join(" ")).not.toMatch(/withAsterisk/);
+    } finally {
+      errors.mockRestore();
+    }
+  });
+
   it("renders a field in its size class", () => {
     render(
       <FormLayout>

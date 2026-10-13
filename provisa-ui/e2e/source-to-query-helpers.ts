@@ -20,7 +20,15 @@ export async function openSourcesForm(page: Page) {
   await page.goto("/sources");
   // /sources sits behind a CapabilityGate — the header renders once the identity bootstrap resolves.
   await page.waitForSelector(".page-header", { timeout: 60000 });
+  // the form's own default type: a spec sets its kind on the form's Type field (selectOption)
+  await addSourceOfType(page, "postgresql");
+}
+
+/** "+ Source" opens the type picker first; choosing `type` there opens the create form with it. */
+export async function addSourceOfType(page: Page, type: string) {
   await page.getByRole("button", { name: /\+ Source/i }).click();
+  // a type chosen before is listed under Recent too: either row picks it
+  await page.getByTestId(`source-type-option-${type}`).first().click();
   await page.waitForSelector(".form-card", { timeout: 5000 });
 }
 

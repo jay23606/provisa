@@ -163,7 +163,7 @@ async function materialize(page: import("@playwright/test").Page, tableName: str
   // Mantine's Checkbox renders <input> and <label> as siblings (label uses a `for` attribute rather
   // than wrapping the input), so getByLabel — which resolves that association — is required here;
   // a `label`-then-descendant-`input` locator never matches.
-  const matCheckbox = page.getByLabel(/Materialized View/i);
+  const matCheckbox = page.getByRole("checkbox", { name: "Materialized View" });
   await matCheckbox.waitFor({ timeout: 30000 });
   if (!(await matCheckbox.isChecked())) await matCheckbox.check();
 

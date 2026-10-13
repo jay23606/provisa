@@ -262,8 +262,10 @@ export function FormField({
       ...(hint !== undefined ? { description: hint } : {}),
       ...(help !== undefined
         ? {
-            // The mark is drawn with the text, so it comes before the (?); the control keeps
-            // `required` and only stops drawing a second mark after the icon.
+            // The mark is drawn with the text, so it comes before the (?); a required control
+            // keeps `required` and only stops drawing a second mark after the icon. Only a
+            // required control draws one: a tick or a switch takes no `withAsterisk`, and given
+            // one it lands on the DOM input as an unknown attribute.
             label: (
               <LabelWithHelp
                 label={control.props.label}
@@ -272,7 +274,7 @@ export function FormField({
                 textId={textId}
               />
             ),
-            withAsterisk: false,
+            ...(control.props.required === true ? { withAsterisk: false } : {}),
             // A control that states its own accessible name keeps it; the help is still its
             // description.
             ...(control.props["aria-label"] === undefined ? naming : { "aria-description": help }),

@@ -9,6 +9,7 @@ import https from "https";
 import { spawnSync } from "child_process";
 import { test, expect, UI_URL, TRINO_BACKEND_URL } from "./coverage";
 import { deleteSourceAndItsTables } from "./delete-source";
+import { addSourceOfType } from "./source-to-query-helpers";
 
 const SOURCE_ID = "e2e-splunk";
 // REQ-1730: the splunk catalog's schema is the sql-normalized source id on every engine
@@ -201,8 +202,7 @@ test("splunk connector: add source and query internal_server", async ({ page }) 
   await page.goto("/sources");
   await page.waitForSelector(".page-header", { timeout: 15000 });
 
-  await page.getByRole("button", { name: /\+ Source/i }).click();
-  await page.waitForSelector('[data-testid="sources-id-input"]', { timeout: 5000 });
+  await addSourceOfType(page, "splunk");
 
   // Native inputs are inside <label> elements in the source form
   await page.locator('[data-testid="sources-id-input"]').fill(SOURCE_ID);

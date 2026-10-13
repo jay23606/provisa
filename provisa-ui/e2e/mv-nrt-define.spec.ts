@@ -41,7 +41,7 @@ test("define a materialized view with NRT debounce config", async ({ page }) => 
   // Mantine's Checkbox renders <input> and <label> as siblings (label uses a `for` attribute
   // rather than wrapping the input), so getByLabel is required here; label-then-descendant-input
   // never matches.
-  const matCheckbox = page.getByLabel(/Materialized View/i);
+  const matCheckbox = page.getByRole("checkbox", { name: "Materialized View" });
   await expect(matCheckbox).toBeVisible({ timeout: 5000 });
   const quiet = page.getByTestId("mv-debounce-quiet");
   const maxDelay = page.getByTestId("mv-debounce-max-delay");
