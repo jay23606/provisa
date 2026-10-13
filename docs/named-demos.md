@@ -22,6 +22,7 @@ demo/named/<name>/
   Dockerfile.seeder     # if the demo self-seeds (recommended)
   seed.py               # entrypoint for the seeder service
   generate_*.py         # one per data store, optional but conventional
+  logs/                 # optional — log files the containers write, for the demo's Logs sources
 ```
 
 `start-ui-install.sh` picks the demo's config generically, from `demo/named/$DEMO_NAME/`
@@ -374,6 +375,54 @@ Watch `docker compose logs seeder` to confirm generation finishes and the marker
 The launcher brings the compose stack up and waits for the seeder, uses `config.yaml` in place of the
 standard demo config, and prints `Config for named demo 'banking': ...`. The stack in step 7 can be started first for
 testing, but unless you pass `--keep-data` the launcher removes it and seeds it again.
+
+## Log files for Logs sources
+
+A demo whose containers write log files can read them into tables with Logs sources (REQ-1996).
+Give the demo a `logs/` directory, one subdirectory per container, each holding a `.gitignore`
+that ignores everything but itself, so the directories are checked in empty. The containers bind
+mount their subdirectory and write there; Provisa runs on the host and reads the files where they
+land.
+
+For every named demo the launcher exports `PROVISA_NAMED_DEMO_DIR`, the demo's directory. When the
+demo has a `logs/` directory, the launcher also adds it to `PROVISA_LOGS_ALLOWED_ROOTS`, the
+directories a Logs source may read. A pristine start deletes the files under `logs/` and keeps the
+`.gitignore` files; `--keep-data` keeps the logs with the data. [tool-verified:
+`start-ui-install.sh`]
+
+A Logs source's glob is a full path. Name it under the demo's directory with the variable, which
+the source keeps as written and resolves each time it reads the files [tool-verified:
+`provisa/logs/settings.py` `parse`]:
+
+```yaml
+# demo/named/weblogs/config.yaml (excerpt)
+- id: shop_access
+  type: logs
+  cache_ttl: 30
+  mapping:
+    glob: ${env:PROVISA_NAMED_DEMO_DIR}/logs/nginx/access.json*
+    format: jsonl
+```
+
+Give a Logs source a `cache_ttl`: its table is a replica, re-read on that interval. In
+`docker-compose.yml`, mount the same directories through the same variable, so a test can point
+them elsewhere:
+
+```yaml
+# demo/named/weblogs/docker-compose.yml (excerpt)
+    volumes:
+      - ${PROVISA_NAMED_DEMO_DIR:-.}/logs/nginx:/var/log/shop
+```
+
+`demo/named/weblogs/` is the example. nginx in front of a small web shop writes a JSON access log,
+and the shop's Postgres logs every statement with its duration as jsonlog. nginx gives each
+request an id and passes it to the shop. The shop puts it in a SQLCommenter comment on every
+statement, and names each request's database connection by it (`application_name`). The demo's
+views join the two logs and the shop's tables: the slowest pages and their SQL, the requests that
+failed in the database, the customers served a server error, the products viewed but never
+bought, and the slow statements by table. The join between the two logs is on
+`application_name`, a column of the database log, because tables are joined only on their columns
+along a relationship. [tool-verified: `demo/named/weblogs/`; `tests/integration/test_weblogs_demo.py`]
 
 ## The `--source` mechanism: what it is not
 

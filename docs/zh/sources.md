@@ -299,7 +299,7 @@ mapping 接受四个键，其他任何键都会按名称被拒绝：`glob` 和 `
 
 在 Sources 表单中，Logs 数据源在 File 下显示为“Log files”。**Preview** 按钮会在保存之前显示通配符匹配的文件、格式给出的列，以及最新文件的前 20 行。[tool-verified: `provisa-ui/src/pages/sources/constants.ts`; `provisa-ui/src/pages/sources/LogsFields.tsx`; `provisa/api/admin/logs_router.py` `PREVIEW_ROWS`]
 
-**通配符。** 它必须是完整路径；`~` 会被展开，相对路径会被拒绝（“name the files by their full path”）。匹配使用 Python 的 `glob` 非递归模式，因此 `**` 的行为与 `*` 相同，只在一级目录内匹配。只取常规文件，按名称排序。空文件在有内容之前会被跳过。[tool-verified: `provisa/logs/roots.py` `checked_glob`; `provisa/logs/files.py` `matched`, `identify`]
+**通配符。** 它必须是完整路径；`~` 会被展开，相对路径会被拒绝（“name the files by their full path”）。匹配使用 Python 的 `glob` 非递归模式，因此 `**` 的行为与 `*` 相同，只在一级目录内匹配。只取常规文件，按名称排序。空文件在有内容之前会被跳过。[tool-verified: `provisa/logs/roots.py` `checked_glob`; `provisa/logs/files.py` `matched`, `identify`] 通配符可以引用环境变量，例如 `${env:LOG_DIR}/*.log`。数据源按原样保存该引用，并在每次读取文件时解析它；未设置的变量会被按名称拒绝。 [tool-verified: `provisa/logs/settings.py` `parse`; `tests/unit/test_logs_source.py` `test_a_glob_naming_a_variable_reads_where_it_points`]
 
 **每一行自带的列。** 这些列排在格式给出的列之前：
 

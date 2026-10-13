@@ -290,7 +290,7 @@ mapping 接受四個鍵，其他任何鍵都會依名稱被拒絕：`glob` 與 `
 
 在 Sources 表單中，Logs 數據來源在 File 之下顯示為「Log files」。**Preview** 按鈕會在儲存之前顯示萬用字元所匹配的檔案、格式給出的資料行，以及最新檔案的前 20 個資料列。 [tool-verified: `provisa-ui/src/pages/sources/constants.ts`; `provisa-ui/src/pages/sources/LogsFields.tsx`; `provisa/api/admin/logs_router.py` `PREVIEW_ROWS`]
 
-**萬用字元。** 它必須是完整路徑；`~` 會被展開，相對路徑會被拒絕（「name the files by their full path」）。匹配使用 Python 的 `glob` 非遞迴模式，因此 `**` 的行為與 `*` 相同，只在一層目錄內匹配。只取一般檔案，依名稱排序。空檔案在有內容之前會被略過。 [tool-verified: `provisa/logs/roots.py` `checked_glob`; `provisa/logs/files.py` `matched`, `identify`]
+**萬用字元。** 它必須是完整路徑；`~` 會被展開，相對路徑會被拒絕（「name the files by their full path」）。匹配使用 Python 的 `glob` 非遞迴模式，因此 `**` 的行為與 `*` 相同，只在一層目錄內匹配。只取一般檔案，依名稱排序。空檔案在有內容之前會被略過。 [tool-verified: `provisa/logs/roots.py` `checked_glob`; `provisa/logs/files.py` `matched`, `identify`] 萬用字元可以引用環境變數，例如 `${env:LOG_DIR}/*.log`。資料來源按原樣保存該引用，並在每次讀取檔案時解析它；未設定的變數會被按名稱拒絕。 [tool-verified: `provisa/logs/settings.py` `parse`; `tests/unit/test_logs_source.py` `test_a_glob_naming_a_variable_reads_where_it_points`]
 
 **每個資料列自帶的資料行。** 這些資料行排在格式給出的資料行之前：
 

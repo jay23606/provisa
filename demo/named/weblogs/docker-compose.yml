@@ -1,0 +1,131 @@
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+#
+# The named demo "weblogs" (start-ui-install.sh --demo weblogs; REQ-1858, REQ-1996). This file is
+# its one start point: `docker compose up -d` brings up a small web shop and sends it traffic.
+#
+#   postgres  the shop's database. It logs every statement the shop sends, with its duration, as
+#             jsonlog, into logs/postgres/ (Provisa: the db_log table).
+#   shop      the web shop (shop/app.py). Every statement carries the request's id in a
+#             SQLCommenter comment.
+#   nginx     in front of the shop. It gives each request an id, passes it to the shop and writes
+#             its JSON access log into logs/nginx/ (Provisa: the access_log table).
+#   seeder    sends the shop a fixed mix of requests once (seed.py), then exits.
+#
+# The log directories are bind mounts under PROVISA_NAMED_DEMO_DIR, which start-ui-install.sh
+# sets to this directory and adds the logs/ under it to the directories a Logs source may read
+# (logs.allowed_roots). Provisa runs on the host and reads the files where the containers write
+# them. Ports: 28480 the shop, 28432 the database; each can be moved by its variable.
+x-demo-labels: &demo-labels
+  com.provisa.demo: weblogs
+name: provisa-demo-weblogs
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    labels:
+      <<: *demo-labels
+      com.provisa.demo.role: rdb
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: shop
+    ports:
+      - "${WEBLOGS_PG_PORT:-28432}:5432"
+    volumes:
+      - weblogs_pg:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ${PROVISA_NAMED_DEMO_DIR:-.}/logs/postgres:/var/log/pglog
+    # The log directory is the host's; it is opened to the server's user rather than handed to
+    # it, so whoever runs the demo can still delete what it holds. Its files are readable by the
+    # host user Provisa runs as (log_file_mode).
+    entrypoint:
+      - bash
+      - -c
+      - chmod 0777 /var/log/pglog && exec docker-entrypoint.sh "$$@"
+      - postgres
+    command:
+      - postgres
+      - -c
+      - logging_collector=on
+      - -c
+      - log_destination=jsonlog
+      - -c
+      - log_directory=/var/log/pglog
+      - -c
+      - log_filename=postgresql-%Y-%m-%d_%H%M%S.log
+      - -c
+      - log_file_mode=0644
+      - -c
+      - log_rotation_size=10MB
+      - -c
+      - log_rotation_age=0
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d shop"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+  shop:
+    # Named, so every compose project of the demo (a test's included) builds and reuses one image.
+    image: provisa-demo-weblogs-shop:1
+    build:
+      context: ./shop
+    restart: unless-stopped
+    labels:
+      <<: *demo-labels
+      com.provisa.demo.role: app
+    environment:
+      SHOP_DSN: postgresql://shop:shop@postgres:5432/shop
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+  nginx:
+    image: nginx:1.27
+    restart: unless-stopped
+    labels:
+      <<: *demo-labels
+      com.provisa.demo.role: web
+    ports:
+      - "${WEBLOGS_SHOP_PORT:-28480}:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${PROVISA_NAMED_DEMO_DIR:-.}/logs/nginx:/var/log/shop
+    depends_on:
+      shop:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost/nginx-health"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+  seeder:
+    image: provisa-demo-weblogs-seeder:1
+    build:
+      context: .
+      dockerfile: Dockerfile.seeder
+    restart: "no"
+    labels:
+      <<: *demo-labels
+      com.provisa.demo.role: seeder
+    environment:
+      SHOP_HOST: nginx
+      SHOP_PORT: "80"
+    depends_on:
+      nginx:
+        condition: service_healthy
+    volumes:
+      - ${PROVISA_NAMED_DEMO_DIR:-.}/data:/data-marker
+
+volumes:
+  weblogs_pg:
