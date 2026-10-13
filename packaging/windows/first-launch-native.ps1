@@ -50,6 +50,7 @@ function Stage-Runtime {
     Write-Err "Native runtime not found beside the installer. This installer was not built with the native tier."
     exit 1
   }
+  $resetControlPlane = $false
   if (Test-Path $RuntimeDst) {
     Write-Info "Upgrading native runtime to bundle $bundleVer (was $stagedVer)..."
     # A Provisa instance from a prior install keeps python.exe running and LOCKS the runtime's
@@ -83,20 +84,21 @@ function Stage-Runtime {
       exit 1
     }
     # The control-plane schema (registered_tables columns, etc.) can change between versions and V1
-    # has NO migrations - create_all won't ALTER an existing SQLite table, so a stale native DB
-    # breaks the new code (e.g. "no such column: unique_constraints"). On a version upgrade, reset
-    # the local control-plane DBs; they are rebuilt on next start (the demo re-seeds from config,
-    # a non-demo install re-registers from config/UI).
-    $nativeDir = Join-Path $ProvisaHome 'native'
-    if (Test-Path $nativeDir) {
-      Get-ChildItem $nativeDir -Filter '*.db' -ErrorAction SilentlyContinue |
-        Remove-Item -Force -ErrorAction SilentlyContinue
-    }
-    Write-Info 'Reset native control-plane store for the new schema.'
+    # has NO migrations, so a control plane laid out by an older version breaks the new code. On a
+    # version upgrade the embedded control plane's database is dropped once the new runtime is
+    # staged (below); it is rebuilt on next start (the demo re-seeds from config, a non-demo
+    # install re-registers from config/UI).
+    $resetControlPlane = $true
   } else {
     Write-Info "Staging native runtime to $RuntimeDst..."
   }
   Copy-Item -Path $RuntimeSrc -Destination $RuntimeDst -Recurse -Force
+  $controlPg = Join-Path (Join-Path $ProvisaHome 'native') 'control-pg'
+  if ($resetControlPlane -and (Test-Path $controlPg)) {
+    & $dstPy -m provisa.core.control_plane_pg reset $controlPg
+    if ($LASTEXITCODE -ne 0) { Write-Err "Could not reset the control plane at $controlPg."; exit 1 }
+    Write-Info 'Reset the native control plane for the new schema.'
+  }
   if ($bundleVer -ne '') { Set-Content -Path $stagedVerF -Value $bundleVer -Encoding ASCII }
   Write-Ok 'Native runtime staged.'
 }

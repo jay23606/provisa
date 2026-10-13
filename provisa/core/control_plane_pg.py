@@ -94,15 +94,6 @@ def _postmaster_environment() -> Iterator[None]:
                 os.environ[k] = v
 
 
-def _socket_port(sockdir: str) -> int:
-    """The port pgserver's unix socket listens on, read from the socket filename
-    (``.s.PGSQL.<port>``). Explicit — never guessed."""
-    for name in os.listdir(sockdir):
-        if name.startswith(".s.PGSQL.") and name[len(".s.PGSQL.") :].isdigit():
-            return int(name[len(".s.PGSQL.") :])
-    raise RuntimeError(f"no postgres unix socket found in {sockdir!r}")
-
-
 # REQ-1900: every worker process of a `uvicorn --workers N` server keeps its own tenant and platform
 # pools, listener and telemetry connections on this server. PostgreSQL's stock ceiling of 100 is
 # reached at a worker per core ("sorry, too many clients already", and the workers die at boot);
@@ -145,8 +136,20 @@ def start(datadir: str, init_sql: str | None = None) -> tuple[str, int]:
     if fresh and init_sql:
         sql = Path(init_sql).read_text()
         srv.psql(f"\\c provisa\n{sql}")
-    sockdir = srv.get_uri().split("host=", 1)[-1]
-    return sockdir, _socket_port(sockdir)
+    return _address(srv.get_postmaster_info())
+
+
+def _address(info) -> tuple[str, int]:
+    """Where the server listens, from its postmaster.pid: the unix socket directory and port where
+    it has one, else its TCP host and port (Windows has no unix sockets; pgserver listens on TCP)."""
+    if info.port is None:
+        raise RuntimeError("the control-plane postgres reports no port in its postmaster.pid")
+    host = info.socket_dir if info.socket_dir is not None else info.hostname
+    if host is None:
+        raise RuntimeError(
+            "the control-plane postgres reports neither a socket directory nor a host"
+        )
+    return str(host), int(info.port)
 
 
 def stop(datadir: str) -> None:

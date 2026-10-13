@@ -349,6 +349,36 @@ native_running() {
     return 1
 }
 
+# The native tier's control plane (REQ-2014: PostgreSQL only): the PostgreSQL server the operator
+# names in PLATFORM_DATABASE_URL and TENANT_DATABASE_URL, else an embedded PostgreSQL (pgserver) in
+# ${PROVISA_HOME}/native/control-pg, persistent across runs. pgserver ships no wheel for Linux arm64,
+# where a server must be named. Sets CONTROL_PLANE_URL (the platform and tenant planes share it).
+CONTROL_PLANE_URL=""
+native_control_plane() {
+    if [ -n "${PLATFORM_DATABASE_URL:-}" ] || [ -n "${TENANT_DATABASE_URL:-}" ]; then
+        if [ -z "${PLATFORM_DATABASE_URL:-}" ] || [ -z "${TENANT_DATABASE_URL:-}" ] \
+            || [ "$PLATFORM_DATABASE_URL" != "$TENANT_DATABASE_URL" ]; then
+            err "Name one PostgreSQL control plane in both PLATFORM_DATABASE_URL and TENANT_DATABASE_URL."
+            exit 1
+        fi
+        CONTROL_PLANE_URL="$TENANT_DATABASE_URL"
+        return
+    fi
+    if [ "$(uname -s)" = "Linux" ] && { [ "$(uname -m)" = "aarch64" ] || [ "$(uname -m)" = "arm64" ]; }; then
+        err "The control plane is PostgreSQL only, and Linux arm64 has no embedded PostgreSQL:"
+        err "set PLATFORM_DATABASE_URL and TENANT_DATABASE_URL to a PostgreSQL server."
+        exit 1
+    fi
+    local out host port
+    if ! out="$("$(native_python)" -m provisa.core.control_plane_pg start "${PROVISA_HOME}/native/control-pg" 2>>"${LOG_DIR}/control-plane-pg.log")"; then
+        err "The embedded control plane did not start; see ${LOG_DIR}/control-plane-pg.log."
+        exit 1
+    fi
+    host="$(printf '%s\n' "$out" | sed -n 's/^PG_HOST=//p')"
+    port="$(printf '%s\n' "$out" | sed -n 's/^PG_PORT=//p')"
+    CONTROL_PLANE_URL="postgresql+psycopg://provisa:provisa@/provisa?host=${host}&port=${port}"
+}
+
 # Deployment env for the native process (mirrors provisa.core.desktop_profile).
 # Values never contain spaces, so array word-splitting is safe under bash 3.2.
 native_env_pairs() {
@@ -356,8 +386,8 @@ native_env_pairs() {
     e=(
         "PROVISA_ENGINE=${DEPLOY_ENGINE}"
         "PROVISA_REDIS_EMBEDDED=1"
-        "PLATFORM_DATABASE_URL=sqlite+pysqlite:///${PROVISA_HOME}/native/platform.db"
-        "TENANT_DATABASE_URL=sqlite+pysqlite:///${PROVISA_HOME}/native/tenant.db"
+        "PLATFORM_DATABASE_URL=${CONTROL_PLANE_URL}"
+        "TENANT_DATABASE_URL=${CONTROL_PLANE_URL}"
         # Remote MCP on by default for the native/desktop tier (REQ-1101): a ready same-machine
         # Claude Desktop connector, loopback-only (127.0.0.1) so the always-on server stays off the
         # LAN. Role pinned explicitly (native auth:none = one local admin user), all overridable.
@@ -404,6 +434,7 @@ cmd_start_native() {
         return 0
     fi
     local py; py="$(native_python)"
+    native_control_plane
     local -a env_pairs; env_pairs=()
     local line
     while IFS= read -r line; do env_pairs+=("$line"); done < <(native_env_pairs)

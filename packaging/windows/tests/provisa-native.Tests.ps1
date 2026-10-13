@@ -128,11 +128,11 @@ Describe 'Native-Env' {
     $script:GqlPort       = 4000
   }
 
-  It 'builds sqlite control-plane URLs with forward slashes' {
-    $e = Native-Env
-    $e['PLATFORM_DATABASE_URL'] | Should -BeLike 'sqlite+pysqlite:///*'
-    $e['PLATFORM_DATABASE_URL'] | Should -Not -Match '\\'
-    $e['TENANT_DATABASE_URL']   | Should -BeLike 'sqlite+pysqlite:///*'
+  It 'points both control planes at the one PostgreSQL it is given' {
+    $url = 'postgresql+psycopg://provisa:provisa@/provisa?host=127.0.0.1&port=61234'
+    $e = Native-Env $url
+    $e['PLATFORM_DATABASE_URL'] | Should -Be $url
+    $e['TENANT_DATABASE_URL']   | Should -Be $url
     $e['PROVISA_ENGINE']        | Should -Be 'duckdb'
     $e['PROVISA_REDIS_EMBEDDED']| Should -Be '1'
   }
