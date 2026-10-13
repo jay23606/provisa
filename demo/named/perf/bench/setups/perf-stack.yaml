@@ -138,8 +138,8 @@ knobs:
   joins_cross_source: *off
   cache_repetition: *off
   # Probability that a request opts into the response cache (@cached, the SQL/Cypher comment
-  # hint, x-provisa-cache metadata). 1 is the optimistic test; 0 sends every request uncached.
-  # REST and JSON:API have no opt-in: they are uncached whatever this says.
+  # hint, x-provisa-cache metadata, and on REST and JSON:API the x-provisa-cache header). 1 is
+  # the optimistic test; 0 sends every request uncached.
   cache: {probability: 1.0}
   source_weights:
     bench-postgresql: 1.0

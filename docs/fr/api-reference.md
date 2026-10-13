@@ -68,6 +68,29 @@ Le champ `extensions` prend en charge le protocole Automatic Persisted Query (AP
 
 **Cache de réponses :** activation par requête avec la directive d'opération `@cached` (`query @cached(ttl: 60) { ... }`, `ttl` facultatif) ; la même directive s'applique au GraphQL envoyé via Arrow Flight. Cypher s'active avec une ligne `// @provisa cache=true` ou `// @provisa cache_ttl=N`, gRPC avec les métadonnées d'appel `x-provisa-cache: true` ou `x-provisa-cache-ttl: N`. Sans elle, la requête ne lit ni n'écrit le cache de réponses. L'en-tête de réponse `X-Provisa-Cache` indique `HIT` ou `MISS`. Voir [Cache](configuration.md). (REQ-544)
 
+<a id="response-cache-request-headers"></a>
+
+#### En-têtes de requête du cache de réponses
+
+`/data/graphql`, `/data/cypher`, la Neo4j Query API (`/db/{database}/query/v2`), `/data/rest` et `/data/jsonapi` acceptent aussi l'activation sous forme d'en-tête de requête. Chaque forme ci-dessous se comporte comme `@cached(ttl: N)` : (REQ-544)
+
+| En-tête | Équivalent à |
+| --- | --- |
+| `Cache-Control: max-age=N` / `Cache-Control: max-stale=N` | `@cached(ttl: N)` |
+| `Cache-Control: max-stale` (sans valeur) | `@cached` (le TTL de l'opérateur) |
+| `Cache-Control: no-cache` / `no-store` | pas de cache, comme si rien n'était envoyé |
+| `x-provisa-cache: true` | `@cached` |
+| `x-provisa-cache-ttl: N` | `@cached(ttl: N)` |
+
+Une requête sans l'un de ces en-têtes et sans indication dans son texte n'est pas mise en cache, alors que les caches HTTP simples le font par défaut. Les paramètres de cache de l'opérateur s'appliquent toujours comme pour `@cached` : un en-tête ne rend jamais une lecture plus récente qu'ils ne le permettent, et n'est jamais refusé parce qu'il demande un `ttl` plus long. Les autres directives `Cache-Control` (`no-transform`, `min-fresh`, ...) sont ignorées, comme la RFC 9111 l'exige d'un cache. [tool-verified: `provisa/compiler/directives.py` `request_cache_hint`]
+
+Une requête peut indiquer l'activation plusieurs fois : dans son texte et dans un en-tête, ou dans deux en-têtes. Si elles concordent, la requête est mise en cache une fois comme demandé. Si elles divergent (par exemple `@cached(ttl: 60)` avec `Cache-Control: max-age=5`, ou `x-provisa-cache-ttl: 10` avec `Cache-Control: max-age=20`), la requête échoue avec `400` et le code `data.invalid_cache_control`, en nommant chaque forme envoyée. Une valeur `N` qui n'est pas un nombre entier de secondes échoue de la même façon. Aucune forme n'est préférée à l'autre.
+
+```bash
+curl -H 'Cache-Control: max-age=120' -H 'X-Provisa-Role: analyst' \
+  'http://localhost:8001/data/rest/sales/orders?limit=10'
+```
+
 **Réponse (JSON en ligne) :**
 
 ```json
@@ -280,6 +303,8 @@ Les valeurs de filtre et de paramètre voyagent comme variables à côté du tex
 
 Le rôle authentifié est requis ; les requêtes non authentifiées renvoient `401`. Une spécification OpenAPI pour ces routes est servie à `GET /data/rest/openapi.json` avec l'interface Swagger UI à `GET /data/rest/docs`.
 
+**Cache de réponses :** activation par un en-tête de requête, `Cache-Control: max-age=N` ou `x-provisa-cache: true` (voir [En-têtes de requête du cache de réponses](#response-cache-request-headers)). Chaque réponse porte `X-Provisa-Cache: HIT|MISS`, et `X-Provisa-Cache-Age` en cas de succès. (REQ-544, REQ-536) [tool-verified: `provisa/api/rest/generator.py`]
+
 #### Explorateur OpenAPI / Swagger UI
 
 La page de l'explorateur OpenAPI (`/app/openapi`) intègre Swagger UI dans un iframe en bac à sable. La spécification est délimitée par rôle — seules les tables et colonnes visibles pour le rôle actuel apparaissent — et optionnellement filtrée par domaine via le sélecteur de domaine. L'interface bascule automatiquement entre les thèmes clair et sombre. [tool-verified: `provisa-ui/src/pages/OpenApiPage.tsx:20-34`]
@@ -308,6 +333,8 @@ Point de terminaison conforme à [JSON:API](https://jsonapi.org) auto-généré 
 - `includeNodes` — `true` pour inclure les colonnes scalaires de la table de base (et les scalaires de dimension jointe nommés dans `include=`) à l'intérieur du tableau `nodes` de chaque ligne de groupe. Requis lorsqu'une requête de regroupement NL demande aussi des détails de dimension. (REQ-1405)
 
 Les réponses sont des objets ressources avec `type`/`id`/`attributes`. Les erreurs suivent la forme d'objet d'erreur JSON:API.
+
+**Cache de réponses :** activation par un en-tête de requête, `Cache-Control: max-age=N` ou `x-provisa-cache: true` (voir [En-têtes de requête du cache de réponses](#response-cache-request-headers)). Chaque réponse porte `X-Provisa-Cache: HIT|MISS`, et `X-Provisa-Cache-Age` en cas de succès. Deux formes divergentes renvoient `400` sous forme d'objet d'erreur JSON:API. (REQ-544, REQ-536) [tool-verified: `provisa/api/jsonapi/generator.py`]
 
 #### Explorateur JSON:API
 

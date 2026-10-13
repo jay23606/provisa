@@ -68,6 +68,29 @@ GET /auth/provider-type
 
 **回應快取：** 透過操作層級指令 `@cached` 按請求選擇啟用（`query @cached(ttl: 60) { ... }`，`ttl` 可選）；同一指令亦適用於經 Arrow Flight 發送的 GraphQL。Cypher 以 `// @provisa cache=true` 或 `// @provisa cache_ttl=N` 行選擇啟用，gRPC 以呼叫元數據 `x-provisa-cache: true` 或 `x-provisa-cache-ttl: N` 選擇啟用。沒有該指令時，請求既不讀取也不寫入回應快取。回應標頭 `X-Provisa-Cache` 報告 `HIT` 或 `MISS`。請參閱[快取](configuration.md)。(REQ-544)
 
+<a id="response-cache-request-headers"></a>
+
+#### 回應快取請求標頭
+
+`/data/graphql`、`/data/cypher`、Neo4j Query API（`/db/{database}/query/v2`）、`/data/rest` 和 `/data/jsonapi` 也接受以請求標頭形式選擇啟用。下列每種形式的行為都與 `@cached(ttl: N)` 相同：(REQ-544)
+
+| 請求標頭 | 等同於 |
+| --- | --- |
+| `Cache-Control: max-age=N` / `Cache-Control: max-stale=N` | `@cached(ttl: N)` |
+| `Cache-Control: max-stale`（無值） | `@cached`（營運方的 TTL） |
+| `Cache-Control: no-cache` / `no-store` | 不快取，與不發送任何內容相同 |
+| `x-provisa-cache: true` | `@cached` |
+| `x-provisa-cache-ttl: N` | `@cached(ttl: N)` |
+
+沒有上述請求標頭、文字中也沒有提示的請求不會被快取，儘管一般 HTTP 快取預設會快取。營運方的快取設定仍與 `@cached` 一樣適用：請求標頭不會令讀取比這些設定允許的更新，也不會因為要求更長的 `ttl` 而被拒絕。其他 `Cache-Control` 指令（`no-transform`、`min-fresh` 等）會被忽略，這是 RFC 9111 對快取的要求。 [tool-verified: `provisa/compiler/directives.py` `request_cache_hint`]
+
+一個請求可以多次聲明選擇啟用：在其文字中和請求標頭中，或在兩個請求標頭中。若一致，則按要求快取一次。若不一致（例如 `@cached(ttl: 60)` 搭配 `Cache-Control: max-age=5`，或 `x-provisa-cache-ttl: 10` 搭配 `Cache-Control: max-age=20`），請求將以 `400` 和錯誤碼 `data.invalid_cache_control` 失敗，並指明所發送的每種形式。`N` 不是整數秒的值同樣失敗。不會偏向任何一種形式。
+
+```bash
+curl -H 'Cache-Control: max-age=120' -H 'X-Provisa-Role: analyst' \
+  'http://localhost:8001/data/rest/sales/orders?limit=10'
+```
+
 **回應（內嵌 JSON）：**
 
 ```json
@@ -280,6 +303,8 @@ UI 會輪詢此端點，以在引擎冷啟動期間顯示啟動橫幅。它從�
 
 需要已驗證的角色；未驗證的請求傳回 `401`。這些路由的 OpenAPI 規格由 `GET /data/rest/openapi.json` 提供，Swagger UI 位於 `GET /data/rest/docs`。
 
+**回應快取：** 透過請求標頭選擇啟用，`Cache-Control: max-age=N` 或 `x-provisa-cache: true`（參見[回應快取請求標頭](#response-cache-request-headers)）。每個回應都帶有 `X-Provisa-Cache: HIT|MISS`，命中時還帶有 `X-Provisa-Cache-Age`。(REQ-544, REQ-536) [tool-verified: `provisa/api/rest/generator.py`]
+
 #### OpenAPI / Swagger UI 探索工具
 
 OpenAPI 探索工具頁面（`/app/openapi`）在沙箱化的 iframe 中內嵌 Swagger UI。規格以角色為範圍 — 只會出現目前角色可見的資料表與欄位 — 並可透過網域選擇器選擇性地依網域篩選。UI 會自動在淺色與深色佈景主題之間切換。[tool-verified: `provisa-ui/src/pages/OpenApiPage.tsx:20-34`]
@@ -308,6 +333,8 @@ OpenAPI 探索工具頁面（`/app/openapi`）在沙箱化的 iframe 中內嵌 S
 - `includeNodes` — 設為 `true` 可在每個群組資料列的 `nodes` 陣列中包含基礎資料表的純量欄位（以及 `include=` 中指名的聯結維度純量）。當自然語言分組查詢同時要求維度明細時為必要。(REQ-1405)
 
 回應為帶有 `type`/`id`/`attributes` 的資源物件。錯誤遵循 JSON:API 錯誤物件的形狀。
+
+**回應快取：** 透過請求標頭選擇啟用，`Cache-Control: max-age=N` 或 `x-provisa-cache: true`（參見[回應快取請求標頭](#response-cache-request-headers)）。每個回應都帶有 `X-Provisa-Cache: HIT|MISS`，命中時還帶有 `X-Provisa-Cache-Age`。兩種形式不一致時，以 JSON:API 錯誤物件傳回 `400`。(REQ-544, REQ-536) [tool-verified: `provisa/api/jsonapi/generator.py`]
 
 #### JSON:API 探索工具
 

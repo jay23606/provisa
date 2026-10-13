@@ -200,10 +200,12 @@ def test_render_three_fields(tmp_path: Path) -> None:
     assert q.rest == {
         "path": "/data/rest/perf-bench/orders",
         "params": {"limit": 1, "fields": "orderId,region,amount"},
+        "headers": {"x-provisa-cache": "true"},
     }
     assert q.jsonapi == {
         "path": "/data/jsonapi/perf-bench/orders",
         "params": {"page[size]": 1, "fields[orders]": "order_id,region,amount"},
+        "headers": {"x-provisa-cache": "true"},
     }
 
 

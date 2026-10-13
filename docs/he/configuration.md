@@ -932,8 +932,9 @@ tables:
 | SQL (pgwire, Flight SQL, `/data/sql`) | שורת הערה `-- @provisa cache=true` או `-- @provisa cache_ttl=60` בהצהרה |
 | Cypher (`/data/cypher`, ה-Neo4j Query API, Bolt, Arrow Flight) | שורת הערה `// @provisa cache=true` או `// @provisa cache_ttl=60` בשאילתה |
 | gRPC (ופרוקסי ה-gRPC ב-HTTP) | מטא-נתוני הקריאה (כותרות בפרוקסי) `x-provisa-cache: true` או `x-provisa-cache-ttl: 60` |
+| REST, JSON:API, וכחלופה לרמז בטקסט: GraphQL מעל HTTP, `/data/cypher`, ה-Neo4j Query API | כותרת הבקשה `Cache-Control: max-age=60` (או `max-stale=60`), או `x-provisa-cache: true` / `x-provisa-cache-ttl: 60` |
 
-ל-REST ול-JSON:API אין הצטרפות. `ttl` שאינו מספר שלם מכשיל את הבקשה.
+`ttl` שאינו מספר שלם מכשיל את הבקשה. בקשה שמציינת את ההצטרפות פעמיים (בטקסט שלה ובכותרת, או בשתי כותרות) בערכים שונים נכשלת עם `400`; אף ערך אינו מועדף. `Cache-Control: no-cache` או `no-store` פירושו ללא מטמון, כמו ללא כותרת. [tool-verified: `provisa/compiler/directives.py` `cache_hint_for`, `cache_hint_from_grpc_metadata`, `request_cache_hint`]
 
 ללא הרמז הבקשה אינה קוראת מהמטמון ואינה כותבת אליו. עם הרמז, ההגדרות שלמעלה עדיין קובעות: התוצאה נשמרת במטמון רק אם לכל מקור שהיא קוראת יש `cache_enabled: true` וה-TTL המחושב של כל טבלה גדול מ-0. הרשומה נשמרת למשך ה-`ttl` של הבקשה אם צוין, ואחרת למשך ה-TTL המחושב הקצר ביותר של הטבלאות שנקראו. (REQ-544)
 

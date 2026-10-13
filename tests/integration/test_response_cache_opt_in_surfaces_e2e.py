@@ -16,7 +16,9 @@ this org, and the next identical read is served from it — proven by planting a
 the stored rows and reading it back; an UNHINTED read writes nothing.
 
 Surfaces: GraphQL ``@cached`` over Flight; Cypher ``// @provisa cache=true`` over Flight, HTTP
-(``/data/cypher``) and Bolt; gRPC ``x-provisa-cache: true`` call metadata.
+(``/data/cypher``) and Bolt; gRPC ``x-provisa-cache: true`` call metadata; and the opt-in as an HTTP
+request header (``Cache-Control: max-age=N``, ``x-provisa-cache: true``) on REST, JSON:API and the
+Neo4j Query API, each response reporting X-Provisa-Cache (REQ-536).
 """
 
 from __future__ import annotations
@@ -199,3 +201,85 @@ def test_grpc_metadata_hint(server):
         (("x-provisa-cache", "true"),),  # type: ignore[arg-type]
         (),  # type: ignore[arg-type]
     )
+
+
+# -- the opt-in in an HTTP request header -----------------------------------------------------------
+
+
+def _http_values(srv, method: str, path: str, headers: dict, **kw) -> list:
+    """Every value in the response's rows, after checking it reports X-Provisa-Cache (REQ-536)."""
+    import httpx
+
+    resp = httpx.request(
+        method,
+        f"{srv.base_url}{path}",
+        headers={"X-Provisa-Role": _ROLE, **headers},
+        timeout=60,
+        **kw,
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.headers["X-Provisa-Cache"] in ("HIT", "MISS")
+    body = resp.json()
+    if "values" in body.get("data", {}):  # the Neo4j Query API
+        values = [v for row in body["data"]["values"] for v in row]
+    else:
+        values = [
+            v
+            for row in body["data"]
+            # a JSON:API resource's id is a string; its other columns are its attributes
+            for v in (
+                [row["id"], *row["attributes"].values()] if "attributes" in row else row.values()
+            )
+        ]
+    return [int(v) if isinstance(v, str) and v.isdigit() else v for v in values]
+
+
+def _rest(srv, headers: dict) -> list:
+    return _http_values(srv, "GET", "/data/rest/raw-cache/events", headers)
+
+
+def _jsonapi(srv, headers: dict) -> list:
+    return _http_values(
+        srv,
+        "GET",
+        "/data/jsonapi/raw-cache/events",
+        {"Accept": "application/vnd.api+json", **headers},
+    )
+
+
+def _neo4j(srv, headers: dict) -> list:
+    return _http_values(
+        srv,
+        "POST",
+        "/db/neo4j/query/v2",
+        headers,
+        json={"statement": "MATCH (e:events) RETURN e.id AS id ORDER BY id DESC LIMIT 3"},
+    )
+
+
+def test_rest_cache_control_header(server):
+    _assert_opt_in(server, lambda h: _rest(server, h), {"Cache-Control": "max-age=60"}, {})
+
+
+def test_jsonapi_provisa_header(server):
+    _assert_opt_in(server, lambda h: _jsonapi(server, h), {"x-provisa-cache": "true"}, {})
+
+
+def test_neo4j_query_api_cache_control_header(server):
+    _assert_opt_in(server, lambda h: _neo4j(server, h), {"Cache-Control": "max-age=60"}, {})
+
+
+def test_two_header_forms_that_disagree_are_refused(server):
+    import httpx
+
+    resp = httpx.get(
+        f"{server.base_url}/data/rest/raw-cache/events",
+        headers={
+            "X-Provisa-Role": _ROLE,
+            "Cache-Control": "max-age=20",
+            "x-provisa-cache-ttl": "10",
+        },
+        timeout=60,
+    )
+    assert resp.status_code == 400
+    assert resp.json()["code"] == "data.invalid_cache_control"

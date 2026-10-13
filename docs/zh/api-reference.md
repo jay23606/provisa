@@ -68,6 +68,29 @@ GET /auth/provider-type
 
 **响应缓存：** 通过操作级指令 `@cached` 按请求选择启用（`query @cached(ttl: 60) { ... }`，`ttl` 可选）；同一指令也适用于经 Arrow Flight 发送的 GraphQL。Cypher 以 `// @provisa cache=true` 或 `// @provisa cache_ttl=N` 行选择启用，gRPC 以调用元数据 `x-provisa-cache: true` 或 `x-provisa-cache-ttl: N` 选择启用。没有该指令时，请求既不读取也不写入响应缓存。响应头 `X-Provisa-Cache` 报告 `HIT` 或 `MISS`。请参阅[缓存](configuration.md)。（REQ-544）
 
+<a id="response-cache-request-headers"></a>
+
+#### 响应缓存请求头
+
+`/data/graphql`、`/data/cypher`、Neo4j Query API（`/db/{database}/query/v2`）、`/data/rest` 和 `/data/jsonapi` 也接受以请求头形式选择启用。下列每种形式的行为都与 `@cached(ttl: N)` 相同：（REQ-544）
+
+| 请求头 | 等同于 |
+| --- | --- |
+| `Cache-Control: max-age=N` / `Cache-Control: max-stale=N` | `@cached(ttl: N)` |
+| `Cache-Control: max-stale`（无值） | `@cached`（运营方的 TTL） |
+| `Cache-Control: no-cache` / `no-store` | 不缓存，与不发送任何内容相同 |
+| `x-provisa-cache: true` | `@cached` |
+| `x-provisa-cache-ttl: N` | `@cached(ttl: N)` |
+
+没有上述请求头、文本中也没有提示的请求不会被缓存，尽管普通 HTTP 缓存默认会缓存。运营方的缓存设置仍与 `@cached` 一样适用：请求头不会使读取比这些设置允许的更新，也不会因为要求更长的 `ttl` 而被拒绝。其他 `Cache-Control` 指令（`no-transform`、`min-fresh` 等）会被忽略，这是 RFC 9111 对缓存的要求。 [tool-verified: `provisa/compiler/directives.py` `request_cache_hint`]
+
+一个请求可以多次声明选择启用：在其文本中和请求头中，或在两个请求头中。若一致，则按要求缓存一次。若不一致（例如 `@cached(ttl: 60)` 搭配 `Cache-Control: max-age=5`，或 `x-provisa-cache-ttl: 10` 搭配 `Cache-Control: max-age=20`），请求将以 `400` 和错误码 `data.invalid_cache_control` 失败，并指明所发送的每种形式。`N` 不是整数秒的值同样失败。不会偏向任何一种形式。
+
+```bash
+curl -H 'Cache-Control: max-age=120' -H 'X-Provisa-Role: analyst' \
+  'http://localhost:8001/data/rest/sales/orders?limit=10'
+```
+
 **响应（内联 JSON）：**
 
 ```json
@@ -280,6 +303,8 @@ UI 会轮询此端点，在引擎冷启动期间显示启动横幅。它从不�
 
 需要已验证的角色；未验证的请求返回 `401`。这些路由的 OpenAPI 规范在 `GET /data/rest/openapi.json` 提供，Swagger UI 在 `GET /data/rest/docs` 提供。
 
+**响应缓存：** 通过请求头选择启用，`Cache-Control: max-age=N` 或 `x-provisa-cache: true`（参见[响应缓存请求头](#response-cache-request-headers)）。每个响应都带有 `X-Provisa-Cache: HIT|MISS`，命中时还带有 `X-Provisa-Cache-Age`。（REQ-544、REQ-536）[tool-verified: `provisa/api/rest/generator.py`]
+
 #### OpenAPI / Swagger UI 浏览器
 
 OpenAPI 浏览器页面（`/app/openapi`）在一个沙盒 iframe 中嵌入 Swagger UI。该规范按角色范围限定——只有当前角色可见的表和列会出现——并可通过域选择器进一步按域过滤。UI 会自动在浅色和深色主题之间切换。[tool-verified: `provisa-ui/src/pages/OpenApiPage.tsx:20-34`]
@@ -308,6 +333,8 @@ OpenAPI 浏览器页面（`/app/openapi`）在一个沙盒 iframe 中嵌入 Swag
 - `includeNodes` — `true` 表示在每个分组行的 `nodes` 数组中包含基表标量列（以及 `include=` 中命名的已联接维度标量）。当 NL 分组查询同时请求维度详情时需要此参数。(REQ-1405)
 
 响应为带有 `type`/`id`/`attributes` 的资源对象。错误遵循 JSON:API 错误对象格式。
+
+**响应缓存：** 通过请求头选择启用，`Cache-Control: max-age=N` 或 `x-provisa-cache: true`（参见[响应缓存请求头](#response-cache-request-headers)）。每个响应都带有 `X-Provisa-Cache: HIT|MISS`，命中时还带有 `X-Provisa-Cache-Age`。两种形式不一致时，以 JSON:API 错误对象返回 `400`。（REQ-544、REQ-536）[tool-verified: `provisa/api/jsonapi/generator.py`]
 
 #### JSON:API 浏览器
 

@@ -32,6 +32,8 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from graphql import GraphQLError, GraphQLObjectType, GraphQLSchema
 
+from provisa.api.errors import ApiError
+from provisa.cache.middleware import build_cache_headers
 from provisa.core.read_refusal import ReadRefused
 from provisa.api.json_response import OrjsonResponse
 from provisa.api._query_helpers import (
@@ -636,11 +638,17 @@ def create_rest_router(state: Any) -> APIRouter:  # REQ-222, REQ-256, REQ-266, R
         compiled = compiled_queries[0]
 
         from provisa.api.redirect_headers import delivery_from_headers
-        from provisa.compiler.directives import NO_CACHE_HINT
+        from provisa.compiler.directives import NO_CACHE_HINT, request_cache_hint
         from provisa.pgwire._pipeline import _govern_and_route_compiled, _execute_plan
 
         # REQ-1194: a redirect the request forces (X-Provisa-Redirect*), as on every HTTP surface.
         delivery = delivery_from_headers(request.headers, role_id)
+        # REQ-544: the request's response-cache opt-in, which REST states only in its headers:
+        # x-provisa-cache / x-provisa-cache-ttl, or Cache-Control: max-age=N.
+        try:
+            cache_hint = request_cache_hint(NO_CACHE_HINT, request.headers)
+        except ValueError as exc:
+            raise ApiError(400, "data.invalid_cache_control", str(exc), error=str(exc))
         try:
             plan = await _govern_and_route_compiled(
                 compiled.sql,
@@ -653,7 +661,8 @@ def create_rest_router(state: Any) -> APIRouter:  # REQ-222, REQ-256, REQ-266, R
                 # so route them the same unbuffered way JSON:API's aggregate branch does (REQ-1359) —
                 # buffering was forcing them onto the CTAS/engine path unnecessarily.
                 buffered=not (is_group_by or is_aggregate),
-                cache_hint=NO_CACHE_HINT,
+                cache_hint=cache_hint,
+                serve_cached=True,  # REQ-1897: _execute_plan serves the pre-route HIT
                 sdl_joins=True,
             )
             result = await _execute_plan(plan, state)
@@ -665,7 +674,8 @@ def create_rest_router(state: Any) -> APIRouter:  # REQ-222, REQ-256, REQ-266, R
                     role_id,
                     exec_params=compiled.nodes_params or None,
                     state=state,
-                    cache_hint=NO_CACHE_HINT,
+                    cache_hint=cache_hint,
+                    serve_cached=True,
                     sdl_joins=True,
                 )
                 nodes_result = await _execute_plan(nodes_plan, state)
@@ -687,11 +697,17 @@ def create_rest_router(state: Any) -> APIRouter:  # REQ-222, REQ-256, REQ-266, R
             log.exception("REST query execution failed for %s", table)
             raise HTTPException(status_code=500, detail=str(e))
 
+        # REQ-536: HIT (with the entry's age) when the pipeline served the rows from the response
+        # cache, else MISS -- on every response shape below.
+        cache_headers = build_cache_headers(result.cache_entry)
         if result.redirect is not None:
             # REQ-1224 / REQ-1194: the result exceeded the row threshold, or the request forced the
             # delivery, and was landed as an engine-native CTAS off Provisa's heap — surface the
             # delivery handle instead of buffering the body here.
-            return OrjsonResponse(content={"data": None, "meta": {"redirect": result.redirect}})
+            return OrjsonResponse(
+                content={"data": None, "meta": {"redirect": result.redirect}},
+                headers=cache_headers,
+            )
 
         # REQ-1359: aggregate/group-by results aren't resource rows — reuse the same
         # serializers the GraphQL/data pipeline uses for _aggregate/_group_by fields, but
@@ -705,7 +721,9 @@ def create_rest_router(state: Any) -> APIRouter:  # REQ-222, REQ-256, REQ-266, R
                 compiled.nodes_columns if nodes_result is not None else None,
                 compiled.root_field,
             )
-            return OrjsonResponse(content={"data": gb_response["data"][compiled.root_field]})
+            return OrjsonResponse(
+                content={"data": gb_response["data"][compiled.root_field]}, headers=cache_headers
+            )
         if is_aggregate:
             agg_response = serialize_aggregate(
                 result.rows,
@@ -716,7 +734,7 @@ def create_rest_router(state: Any) -> APIRouter:  # REQ-222, REQ-256, REQ-266, R
                 agg_alias=compiled.agg_alias,
             )
             agg_obj = agg_response["data"][compiled.root_field][compiled.agg_alias]
-            return OrjsonResponse(content={"data": agg_obj})
+            return OrjsonResponse(content={"data": agg_obj}, headers=cache_headers)
 
         # Serialize
         from provisa.executor.serialize import serialize_rows
@@ -741,7 +759,10 @@ def create_rest_router(state: Any) -> APIRouter:  # REQ-222, REQ-256, REQ-266, R
             return Response(
                 content=buf.getvalue(),
                 media_type="text/csv",
-                headers={"Content-Disposition": f"attachment; filename={table_name}.csv"},
+                headers={
+                    "Content-Disposition": f"attachment; filename={table_name}.csv",
+                    **cache_headers,
+                },
             )
 
         if "application/vnd.apache.parquet" in accept:
@@ -761,7 +782,10 @@ def create_rest_router(state: Any) -> APIRouter:  # REQ-222, REQ-256, REQ-266, R
                 return Response(
                     content=buf.getvalue(),
                     media_type="application/vnd.apache.parquet",
-                    headers={"Content-Disposition": f"attachment; filename={table_name}.parquet"},
+                    headers={
+                        "Content-Disposition": f"attachment; filename={table_name}.parquet",
+                        **cache_headers,
+                    },
                 )
             except ImportError:
                 raise HTTPException(status_code=400, detail="parquet format requires pyarrow")
@@ -783,12 +807,15 @@ def create_rest_router(state: Any) -> APIRouter:  # REQ-222, REQ-256, REQ-266, R
                 return Response(
                     content=buf.getvalue(),
                     media_type="application/vnd.apache.arrow.stream",
-                    headers={"Content-Disposition": f"attachment; filename={table_name}.arrow"},
+                    headers={
+                        "Content-Disposition": f"attachment; filename={table_name}.arrow",
+                        **cache_headers,
+                    },
                 )
             except ImportError:
                 raise HTTPException(status_code=400, detail="arrow format requires pyarrow")
 
-        return OrjsonResponse(content={"data": rows})
+        return OrjsonResponse(content={"data": rows}, headers=cache_headers)
 
     @rest_router.post("/{domain_id}/commands/{command_name}")
     async def rest_command_endpoint(  # pyright: ignore[reportUnusedFunction]  # REQ-1155

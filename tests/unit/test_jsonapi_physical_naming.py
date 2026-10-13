@@ -157,15 +157,18 @@ def client(monkeypatch):
         buffered=False,
         *,
         cache_hint,
+        serve_cached,
         sdl_joins,
     ):
         # JSON:API compiles a generated GraphQL document: its joins are the SDL's.
         assert sdl_joins is True
+        assert serve_cached is True  # REQ-544: an opted-in read is served from the cache
         return SimpleNamespace(_is_count="COUNT(*)" in sql)
 
     async def _fake_execute(plan, state):
         result = MagicMock()
         result.redirect = None
+        result.cache_entry = None  # not served from the response cache
         result.rows = [[1]] if plan._is_count else [[]]
         return result
 

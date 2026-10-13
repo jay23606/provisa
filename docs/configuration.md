@@ -932,8 +932,9 @@ The response cache is off for every request that does not ask for it. (REQ-544) 
 | SQL (pgwire, Flight SQL, `/data/sql`) | a `-- @provisa cache=true` or `-- @provisa cache_ttl=60` comment line in the statement |
 | Cypher (`/data/cypher`, the Neo4j Query API, Bolt, Arrow Flight) | a `// @provisa cache=true` or `// @provisa cache_ttl=60` comment line in the query |
 | gRPC (and the HTTP gRPC proxy) | call metadata (headers on the proxy) `x-provisa-cache: true` or `x-provisa-cache-ttl: 60` |
+| REST, JSON:API, and as an alternative to the hint in the text: GraphQL over HTTP, `/data/cypher`, the Neo4j Query API | the request header `Cache-Control: max-age=60` (or `max-stale=60`), or `x-provisa-cache: true` / `x-provisa-cache-ttl: 60` |
 
-REST and JSON:API have no opt-in. A `ttl` that is not an integer fails the request. [tool-verified: `provisa/compiler/directives.py` `cache_hint_for`, `cache_hint_from_grpc_metadata`]
+A `ttl` that is not an integer fails the request. A request that states the opt-in twice (in its text and a header, or in two headers) with different values fails with `400`; neither is picked. `Cache-Control: no-cache` or `no-store` means no cache, the same as no header. [tool-verified: `provisa/compiler/directives.py` `cache_hint_for`, `cache_hint_from_grpc_metadata`, `request_cache_hint`]
 
 Without the hint the request neither reads nor writes the cache. With it, the settings above still decide: the result is cached only if every source it reads has `cache_enabled: true` and every table's resolved TTL is above 0. The entry lives for the request's `ttl` when it gives one, otherwise for the shortest resolved TTL of the tables it read. (REQ-544) [tool-verified: `provisa/cache/policy.py` `opt_in_ttl`]
 

@@ -34,6 +34,7 @@ from graphql import (
     GraphQLSchema,
 )
 
+from provisa.cache.middleware import build_cache_headers
 from provisa.core.read_refusal import ReadRefused
 from provisa.api.json_response import OrjsonResponse
 from provisa.api.jsonapi.errors import error_response, jsonapi_error
@@ -595,6 +596,15 @@ def create_jsonapi_router(state: Any) -> APIRouter:  # REQ-256, REQ-257, REQ-266
             return _jsonapi_error_response(401, "Unauthorized", "authenticated role required")
         role_id = auth_role
 
+        # REQ-544: the request's response-cache opt-in, which JSON:API states only in its
+        # headers: x-provisa-cache / x-provisa-cache-ttl, or Cache-Control: max-age=N.
+        from provisa.compiler.directives import NO_CACHE_HINT, request_cache_hint
+
+        try:
+            cache_hint = request_cache_hint(NO_CACHE_HINT, request.headers)
+        except ValueError as e:
+            return _jsonapi_error_response(400, "Bad Request", str(e))
+
         surface = role_surface(state, role_id)  # one snapshot: parts of one build
         if surface is None:
             return _jsonapi_error_response(
@@ -835,7 +845,6 @@ def create_jsonapi_router(state: Any) -> APIRouter:  # REQ-256, REQ-257, REQ-266
                 return _jsonapi_error_response(400, "Bad Request", "Compilation failed")
             agg_compiled = agg_compiled_queries[0]
 
-            from provisa.compiler.directives import NO_CACHE_HINT
             from provisa.pgwire._pipeline import _execute_plan, _govern_and_route_compiled
 
             try:
@@ -844,7 +853,8 @@ def create_jsonapi_router(state: Any) -> APIRouter:  # REQ-256, REQ-257, REQ-266
                     role_id,
                     exec_params=agg_compiled.params or None,
                     state=state,
-                    cache_hint=NO_CACHE_HINT,
+                    cache_hint=cache_hint,
+                    serve_cached=True,
                     sdl_joins=True,
                 )
                 agg_result = await _execute_plan(agg_plan, state)
@@ -856,7 +866,8 @@ def create_jsonapi_router(state: Any) -> APIRouter:  # REQ-256, REQ-257, REQ-266
                         role_id,
                         exec_params=agg_compiled.nodes_params or None,
                         state=state,
-                        cache_hint=NO_CACHE_HINT,
+                        cache_hint=cache_hint,
+                        serve_cached=True,
                         sdl_joins=True,
                     )
                     nodes_result = await _execute_plan(nodes_plan, state)
@@ -910,7 +921,11 @@ def create_jsonapi_router(state: Any) -> APIRouter:  # REQ-256, REQ-257, REQ-266
                     {"type": f"{table_name}GroupBy", "id": str(idx), "attributes": row}
                     for idx, row in enumerate(group_rows)
                 ]
-                return OrjsonResponse(content={"data": data}, media_type=JSONAPI_CONTENT_TYPE)
+                return OrjsonResponse(
+                    content={"data": data},
+                    media_type=JSONAPI_CONTENT_TYPE,
+                    headers=build_cache_headers(agg_result.cache_entry),  # REQ-536
+                )
 
             shaped = serialize_aggregate(
                 agg_result.rows,
@@ -928,6 +943,7 @@ def create_jsonapi_router(state: Any) -> APIRouter:  # REQ-256, REQ-257, REQ-266
             return OrjsonResponse(
                 content={"data": None, "meta": {"aggregate": agg_payload}},
                 media_type=JSONAPI_CONTENT_TYPE,
+                headers=build_cache_headers(agg_result.cache_entry),  # REQ-536
             )
 
         # REQ-257: ?include=rel1,rel2 — sideload related resources as a compound document.
@@ -991,7 +1007,6 @@ def create_jsonapi_router(state: Any) -> APIRouter:  # REQ-256, REQ-257, REQ-266
         # Governance + routing via Stage 2 (REQ-266): RLS, masking, visibility, and the
         # row cap are applied by apply_governance — the same path as GraphQL and REST,
         # so no transport bypasses governance.
-        from provisa.compiler.directives import NO_CACHE_HINT
         from provisa.pgwire._pipeline import _execute_plan, _govern_and_route_compiled
 
         # REQ-1194/REQ-1195: a caller may request the result be materialized to a sink instead of
@@ -1009,7 +1024,8 @@ def create_jsonapi_router(state: Any) -> APIRouter:  # REQ-256, REQ-257, REQ-266
                 state=state,
                 deliver=delivery,
                 buffered=True,  # REQ-1224: buffered transport — terminal auto-thresholds inline vs CTAS
-                cache_hint=NO_CACHE_HINT,
+                cache_hint=cache_hint,
+                serve_cached=True,
                 sdl_joins=True,
             )
             result = await _execute_plan(plan, state)
@@ -1034,6 +1050,7 @@ def create_jsonapi_router(state: Any) -> APIRouter:  # REQ-256, REQ-257, REQ-266
             return OrjsonResponse(
                 content={"data": None, "meta": {"redirect": result.redirect}},
                 media_type=JSONAPI_CONTENT_TYPE,
+                headers=build_cache_headers(result.cache_entry),  # REQ-536
             )
 
         # REQ-1197: the total, for a request that asked for it (``page[total]=true``) — same
@@ -1062,7 +1079,8 @@ def create_jsonapi_router(state: Any) -> APIRouter:  # REQ-256, REQ-257, REQ-266
                     role_id,
                     exec_params=count_compiled[0].params or None,
                     state=state,
-                    cache_hint=NO_CACHE_HINT,
+                    cache_hint=cache_hint,
+                    serve_cached=True,
                     sdl_joins=True,
                 )
                 count_result = await _execute_plan(count_plan, state)
@@ -1151,6 +1169,11 @@ def create_jsonapi_router(state: Any) -> APIRouter:  # REQ-256, REQ-257, REQ-266
             has_next=has_next,
         )
 
-        return OrjsonResponse(content=doc, media_type=JSONAPI_CONTENT_TYPE)
+        # REQ-536: HIT (with the entry's age) when the resource rows came from the response cache.
+        return OrjsonResponse(
+            content=doc,
+            media_type=JSONAPI_CONTENT_TYPE,
+            headers=build_cache_headers(result.cache_entry),
+        )
 
     return jsonapi_router
