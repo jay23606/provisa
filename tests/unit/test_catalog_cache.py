@@ -196,16 +196,10 @@ def test_ensure_table_on_a_control_plane_without_schemas(tmp_path):
 
 
 @pytest.fixture
-def stores(tmp_path):
+def stores(control_plane):
     """The org's model store and state store as the product hands them out: one database here,
     two handles, each refusing the other's tables (``core.store_sides``, REQ-1922)."""
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.schema_org import metadata
-
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'org.db'}")
-    with engine.begin() as raw:
-        metadata.create_all(raw)
-    return Database(engine, "org-model", holds="model"), Database(engine, "state", holds="state")
+    return control_plane.org(holds="model"), control_plane.org(holds="state")
 
 
 @pytest.mark.asyncio

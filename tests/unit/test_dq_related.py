@@ -14,8 +14,7 @@ from datetime import UTC, datetime
 import pytest
 from sqlalchemy import insert
 
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.schema_org import registered_tables, sources
+from provisa.core.schema_org import domains, registered_tables, sources
 from provisa.dq.related import checkers_of, scan_outcome
 from provisa.dq.results import RESULT_FIELDS, results_sa_table
 from provisa.dq.scan import ensure_relation
@@ -36,12 +35,12 @@ CUSTOMERS = (
 
 
 @pytest.fixture
-def db(tmp_path):
+def db(control_plane):
     """A control plane with a Soda and a Great Expectations checker of orders, and a Soda checker
     of customers."""
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}")
-    with engine.begin() as c:
-        registered_tables.metadata.create_all(c, tables=[sources, registered_tables])
+    database = control_plane.org()
+    with database.engine.begin() as c:
+        c.execute(insert(domains).values(id="sales"))
         c.execute(insert(sources).values(id="soda-dq", type="soda"))
         c.execute(insert(sources).values(id="gx-dq", type="great_expectations"))
         c.execute(insert(sources).values(id="warehouse", type="postgresql"))
@@ -71,9 +70,7 @@ def db(tmp_path):
                 table_name="items",
             )
         )
-    database = Database(engine, name="cp")
     yield database
-    engine.dispose()
 
 
 def _row(scan_time: datetime, check: str, outcome: str) -> dict:
@@ -106,7 +103,8 @@ async def test_a_table_lists_every_checker_whose_contract_scans_it(db):
         (8, "orders_nulls", "gx-dq"),
     ]
     # The last scan's worst check; the earlier scan's failure is history.
-    assert (found[0]["outcome"], found[0]["scan_time"].replace(tzinfo=UTC)) == ("warn", later)
+    # scan_time is a timestamptz: Postgres hands it back as the same instant in the session's zone.
+    assert (found[0]["outcome"], found[0]["scan_time"]) == ("warn", later)
     # Not yet scanned: no outcome.
     assert (found[1]["outcome"], found[1]["scan_time"]) == (None, None)
 

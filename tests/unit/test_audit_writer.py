@@ -449,43 +449,34 @@ def test_shutdown_reports_records_it_could_not_write(store, caplog):
 # ------------------------------------------------------------------ against a real store
 
 
-def _tenant_db(path: str):
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.schema_org import query_audit_log
+def _logged(db, *columns: str) -> list[tuple]:
+    from sqlalchemy import select
 
-    engine = create_engine_from_url(f"sqlite:///{path}")
-    query_audit_log.create(engine, checkfirst=True)
-    return Database(engine, "audit-test")
+    from provisa.core.schema_org import query_audit_log as log
 
-
-def _logged(path: str) -> list[tuple]:
-    import sqlite3
-
-    con = sqlite3.connect(path)
-    try:
-        return con.execute(
-            "SELECT tenant_id, user_id, role_id, table_ids, source, status_code FROM "
-            "query_audit_log ORDER BY id"
-        ).fetchall()
-    finally:
-        con.close()
+    with db.engine.connect() as conn:
+        rows = conn.execute(select(*(log.c[c] for c in columns)).order_by(log.c.id)).fetchall()
+    return [tuple(row) for row in rows]
 
 
-def test_write_audit_lands_one_row_in_the_tenant_database(tmp_path, monkeypatch, caplog, bind_org):
+def test_write_audit_lands_one_row_in_the_tenant_database(
+    control_plane, monkeypatch, caplog, bind_org
+):
     """The whole seam: write_audit returns, the writer inserts through the real Database."""
     from types import SimpleNamespace
 
     from provisa.audit.pipeline import PendingAudit, write_audit
     from provisa.audit.writer import audit_writer, audit_writer_status, flush_audit
 
-    path = str(tmp_path / "tenant.db")
     from provisa.federation.replica_hot import HotCounts
+
+    record_db = control_plane.org()
 
     org = f"audit-seam-{uuid.uuid4().hex}"
     bind_org(org)  # the statement's org, bound as its surface binds it (REQ-1266)
     counts = HotCounts(None)
     state = SimpleNamespace(
-        record_db=_tenant_db(path),
+        record_db=record_db,
         org_id=org,
         admin_db=None,
         hot_counts=counts,
@@ -506,27 +497,28 @@ def test_write_audit_lands_one_row_in_the_tenant_database(tmp_path, monkeypatch,
         f"{audit_writer_status()}; writer running={audit_writer().running()}; "
         f"log={[f'{r.levelname} {r.name}: {r.getMessage()}' for r in caplog.records]}"
     )
-    assert _logged(path) == [(org, "alice", "analyst", "[7, 9]", "graphql", 200)]
+    columns = ("tenant_id", "user_id", "role_id", "table_ids", "source", "status_code")
+    assert _logged(record_db, *columns) == [(org, "alice", "analyst", [7, 9], "graphql", 200)]
     # REQ-826: and each table the statement read is counted once, in this org environment.
     assert counts.counts(f"{org}:prod", [7, 9, 11], 60) == {7: 1.0, 9: 1.0, 11: 0.0}
 
 
-def test_a_logged_query_names_its_tables_as_they_were_when_it_ran(tmp_path, monkeypatch, bind_org):
+def test_a_logged_query_names_its_tables_as_they_were_when_it_ran(
+    control_plane, monkeypatch, bind_org
+):
     """The row carries each table's id and its qualified name (source.schema.table), in the same
     order; the names are the model's when the statement ran, so a table renamed before the
     writer gets to the row still reads as what was accessed."""
-    import json
-    import sqlite3
     from types import SimpleNamespace
 
     from provisa.audit.pipeline import PendingAudit, write_audit
     from provisa.audit.writer import flush_audit
 
-    path = str(tmp_path / "tenant.db")
+    record_db = control_plane.org()
     org = f"audit-names-{uuid.uuid4().hex}"
     bind_org(org)
     state = SimpleNamespace(
-        record_db=_tenant_db(path),
+        record_db=record_db,
         org_id=org,
         admin_db=None,
         hot_counts=None,
@@ -545,15 +537,9 @@ def test_a_logged_query_names_its_tables_as_they_were_when_it_ran(tmp_path, monk
         {"id": 7, "source_id": "sales-pg", "schema_name": "public", "table_name": "orders_v2"}
     ]
     assert flush_audit(5.0)
-    con = sqlite3.connect(path)
-    try:
-        ((ids, names),) = con.execute(
-            "SELECT table_ids, table_names FROM query_audit_log"
-        ).fetchall()
-    finally:
-        con.close()
-    assert json.loads(ids) == [9, 7]
-    assert json.loads(names) == ["sales-pg.public.customers", "sales-pg.public.orders"]
+    ((ids, names),) = _logged(record_db, "table_ids", "table_names")
+    assert ids == [9, 7]
+    assert names == ["sales-pg.public.customers", "sales-pg.public.orders"]
 
 
 def test_a_table_id_the_model_does_not_hold_is_refused_not_left_unnamed():
@@ -565,9 +551,15 @@ def test_a_table_id_the_model_does_not_hold_is_refused_not_left_unnamed():
         qualified_table_names([7, 99], tables)
 
 
-def _worker(path: str, worker: int, count: int) -> None:
-    """One worker process: its own writer, its own records, a clean shutdown."""
-    db = _tenant_db(path)
+def _worker(url: str, worker: int, count: int) -> None:
+    """One worker process: its own writer, its own records, a clean shutdown -- on its own pool
+    to the org's control plane at ``url``."""
+    from provisa.core.database import Database, create_engine_from_url
+    from provisa.core.environments import org_schema
+
+    schema = org_schema("default")
+    engine = create_engine_from_url(f"{url}?options=-csearch_path%3D{schema}")
+    db = Database(engine, "audit-worker", search_path=schema)
     writer = AuditWriter(interval_s=0.01, retry_s=0.05).start()
     for n in range(count):
         writer.enqueue(
@@ -595,19 +587,18 @@ def _worker(path: str, worker: int, count: int) -> None:
             )
         )
     writer.close(20.0)
+    engine.dispose()
 
 
-def test_every_worker_process_lands_its_own_records_in_the_one_log(tmp_path):
-    path = str(tmp_path / "tenant.db")
-    _tenant_db(path)  # the log exists before the workers start
+def test_every_worker_process_lands_its_own_records_in_the_one_log(control_plane):
     ctx = multiprocessing.get_context("spawn")
-    workers = [ctx.Process(target=_worker, args=(path, w, 60)) for w in range(3)]
+    workers = [ctx.Process(target=_worker, args=(control_plane.url, w, 60)) for w in range(3)]
     for proc in workers:
         proc.start()
     for proc in workers:
         proc.join(60)
         assert proc.exitcode == 0
-    users = [row[1] for row in _logged(path)]
+    users = [user for (user,) in _logged(control_plane.org(), "user_id")]
     assert {u: users.count(u) for u in set(users)} == {
         "worker-0": 60,
         "worker-1": 60,

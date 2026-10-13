@@ -9,26 +9,15 @@ from __future__ import annotations
 import uuid
 
 import pytest
-from sqlalchemy import create_engine
 
 from provisa.core import control_plane_id, deployment_settings
-from provisa.core.schema_admin import deployment_settings as table
-
-
-class _Db:
-    def __init__(self, engine):
-        self.engine = engine
 
 
 @pytest.fixture
-def db(monkeypatch, tmp_path):
-    engine = create_engine(f"sqlite:///{tmp_path / 'cp.db'}")
-    table.create(engine)
-    db = _Db(engine)
+def db(monkeypatch, control_plane):
+    db = control_plane.platform
     monkeypatch.setattr(deployment_settings, "_db", db)
     monkeypatch.setattr(deployment_settings, "_held", None)
-    # The settings stamp the snapshot is loaded with; this test's control plane holds no stamp table.
-    monkeypatch.setattr(deployment_settings.config_stamp, "read_sync", lambda _db: {"settings": 0})
     return db
 
 

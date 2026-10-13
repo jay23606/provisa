@@ -26,10 +26,8 @@ import asyncio
 import pytest
 
 from provisa.core import config_stamp, config_watch, deployment_settings, limits, settings_registry
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.schema_admin import config_stamp as stamp_table
+from provisa.core.database import Database
 from provisa.core.schema_admin import deployment_settings as settings_table
-from provisa.core.schema_admin import metadata
 
 
 def _watcher_checks(db: Database) -> list[str]:
@@ -45,16 +43,11 @@ def _watcher_checks(db: Database) -> list[str]:
 
 
 @pytest.fixture
-def control_plane(tmp_path, monkeypatch):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}")
-    with engine.begin() as conn:
-        metadata.create_all(conn, tables=[settings_table, stamp_table])
-        config_stamp.install(conn, config_stamp.PLATFORM_TABLES)
-    db = Database(engine, name="platform")
+def control_plane(control_plane, monkeypatch):
+    """The platform plane of the test's own control plane, which no process has bound yet."""
     monkeypatch.setattr(deployment_settings, "_db", None)
     monkeypatch.setattr(deployment_settings, "_held", None)
-    yield db
-    engine.dispose()
+    return control_plane.platform
 
 
 def test_an_unbound_process_has_no_stored_settings(monkeypatch):
