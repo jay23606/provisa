@@ -28,7 +28,7 @@ import pytest
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.asyncio(loop_scope="session"),
-    pytest.mark.deployment_org("graphql-cache-itest"),
+    pytest.mark.deployment_org("graphql_cache_itest"),
 ]
 
 
@@ -39,7 +39,7 @@ def _with_provisa_directives(state):
 
     from provisa.compiler.schema_directives import PROVISA_DIRECTIVES
 
-    state.org_id = "graphql-cache-itest"  # AppState's own org: the response-cache tenant
+    state.org_id = "graphql_cache_itest"  # AppState's own org: the response-cache tenant
     base = state.schemas["admin"]
     state.schemas = {
         "admin": GraphQLSchema(
