@@ -136,3 +136,28 @@ def test_perf_is_a_whole_config_with_its_own_and_the_standard_demos_sources() ->
     assert not (perf / "fragment.yaml").exists()
     ids = {src["id"] for src in yaml.safe_load((perf / "config.yaml").read_text())["sources"]}
     assert {"bench-postgresql", "bench-neo4j", "pet-store-sqlite"} <= ids
+
+
+def _graphql_demo_enabled(demo: bool, demo_name: str, env_value: str | None) -> str:
+    """Run only the launcher's choice of GRAPHQL_DEMO_ENABLED; the value it exports."""
+    start = TEXT.index("# The pet store's GraphQL demo source is registered into the standard demo")
+    end = TEXT.index("export PROVISA_DEMO=")
+    preset = f"GRAPHQL_DEMO_ENABLED={env_value}\n" if env_value is not None else ""
+    program = (
+        "set -euo pipefail\n"
+        + preset
+        + f"DEMO={'true' if demo else 'false'}\nDEMO_NAME={demo_name}\n"
+        + TEXT[start:end]
+        + '\necho "$GRAPHQL_DEMO_ENABLED"\n'
+    )
+    done = subprocess.run(["bash", "-c", program], capture_output=True, text=True, check=True)
+    return done.stdout.strip()
+
+
+def test_the_pet_store_graphql_demo_is_the_standard_demos_alone() -> None:
+    """A named demo is what its own config lists: the pet store's GraphQL demo source, and its
+    shelter domain, are registered into the standard demo only -- whatever .env says."""
+    assert _graphql_demo_enabled(True, "", None) == "true"
+    assert _graphql_demo_enabled(True, "weblogs", None) == "false"
+    assert _graphql_demo_enabled(True, "weblogs", "true") == "false"
+    assert _graphql_demo_enabled(False, "", None) == "false"

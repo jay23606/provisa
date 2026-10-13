@@ -200,7 +200,13 @@ export PROVISA_API_PORT="${PROVISA_API_PORT:-8001}"
 export PROVISA_FAKE_KEY_DIR="${PROVISA_FAKE_KEY_DIR:-$SCRIPT_DIR/.provisa/fake-key}"
 export PG_PASSWORD="${PG_PASSWORD:-provisa}"
 export PETSTORE_BASE_URL="${PETSTORE_BASE_URL:-http://localhost:18080/api/v3}"
-export GRAPHQL_DEMO_ENABLED="${GRAPHQL_DEMO_ENABLED:-$DEMO}"
+# The pet store's GraphQL demo source is registered into the standard demo alone (its shelter
+# domain is the standard demo config's); a named demo is exactly what its own config lists.
+if [ -n "$DEMO_NAME" ]; then
+  export GRAPHQL_DEMO_ENABLED=false
+else
+  export GRAPHQL_DEMO_ENABLED="${GRAPHQL_DEMO_ENABLED:-$DEMO}"
+fi
 export PROVISA_DEMO="${DEMO}"
 export PROVISA_ENABLE_TEST_ENDPOINTS="${PROVISA_ENABLE_TEST_ENDPOINTS:-$DEMO}"
 export PROVISA_IDP="${IDP}"
