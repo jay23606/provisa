@@ -46,6 +46,26 @@ def embedded_postgres():
     pg.stop()
 
 
+@pytest.fixture(scope="session")
+def control_plane_template(embedded_postgres):
+    """The worker's control-plane template database (tests/pg_control_plane.py), built once."""
+    from tests.pg_control_plane import build_template
+
+    return build_template(embedded_postgres)
+
+
+@pytest.fixture
+def control_plane(embedded_postgres, control_plane_template):
+    """A control plane of this test's own (REQ-2014: PostgreSQL only): a database cloned from the
+    worker's template -- the platform registry and org ``default`` laid out -- dropped afterwards.
+    ``.platform`` and ``.org(org_id)`` are its handles, ``.url`` its SQLAlchemy URL."""
+    from tests.pg_control_plane import clone
+
+    plane = clone(embedded_postgres, control_plane_template)
+    yield plane
+    plane.close()
+
+
 # The org a fresh AppState serves (AppState._org_id) -- used when the app module is not loaded.
 _DEPLOYMENT_ORG = "default"
 
