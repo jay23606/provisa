@@ -12,7 +12,7 @@
 and the store is unchanged. A create used to overwrite the object holding the key and report it
 created; changing an object is its update."""
 
-# Requirements: REQ-021
+# Requirements: REQ-021, REQ-1634
 
 from __future__ import annotations
 
@@ -22,10 +22,10 @@ import pytest
 from sqlalchemy import insert, select
 
 from provisa.api.admin import schema_mutation
-from provisa.api.admin.types import DomainInput
+from provisa.api.admin.types import DataProductInput, DomainInput
 from provisa.core.database import Database, create_engine_from_url
 from provisa.core.db import _init_schema_portable
-from provisa.core.schema_org import domains
+from provisa.core.schema_org import data_products, domains
 
 pytestmark = pytest.mark.asyncio
 
@@ -38,6 +38,9 @@ async def plane(monkeypatch) -> Database:
         await conn.execute_core(
             insert(domains).values(id="sales", description="The sales team's data")
         )
+        await conn.execute_core(
+            insert(data_products).values(id="orders_product", domain_id="sales", name="Orders")
+        )
 
     async def _pool():
         return db
@@ -46,6 +49,7 @@ async def plane(monkeypatch) -> Database:
     from provisa.api.admin import capabilities
 
     monkeypatch.setattr(capabilities, "require_capability", lambda _info, _cap: None)
+    monkeypatch.setattr(capabilities, "require_right_in_domains", lambda _i, _r, _d: None)
     return db
 
 
@@ -71,3 +75,30 @@ async def test_a_domain_create_on_a_new_id_creates_it(plane):
     result = await mutation.create_domain(None, DomainInput(id="finance", description="Money"))
     assert (result.success, result.code) == (True, "schema.domain_created")
     assert {"sales", "finance"} <= {r[0] for r in await _rows(plane, domains)}
+
+
+def _product(product_id: str, name: str) -> DataProductInput:
+    return DataProductInput(id=product_id, domain_id="sales", name=name)
+
+
+async def test_a_data_product_create_on_an_existing_id_is_refused_and_writes_nothing(plane):
+    before = await _rows(plane, data_products)
+    mutation: Any = schema_mutation.Mutation()
+    result = await mutation.create_data_product(None, _product("orders_product", "Overwritten"))
+    assert (result.success, result.code, result.params) == (
+        False,
+        "schema.data_product_id_taken",
+        {"data_product": "orders_product"},
+    )
+    assert await _rows(plane, data_products) == before
+
+
+async def test_a_data_product_update_changes_one_that_exists_and_refuses_one_that_does_not(plane):
+    mutation: Any = schema_mutation.Mutation()
+    result = await mutation.update_data_product(None, _product("orders_product", "Orders, all"))
+    assert (result.success, result.code) == (True, "schema.data_product_updated")
+    before = await _rows(plane, data_products)
+    assert ("Orders, all") in {r[2] for r in before}
+    result = await mutation.update_data_product(None, _product("missing_product", "Nothing"))
+    assert (result.success, result.code) == (False, "schema.data_product_not_found")
+    assert await _rows(plane, data_products) == before

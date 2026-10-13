@@ -258,6 +258,83 @@ async def _relationship_alias_refusal(
     )
 
 
+async def _save_data_product(
+    info: StrawberryInfo, input: DataProductInput, *, creating: bool
+) -> MutationResult:  # REQ-1634
+    """A data product saved: a create makes a new one, refusing an id that exists; an update
+    changes one, refusing an id that does not. Either refusal names the id and writes nothing."""
+    # REQ-1634: creating/deleting a data product is catalog curation, gated on its own
+    # write right rather than ORG_SETTINGS — see Capability.DATA_PRODUCT_RW.
+    from provisa.api.admin.capabilities import require_capability, require_right_in_domains
+    from provisa.core.models import DataProduct as DataProductModel
+    from provisa.core.repositories import data_product as data_product_repo
+    from provisa.core.repositories import domain as domain_repo
+
+    require_capability(info, "data_product_rw")
+
+    pool = await _get_pool()
+    async with pool.acquire() as conn:
+        conn = cast("Connection", conn)
+        # REQ-1944: the product's domain, and the one it is moved out of when it exists.
+        stored = await data_product_repo.get(conn, input.id)
+        require_right_in_domains(
+            info,
+            "data_product_rw",
+            {input.domain_id} | ({stored["domain_id"]} if stored is not None else set()),
+        )
+        if creating and stored is not None:
+            return MutationResult(
+                success=False,
+                message=f"Data product {input.id!r} already exists",
+                code="schema.data_product_id_taken",
+                params={"data_product": input.id},
+            )
+        if not creating and stored is None:
+            return MutationResult(
+                success=False,
+                message=f"Data product {input.id!r} not found",
+                code="schema.data_product_not_found",
+                params={"data_product": input.id},
+            )
+        if await domain_repo.get(conn, input.domain_id) is None:
+            return MutationResult(
+                success=False,
+                message=f"Domain {input.domain_id!r} not found",
+                code="schema.domain_not_found",
+                params={"domain": input.domain_id},
+            )
+        model = DataProductModel(
+            id=input.id,
+            domain_id=input.domain_id,
+            name=input.name,
+            owner_role=input.owner_role or None,
+            team_role=input.team_role or None,
+            purpose=input.purpose,
+            limitations=input.limitations,
+            usage=input.usage,
+            version=input.version,
+            status=input.status,
+            sla=input.sla,
+            support=input.support,
+            # Absent or null is "no custom properties" (DataProductInput says why).
+            custom_properties=({} if input.custom_properties is None else input.custom_properties),
+        )
+        await data_product_repo.upsert(conn, model)
+    if creating:
+        return MutationResult(
+            success=True,
+            message=f"Data product {input.id!r} created",
+            code="schema.data_product_created",
+            params={"data_product": input.id},
+        )
+    return MutationResult(
+        success=True,
+        message=f"Data product {input.id!r} updated",
+        code="schema.data_product_updated",
+        params={"data_product": input.id},
+    )
+
+
 def _cardinality_problem(input: RelationshipInput) -> "MutationResult | None":
     from provisa.core.models import Cardinality
 
@@ -2156,59 +2233,13 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
     async def create_data_product(
         self, info: StrawberryInfo, input: DataProductInput
     ) -> MutationResult:  # REQ-1634
-        # REQ-1634: creating/deleting a data product is catalog curation, gated on its own
-        # write right rather than ORG_SETTINGS — see Capability.DATA_PRODUCT_RW.
-        from provisa.api.admin.capabilities import require_capability
-        from provisa.core.models import DataProduct as DataProductModel
-        from provisa.core.repositories import data_product as data_product_repo
-        from provisa.core.repositories import domain as domain_repo
+        return await _save_data_product(info, input, creating=True)
 
-        from provisa.api.admin.capabilities import require_right_in_domains
-
-        require_capability(info, "data_product_rw")
-
-        pool = await _get_pool()
-        async with pool.acquire() as conn:
-            conn = cast("Connection", conn)
-            # REQ-1944: the product's domain, and the one it is moved out of when it exists.
-            stored = await data_product_repo.get(conn, input.id)
-            require_right_in_domains(
-                info,
-                "data_product_rw",
-                {input.domain_id} | ({stored["domain_id"]} if stored is not None else set()),
-            )
-            if await domain_repo.get(conn, input.domain_id) is None:
-                return MutationResult(
-                    success=False,
-                    message=f"Domain {input.domain_id!r} not found",
-                    code="schema.domain_not_found",
-                    params={"domain": input.domain_id},
-                )
-            model = DataProductModel(
-                id=input.id,
-                domain_id=input.domain_id,
-                name=input.name,
-                owner_role=input.owner_role or None,
-                team_role=input.team_role or None,
-                purpose=input.purpose,
-                limitations=input.limitations,
-                usage=input.usage,
-                version=input.version,
-                status=input.status,
-                sla=input.sla,
-                support=input.support,
-                # Absent or null is "no custom properties" (DataProductInput says why).
-                custom_properties=(
-                    {} if input.custom_properties is None else input.custom_properties
-                ),
-            )
-            await data_product_repo.upsert(conn, model)
-        return MutationResult(
-            success=True,
-            message=f"Data product {input.id!r} created",
-            code="schema.data_product_created",
-            params={"data_product": input.id},
-        )
+    @strawberry.mutation
+    async def update_data_product(
+        self, info: StrawberryInfo, input: DataProductInput
+    ) -> MutationResult:  # REQ-1634
+        return await _save_data_product(info, input, creating=False)
 
     @strawberry.mutation
     async def delete_data_product(

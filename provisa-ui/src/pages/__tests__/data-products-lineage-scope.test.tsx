@@ -92,6 +92,12 @@ const tables = [
   table(2, "pets_quality", { dqContract: "name: x", columns: [{ columnName: "scan_id" }] }),
 ];
 const none: never[] = [];
+vi.mock("../../hooks/useDataProductMutations", () => ({
+  useCreateDataProduct: () => ({ createDataProduct: vi.fn(), loading: false }),
+  useUpdateDataProduct: () => ({ updateDataProduct: vi.fn(), loading: false }),
+  useDeleteDataProduct: () => ({ deleteDataProduct: vi.fn(), loading: false }),
+}));
+
 vi.mock("../../hooks/useAdminQueries", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../hooks/useAdminQueries")>()),
   useDataProducts: () => ({
@@ -105,8 +111,6 @@ vi.mock("../../hooks/useAdminQueries", async (importOriginal) => ({
   useSources: () => ({ sources: none, loading: false, refetch: vi.fn() }),
   useRelationships: () => ({ relationships: none, loading: false, refetch: vi.fn() }),
   useRoles: () => ({ roles: none, loading: false, refetch: vi.fn() }),
-  useCreateDataProduct: () => ({ createDataProduct: vi.fn(), loading: false }),
-  useDeleteDataProduct: () => ({ deleteDataProduct: vi.fn(), loading: false }),
   useUpdateTable: () => ({ updateTable: vi.fn(), loading: false }),
 }));
 
