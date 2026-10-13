@@ -248,12 +248,23 @@ def test_the_block_sample_runs_on_duckdb_after_transpile():
         "CREATE TABLE d.orders AS SELECT range AS id, 'r' || (range % 5)::VARCHAR AS region "
         "FROM range(2000000)"
     )
-    res = con.execute(transpile(_block_sql(), "duckdb"))
+    # Seeded in this harness only: a run's sample is random by design, so the profile statement
+    # carries no seed. The seed is added to the governed (postgres) statement and the transpile
+    # carries it (REPEATABLE (42)). DuckDB repeats a seeded sample only on one thread: on several,
+    # which vectors each thread samples depends on the order threads claim them.
+    clause = "TABLESAMPLE SYSTEM (2.5)"
+    governed = _block_sql()
+    assert governed.count(clause) == 1
+    physical = transpile(governed.replace(clause, f"{clause} REPEATABLE (42)"), "duckdb")
+    assert "TABLESAMPLE SYSTEM (2.5 PERCENT) REPEATABLE (42)" in physical
+    con.execute("SET threads = 1")
+    res = con.execute(physical)
     agg = parse_profile_result(
         [d[0] for d in res.description], res.fetchall(), _COLUMNS, [], [], []
     )
-    # DuckDB samples whole vectors of 2048 rows: the realised share is near, not at, 2.5%.
-    assert 0.0125 * 2_000_000 < agg.profiled_rows < 0.05 * 2_000_000
+    # DuckDB keeps whole vectors of 2048 rows (the table's 977th holds the last 1152): seed 42
+    # keeps 21 of them, 1.08% of the rows where 2.5% was asked.
+    assert agg.profiled_rows == 21 * 2048
 
 
 def test_a_key_range_statement_that_lost_ranges_fails_by_name():
