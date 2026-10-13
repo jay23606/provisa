@@ -6,8 +6,9 @@
 # This source code is licensed under the Business Source License 1.1
 """Generate docs/exports/traceability_matrix.csv for auditor-facing REQ↔test mapping.
 
-Includes accepted, in-progress, and complete requirements. Columns:
-  ID, Group, Category, Priority, Status, Description, Code Paths, Test Files
+Includes accepted, in-progress, and complete requirements, except those that serve an internal
+feature (docs/arch/features.yaml), which no release asset carries. Columns:
+  ID, Feature, Paragraph, Group, Category, Priority, Status, Description, Code Paths, Test Files
 
 Usage:
   python scripts/gen_traceability_matrix.py
@@ -20,6 +21,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
+from provisa.tools.feature_schema import FeaturesFile  # type: ignore[import]
 from provisa.tools.req_schema import RequirementsFile, Status  # type: ignore[import]
 
 YAML_PATH = Path("docs/arch/requirements.yaml")
@@ -31,19 +33,26 @@ _COVERED_STATUSES = {Status.accepted, Status.in_progress, Status.complete}
 def main() -> int:
     try:
         rf = RequirementsFile.load(YAML_PATH)
+        owner = FeaturesFile.load().paragraph_owner()
     except Exception as e:
         print(f"ERROR: {e}", file=sys.stderr)
         return 2
 
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-    rows = [r for r in rf.requirements if r.status in _COVERED_STATUSES]
+    rows = [
+        r
+        for r in rf.requirements
+        if r.status in _COVERED_STATUSES and owner[r.feature or ""].published
+    ]
 
     with OUT_PATH.open("w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(
             [
                 "ID",
+                "Feature",
+                "Paragraph",
                 "Group",
                 "Category",
                 "Priority",
@@ -58,6 +67,8 @@ def main() -> int:
             writer.writerow(
                 [
                     req.id,
+                    owner[req.feature or ""].name,
+                    req.feature,
                     req.group,
                     req.category,
                     req.priority.value,

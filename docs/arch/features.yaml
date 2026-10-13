@@ -1,0 +1,1423 @@
+# The feature layer above the requirements (REQ-2004): what a customer can do, told in
+# short paragraphs. Each requirement in requirements.yaml names the one paragraph it serves
+# (`feature: <paragraph id>`); a paragraph id is also its anchor in docs/features.md.
+# Schema: provisa/tools/feature_schema.py. Checked by scripts/validate_requirements.py.
+- id: source-registration
+  name: Source registration
+  section: Model your data
+  visibility: feature
+  audience: modeler
+  paragraphs:
+  - id: source-registration-connect
+    text: You add a source by naming its type and giving the connection details. Provisa checks the connection
+      before it saves anything, and the source is live without a restart. The same registration path serves
+      the Sources page, the chat assistant and approved requests, so a source behaves the same whichever
+      way it arrived. For a file-based source you can upload the file on the form instead of typing a
+      path.
+  - id: source-registration-explicit-tables
+    text: 'Connecting a source exposes nothing. A table can be queried only after someone with the right
+      registers it, and an unregistered table is invisible: it does not appear in the schema browser and
+      cannot be named in a query. Registering a table puts it straight into the generated schema, and
+      the schema reflects what the business chose to publish rather than the raw layout of the database.
+      Some sources need extra care at this step. A graph source has no table list to browse, so you supply
+      the query, and a table that takes parameters declares them so callers know what to pass.'
+  - id: source-registration-introspection
+    text: Register Table lists the schemas and tables the source actually offers, using the source's own
+      names for them. Internal namespaces such as engine catalogs or cache schemas never show up. Columns
+      arrive with a data type, including the precision and scale of numbers, and a column is never saved
+      without one. Where the source has a native catalog that tells more, Provisa asks it; otherwise it
+      asks the engine.
+- id: connector-catalog
+  name: Connector catalog
+  section: Model your data
+  visibility: feature
+  audience: modeler
+  paragraphs:
+  - id: connector-catalog-relational-and-warehouses
+    text: 'Provisa reads the common relational databases and cloud warehouses: PostgreSQL, MySQL and their
+      wire-compatible relatives, SQL Server, Oracle, Snowflake, BigQuery, Databricks, Athena and others,
+      plus Trino and HiveServer2 endpoints. You register one with host, credentials and database, and
+      the same registration works whichever engine runs underneath. Operators can also declare their own
+      connectors in configuration when a source is not in the list.'
+  - id: connector-catalog-files-and-lake
+    text: Files are sources too. CSV, Parquet, SQLite and DuckDB files, Iceberg and Delta Lake tables,
+      and directories of files matched by a glob all register as tables, with column names mapped to GraphQL-friendly
+      fields. Iceberg and Delta tables can be read as of an earlier point in time. A files source can
+      also crawl web pages, landing HTML tables and linked data files as ordinary tables, which is how
+      Wikipedia becomes a source.
+  - id: connector-catalog-nosql-search-and-graph
+    text: Non-relational stores appear as tables you can join to everything else. MongoDB and Cosmos DB,
+      Elasticsearch, Redis, Cassandra, Accumulo, Prometheus, Splunk, Qdrant and other vector stores are
+      covered, along with graph and triple stores such as Neo4j and SPARQL endpoints. Each has a mapping
+      from its native shape to columns, so a document or a metric series reads like any other row.
+  - id: connector-catalog-remote-schemas
+    text: A remote GraphQL, gRPC or OpenAPI service can be registered as a source. Provisa introspects
+      the schema or spec, turns each readable operation into a virtual table, and turns write operations
+      into commands you register one at a time. The service's authentication, depth limits and relationships
+      to local tables are configured at registration, and a refresh re-reads the spec on demand. Everything
+      the service returns passes through the same row, column and masking rules as local data.
+  - id: connector-catalog-saas-and-enterprise
+    text: 'Business applications register as named source types: Salesforce, ServiceNow, SharePoint, Google
+      Workspace, Microsoft 365, Google Sheets, cloud inventory and a growing set of branded APIs built
+      on the generic API sources. Each asks only for what that application needs, such as a login URL
+      and credential, and exposes its objects as tables. Operations to exclude, and write operations to
+      expose, are chosen one at a time.'
+  - id: connector-catalog-streams-logs-and-public-data
+    text: Event and reference data has its own source types. Kafka topics register with schemas inferred
+      from the topic or a schema registry, log files become tables, and AskAmerica exposes U.S. government
+      open data by subject. Kaggle datasets can be searched and registered, and data-quality checkers
+      and profilers report their results as tables. Node and Python sources let a script supply rows when
+      no connector exists.
+- id: semantic-model
+  name: Semantic model
+  section: Model your data
+  visibility: feature
+  audience: modeler
+  paragraphs:
+  - id: semantic-model-naming
+    text: Provisa decides every client-facing name in one place. You can alias a table or column, add
+      a description that shows up in the schema, and prefix names with their domain. A naming convention
+      can match Hasura's if you are migrating. Every protocol uses the same names, comparisons go through
+      one normalizer, and nothing is matched by guesswork. A table's SQL address is unique within its
+      domain.
+  - id: semantic-model-tables-and-columns
+    text: Registered tables and views are queryable under the user's own rights, with no separate governance
+      mode. You pick which columns to publish, mark primary keys, including composite ones, and declare
+      unique constraints. Columns can pull values out of JSON with a path, and nested fields can be promoted
+      to real columns. Path columns are computed and read-only.
+  - id: semantic-model-relationships
+    text: Relationships describe how tables join, and they turn into nested fields in GraphQL and joins
+      elsewhere. Provisa proposes candidates from foreign keys and ranks them by how much evidence backs
+      each one, and a steward confirms or rejects them. Cross-source relationships are declared by hand
+      with a cardinality. Saving a relationship marks the key columns on both sides, and a relationship
+      alias becomes the type name in Cypher.
+  - id: semantic-model-domains
+    text: Domains group tables by business area. Each domain has a steward, can nest under a parent, and
+      decides which other domains may read its tables. Views, relationships and grants that cross a domain
+      boundary are approved by the domain that owns the data, and cross-domain access is enforced in GraphQL
+      and in SQL alike. A deployment that does not want domains can turn them off.
+  - id: semantic-model-governed-changes
+    text: 'The model is stored once in a model store: sources, tables, columns, relationships, roles,
+      rules and views. Every save goes through a check that shows what the change would affect before
+      it lands. You can also review the whole model as a workbook, not only as JSON.'
+  - id: semantic-model-erd
+    text: 'The entity relationship diagram opens as a dialog from the Tables and Relationships pages and
+      draws every registered table and its relationships. Tables sit inside a box for their domain, and
+      a domain can be collapsed to hide its tables. A toggle picks how much of each table to show: all
+      columns, only key columns, or none. Hovering a domain, table or column shows its description. The
+      diagram follows the domain filter on the page, draws a relationship backed by a junction table through
+      that table''s own node, and exports as SVG, PNG or JSON.'
+- id: views
+  name: Views
+  section: Model your data
+  visibility: feature
+  audience: modeler
+  paragraphs:
+  - id: views-governed-datasets
+    text: 'A view is a computed dataset written in semantic SQL and registered in the model. It gets the
+      same governance as a table: row security, masking, column visibility and role-based schema. Analysts
+      use views to pull cross-domain data into their own domain for reports, and creating one needs approval
+      unless the author already holds the rights to everything underneath.'
+  - id: views-materialization
+    text: Mark a view as materialized and Provisa keeps a periodically refreshed copy. Queries that match
+      the view's pattern are rewritten to read the copy without anyone changing the query.
+  - id: views-from-metrics
+    text: A view can be built from metrics, choosing the metrics, dimensions and filters to project. Views,
+      metric views and other definition-backed relations have no physical source of their own, and they
+      are registered without a placeholder one.
+- id: metrics-and-aggregates
+  name: Metrics and aggregates
+  section: Model your data
+  visibility: feature
+  audience: modeler
+  paragraphs:
+  - id: metrics-and-aggregates-aggregates
+    text: Every table can offer an aggregate query and a group-by query in the style Hasura users know.
+      A modeler turns them on per table, and roles are gated on whether they may aggregate at all. Gated
+      tables get these on the gRPC, JSON:API and OpenAPI surfaces too. Expensive aggregates can be served
+      from a materialized copy when one matches.
+  - id: metrics-and-aggregates-metric-objects
+    text: A metric is a named, governed aggregate with its own definition. You write it once and every
+      query surface can use it with that surface's native syntax. Fact and entity roles you assign to
+      tables carry through, and the Explore page builds SQL from metrics, facts and dimensions, limited
+      to the domains you have checked. Metrics are managed on their own page with inline editing.
+- id: glossary-tags-ontology
+  name: Glossary, tags and ontology
+  section: Model your data
+  visibility: feature
+  audience: modeler
+  paragraphs:
+  - id: glossary-tags-ontology-terms
+    text: The business glossary maps plain-language terms to the physical fields behind them. Terms can
+      be derived from column names or written by hand, scoped to one or more domains, related to other
+      terms, and owned by a curator. A term with relationships cannot be deleted. Reading the glossary
+      and administering it are separate rights.
+  - id: glossary-tags-ontology-tags
+    text: Tags come from one org-wide registry. A tag can apply to sources, tables, columns or relationships,
+      can take a parameter such as the entity a column holds, and is assigned by people rather than automatically.
+      A few system tags have fixed meaning, and the deprecated tag works on any model object. Tags travel
+      with metadata exports and show up in catalog comments.
+  - id: glossary-tags-ontology-queryable-metadata
+    text: The glossary and the tag graph are data. Terms, their physical references and relationships,
+      and every tag assignment can be queried like any other table in the meta domain, so a report or
+      an agent can ask what a column means or what is tagged sensitive.
+- id: catalog-and-discovery
+  name: Catalog and discovery
+  section: Model your data
+  visibility: feature
+  audience: consumer
+  paragraphs:
+  - id: catalog-and-discovery-discovery
+    text: 'People find data in layers that get more governed as they go: the source''s own schema, the
+      registered model, the semantic names and the data products. Catalog and schema metadata also say
+      which tables support aggregates and group-by.'
+  - id: catalog-and-discovery-data-products
+    text: A data product bundles tables from one domain into something a consumer can browse. Its page
+      lists related tables, the profiles of its tables and a lineage view drawn in lanes by distance from
+      the product's tables. Marking a table as a data product limits what metadata exports publish.
+  - id: catalog-and-discovery-metadata-export
+    text: Provisa publishes the model to external catalogs such as OpenMetadata and Atlas. The payload
+      carries tables, columns, domains, stewards, lineage and the governance facts Provisa enforces, with
+      stable provisa:// addresses. Pushes happen on change or on demand from the CLI. A catalog's human
+      enrichment is preserved on update, and columns can be held back from export.
+  - id: catalog-and-discovery-warehouse-listings
+    text: Data products can be listed in the catalogs of the warehouse they run on, including Snowflake
+      Horizon and BigQuery Dataplex. Descriptions, data dictionaries, governance tags and the link back
+      to the product's page in Provisa are generated from the model.
+  - id: catalog-and-discovery-model-interchange
+    text: 'The semantic model can be exported to the standards other tools read: Apache Ossie, the dbt
+      semantic manifest, the Cube model and a dbt sources file.'
+- id: environments
+  name: Environments
+  section: Model your data
+  visibility: feature
+  audience: modeler
+  paragraphs:
+  - id: environments-isolation
+    text: An organization can run its governed model in more than one environment, such as dev, test and
+      prod. Each environment is a schema of its own. Copying one environment into another carries the
+      model and nothing else; connection settings are set per environment, and write authority is never
+      carried over. Copying into an existing environment is a merge. A credential belongs to exactly one
+      environment, and the browser always says which one it is reading.
+  - id: environments-promotion-and-history
+    text: Changes are saved as immutable builds, so promotion and rollback are exact. You can compare
+      two environments, merge all of one or part of it, and step back and forward along an environment's
+      history. A merge lands as one commit, needs a comment, says when it overwrites someone else's work,
+      and waits for approval if the target is protected. Every operation is also available from the command
+      line.
+  - id: environments-git-and-ci
+    text: Each environment has a git repository that mirrors it, one file per entity, so the model lives
+      in version control and can be applied back from files. Provisa pushes to the git host you already
+      use and pulls from it, and your own CI runs the checks. A non-prod environment can also be exported
+      for a developer's desktop.
+  - id: environments-test-data
+    text: A non-prod environment can own the data it needs. It may hold synthetic datasets generated to
+      match the real shape, have copies of its file-based sources, and keep its own derived stores, all
+      removed when it is. Each environment has one data mode, chosen when you create it. Temporary environments
+      expire and cannot use the administrator's mutation bypass.
+  - id: environments-access
+    text: Authority is scoped to an environment, and the usual way to get it is to create your own. Two
+      rights govern managing environments, and neither comes with an analyst role by default. An invitation
+      can say which environment its redeemer works in, and a membership can be confined to one, which
+      the switcher then shows.
+- id: regions-and-residency
+  name: Regions and data residency
+  section: Model your data
+  visibility: feature
+  audience: modeler
+  paragraphs:
+  - id: regions-and-residency-clusters
+    text: A deployment can run clusters in several regions off one shared model. The model is declared
+      once; each cluster has its own nodes, engine, replica storage, cache and record, and serves clients
+      that connect to its address. What a reader sees follows the model's rules, wherever they connect.
+  - id: regions-and-residency-residency-rules
+    text: Residency is a short list of rules. Row and column rules written on user attributes decide what
+      each reader gets. A table can name a home region, and whole-table copies of it are built only there;
+      readers elsewhere are served from that replica with their own rules applied.
+- id: commands-and-functions
+  name: Commands and functions
+  section: Model your data
+  visibility: feature
+  audience: modeler
+  paragraphs:
+  - id: commands-and-functions-tracked-functions
+    text: Stored procedures and functions in a source can be tracked and exposed as GraphQL mutations
+      or queries. A function returns a registered table or declares its own result shape in JSON Schema.
+      Result rows resolve nested relationships and run directly against the source's connection. Discovered
+      routines are offered for registration, never added automatically.
+  - id: commands-and-functions-webhooks
+    text: An HTTP endpoint can be registered as a command and called like a mutation or query. Its arguments
+      and return type are declared inline, and it is exposed only after a steward approves it.
+  - id: commands-and-functions-sql-commands
+    text: A command can also be implemented by a Provisa SQL statement with typed arguments, including
+      MongoDB aggregation pipelines. Commands can be called inline within a larger SQL statement, take
+      bind parameters and column references as arguments, and appear in every protocol that lists registered
+      commands.
+  - id: commands-and-functions-command-admin
+    text: The Commands page lists everything registered, grouped by type, with a form to add one and a
+      Test button that runs it with sample arguments and shows the result with the governance applied.
+  - id: commands-and-functions-scheduled-triggers
+    text: Scheduled triggers run a registered webhook or function on a cron or interval schedule.
+- id: writes
+  name: Writes
+  section: Model your data
+  visibility: feature
+  audience: consumer
+  paragraphs:
+  - id: writes-governed-mutations
+    text: Mutations write directly to the one source that owns the table; the engine is never involved.
+      A user needs write rights to the table, and mutation inputs show only the columns the role may write.
+      Row security applies to updates and deletes, and only registered tables get mutations. Transactions
+      across sources are not supported, and non-relational sources are read-only. Upserts, column presets
+      and batched mutations are available.
+  - id: writes-write-routing
+    text: 'Writes take the best available path for the source: a native driver, then the engine, then
+      a fallback. Every write on every surface passes through one admission step.'
+  - id: writes-classification
+    text: Mutations are classified as writes by contract, not by what the caller says. A global write
+      capability and per-mutation grants decide who may run them, and only an admin can reclassify one
+      as read-safe. At registration, Provisa suggests which table a mutation belongs to.
+- id: roles-and-capabilities
+  name: Roles and capabilities
+  section: Govern access
+  visibility: feature
+  audience: admin
+  paragraphs:
+  - id: roles-and-capabilities-capabilities
+    text: What a person can do is spelled out as capabilities, and each capability is assigned on its
+      own. Registering sources, defining relationships, writing security rules and administering the organization
+      are separate rights, so an admin builds a role from the pieces it needs. Every gate in the server
+      and the UI tests a capability, never a role name, and every admin handler sits behind one.
+  - id: roles-and-capabilities-inheritance
+    text: A role can inherit from one parent, and the child gets everything the parent holds. A user who
+      holds several roles can act as all of them at once, in which case a capability counts if any of
+      the roles carries it.
+  - id: roles-and-capabilities-domain-access
+    text: Domains are permission boundaries. A role reads freely inside the domains it is granted and
+      needs an explicit grant for any other. Even the built-in operations domain follows this rule, and
+      a seeded data steward role owns the governance of a domain.
+  - id: roles-and-capabilities-platform-admins
+    text: Platform administration and organization administration are separate roles. The platform admin
+      runs the control plane and holds no data capabilities. An org admin runs one organization, and nobody
+      can change their own role. The deployment can never be left without a platform admin, and any recovery
+      that crosses into an org is explicit and recorded in that org's audit trail.
+  - id: roles-and-capabilities-sandbox-role
+    text: The sandbox role lets a visitor see how an admin surface looks without being able to change
+      anything. It shows read-only views of normally restricted pages and data, and it can display a control
+      the role does not hold as an inert, visibly disabled one. It is meant for demos and evaluation.
+  - id: roles-and-capabilities-join-guard
+    text: A join is allowed only where a relationship has been registered and approved. When the guard
+      refuses a join, it names the valid paths between the two tables, computed in one place so the refusal,
+      the API and agents all agree. A role with the ignore-relationships capability can join tables that
+      have no registered relationship.
+- id: row-security-and-masking
+  name: Row-level security, column visibility and masking
+  section: Govern access
+  visibility: feature
+  audience: admin
+  paragraphs:
+  - id: row-security-and-masking-two-layers
+    text: Access is enforced twice. Schema visibility hides tables and columns a role may not see, so
+      they never appear in the schema or the query builder. Then the SQL layer filters rows and strips
+      columns from every query before it runs, on every surface. No code path returns rows without a role
+      bound to them.
+  - id: row-security-and-masking-row-rules
+    text: Row filters are written as SQL predicates and attached to a table, a whole domain or a tag.
+      They are checked when saved, so a bad rule fails at once instead of at the first query. Predicates
+      can use attributes of the signed-in user, taken from the identity provider or set locally, and those
+      values take the type of the column they are compared with.
+  - id: row-security-and-masking-masking
+    text: A column can be masked per role. The options are a regular-expression replace on text, a constant,
+      a truncated date, or a consistent fake value, and the same real value always shows the same fake.
+      The raw value never leaves the database. Masks respect column types, only touch the selected output,
+      and leave filters and joins working on the real value. A masked column cannot be used to filter
+      results.
+  - id: row-security-and-masking-metadata-visibility
+    text: The metadata about the model is governed like any other data. Core facts about tables and columns
+      are open, while the governance columns, such as who may see or unmask a column, need a dedicated
+      capability. Admins see every column.
+- id: approvals-and-limits
+  name: Approvals and query limits
+  section: Govern access
+  visibility: feature
+  audience: admin
+  paragraphs:
+  - id: approvals-and-limits-approval-hook
+    text: For rules too complex to write as row filters, Provisa calls out to an approval hook before
+      a query runs. The hook can be switched on for a table, a source or the whole deployment, and it
+      speaks over a webhook, gRPC or a Unix socket. A circuit breaker protects queries when the hook is
+      unhealthy, and the gRPC channel is reused across calls.
+  - id: approvals-and-limits-rate-limits
+    text: Each role has its own request-rate limit, along with caps on concurrent subscriptions and Flight
+      streams. Natural-language queries have a separate limit because they cost LLM calls. State is kept
+      in Redis, so any number of stateless containers share the same count. A stream over its limit waits
+      for a free slot.
+  - id: approvals-and-limits-query-limits
+    text: Roles carry ceilings on how long a query may run and how many rows it may return. Roles without
+      the right to full results get a sample, and when a read is cut short the response says so. Each
+      organization tier also has hard ceilings on query cost, and a query over the ceiling is refused
+      with a message naming the tier it would need.
+  - id: approvals-and-limits-creation-approvals
+    text: Creating a relationship, view, table, source or webhook goes through an approval. The approver
+      must hold the matching right, must not be the requester, and for a relationship must have reach
+      over one of the two domains it touches. When a registration change affects an entry, that entry
+      is flagged for review.
+- id: lineage-and-provenance
+  name: Lineage and provenance
+  section: Govern access
+  visibility: feature
+  audience: admin
+  paragraphs:
+  - id: lineage-and-provenance-column-lineage
+    text: Provisa traces any column back to its sources. From one SQL statement, including commands composed
+      inline, it builds the column-level lineage, and it merges all of them into a single graph across
+      the estate. The graph is drawn with one box per relation and its columns as rows, arrives collapsed
+      when it is large, and is read through a role picked on the lineage form.
+  - id: lineage-and-provenance-point-in-time
+    text: A table can record row-level changes into an append-only delta ledger. From the ledger, a materialized
+      view can be rebuilt as it stood at an earlier moment, so a report can be reproduced exactly.
+  - id: lineage-and-provenance-self-describing
+    text: Because every change is an event and every derived dataset is a view over those events, the
+      platform describes itself. Quality scorecards, history and operational facts are views over streams
+      the system already emits, not separate subsystems.
+- id: audit
+  name: Audit
+  section: Govern access
+  visibility: feature
+  audience: admin
+  paragraphs:
+  - id: audit-query-log
+    text: Every query is recorded in an audit log with the tenant, user, role, a hash of the query, the
+      tables touched, the source, status and duration. Query text is never stored in the clear. The record
+      is written at the single governed pipeline, so no surface can skip it.
+  - id: audit-append-only
+    text: The audit log is append-only, and the database itself blocks updates and deletes. Indexes by
+      tenant and time and by user and time make compliance reports fast to run. Nobody, including an admin,
+      can edit the history.
+- id: public-data-publishing
+  name: Public data publishing
+  section: Govern access
+  visibility: feature
+  audience: admin
+  paragraphs:
+  - id: public-data-publishing-anonymous-access
+    text: An organization can publish data to people who are not signed in. A request with no login is
+      routed to its organization by subdomain, and it can see only what has been published.
+  - id: public-data-publishing-public-role
+    text: Publishing is a governance grant. Every organization has a built-in public role that starts
+      with no visibility at all, and publishing an asset means granting that role visibility on it. The
+      same row and column rules apply as for any other role.
+  - id: public-data-publishing-all-domains
+    text: Anything marked public is served to every role in the organization, whatever domain the role
+      is in. A public table, relationship or metric does not need a separate grant to each domain.
+  - id: public-data-publishing-traffic-caps
+    text: Public endpoints face the internet with no login, so they get the tightest rate and query-cost
+      limits. High-volume public publishing needs a premium public tier.
+- id: encryption-and-secrets
+  name: Encryption and secrets
+  section: Govern access
+  visibility: quality
+  audience: admin
+  paragraphs:
+  - id: encryption-and-secrets-envelope
+    text: Sensitive payloads are protected with envelope encryption. Each payload gets its own data key,
+      wrapped by an organization master key. This covers stored API keys and security rules, hot-table
+      row data in Redis and the text of audit entries. Where no OS keychain is available, the master key
+      falls back to a local file so the admin console can still generate a key.
+  - id: encryption-and-secrets-providers
+    text: The key service is pluggable. AWS KMS, HashiCorp Vault Transit and Azure Key Vault ship as providers,
+      and an enterprise can register its own in-house KMS or HSM without touching core code. Providers
+      are configured from the admin console, which lists each one with its settings.
+  - id: encryption-and-secrets-client-side
+    text: Bulk results written to S3 or Iceberg can be encrypted with a key only the client holds, and
+      the JDBC driver, the Python client and GraphQL clients decrypt on their side, so the server never
+      sees the clear text. The key can be a customer-managed key in the customer's own cloud account.
+      A high-security mode turns off the wire-protocol listener.
+  - id: encryption-and-secrets-org-keys
+    text: 'An organization sets and changes its own encryption key and can never read it back. The deployment''s
+      own secrets follow the same rule: set, change, never read.'
+  - id: encryption-and-secrets-secrets
+    text: Credentials in config are references, not values. A reference such as an environment variable
+      or a secret name is resolved at the moment of use. An org admin creates a secret by name and value,
+      the value never comes back out, and a secret can belong to one developer. A vendor API key can be
+      held as a reference to the secrets service.
+- id: graphql
+  name: GraphQL
+  section: Query it any way
+  visibility: feature
+  audience: consumer
+  paragraphs:
+  - id: graphql-schema
+    text: Each role gets a GraphQL schema generated from the model, showing only what that role may see.
+      Filtering, ordering and pagination follow the Hasura convention, and ordering can reach into related
+      objects. Nested relationships take the same arguments as a root query, relationship fields use the
+      configured naming convention, and date and time types are typed precisely. GraphQL is the canonical
+      API from which gRPC, JSON:API and OpenAPI are derived.
+  - id: graphql-variables
+    text: Operations can use variables with defaults, and limit and offset travel as bound parameters,
+      never pasted into the SQL.
+  - id: graphql-persisted-queries
+    text: Provisa supports Apollo automatic persisted queries. A client can send the hash of a query it
+      has run before and skip sending the text. The cache lives in Redis with a configurable lifetime.
+      A hash still passes the same rights and governance checks as the original query.
+- id: sql-over-http
+  name: SQL over HTTP
+  section: Query it any way
+  visibility: feature
+  audience: consumer
+  paragraphs:
+  - id: sql-over-http-endpoint
+    text: Send PostgreSQL-compatible SQL to a REST endpoint and get governed results back. The SQL runs
+      against the model's names, not the physical tables, and goes through the same governance as every
+      other surface. The role comes from the credentials, never from the request body. A test endpoint
+      offers the same guards for trying queries.
+  - id: sql-over-http-compile
+    text: A compile-only route returns the SQL Provisa would run, with row filters and masks applied,
+      along with the routing decision and parameters, without executing anything. It helps when checking
+      what a role would actually be allowed to see.
+  - id: sql-over-http-semantic-sql
+    text: Semantic SQL is the one dialect used throughout. It has no array, struct or map type, and nested
+      data comes back as JSON on every engine. Objects are defined in the model, not by SQL, so CREATE,
+      DROP, ALTER and TRUNCATE are refused on every surface.
+- id: cypher-and-graph-analytics
+  name: Cypher and graph analytics
+  section: Query it any way
+  visibility: feature
+  audience: consumer
+  paragraphs:
+  - id: cypher-and-graph-analytics-endpoint
+    text: Send Cypher to an HTTP endpoint and get rows back, with named parameters. Provisa derives labels
+      and relationship types from the model, so there is no graph to load. Cypher can join across sources
+      in one query. Domain boundaries are enforced when the query is parsed, and a graph-schema endpoint
+      lists the labels and relationship types a role can use.
+  - id: cypher-and-graph-analytics-translation
+    text: A large part of Cypher is supported, including optional matches, subqueries, comprehensions,
+      map projections, CASE, UNWIND and label alternation. Each construct is translated into semantic
+      SQL, so the same governance applies as for SQL. Relationships exist as joins between tables, which
+      means they carry no stored properties.
+  - id: cypher-and-graph-analytics-paths
+    text: Path queries cover shortest paths and variable-length patterns, which compile to recursive queries
+      with a maximum number of hops. When several schema paths are equally short, all of them come back.
+      A path variable returns its nodes and edges, and length(p) gives the hop count.
+  - id: cypher-and-graph-analytics-graph-results
+    text: Returning a node, a relationship or a path produces a graph object with stable ids and properties,
+      so a graph tool can draw it directly. Returning a whole domain gives every node it holds. Scalar
+      columns stay plain values.
+  - id: cypher-and-graph-analytics-writes
+    text: CREATE, SET and DELETE write to tables through the same write pipeline as SQL, so access rules,
+      row filters and write permissions all apply. A label must already exist in the model, and only sources
+      that accept writes can be written to. Relationships cannot be written, and DETACH DELETE is refused.
+      The result reports the rows affected.
+  - id: cypher-and-graph-analytics-analytics
+    text: Graph analytics run over a query result in the Graph Explorer. A configurable size limit keeps
+      them in bounds, and the community detection algorithm that cost the most is allowed only on small
+      graphs.
+- id: natural-language-query
+  name: Natural-language query
+  section: Query it any way
+  visibility: feature
+  audience: consumer
+  paragraphs:
+  - id: natural-language-query-jobs
+    text: Ask a question in plain language and Provisa starts an asynchronous job. It generates a SQL,
+      a GraphQL and a Cypher answer in parallel, runs all of them, and returns the results. Seeing the
+      same answer in three languages makes it easy to check and reuse.
+  - id: natural-language-query-role-scope
+    text: The model is shown only the schema the asking role may see. A generated query runs with that
+      role's rights like any other query, and it can be saved.
+  - id: natural-language-query-strict-mode
+    text: In strict mode, one chain turns the question into GraphQL, then SQL, then Cypher. Both generation
+      paths produce a best-effort Cypher form beside the SQL, and grouped results can include related
+      columns by dot-path.
+- id: rest-and-jsonapi
+  name: REST, JSON:API and OpenAPI
+  section: Query it any way
+  visibility: feature
+  audience: consumer
+  paragraphs:
+  - id: rest-and-jsonapi-endpoints
+    text: Every registered table gets a plain REST endpoint and a JSON:API endpoint with no setup. Query-string
+      parameters map to filters, ordering and paging. JSON:API uses the physical column and relationship
+      names throughout, and its total count is computed by pushing a COUNT down to the source.
+  - id: rest-and-jsonapi-openapi
+    text: An OpenAPI specification is generated from the model, with typed parameters for each table.
+      Registered commands appear as POST paths, and an operation can be marked as a query or a mutation.
+      Tools that read OpenAPI can use the API directly.
+  - id: rest-and-jsonapi-group-by-nodes
+    text: A grouped or aggregated result can carry the rows behind each group. A parameter on REST and
+      JSON:API selects which columns of those rows to include, with dot-paths that reach through any number
+      of relationships.
+  - id: rest-and-jsonapi-resolve
+    text: A semantic URI for a piece of data can be resolved through REST, and by an MCP tool, to the
+      governed value, optionally as of an earlier time.
+- id: grpc
+  name: gRPC with a per-role proto
+  section: Query it any way
+  visibility: feature
+  audience: consumer
+  paragraphs:
+  - id: grpc-per-role-proto
+    text: Provisa generates a gRPC service from the model, and the proto each role downloads shows only
+      that role's tables and columns. The role is selected by a metadata key on every call. Column types
+      map to protobuf scalar types, and field numbers stay stable.
+  - id: grpc-http-proxy
+    text: Clients that cannot speak gRPC can use an HTTP endpoint that accepts JSON shaped like the gRPC
+      request, turns it into a governed query and returns JSON.
+  - id: grpc-streaming
+    text: Queries stream their rows lazily, a batch at a time, so a large scan does not have to fit in
+      memory. Point lookups take a direct route to the source. The streaming path has been tuned against
+      Flight SQL for large reads.
+- id: postgres-wire-protocol
+  name: PostgreSQL wire protocol
+  section: Query it any way
+  visibility: feature
+  audience: consumer
+  paragraphs:
+  - id: postgres-wire-protocol-server
+    text: Provisa can speak the PostgreSQL wire protocol, so BI tools and anything with a Postgres driver
+      connect without special support. The listener is off until a port is set. It authenticates through
+      the same auth provider as every other surface, supports TLS, and reports a Postgres-compatible version
+      string. It accepts SQL only, never GraphQL or Cypher.
+  - id: postgres-wire-protocol-catalog
+    text: Tools such as DBeaver browse through the usual catalog queries, and Provisa answers these from
+      the model, showing only what the connected role may see. Primary keys, unique constraints and composite
+      foreign keys are reconstructed, so tools can draw the schema and suggest joins.
+  - id: postgres-wire-protocol-queries
+    text: The simple and extended query protocols both work, including multiple statements, positional
+      parameters, binary parameters, cursors and COPY. Session commands such as BEGIN and SET are accepted
+      without effect. Writes to existing tables go through the single write admission, and definitions
+      are not accepted over the wire.
+  - id: postgres-wire-protocol-client-drivers
+    text: Provisa ships client libraries for the places where a standard driver is not enough. The JDBC
+      driver lists the tables and views a role can see and moves results as Arrow over Flight. A Python
+      client offers DB-API, pandas and SQLAlchemy. All of them authenticate with a username and password,
+      and the server decides the role, not the client.
+- id: arrow-flight
+  name: Arrow Flight
+  section: Query it any way
+  visibility: feature
+  audience: consumer
+  paragraphs:
+  - id: arrow-flight-server
+    text: Provisa runs an Arrow Flight server for high-throughput consumers. Results stream batch by batch,
+      so the full result never sits in memory, and every governance rule applies. Flight SQL is also supported,
+      and engines that cannot produce Arrow natively are adapted by a generic row-to-Arrow converter.
+  - id: arrow-flight-trino-route
+    text: When Trino is the engine, the Flight route goes through a Flight SQL proxy. If the proxy is
+      unavailable the request fails, and Provisa does not quietly fall back to another route.
+  - id: arrow-flight-adbc
+    text: ADBC clients connect to the Flight server, on a default port that can be changed. This gives
+      Python and other ADBC users columnar results without converting from rows.
+  - id: arrow-flight-airport
+    text: Provisa also serves the DuckDB Airport protocol, so DuckDB can attach to it as if it were a
+      catalog. Each role sees only its own registered columns, and writes are held in a transaction until
+      commit.
+- id: neo4j-compatibility
+  name: Neo4j compatibility
+  section: Query it any way
+  visibility: feature
+  audience: consumer
+  paragraphs:
+  - id: neo4j-compatibility-bolt
+    text: Provisa answers on the Bolt protocol, so Neo4j Browser, Bloom and the Neo4j drivers can connect
+      and run Cypher. The user is the principal and each of their roles appears as a database, and the
+      active role's domain access is always respected. Relationships get stable integer ids.
+  - id: neo4j-compatibility-export
+    text: A graph visible in Provisa can be exported to a real Neo4j instance. Nodes and relationships
+      are merged by a stable id, in batches, and the call reports how many were imported and which statements
+      failed. Connection and auth failures come back as distinct errors.
+- id: mcp-server
+  name: MCP server for AI agents
+  section: Query it any way
+  visibility: feature
+  audience: consumer
+  paragraphs:
+  - id: mcp-server-tools
+    text: Provisa exposes a Model Context Protocol server, so agents such as Claude Desktop can discover
+      the catalog and run governed queries. An agent can also propose a new source or table for a human
+      to approve, but never creates one itself. An optional tool exposes an external decision-evaluation
+      service when its key is configured, and agents can run Cypher under the caller's role.
+  - id: mcp-server-connect
+    text: The desktop build turns on a local MCP server, bound to loopback. The Explore page gives a copy-ready
+      Claude Desktop configuration with a connect URL that is aware of proxies, and the bundled bridge
+      needs no Node install. The local connector speaks plain HTTP, with optional TLS for public deployments.
+  - id: mcp-server-identity
+    text: Remote bearer tokens map to Provisa roles. Every tool call is scoped to the capabilities of
+      the identity behind it, so an agent can never do more than that person could.
+- id: vector-search
+  name: Vector and semantic search
+  section: Query it any way
+  visibility: feature
+  audience: consumer
+  paragraphs:
+  - id: vector-search-models
+    text: Embedding models are declared in a registry with their provider and dimensions. OpenAI-compatible
+      APIs, Ollama and local HuggingFace models are supported. The embed function in SQL returns the embedding
+      of a text from any registered model, and API keys can be secret references.
+  - id: vector-search-columns
+    text: A column can be declared as an embedding. A virtual embedding column can be generated from a
+      query and refreshed on a schedule, re-embedding only the rows that changed. Once generated, its
+      model is locked so vectors from different models are never mixed.
+  - id: vector-search-queries
+    text: Use cosine_similarity in SQL, and in Cypher, which compiles to it. A search can pass a text
+      string, which Provisa embeds at query time. When a source has its own vector support, Provisa detects
+      it and uses it.
+  - id: vector-search-governance-and-replicas
+    text: 'Embedding columns obey the same governance as other columns: row filters, domain rules and
+      sensitivity tags. A vector cannot be partially masked, so masks do not apply to it. Where a replica
+      serves the table, it has a vector index built with each replica build and swapped in with it, so
+      the index is as fresh as the replica.'
+- id: federation-and-routing
+  name: Federation and routing
+  section: Run it fast and fresh
+  visibility: feature
+  audience: modeler
+  paragraphs:
+  - id: federation-and-routing-routes
+    text: Every query takes one of a few routes, and Provisa picks it for you. A query that touches a
+      single relational source goes straight to that database over its native driver. A query that joins
+      across sources goes to the federation engine. A source the engine cannot reach directly is read
+      through a replica. When the default is wrong for a particular table or view, a steward can override
+      the route. Mutations to a database always go straight to that database, never through the engine.
+  - id: federation-and-routing-engines
+    text: The engine that runs cross-source joins is a choice, not a fixture. Trino, DuckDB, PostgreSQL,
+      ClickHouse, the cloud warehouses and a generic SQLAlchemy fallback all sit behind one contract,
+      and you pick one in the admin console. Each engine declares what it can do, and the planner reads
+      those declarations when it decides what to push down and what to pull back. A source an engine reaches
+      through a connector is queried live. Anything else lands in the engine's own store first. The same
+      model answers the same question whichever engine you choose, because governance runs the same way
+      on all of them.
+  - id: federation-and-routing-transpilation
+    text: 'Provisa compiles every request to one canonical PostgreSQL-style statement, then translates
+      it into the dialect of wherever it will run: the source database, or the engine. Dialect is decided
+      by the source type recorded when the table was registered, so you never write dialect-specific SQL.
+      Translation belongs to the compiler, not to the protocol you connected with, so pgwire, Flight,
+      GraphQL and the rest produce the same SQL for the same question. Joins across sources get their
+      column types coerced to match automatically.'
+  - id: federation-and-routing-governed-pipeline
+    text: 'Compilation happens in two stages. The first turns your request into plain SQL against the
+      semantic model. The second rewrites that SQL under the caller''s role, applying row filters, masking
+      and column visibility, whatever shape the SQL takes: subqueries, CTEs, joins, star expansion. Because
+      the second stage only needs SQL and a role, every client path gets the same governance.'
+- id: replicas-and-freshness
+  name: Replicas and freshness
+  section: Run it fast and fresh
+  visibility: feature
+  audience: modeler
+  paragraphs:
+  - id: replicas-and-freshness-hot-tables
+    text: Small lookup tables that many queries join against can be held hot in Redis and injected into
+      queries as an inline set of rows, so the join never leaves memory. A table becomes hot automatically
+      when it is the target of a many-to-one relationship or its row count is under a threshold, and you
+      can opt any table out or force it in. Size limits keep a hot table from growing without bound, and
+      governance still applies to the cached rows.
+  - id: replicas-and-freshness-warm-placement
+    text: A replica is a copy of a source table that Provisa keeps in a store the engine can read quickly.
+      Sources the engine can attach live are read live. Sources it cannot reach are replicated, and the
+      same applies to a table you ask to be replicated for speed. The choice follows from what the engine
+      can reach, not from a setting you tune. Replicas land at boot as empty tables and fill when first
+      needed. A table can also opt in to replicating only the rows a query asks for by primary key. If
+      a replica cannot be built, the read is refused with a message naming the table and the cause, rather
+      than answered from nothing.
+  - id: replicas-and-freshness-landed-shape
+    text: A landed replica carries the shape of the model it came from. Column names, types, primary keys,
+      descriptions and steward tags travel with it, and the landing step reconciles an existing table
+      instead of blindly recreating it. Incoming rows are matched to target columns by name, and bulk-load
+      paths are used wherever the target store has them.
+  - id: replicas-and-freshness-freshness-gate
+    text: Freshness is judged in one place for every replica and view. You choose per table whether staleness
+      is bounded by a time-to-live, by a probe that checks whether the upstream changed, or by both. A
+      probe can be a query, a version token, or a marker file that a producer writes when new data is
+      ready. Tables fed by push signals refresh when the signal arrives. For databases that cannot absorb
+      heavy reads, a steward can mark a source load-sensitive and restrict refresh to an off-peak window,
+      a cadence or a change probe. The table's detail page shows the resulting policy in plain words.
+  - id: replicas-and-freshness-materialized-views
+    text: 'A materialized view stores the result of a view so queries that match it read the stored rows.
+      Matching is transparent: you query the same schema and Provisa rewrites to the stored result, including
+      when only part of a join pattern matches. A write to a source table marks affected views stale,
+      and stale views are not used. Row security applies after the rewrite, so a stored result never widens
+      what a role can see. Views are hidden from the schema by default and a steward can expose one. A
+      view can be published only when the relationships it depends on are approved, and in a fleet the
+      refresh of any one view is coordinated so two instances do not rebuild it at once.'
+  - id: replicas-and-freshness-moving-data
+    text: Some sources, such as files, SharePoint and Splunk, are reached through a bundled connector
+      that Provisa fetches on demand and runs for you, then replicates into the engine's store. You can
+      also copy or move a registered table to another source with an ordinary CREATE TABLE AS statement.
+      The copy reads through the governed pipeline as the organization's administrator, so row rules and
+      masks apply as they would to any read.
+- id: response-caching
+  name: Response caching
+  section: Run it fast and fresh
+  visibility: feature
+  audience: consumer
+  paragraphs:
+  - id: response-caching-store-and-opt-in
+    text: Provisa can serve a repeated request from a stored result, but only when the request asks for
+      it. A GraphQL query opts in with a directive, a Cypher query with a comment line, and a gRPC call
+      with request metadata. Without it, the request neither reads nor writes the cache. Every response
+      says whether it was a hit or a miss. A hit is a real route in the planner, not a side check, so
+      a cached answer skips execution entirely. The store is Redis when configured and an embedded fallback
+      otherwise.
+  - id: response-caching-ttl-and-staleness
+    text: 'How long a result lives is set at the most specific level that has an opinion: the table, then
+      the source, then the deployment. A table can also set a different tolerance per role, so a trader
+      sees live data while an analyst accepts a few minutes of staleness. Any mutation to a table drops
+      the cached results that read it.'
+  - id: response-caching-isolation
+    text: A cache hit can never show one person another person's data. The key is built from the governed,
+      normalized form of the query together with the caller's role and the row-security values that apply,
+      so two callers share an entry only when they would see identical rows. In multi-organization deployments
+      the key is also partitioned by organization.
+- id: large-results
+  name: Large results
+  section: Run it fast and fresh
+  visibility: feature
+  audience: consumer
+  paragraphs:
+  - id: large-results-formats
+    text: Results come back in the shape the consumer needs. JSON keeps the nested structure of the query,
+      and newline-delimited JSON streams one object per line. Tabular exports come as a single flattened
+      table or as normalized tables with their foreign keys, in Parquet or CSV. Normalizing is done on
+      the query itself, not by reshaping a serialized response afterward.
+  - id: large-results-redirect
+    text: When a result is too big to send inline, Provisa can write it to object storage and return a
+      presigned link that expires. The caller sets the format and the size threshold with request headers,
+      and the operator sets the defaults. Parquet and ORC are written by the engine straight to the store,
+      so the data never passes through Provisa. Other formats are produced by Provisa and uploaded. The
+      decision is automatic at the point where the query runs, not something each protocol has to implement.
+      Files are readable only by the user who asked for them and are cleaned up after the link expires.
+      Without a cloud bucket, results can be served from local disk with the same scoping and expiry.
+  - id: large-results-streaming
+    text: Protocols that stream, such as pgwire, Flight SQL and gRPC, receive rows as the engine produces
+      them instead of waiting for the full set. Direct reads use a server-side cursor or an Arrow reader,
+      and each engine's runtime streams in batches. A million-row scan therefore starts returning almost
+      at once and holds only a batch in memory.
+- id: performance-and-scale
+  name: Performance and scale
+  section: Run it fast and fresh
+  visibility: quality
+  audience: operator
+  paragraphs:
+  - id: performance-and-scale-optimizer-hints
+    text: Federated joins run well when the engine has statistics, so Provisa analyzes registered tables
+      when you add a source and again on demand, and after each replica load. When a query still needs
+      help, you can attach engine session properties to a table, a view or a source, or put a hint in
+      the query text to broadcast a table or pick a join strategy. A constant filter on one side of a
+      join is also carried to the other side, so each source scans less.
+  - id: performance-and-scale-compile-caches
+    text: Compiling and governing a query is cached so repeated shapes skip the work. Raw SQL surfaces
+      key the cache on the statement with its literals blanked, and governance outcomes are cached per
+      organization for a short time. The registry of sources is cached too. All of these caches are keyed
+      to the current model, so a change to the model is never answered from a stale entry.
+  - id: performance-and-scale-concurrency
+    text: One slow query does not block the others. Asynchronous queries run on their own connections,
+      and each source can cap its concurrent live reads so an operational database is not overwhelmed.
+      For PostgreSQL sources, connection pooling through PgBouncer is available as an opt-in.
+  - id: performance-and-scale-engine-resources
+    text: On Trino, work that exceeds memory is retried rather than failed, using fault-tolerant execution.
+      Resource groups give each tenant its own CPU and memory ceiling and concurrency limit, and keep
+      interactive queries apart from batch refresh work so one cannot starve the other.
+- id: high-availability
+  name: High availability and multi-worker serving
+  section: Run it fast and fresh
+  visibility: quality
+  audience: operator
+  paragraphs:
+  - id: high-availability-recovery
+    text: Recovery works in two tiers. Reads that hit a transient error are retried with backoff for a
+      bounded time. A watcher restarts failed components within a few minutes. Writes are never retried
+      automatically, so a retry cannot double-apply a change. Machine and cluster failures stay with the
+      operator's own platform. On the hosted platform, recovery times are published and measured in minutes,
+      for the control plane, the admin database and the engine alike. A failover ends queries that were
+      running at the time.
+  - id: high-availability-multi-worker
+    text: One instance can run several worker processes that share the same ports, so every protocol uses
+      all the cores of a machine. Each worker holds its own connections and event loop, and the embedded
+      DuckDB store is arranged so workers never fight over its file. A change to the model or to governance
+      made in any worker reaches every worker and every instance before the next request is served. A
+      deployment can also split roles. Query nodes serve requests and nothing else, while coordinators
+      run replica builds, view refreshes and scheduled jobs.
+  - id: high-availability-fleet
+    text: Provisa is stateless in front of its control-plane database, so you can run any number of instances
+      behind a load balancer. Secondary nodes read their configuration from the shared database, and only
+      the primary writes it, with concurrent config loads serialized so they cannot collide. Trino scales
+      out by adding stateless workers behind a single coordinator, and coordination of view refreshes
+      is shared across instances.
+- id: subscriptions-and-live-queries
+  name: Subscriptions and live queries
+  section: Live data
+  visibility: feature
+  audience: consumer
+  paragraphs:
+  - id: subscriptions-and-live-queries-postgres-notify
+    text: A client can subscribe to a table over server-sent events and receive each insert, update and
+      delete as a JSON event. For PostgreSQL sources, Provisa installs triggers at startup and listens
+      for notifications, so changes arrive without polling. Mutations made through Provisa notify as well.
+      A subscription can select columns from related tables, and a trigger that cannot be installed is
+      reported rather than silently skipped.
+  - id: subscriptions-and-live-queries-delivery-modes
+    text: 'How changes are detected depends on the source. Databases with change capture use it: PostgreSQL
+      through notifications, other relational databases through Debezium. Sources without it are polled
+      by a single live-query engine that runs through the federation engine. You can set the delivery
+      mode per table in the admin console, and the choice follows from the source type and whether the
+      table has a watermark. Push-fed tables repeat their events. Tables with a watermark append new rows
+      as they appear. Tables without one are compared as a whole, using a hash that ignores row order,
+      and only real changes are sent.'
+  - id: subscriptions-and-live-queries-watermarks
+    text: A watermark column is a monotonically increasing value, such as an update timestamp, that tells
+      Provisa which rows are new. Subscriptions need one. If the source has none, you can build one in
+      a view, never at the source. Subscriptions deliver inserts and updates. Hard deletes are not delivered.
+  - id: subscriptions-and-live-queries-sinks
+    text: The same live query can feed a Kafka topic instead of a browser. A request header redirects
+      a subscription's events to a sink, and a table or view can be configured to publish there. The Kafka
+      sink and the event stream are two outputs of one mechanism.
+- id: change-events-and-streams
+  name: Change events and streams
+  section: Live data
+  visibility: feature
+  audience: modeler
+  paragraphs:
+  - id: change-events-and-streams-kafka-topics
+    text: A Kafka cluster registers as a source, and each topic becomes a table you can query. Schemas
+      come from a Schema Registry when there is one, or you declare them by hand. A default time window
+      keeps an unbounded topic from being scanned end to end, and a discriminator filter lets one topic
+      with several message types appear as several tables.
+  - id: change-events-and-streams-sinks-and-events
+    text: Provisa can announce that a dataset changed. Each mutation emits a small event naming the table,
+      with no row detail, to a Kafka topic you configure, and an external ETL job can send the same signal
+      with a trivial mutation. Tables and views can also publish their rows to Kafka as JSON, one message
+      per row, on a change event or a schedule. Sinks are opt-in and can be added or removed at any time.
+  - id: change-events-and-streams-push-sources
+    text: Not every feed lives in a database. An ingest source is an HTTP endpoint that accepts JSON from
+      collectors and webhooks. The steward declares the columns and where to find each in the payload.
+      A WebSocket source connects out, reconnects on its own, and turns messages into rows. An RSS or
+      Atom source polls a feed. All three become governed tables that can be queried and subscribed to
+      like any other.
+  - id: change-events-and-streams-cdc-and-watermarks
+    text: Change data capture lets a replica follow its source row by row. Debezium topics, including
+      Avro-encoded ones, are read as rows; MongoDB change streams give near-real-time freshness; Kafka
+      and WebSocket sources land through the same path. A source table has at most one watermark column,
+      chosen from its existing columns, and it must only move forward. Content hashing suppresses no-op
+      updates so downstream consumers are not woken for nothing.
+  - id: change-events-and-streams-derived-tables
+    text: A derived table is a view written in SQL that Provisa keeps current as its inputs change. Lineage
+      comes from the SQL, so you do not wire up a pipeline. When an input changes, the dependent tables
+      recompute, optionally only from the changed rows, and a failed run can be replayed. An optional
+      processor step can validate, enrich or halt on bad data before it lands. Work is claimed so that
+      exactly one worker handles each unit, and a crashed worker's claim is picked up by another. Preserved
+      snapshots seal a table's state at a point in time.
+  - id: change-events-and-streams-calendars
+    text: A derived table can be tied to a calendar instead of a fixed interval. Calendars are named and
+      versioned, declared in the admin console, and support recurrence rules like those in a calendar
+      app. A table that follows a calendar cuts a window at each boundary, such as end of day or end of
+      quarter, and the window can be recomputed later by its address.
+- id: admin-console
+  name: Admin console
+  section: Workspace
+  visibility: feature
+  audience: admin
+  paragraphs:
+  - id: admin-console-surface
+    text: 'The console is where you run Provisa: register sources and tables, define relationships, set
+      security, review creation requests and read reports. What a person sees depends on the roles they
+      hold. Destructive actions ask for confirmation and say what will happen, and the test tools show
+      the effect of row filters, hidden columns and schema scope as the role would see them. When the
+      deployment stops answering, the whole application says so in one place, and a query waiting for
+      a stopped engine to start tells you that. A user without the right to create something can file
+      a request that an administrator approves or rejects with a reason.'
+  - id: admin-console-settings
+    text: Platform settings are edited in the console and persisted to the control plane. You can download
+      and upload the configuration, or turn on live export that shows exactly what has changed since startup.
+      AI model endpoints, including any provider reachable through an OpenAI-compatible or custom API,
+      are assigned here for chat and embedding.
+  - id: admin-console-api
+    text: Everything the console does goes through an admin GraphQL API at its own endpoint, with an interactive
+      GraphiQL page. Scripts and CI pipelines can call it directly.
+  - id: admin-console-design
+    text: The interface follows one design language. Forms share a layout in which a field is as wide
+      as what it holds. Each item opens in a detail panel with its name and actions pinned at the top
+      and its sections in tabs. Creating an object asks only for what it needs, and editing happens on
+      the page rather than in a modal. Light and dark themes are supported, and every tooltip looks the
+      same.
+- id: explorers
+  name: Explorers
+  section: Workspace
+  visibility: feature
+  audience: consumer
+  paragraphs:
+  - id: explorers-graph
+    text: The Graph Explorer draws a Cypher result as a graph. Statistics for what is on the canvas and
+      each node's degree are computed in the browser, with no extra query. You can color and group nodes
+      by any property, collapse a group into a single node, and size nodes by a number. These are view
+      changes only, and the underlying data is untouched.
+  - id: explorers-favorites
+    text: Queries worth keeping can be saved as favorites in the Graph Explorer. A favorite has a label
+      you can rename, loads into the editor on click, and can be run or deleted in place.
+  - id: explorers-query-pages
+    text: Each way to query Provisa has a page in the browser. The gRPC explorer runs calls against the
+      per-role service, the JSON:API explorer composes requests, and the OpenAPI page serves Swagger UI
+      against a spec generated for your role. GraphiQL includes a view of the compiled, governed SQL.
+      The explorers sit outside the form and detail-panel conventions of the rest of the console.
+  - id: explorers-results-grid
+    text: Results from the SQL explorer, reports, and table or view previews share one grid. It sorts,
+      filters per column, and groups by several levels. Previews are paged on the server, so the governed
+      viewer reads only the page you are looking at. Timestamps are shown the way a person reads them,
+      the page size is yours to choose, and a filter that matches nothing leaves the grid in place with
+      a clear-filters button. Export to Excel or CSV covers the whole relation under your current filter
+      and sort, and the workbook has a second sheet recording how it was produced.
+- id: chat-assistant
+  name: Chat assistant
+  section: Workspace
+  visibility: feature
+  audience: consumer
+  paragraphs:
+  - id: chat-assistant-panel
+    text: Polly, the chat assistant, lives in a panel docked beside whatever page you are on, and she
+      knows which page that is without being told. The panel suggests questions when it opens empty, accepts
+      voice input through the browser, and checks that a model is configured before it opens. Messages
+      can be copied, the conversation can be cleared, and while she works the panel shows each tool call
+      as a badge with a spinner.
+  - id: chat-assistant-choices
+    text: 'When Polly needs a decision from you, she shows a choice widget in the panel: yes or no, one
+      of several, or several of many, with a free-text option for anything else. Questions and answers
+      are recorded in the transcript. Some tools pause the model mid-turn so the browser can act, for
+      example to open a page or refresh a view.'
+  - id: chat-assistant-models
+    text: The assistant runs on the model your organization configures, whether that is Anthropic, Ollama,
+      OpenRouter, or any endpoint that speaks an OpenAI-compatible API. Tool calling works across vendors.
+      With Anthropic, answers stream token by token and hosted web search and fetch are available.
+  - id: chat-assistant-actions
+    text: Polly can do the work as well as describe it. She can search for data sources, register a source
+      or table, create data products, metrics and glossary terms, and build a query and open it in the
+      right explorer with the query filled in. Everything she does runs with the signed-in person's own
+      roles and capabilities, so she can never do more than you could. Admin pages refresh on their own
+      after she changes something.
+- id: product-tour-and-demos
+  name: Product tour and named demos
+  section: Workspace
+  visibility: feature
+  audience: consumer
+  paragraphs:
+  - id: product-tour-and-demos-guided-tour
+    text: 'A new user is offered a short core tour: welcome, Polly, connecting a source, and running a
+      query. Every step has a Deep Dives button that jumps to a menu of topic tours. Each step waits until
+      the page it points at is loaded and ready, and the tour is never offered over a sign-in or registration
+      form.'
+  - id: product-tour-and-demos-named-demos
+    text: You can start Provisa already loaded with a demo. Running the launcher with a demo name picks
+      one of the bundled scenarios, and plain demo mode loads the default. In demo mode a complete configuration
+      is loaded instead of the first-run wizard, and tier restrictions are lifted so every feature can
+      be shown.
+  - id: product-tour-and-demos-sandbox
+    text: On the hosted service, a prospect can try Provisa with no signup in an ephemeral sandbox cloned
+      from a prepared template. The sandbox is deleted on logout or after a period of inactivity, has
+      caps on time, rows and cost, and can only use the bundled sample sources.
+- id: i18n-and-accessibility
+  name: Internationalization and accessibility
+  section: Workspace
+  visibility: quality
+  audience: consumer
+  paragraphs:
+  - id: i18n-and-accessibility-locales
+    text: The interface is translated into many languages and picks yours from the browser's language
+      setting. No user-facing string is hard-coded. Translations are produced in a working session by
+      the agent and kept in catalogs, with English as the source. Server errors carry stable codes and
+      parameters, so the interface can show them in your language, and the guided tour is translated too.
+  - id: i18n-and-accessibility-rtl
+    text: Languages written right to left, such as Hebrew, get a mirrored layout, not just translated
+      text.
+  - id: i18n-and-accessibility-accessibility
+    text: The interface targets WCAG Level AA, including focus management and keyboard operation. Automated
+      axe-core checks run in the browser tests, so a regression fails the build.
+- id: sign-in-and-identity
+  name: Sign-in and identity
+  section: Identity and organizations
+  visibility: feature
+  audience: admin
+  paragraphs:
+  - id: sign-in-and-identity-providers
+    text: 'Provisa signs people in through the identity provider a deployment already has: Firebase, Keycloak,
+      any OIDC provider such as Okta or Azure AD, a simple username-and-password option for testing, or
+      no provider at all in development. The provider is chosen in the admin UI, or by a setting when
+      a cloud deployment is provisioned. One built image can run unsecured, with basic auth or behind
+      a full identity provider, and the login page offers every provider the server advertises at once,
+      so Google, GitHub and email can sit side by side.'
+  - id: sign-in-and-identity-credentials
+    text: Every request carries a credential, and every credential belongs to exactly one organization.
+      Browsers use a session bearer token. Programs that speak pgwire, Bolt, Arrow Flight or gRPC use
+      personal access tokens meant to last. Roles come either straight from token claims or from assignments
+      Provisa holds itself. Failed attempts are counted and locked out in one place for every surface,
+      and pgwire can prove a local password with SCRAM so it never crosses the wire. The health and setup-status
+      endpoints stay open so load balancers and installers can reach them.
+  - id: sign-in-and-identity-bootstrap
+    text: A new deployment has no administrator until someone claims the slot. Claiming platform administration
+      is an explicit act, never a side effect of signing in, and the person who does lands in a populated
+      deployment with a root org to work in. A seeded break-glass account with a username and password
+      signs in under any provider, so a broken identity provider never locks the operator out. A backup
+      administrator is added by inviting them, not by a second claim.
+  - id: sign-in-and-identity-sessions
+    text: Signing in and out behaves the same way everywhere. Interactive sign-in happens only on the
+      control-plane host, and an org's own address borrows that session instead of running a login of
+      its own. Signing out ends the session where it lives. The sign-in card disables its controls while
+      a sign-in runs, the login and registration pages render without the app shell, and the guided tour
+      is never offered over a sign-in form. A stored token is dropped only when the provider says it is
+      dead, and an identity check that has not finished never shows a 'not authorized' screen. A first
+      Firebase login creates the user's profile without creating a password.
+- id: organizations
+  name: Organizations
+  section: Identity and organizations
+  visibility: feature
+  audience: admin
+  paragraphs:
+  - id: organizations-tenancy
+    text: Each organization is an isolated tenant. Its model, cache entries, audit log and materialized
+      data live in its own schema, under its own database role, with its own cache-key and object-store
+      prefix, so no query from another org can reach them. Where a backend has no schemas, each org gets
+      a database of its own. An org on the external-engine lane can run an engine of its own kind, and
+      its sources are provisioned onto that engine even while it sleeps. Creating an org builds all of
+      this in the background and tells the creator when it is ready.
+  - id: organizations-addressing
+    text: An org is addressed by its subdomain, and the subdomain only names the org; it never authorizes.
+      The credential must belong to a member of that org, and a header naming another org is checked against
+      membership. Wire protocols cross-check the org named in the TLS server name against the credential
+      and refuse a mismatch. A request acts in the org it names, with no implied org, and a platform administrator
+      can act across orgs without being able to read an org's data unless they are a member there.
+  - id: organizations-membership
+    text: People get into an org by invitation, by asking, or by an email rule. A signed-in person with
+      no org accepts a pending invitation or creates an org of their own, and where an org takes requests,
+      an admin approves or denies them. An org can set an email-address rule and an auto-join role, with
+      the breadth of that rule acknowledged by the org that writes it. An invitation is itself the admission
+      decision and can be sent as a message, limited to roles the inviter may confer, and given its own
+      lifetime and number of uses.
+  - id: organizations-administration
+    text: 'Org admins run their team from a Team page: create, copy and revoke invitation links and choose
+      the role each invitee receives, and remove members. An org can never be left without an admin by
+      an ordinary act, members can leave on their own, and an org id is checked when it is created and
+      never changes. Deleting an org drops its tenant data and scrubs personal information while keeping
+      the billing record and a platform audit entry that the deletion happened.'
+  - id: organizations-sandbox
+    text: A public Try it Out link gives each visitor a sandbox. Startup builds the sandbox org itself,
+      and a single invitation admits many people, each into an environment named after them. The environment
+      lasts for a span of use rather than a fixed deadline, so an hour of work does not end it, and reopening
+      the link finds the environment the visitor already holds. Any org admin can mint such an invitation
+      from their own Team page, deployment administrators may use the sandbox, and a visitor's account
+      is deleted when they leave.
+  - id: organizations-customization
+    text: An org can make the workspace its own. An admin sets a display name and logo for the surfaces
+      its people meet, including the glossary and Explore pages of a data portal. On a multi-tenant deployment
+      the org also picks the AI model it uses, with its own API key per vendor and a model picker read
+      live from the vendor. Files that Provisa generates for an org, such as conversion caches and crawl
+      downloads, are kept under the org.
+- id: hasura-migration
+  name: Hasura migration
+  section: Identity and organizations
+  visibility: feature
+  audience: modeler
+  paragraphs:
+  - id: hasura-migration-converters
+    text: Point the converter at a Hasura v2 metadata export or a DDN supergraph project and get Provisa
+      YAML back. Tracked tables, relationships with their cardinality, source kinds, column naming and
+      aggregate expressions are carried across, DDN field names are resolved to physical columns, and
+      Hasura filter expressions become SQL. The result either validates as Provisa config or does not
+      come out at all.
+  - id: hasura-migration-permissions
+    text: Permissions come across in Provisa's own vocabulary. Select permissions become per-role column
+      visibility and row-level security rules, insert and update permissions become writable columns,
+      and any delete permission raises the role to write. JWT settings become an OAuth provider with role
+      mapping, and the admin secret becomes the superuser. Roles are collected only from permission entries,
+      so a role nobody granted anything is not invented.
+  - id: hasura-migration-import
+    text: The same conversion runs from the admin console as Import Hasura Config, so a migration no longer
+      needs shell access to the deployment. The preview lists each converted SQL source with the connection
+      the conversion guessed, ready to edit, and then types every column from the live source. Remote
+      schemas land as GraphQL remote sources with a table per query root field, and a relationship declared
+      only by a foreign-key column is resolved from the export itself.
+  - id: hasura-migration-gaps
+    text: What cannot be mapped is reported, not hidden. Event triggers, cron triggers, boolean expression
+      types and webhook-backed actions produce warnings rather than failed conversions, and stored-procedure
+      actions become tracked functions. Connection credentials are placeholders that read from environment
+      variables, to be filled in before the config is used. A model that points at an unknown object type
+      is skipped with a warning.
+- id: installation
+  name: Installation
+  section: Install and operate
+  visibility: feature
+  audience: operator
+  paragraphs:
+  - id: installation-desktop
+    text: 'The desktop installer is a single download that extracts into a hidden Provisa directory and
+      is driven by start, stop, status and open commands. By default it runs everything natively with
+      no Docker: DuckDB as the federation engine, an embedded PostgreSQL control plane and an in-memory
+      cache. Trino on Docker or an external engine are opt-in choices in the setup wizard, and Docker
+      or a VM is provisioned only when one of those, or the demo, needs it. The demo is optional and off
+      by default; when it is installed the launcher opens the guided tour.'
+  - id: installation-windows-startup
+    text: On first launch the native installers show what is happening instead of running hidden. The
+      Windows launcher puts up a startup window with breadcrumbs for each stage, waits for the demo mock
+      servers to answer before starting the API, kills every process holding the runtime before an upgrade,
+      and leaves opening the browser to the startup window when it is in charge. Afterwards it tells the
+      user which optional pieces, such as the federation engine, still need Docker.
+  - id: installation-python-package
+    text: Provisa also installs from PyPI as a wheel with the built UI inside it, and a provisa command
+      launches the whole stack. The run command waits for the API to report ready before it prints success.
+      The PostgreSQL extensions and foreign data wrappers the embedded engines rely on ship in a separate
+      wheel with pinned per-platform binaries, and a script stages them into an operator's own PostgreSQL.
+      The Python version is pinned, so an airgapped mirror knows which wheels to hold.
+  - id: installation-linux
+    text: On Linux the AppImage bundles the core and observability images, and a non-interactive first
+      launch installs a systemd unit so Provisa starts on boot. The compose files are staged out of the
+      AppImage into a writable location, and identity-provider settings are saved with the unit. In a
+      multi-node install the secondary nodes run only the API and an engine worker and read their configuration
+      from the primary.
+  - id: installation-packaging
+    text: Provisa ships in separate packages, a core, an observability add-on and a demo, installed in
+      that order. Heavy add-ons are found locally first, then on mounted volumes and downloads, and the
+      whole distribution works airgapped with no network calls at install time or first launch. A release
+      is cut by one workflow and is never published with a missing installer, and the core image is built
+      with the UI already inside.
+- id: deployment
+  name: Deployment
+  section: Install and operate
+  visibility: feature
+  audience: operator
+  paragraphs:
+  - id: deployment-compose-helm
+    text: 'Docker Compose is the quick way to run Provisa for development or a small team: one command
+      brings up the server, the engine and the connectors, and separate compose projects hold the demo
+      upstreams and the telemetry stack so they start and stop on their own. For production on Kubernetes
+      there is a Helm chart that serves the UI, exposes every protocol port, scales engine workers and
+      validates its values. Authentication is chosen at install time and does not require Firebase.'
+  - id: deployment-cloud-vm
+    text: On a cloud VM, Terraform modules for GCP, AWS and Azure provision the stack, stage the release
+      artifacts and run it under systemd. The AWS path builds a multi-node cluster behind load balancers.
+      On GCP each wire protocol gets its own load-balanced address, and the interview that drives the
+      modules lets you switch pgwire, Bolt, MCP and gRPC on or off. The UI is published on the standard
+      HTTPS port, and enterprise modules are single-tenant. A first deployment can run on one modest VM
+      with the database on a separate disk so the VM can be resized without losing data.
+  - id: deployment-tls
+    text: A cluster deployment serves every endpoint over TLS, web UI and API as well as pgwire, Bolt,
+      Flight and the rest. If the operator supplies no certificates Provisa generates self-signed ones,
+      so HTTPS works out of the box. The Helm chart takes an existing certificate secret or a cert-manager
+      issuer, and a wildcard certificate from ACME DNS-01 covers the per-org subdomains.
+  - id: deployment-clustered
+    text: Clustered deployments run one primary and any number of secondaries. Only the primary may write
+      the shared configuration, and secondaries load a byte-identical copy and serve the application tier.
+      Every engine in a fleet runs the same container image, and control-plane state sits in a database
+      that all instances share, not in memory.
+  - id: deployment-state-and-engine
+    text: Provisa keeps its model, its operating state and platform state in a pluggable control-plane
+      store chosen by a SQLAlchemy URI, with an embedded single-user store on the desktop and PostgreSQL
+      elsewhere. Portable types and a capabilities flag keep dialect-specific features out of the shared
+      code. The embedded DuckDB engine is for desktop, edge and development, not for multi-user production;
+      its extensions ship offline, and the embedded store runs in WAL mode so the engine can read while
+      configuration is written.
+- id: operator-settings
+  name: Operator settings and configuration
+  section: Install and operate
+  visibility: feature
+  audience: operator
+  paragraphs:
+  - id: operator-settings-config
+    text: Operators configure a deployment from one config file, its fragments and environment variables.
+      A config file can include other files, resolved relative to the including file, so a large estate
+      stays in readable pieces. The config path comes from an explicit environment variable with no default,
+      so an unset one is an error rather than a guess. Every setting an operator can change has a place
+      in the admin settings pages and the settings API, not only in a file.
+  - id: operator-settings-storage
+    text: Each organization tier has a storage quota for what it keeps in the relational materialization
+      store. An operation that would push an org past its ceiling is rejected with a clear error instead
+      of being cut short. Usage is metered per org on demand, and an org may register its own materialization
+      store in its own cloud account.
+  - id: operator-settings-integrations
+    text: Settings for the systems Provisa talks to are adjustable without code changes. Databricks TLS
+      trust can be set for connections behind an intercepting proxy, the login timeout for SQL Server
+      warehouses such as Synapse and Fabric is configurable, and the mail transport for invitations is
+      set from the platform settings page rather than a file on the node. Invitations name the org in
+      the sender and route replies to the inviter.
+- id: observability
+  name: Observability
+  section: Install and operate
+  visibility: feature
+  audience: operator
+  paragraphs:
+  - id: observability-otel
+    text: Provisa emits OpenTelemetry traces, metrics and logs over OTLP from its API, compiler, executor
+      and engine calls. Tracing is on by default in a lean form, with every request traced and detail
+      added in a debug mode, and individual subsystems can have their traces switched on. Each stage of
+      the query pipeline records the SQL it saw, so a governed query can be followed from request to engine.
+      An opt-in stack of collector, Prometheus and Grafana is available for demonstration.
+  - id: observability-query-plans
+    text: 'A raw SQL statement explains itself the way a GraphQL query does: the plan shows the semantic
+      sources it scanned and how it was routed, and carries the row and cost estimates the target engine
+      already computed, whichever engine that is.'
+  - id: observability-support-telemetry
+    text: 'Telemetry has two independent exits: the operator''s own collector, and an optional Provisa
+      support endpoint. The support path is off until an endpoint is set. Each path has its own filter,
+      filtering works on copies so original spans are untouched, and SQL literals are redacted by default
+      so query data is not shared.'
+  - id: observability-signal-store
+    text: Telemetry lands in an object store that every participant finds through the same environment
+      variables. A scheduled job expires old snapshots and compacts logs, metrics and traces, each signal
+      on its own so none starves another, and timestamps are stored as timestamps rather than epoch integers.
+  - id: observability-operational-views
+    text: 'Operations reporting is delivered as views in the built-in ops domain: the query audit log
+      and other internal logs are exposed as queryable tables, and the Reports tab in the admin console
+      shows them with a resizable list.'
+- id: sizing-guide
+  name: Sizing guide
+  section: Install and operate
+  visibility: feature
+  audience: operator
+  paragraphs:
+  - id: sizing-guide-your-workload
+    text: 'The sizing tool measures your own Provisa deployment under a workload you describe in one setup
+      file, and writes a sizing and tuning guide from what it measured: how many physical cores and worker
+      processes the workload needs, and what each setting buys. Every figure in the guide comes from a
+      measurement of your deployment, so after a change to the deployment or the workload you rerun the
+      tool and regenerate the guide. The guide and the steps to run the tool are in the documentation.'
+- id: licensing-and-editions
+  name: Licensing and editions
+  section: Install and operate
+  visibility: feature
+  audience: operator
+  paragraphs:
+  - id: licensing-and-editions-trial
+    text: 'Provisa runs free for an evaluation period. The first-use date is signed and stored in several
+      places outside the install directory, and elapsed time is measured against a high-water mark so
+      setting the clock back does not extend the trial. Once the trial ends without a license, a notice
+      appears on every access surface: a banner in the UI and the native notice channel of each protocol.
+      An Unregistered marker stays in the footer whenever the deployment is not licensed.'
+  - id: licensing-and-editions-license-file
+    text: A license is a signed file that proves its own validity offline and is tied to the machine it
+      was issued for. Apply it with a command, upload it in Settings, or drop it in the Provisa directory.
+      Demo mode skips entitlement checks so every feature can be shown.
+  - id: licensing-and-editions-registration
+    text: Anyone can get a free license by registering on a web form and confirming by email; the signed
+      file is sent after the confirmation link is clicked. Some source types are refused on the hosted
+      plane where their license forbids offering them as a managed service.
+- id: test-infrastructure
+  name: Test infrastructure and CI
+  section: Internal (never published)
+  visibility: internal
+  paragraphs:
+  - id: test-infrastructure-tiers
+    text: Unit tests mock every external component, and integration tests start the containers they need,
+      run, and tear them down, so no test assumes a service is already running. The test runner loads
+      the repository's environment file with caller-exported variables winning, Trino plugin jars are
+      linked into git worktrees, and compose host ports are parameterized so stacks can coexist. The UI
+      test suite uses role-based selectors and stable test ids, and the e2e global setup detects from
+      the command line which stack a run needs.
+  - id: test-infrastructure-source-e2e
+    text: Source-to-query e2e specs drive the UI through three screens for each covered source type, from
+      registering the source to running a query. Fanouts cover OLAP and lakehouse types, generic RDBMS
+      types and cloud warehouses, and a failure found by one of these specs is traced to its root cause
+      in code before the spec is called done.
+  - id: test-infrastructure-ci
+    text: The container-heavy Playwright suites run on release branches, on version tags and on manual
+      dispatch instead of on every push, since each took most of an hour; a fast unit-test workflow covers
+      ordinary commits. Memory-bounded streaming tests that need Linux run on macOS through Docker in
+      their own lane.
+- id: benchmarks
+  name: Benchmark methodology and runs
+  section: Internal (never published)
+  visibility: internal
+  paragraphs:
+  - id: benchmarks-methodology
+    text: 'The mixed-workload benchmark extends the optimistic saturation test with knobs: field count,
+      filters, rows, joins, cache repetition, source weights and read mode, each swept alone and then
+      combined in a seeded random mix. Each request in a run is built with fresh parameters, federated
+      joins are one nested selection over registered relationships, and a flag runs every transport as
+      an unguarded clone of the org admin role. Results feed a cost model per transport and source and
+      a break-even between direct and materialized reads, which in turn feed a sizing and tuning guide
+      that can be regenerated from any run.'
+  - id: benchmarks-publication
+    text: Benchmarks run against a maximum-size VM to show the most optimistic figure, and results are
+      formatted for public presentation comparing throughput and latency. Published figures name their
+      language, transport and hardware, and the mixed-workload results stay internal.
+- id: saas-operations
+  name: SaaS operations
+  section: Internal (never published)
+  visibility: internal
+  paragraphs:
+  - id: saas-operations-front-door
+    text: The hosted shared IP is held by a small always-on proxy VM that splices every protocol port
+      to the coordinator, wakes the coordinator when a client connects, and stops it after an idle period
+      measured from the coordinator's own uptime. Before declaring the site down it re-probes a running
+      coordinator, and its waking answer matches the caller, a page for navigation and a status for fetch
+      calls. A status API reports coordinator state, and the proxy's service account holds only the three
+      permissions it needs.
+  - id: saas-operations-billing
+    text: Billing runs through Lemon Squeezy as merchant of record. A Starter org signs up with a card,
+      sees what it owes and when it will be charged, and changes plan on the Billing page across the orderable
+      plans. Active hours and egress overage are posted as usage records, an org's engine lane and size
+      follow from its plan, and the source ceiling is enforced where sources are created. On a deployment
+      that sells orgs, an org is not built until a subscription pays for it.
+  - id: saas-operations-email
+    text: Transactional email, such as org invitations and approval requests, exists only in hosted mode
+      and is sent through an internal sender interface so the provider can change without touching callers.
+      Messages carry a branded HTML part alongside plain text. The first customer uses low-volume SMTP.
+  - id: saas-operations-provisioning
+    text: The multi-tenant SaaS is provisioned by a dedicated Terraform module with multi-tenancy forced
+      on. Engine nodes come in fixed sizes tied to plans, and the cluster that hosts the engines holds
+      nothing else. A hosted deploy checks its commerce configuration, that the commercial module loaded,
+      and that the billing key matches the store before it ships.
+  - id: saas-operations-engine-shards
+    text: 'The hosted service runs one engine architecture on one cluster. Shared orgs use a single multi-tenant
+      Trino deployment, and an isolated org gets a dedicated coordinator that the SaaS creates rather
+      than only locating. An isolated endpoint comes from a hostname template, and a missing template
+      is a hard error, never a quiet fall back to the shared coordinator. Rebuilding one org''s runtime
+      must not remove a system catalog from the orgs sharing the coordinator. A regional standby of the
+      shared lane is asymmetric: the control plane and its database are kept warm in a second region,
+      and the engine is not.'
+  - id: saas-operations-engine-idle
+    text: Engine shards idle to zero and wake on traffic, so an org pays for the compute it uses. A cold
+      start begins at sign-in rather than at the first query, and the control plane starts whether or
+      not a shard can be allocated. The idle reaper seeds the boot shard's activity clock so a restart
+      does not strand a running shard, and a shard is never left running because the process that would
+      scale it down went away. The cluster runs in Autopilot mode, where idle means a replica count of
+      zero, or in a Standard topology with a node pool per shard; a Terraform variable picks between them,
+      because the cheaper one depends on utilization.
+- id: commercial
+  name: Commercial
+  section: Internal (never published)
+  visibility: internal
+  paragraphs:
+  - id: commercial-tiers
+    text: 'The core is open source: Compose, Helm, the UI, the compiler and the engine layer. SaaS offers
+      two isolation lanes, a pooled shared engine for small orgs and a bring-your-own or dedicated engine
+      for larger ones. Enterprise adds SLAs, support and advanced audit, and premium gates cover SSO and
+      fine-grained access control, longer retention and dedicated compute. Plans, ceilings and the metering
+      live in a separate commercial distribution, and each tier has a ceiling where the price list ends
+      and a contract begins.'
+  - id: commercial-pricing
+    text: Prices are set by comparables, not derived from cost, with a target of high marginal gross margin
+      on every tier. Starter bills per active hour, any clock hour in which the org ran a query, with
+      a monthly minimum; usage is metered in credits and the public pricing page renders tier limits from
+      the entitlement table.
+  - id: commercial-trials
+    text: Starter opens with a free evaluation bounded by days, active hours and egress, whichever is
+      reached first, offered once per person, and a reset is an endpoint rather than a hand-written update.
+      Starter is also orderable without a trial, and signup credit provides a soft on-ramp.
+  - id: commercial-website
+    text: The marketing site runs as static pages on Cloudflare Pages with documentation published beside
+      it, and its main calls to action map to the onboarding paths of the hosted product.
+- id: engineering-standards
+  name: Engineering standards
+  section: Internal (never published)
+  visibility: internal
+  paragraphs:
+  - id: engineering-standards-principles
+    text: 'The governing principle is declarative from source to consumer: every aspect of a data environment
+      except the systems of origin is described declaratively, and that declaration is the whole basis
+      of operation. Query transforms work on a parsed relational form, never on strings, and every query
+      surface strives to match the capabilities of the others.'
+  - id: engineering-standards-working-rules
+    text: 'Working rules for contributors: no fallback values or silent error handling, no migrations
+      during the first version, architecture docs are the planning documents, requirements are tracked
+      as they appear, and communication is brief.'
+  - id: engineering-standards-taxonomy
+    text: 'Requirement groups come from a closed list, and import-linter contracts hold the layering between
+      compiler, core and API code. Above the requirements sits the feature layer: each requirement names
+      the one feature paragraph it serves, and the validator refuses an untagged requirement or a paragraph
+      that nothing serves. The published features page, the feature matrix and the roadmap are generated
+      from that layer, and internal features never reach them.'

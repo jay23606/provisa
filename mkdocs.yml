@@ -156,6 +156,7 @@ nav:
       - FDW Catalog: arch/fdw_catalog.md
       - Vectors: arch/vectors.md
       - Change Signal Unification: arch/change-signal-unification.md
+      - Features: features.md
       - Requirements: arch/requirements.md
   - Release Notes:
       - v0.1.0-alpha.480: releases/v0.1.0-alpha.480.md
@@ -170,6 +171,7 @@ exclude_docs: |
   competitive_analysis.md
   marketing.md
   arch/requirements.yaml
+  arch/features.yaml
   exports/
 
 not_in_nav: |
@@ -178,6 +180,7 @@ not_in_nav: |
   domain-principles.md
   arch/adr/**
   arch/requirements.yaml
+  arch/features.yaml
   arch/dataset-handling-standards.md
   arch/deployment.md
   arch/jdbc-client-side-encryption.md

@@ -28,6 +28,7 @@ import yaml
 # Allow running from repo root without install
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from provisa.tools.feature_schema import FEATURES_YAML, FeaturesFile  # type: ignore[import]
 from provisa.tools.req_schema import Priority, RequirementsFile, ReqType, Status  # type: ignore[import]
 
 REQUIREMENTS_YAML = Path("docs/arch/requirements.yaml")
@@ -68,6 +69,30 @@ def main() -> int:
         for num in sorted(set(_REQ_REF.findall(text)), key=int):
             if f"REQ-{num}" not in known and f"REQ-{int(num):03d}" not in known:
                 errors.append(f"{entry['id']}: cites REQ-{num}, which does not exist")
+
+    # The feature layer: every requirement not rejected serves exactly one feature paragraph, and
+    # every paragraph is served by at least one such requirement.
+    try:
+        ff = FeaturesFile.load(FEATURES_YAML)
+    except Exception as e:
+        print(f"ERROR: {FEATURES_YAML}: {e}", file=sys.stderr)
+        return 1
+    owner = ff.paragraph_owner()
+    served: set[str] = set()
+    for req in rf.requirements:
+        if req.status == Status.rejected:
+            continue
+        if req.feature is None:
+            errors.append(f"{req.id}: has no feature paragraph")
+        elif req.feature not in owner:
+            errors.append(
+                f"{req.id}: feature {req.feature!r} is not a paragraph in {FEATURES_YAML}"
+            )
+        else:
+            served.add(req.feature)
+    for pid in owner:
+        if pid not in served:
+            errors.append(f"{FEATURES_YAML}: paragraph {pid!r} is served by no requirement")
 
     if args.coverage_check:
         for req in rf.requirements:
