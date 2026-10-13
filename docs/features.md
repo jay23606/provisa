@@ -196,7 +196,7 @@ Authority is scoped to an environment, and the usual way to get it is to create 
 
 ### Regions and data residency
 
-**In development**
+**Available**
 
 A deployment can run clusters in several regions off one shared model. The model is declared once; each cluster has its own nodes, engine, replica storage, cache and record, and serves clients that connect to its address. What a reader sees follows the model's rules, wherever they connect.
 { #regions-and-residency-clusters }
@@ -238,7 +238,7 @@ Scheduled triggers run a registered webhook or function on a cron or interval sc
 
 ### Writes
 
-**In development**
+**Available**
 
 Mutations write directly to the one source that owns the table; the engine is never involved. A user needs write rights to the table, and mutation inputs show only the columns the role may write. Row security applies to updates and deletes, and only registered tables get mutations. Transactions across sources are not supported, and non-relational sources are read-only. Upserts, column presets and batched mutations are available.
 { #writes-governed-mutations }
@@ -393,7 +393,7 @@ Public endpoints face the internet with no login, so they get the tightest rate 
 
 ### Encryption and secrets
 
-**In development**
+**Available**
 
 Sensitive payloads are protected with envelope encryption. Each payload gets its own data key, wrapped by an organization master key. This covers stored API keys and security rules, hot-table row data in Redis and the text of audit entries. Where no OS keychain is available, the master key falls back to a local file so the admin console can still generate a key.
 { #encryption-and-secrets-envelope }
@@ -460,7 +460,7 @@ Semantic SQL is the one dialect used throughout. It has no array, struct or map 
 
 ### Cypher and graph analytics
 
-**In development**
+**Available**
 
 Send Cypher to an HTTP endpoint and get rows back, with named parameters. Provisa derives labels and relationship types from the model, so there is no graph to load. Cypher can join across sources in one query. Domain boundaries are enforced when the query is parsed, and a graph-schema endpoint lists the labels and relationship types a role can use.
 { #cypher-and-graph-analytics-endpoint }
@@ -552,7 +552,7 @@ Queries stream their rows lazily, a batch at a time, so a large scan does not ha
 
 ### PostgreSQL wire protocol
 
-**In development**
+**Available**
 
 Provisa can speak the PostgreSQL wire protocol, so BI tools and anything with a Postgres driver connect without special support. The listener is off until a port is set. It authenticates through the same auth provider as every other surface, supports TLS, and reports a Postgres-compatible version string. It accepts SQL only, never GraphQL or Cypher.
 { #postgres-wire-protocol-server }
@@ -632,7 +632,7 @@ Remote bearer tokens map to Provisa roles. Every tool call is scoped to the capa
 
 ### Vector and semantic search
 
-**In development**
+**Available**
 
 Embedding models are declared in a registry with their provider and dimensions. OpenAI-compatible APIs, Ollama and local HuggingFace models are supported. The embed function in SQL returns the embedding of a text from any registered model, and API keys can be secret references.
 { #vector-search-models }
@@ -711,7 +711,7 @@ Some sources, such as files, SharePoint and Splunk, are reached through a bundle
 
 ### Response caching
 
-**In development**
+**Available**
 
 Provisa can serve a repeated request from a stored result, but only when the request asks for it. A GraphQL query opts in with a directive, a Cypher query with a comment line, and a gRPC call with request metadata. Without it, the request neither reads nor writes the cache. Every response says whether it was a hit or a miss. A hit is a real route in the planner, not a side check, so a cached answer skips execution entirely. The store is Redis when configured and an embedded fallback otherwise.
 { #response-caching-store-and-opt-in }
@@ -872,7 +872,7 @@ The interface follows one design language. Forms share a layout in which a field
 
 ### Explorers
 
-**In development**
+**Available**
 
 The Graph Explorer draws a Cypher result as a graph. Statistics for what is on the canvas and each node's degree are computed in the browser, with no extra query. You can color and group nodes by any property, collapse a group into a single node, and size nodes by a number. These are view changes only, and the underlying data is untouched.
 { #explorers-graph }
@@ -918,7 +918,7 @@ Polly can do the work as well as describe it. She can search for data sources, r
 
 ### Product tour and named demos
 
-**In development**
+**Available**
 
 A new user is offered a short core tour: welcome, Polly, connecting a source, and running a query. Every step has a Deep Dives button that jumps to a menu of topic tours. Each step waits until the page it points at is loaded and ready, and the tour is never offered over a sign-in or registration form.
 { #product-tour-and-demos-guided-tour }
@@ -1091,7 +1091,7 @@ Provisa keeps its model, its operating state and platform state in a pluggable c
 
 ### Operator settings and configuration
 
-**In development**
+**Available**
 
 Operators configure a deployment from one config file, its fragments and environment variables. A config file can include other files, resolved relative to the including file, so a large estate stays in readable pieces. The config path comes from an explicit environment variable with no default, so an unset one is an error rather than a guess. Every setting an operator can change has a place in the admin settings pages and the settings API, not only in a file.
 { #operator-settings-config }
