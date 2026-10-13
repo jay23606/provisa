@@ -20,6 +20,13 @@ import { MantineProvider } from "@mantine/core";
 import { TOUR_STEPS } from "../tour/tourSteps";
 
 const t = (key: string) => key;
+// REQ-2013: the org has every object the product tour's steps show.
+vi.mock("../hooks/useOrgHas", async () => {
+  const { STANDARD_DEMO_ORG } = await import("../test-utils/tourOrg");
+  // One function, as the hook's useCallback gives: a new one each render re-runs the tour's step.
+  const read = () => Promise.resolve(STANDARD_DEMO_ORG);
+  return { useOrgHas: () => read };
+});
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t }) }));
 vi.mock("../pageChunks", () => ({ prefetchAllPageChunks: () => Promise.resolve() }));
 vi.mock("../hooks/useAdminQueries", () => ({ useTourPrefetch: () => () => Promise.resolve() }));

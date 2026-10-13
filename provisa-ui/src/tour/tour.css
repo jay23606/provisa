@@ -119,12 +119,13 @@
 /* ── Tour status overlay ──────────────────────────────────────────────────────
    Shown while the tour is working with no popover up: the start-up prefetch, a
    step waiting on a slow page, and the recovery choices when an anchor never
-   arrived. z-index clears driver.js's own overlay (10000) so the card is
-   reachable while the backdrop is up. */
+   arrived. z-index clears driver.js's popover (1000000000), not only its overlay: the popover of
+   the step being left stays up while the next one waits, and over the card it read as a tour that
+   had stopped answering Next. */
 .tour-status-overlay {
   position: fixed;
   inset: 0;
-  z-index: 100000;
+  z-index: 1000000001;
   display: flex;
   align-items: center;
   justify-content: center;

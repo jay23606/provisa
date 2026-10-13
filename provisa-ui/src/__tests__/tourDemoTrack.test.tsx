@@ -20,8 +20,17 @@ import { MantineProvider } from "@mantine/core";
 import { demoTourSteps, type DemoTourStepDef } from "../tour/demoTour";
 import { NamedDemoContext, type NamedDemo } from "../context/NamedDemoContext";
 import { storageKey } from "../lib/browserStorage";
+import type { OrgHas } from "../tour/tourPrerequisites";
 
 const t = (key: string) => key;
+// REQ-2013: the org has every object the product tour's steps show.
+// REQ-2013: the org of each test: the weblogs demo's, unless a test names another.
+const org = vi.hoisted(() => ({ current: null as unknown }));
+vi.mock("../hooks/useOrgHas", () => {
+  // One function, as the hook's useCallback gives: a new one each render re-runs the tour's step.
+  const read = () => Promise.resolve(org.current);
+  return { useOrgHas: () => read };
+});
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t }) }));
 
 let chunksResolve: () => void = () => {};
@@ -51,6 +60,10 @@ vi.mock("../context/AuthContext", () => ({
 }));
 
 const { TourProvider, useTour } = await import("../tour/useTour");
+
+beforeEach(() => {
+  org.current = WEBLOGS_ORG;
+});
 const { TourMenu } = await import("../tour/TourMenu");
 
 const EXAMPLES = [{ name: "1-slowest-pages-by-path", query: "query SlowestPagesByPath { a }" }];
@@ -91,6 +104,12 @@ describe("a demo's steps, as the runner walks them", () => {
     );
   });
 });
+
+const WEBLOGS_ORG: OrgHas = {
+  sources: new Set(["shop-db", "shop_access", "shop_db_log"]),
+  tables: new Set(["shop-db.customers", "shop_access.shop_access"]),
+  dataProducts: 0,
+};
 
 const WEBLOGS: NamedDemo = {
   name: "weblogs",
@@ -165,18 +184,22 @@ describe("the tour button in a named demo", () => {
     expect(localStorage.getItem(storageKey("provisa_tour_demo_track_done"))).toBe("true");
   });
 
-  it("runs the product tour once the demo's track is done", async () => {
+  it("opens the menu once the demo's track is done, the product tour not offered", async () => {
+    // REQ-2013: the weblogs demo has none of the standard demo's pet store, which the product
+    // tour's query card shows.
     localStorage.setItem(storageKey("provisa_tour_demo_track_done"), "true");
     renderTour(WEBLOGS);
     fireEvent.click(screen.getByText("launch"));
     await act(async () => chunksResolve());
-    await act(async () => vi.advanceTimersByTime(2000));
+    expect(await screen.findByTestId("tour-menu")).toBeInTheDocument();
     expect(screen.queryByText("tour.steps.weblogsSources.title")).toBeNull();
-    // The product tour's first step is under way instead (its page is not mounted here).
-    expect(screen.getByText("tour.status.waiting")).toBeInTheDocument();
+    expect(screen.queryByTestId("tour-menu-core-tour")).toBeNull();
+    expect(screen.getByTestId("tour-demo-track-done")).toBeInTheDocument();
   });
 
-  it("has no demo track where no named demo has a tour", async () => {
+  it("runs the product tour where no named demo has a tour", async () => {
+    const { STANDARD_DEMO_ORG } = await import("../test-utils/tourOrg");
+    org.current = STANDARD_DEMO_ORG;
     renderTour({ name: null, exampleQueries: [], tour: [] });
     fireEvent.click(screen.getByText("launch"));
     await act(async () => chunksResolve());

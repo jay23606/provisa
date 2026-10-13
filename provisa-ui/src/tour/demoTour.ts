@@ -17,6 +17,12 @@
 import type { Capability } from "../types/auth";
 import type { ExampleQuery } from "../api/setup";
 import type { TourStep } from "./tourSteps";
+import type { TourPrerequisites } from "./tourPrerequisites";
+
+/** REQ-2013: a demo's track needs the sources its steps show. */
+export function demoTourPrerequisites(defs: readonly DemoTourStepDef[]): TourPrerequisites {
+  return { sources: defs.flatMap((d) => (d.source !== undefined ? [d.source] : [])) };
+}
 
 /** One step of tour.yaml, as the server sends it: its page, and exactly one target. */
 export interface DemoTourStepDef {
