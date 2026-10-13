@@ -44,6 +44,8 @@ ROUTE_MODES = ("auto", "direct", "federated", "mixed")
 
 
 REPLICATION_SETTINGS = ("live", "replica")
+# How the two ends of a cross-source join are read: both live, both from replicas, or one each.
+JOIN_REPLICATION_CLASSES = ("both_live", "both_replica", "mixed")
 CREDENTIAL_KINDS = ("password", "token")
 
 
@@ -203,6 +205,8 @@ class JoinStep:
     forward: bool  # parent is the join's left table (the declared direction)
     graphql_field: str | None
     cypher_rel: str | None
+    # a cross-source join: how its two ends are read (JOIN_REPLICATION_CLASSES); None: same-source
+    replication: str | None = None
 
 
 @dataclass(frozen=True)
@@ -223,11 +227,22 @@ class RouteMode:
 
 
 @dataclass(frozen=True)
+class JoinReplication:
+    """The ``join_replication`` knob: the probability that a request's cross-source joins are
+    drawn by how their ends are read, and the weight of each class (JOIN_REPLICATION_CLASSES)
+    when they are. When it does not apply, a cross-source join is drawn whatever its class."""
+
+    probability: float
+    weights: Mapping[str, float]
+
+
+@dataclass(frozen=True)
 class Knobs:
     distributions: Mapping[str, Knob]
     source_weights: Mapping[str, float]
     route: Mapping[str, RouteMode]
     cache_probability: float  # share of requests that opt into the response cache
+    join_replication: JoinReplication
 
 
 @dataclass(frozen=True)
@@ -236,6 +251,7 @@ class TransportOverride:
     source_weights: Mapping[str, float] | None
     cache_probability: float | None
     route: Mapping[str, RouteMode] | None
+    join_replication: JoinReplication | None = None
 
 
 @dataclass(frozen=True)
@@ -294,6 +310,26 @@ class Setup:
         """The route mode of ``source`` on ``transport`` (its override, else the global one)."""
         override = self.transports[transport].route
         return (self.knobs.route if override is None else override)[source]
+
+    def join_replication(self, transport: str) -> JoinReplication:
+        """The join_replication knob as it applies to ``transport``."""
+        override = self.transports[transport].join_replication
+        return self.knobs.join_replication if override is None else override
+
+    def table_replication(self, source: str, table: str) -> str:
+        """How the run reads ``table``: its own replication setting, else its source's."""
+        src = self.sources[source]
+        t = next(t for t in src.tables if t.name == table)
+        return (t.replication or src.replication).setting
+
+    def join_class(self, a: tuple[str, str], b: tuple[str, str]) -> str:
+        """How a cross-source join between tables ``a`` and ``b`` (source, table) is read."""
+        settings = {self.table_replication(*a), self.table_replication(*b)}
+        if settings == {"live"}:
+            return "both_live"
+        if settings == {"replica"}:
+            return "both_replica"
+        return "mixed"
 
     def cache_probability(self, transport: str) -> float:
         """Share of this transport's requests that opt into the response cache."""

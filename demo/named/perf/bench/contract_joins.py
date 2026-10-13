@@ -23,12 +23,17 @@ def _joins_of(setup: Setup, kind: str) -> list[Join]:
 
 
 def expandable_joins(
-    setup: Setup, transport: str, members: list[tuple[str, str]], kind: str
+    setup: Setup,
+    transport: str,
+    members: list[tuple[str, str]],
+    kind: str,
+    replication: str | None = None,
 ) -> list[JoinStep]:
     """Joins of ``kind`` that can add a table to a request whose tables are ``members`` (source,
     table), on ``transport``: the other end must be new, its source must have weight there, and
     the transport's language must be able to spell the join (GraphQL and Cypher only follow the
-    declared direction)."""
+    declared direction). ``replication``: only cross-source joins read that way (the
+    join_replication knob's class); None: any."""
     language = TRANSPORT_LANGUAGE[transport]
     weights = setup.source_weights(transport)
     tables = {(sid, t.name): t for sid, s in setup.sources.items() for t in s.tables}
@@ -48,6 +53,9 @@ def expandable_joins(
             if language == "cypher" and not (j.cypher_rel and tables[child].has("cypher")):
                 continue
             pc, cc = (j.left_column, j.right_column) if forward else (j.right_column, j.left_column)
+            klass = setup.join_class(parent, child) if kind == "cross" else None
+            if replication is not None and klass != replication:
+                continue
             out.append(
                 JoinStep(
                     members.index(parent),
@@ -59,17 +67,26 @@ def expandable_joins(
                     forward,
                     j.graphql_field,
                     j.cypher_rel,
+                    klass,
                 )
             )
     return out
 
 
-def reachable_joins(setup: Setup, transport: str, source: str, table: str, kind: str) -> int:
-    """How many joins of ``kind`` a request starting at ``table`` can carry on ``transport``."""
+def reachable_joins(
+    setup: Setup,
+    transport: str,
+    source: str,
+    table: str,
+    kind: str,
+    replication: str | None = None,
+) -> int:
+    """How many joins of ``kind`` (cross-source ones read as ``replication``, when given) a
+    request starting at ``table`` can carry on ``transport``."""
     members = [(source, table)]
     while True:
         fresh = {}
-        for step in expandable_joins(setup, transport, members, kind):
+        for step in expandable_joins(setup, transport, members, kind, replication):
             fresh.setdefault((step.child_source, step.child_table), step)
         if not fresh:
             return len(members) - 1

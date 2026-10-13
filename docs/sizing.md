@@ -12,15 +12,16 @@ A single sizing run is several benchmark runs against your deployment. Each vari
 |---|---|---|
 | Baseline | Nothing: one column, one row, no filter, no join, uncached | The base cost of a request |
 | Knob runs | One request knob at a time: fields, filters, rows, same-source joins, cross-source joins | The cost each knob adds per unit |
+| Cross-source join runs | The cross-source join values, once with both ends read live, once with both from replicas, once with one of each | The cost of a cross-source join by how its ends are read, and the break-even between live and replica ends |
 | Cache runs | Every request opted into the response cache, then none | The cost of a cache hit and of a miss |
 | Replication runs | A source read live, then from a replica | The rate above which a replica costs less |
 | Worker runs | Worker processes and in-flight requests per worker | Workers per physical core, in-flight per worker, what a core delivers |
 
-Knob runs, cache runs and replication runs are made per transport and per source. Worker runs are made per transport. [tool-verified: `demo/named/perf/bench/sweeps.py:plan_sweeps,plan_worker_sweep`]
+Knob runs, cache runs and replication runs are made per transport and per source, and once per federation engine you name. Worker runs are made per transport. [tool-verified: `demo/named/perf/bench/sweeps.py:plan_sweeps,plan_worker_sweep`]
 
 Cost here means Provisa's CPU time per request, in milliseconds. The knob runs are uncached, so a knob's cost never includes the cache's effect. [tool-verified: `demo/named/perf/bench/sweeps.py:_baseline` sets `k["cache"] = {"probability": 0.0}`]
 
-From the runs, `bench_report.py` fits a cost model per transport and source: a base cost plus a cost per field, filter, row and join. [tool-verified: `demo/named/perf/bench/cost_model.py:fit`] `sizing_guide.py` turns the report into the guide. Given a contract that describes your workload, it also sizes that workload.
+From the runs, `bench_report.py` fits a cost model per engine, transport and source: a base cost plus a cost per field, filter, row and join, with a cross-source join costed by how its two ends are read. When the engine runs as a server of its own and its container's CPU is measured, the engine gets a cost model too. [tool-verified: `demo/named/perf/bench/cost_model.py:fit`] `sizing_guide.py` turns the report into the guide. Given a contract that describes your workload, it also sizes that workload.
 
 ## Write a setup contract
 
@@ -93,6 +94,10 @@ knobs:
   cache_repetition: {probability: 0.3, distribution: {kind: uniform, min: 1, max: 50}}
   # Share of requests that opt into the response cache. REST and JSON:API have no opt-in.
   cache: {probability: 0.6}
+  # How a request's cross-source joins are chosen by how their two ends are read: both_live,
+  # both_replica, or mixed (one of each), as the sources' replication settings above make them.
+  # Probability 0 chooses joins whatever their class.
+  join_replication: {probability: 0, weights: {both_live: 1.0}}
   # Share of requests whose table is in each source.
   source_weights: {sales-pg: 1.0}
   # auto lets the deployment choose the route; leave every source on auto to size a workload.
@@ -165,13 +170,16 @@ The agent answers one figure, the same one `--server-pid` reads: `GET /` returns
   --resolved-names results/first/optimistic/resolved-names.json \
   --physical-cores 16 --shared-host yes \
   --workers 8,16,32 --request-threads 1,2,4 \
-  --replication live,replica --ttl 300
+  --replication live,replica --ttl 300 \
+  --engines pg,duckdb --engine-container pg=perf-engine-postgresql-1
 ```
 
 - `--physical-cores`: the server's physical cores, not its hardware threads. On Linux, `lscpu` shows cores per socket and sockets; multiply them. The tool never guesses this.
 - `--shared-host`: `yes` when your sources or the load generator run on the server's host. They then compete with Provisa for its cores, and the guide says so.
 - `--workers` and `--request-threads`: the worker processes and in-flight requests per worker to try. Give both or neither.
-- `--replication` and `--ttl`: add the live and replica runs for each source, the replica refreshed every `--ttl` seconds.
+- `--replication` and `--ttl`: add the live and replica runs for each source, the replica refreshed every `--ttl` seconds. The cross-source join runs read from replicas need `--ttl` too.
+- `--engines`: the federation engines to measure, `pg` by default. Every knob run is planned once per engine; the engine is set when the server starts, so each engine's runs need the server restarted with it.
+- `--engine-container`: `ENGINE=CONTAINER` for an engine that runs as a server in its own container, whose CPU each run then reports. Leave out an engine that runs inside Provisa (DuckDB).
 
 The plan writes one contract per run and a `manifest.json`. A run the deployment cannot serve, such as joins over gRPC or a table a transport does not expose, is listed in the manifest with the reason. It is never dropped silently. [tool-verified: `demo/named/perf/bench/sweeps.py:_validate`, `write_plan`]
 
@@ -190,9 +198,9 @@ Each manifest entry names its contract file. Run each one into `results/sizing/r
 
 From another host, use `--server-cpu-url` in place of `--server-pid`. A worker run restarts the server, so its process id changes: restart the agent with the new `--pid` too.
 
-Add `--apply-replication` to the replication runs. It sets the source's replication as the run's contract declares and restores it afterwards. [tool-verified: `demo/named/perf/bench/optimistic_load.py:add_arguments`]
+Add `--apply-replication` to every run whose manifest entry has `"apply_replication": true` (the replication runs and the cross-source join runs). It sets the replication the run's contract declares and restores it afterwards. [tool-verified: `demo/named/perf/bench/optimistic_load.py:add_arguments`]
 
-A worker run carries a `server_env` in the manifest, for example `{"PROVISA_WORKERS": "16", "PROVISA_REQUEST_THREADS": "2"}`. Restart the server with that environment before the run: `PROVISA_WORKERS` is the number of worker processes and `PROVISA_REQUEST_THREADS` sets `concurrency.request_threads`, the in-flight requests each worker runs at once. [tool-verified: `provisa/core/settings_catalog.py` `concurrency.request_threads`, `env="PROVISA_REQUEST_THREADS"`] Wait until every worker is serving (`/health` reports `workers.ready` of `workers.expected`) before you start the run.
+Every run carries a `server_env` in the manifest: the server must be running with it. A knob run's is its engine, `{"PROVISA_ENGINE": "duckdb"}`; run all of one engine's runs, then restart the server with the next. A worker run's adds its workers and in-flight bound, for example `{"PROVISA_WORKERS": "16", "PROVISA_REQUEST_THREADS": "2", "PROVISA_ENGINE": "pg"}`: `PROVISA_WORKERS` is the number of worker processes and `PROVISA_REQUEST_THREADS` sets `concurrency.request_threads`, the in-flight requests each worker runs at once. [tool-verified: `provisa/core/settings_catalog.py` `concurrency.request_threads`, `env="PROVISA_REQUEST_THREADS"`] Wait until every worker is serving (`/health` reports `workers.ready` of `workers.expected`) before you start the run.
 
 ### 4. Build the report
 
@@ -209,7 +217,7 @@ A worker run carries a `server_env` in the manifest, for example `{"PROVISA_WORK
   --setup acme.yaml --resolved-names results/first/optimistic/resolved-names.json
 ```
 
-Without `--setup` the guide has the tuning sections only. With it, the guide sizes the contract's `workload`.
+Without `--setup` the guide has the tuning sections only. With it, the guide sizes the contract's `workload` with the engine `--engine` names (`pg` by default); an engine the runs did not measure is refused.
 
 ## Read the guide
 
@@ -221,6 +229,7 @@ A request costs the cost model at its knob means on a miss and the measured hit 
 
 The tool sizes nothing it did not measure. A part of the workload the runs have no model for stops the sizing with a message that names it [tool-verified: `demo/named/perf/bench/sizing.py:SizingRefused`]:
 
+- an engine the runs did not measure
 - a transport with no worker runs
 - a source with no cost model on that transport
 - a knob the runs did not vary (sweep it, then rerun)
@@ -236,7 +245,7 @@ The capacity factor is the requests per second one physical core delivers, times
 
 ### What a request costs
 
-For each transport and source: the base cost of an uncached request, the cost each field, filter, row and join adds, and how well the model fits the measurements (R², 1 is a perfect fit). A dash means the runs did not vary that knob. Use these figures to see what a change in your requests would cost before you make it: two more fields on every request add twice the per-field cost.
+For each engine, transport and source, side by side: the base cost of an uncached request, the cost each field, filter, row and join adds, and how well the model fits the measurements (R², 1 is a perfect fit). A cross-source join has three costs, by how its two ends are read: both live, both from replicas, or one of each. A dash means the runs did not vary that knob. Where the engine runs as a server of its own, a second table gives the engine's CPU the same way: a request the engine serves, such as a cross-source join, shows its engine time there. Use these figures to see what a change in your requests would cost before you make it: two more fields on every request add twice the per-field cost.
 
 ### The response-cache opt-in
 
@@ -244,7 +253,7 @@ For each transport and source: the CPU of a miss, of a hit, and what a hit saves
 
 ### Live or replica reads, and the TTL
 
-For each transport and source with replication runs: the cost of a live read, of a replica read, the CPU of one refresh, the TTL, and the break-even rate. Above the break-even rate a replica costs less CPU, Provisa's and the source's together, than reading live. Below it, read live. [tool-verified: `demo/named/perf/bench/cost_model.py:break_even`]
+For each engine, transport and source with replication runs: the cost of a live read, of a replica read, the CPU of one refresh, the TTL, and the break-even rate. Above the break-even rate a replica costs less CPU, Provisa's, the source's and the engine's together, than reading live. Below it, read live. A second table gives the same for cross-source joins, by the number of joins in the request: both ends read live against both ends from replicas, the refresh counting every source the switch moved to a replica. [tool-verified: `demo/named/perf/bench/cost_model.py:break_even`]
 
 The break-even is the refresh's CPU per second over what one read saves:
 

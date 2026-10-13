@@ -70,6 +70,7 @@ class TransportSizing:
 
 @dataclass(frozen=True)
 class Sizing:
+    engine: str
     rate_per_s: float
     draws: int
     transports: tuple[TransportSizing, ...]
@@ -85,7 +86,11 @@ def _means(specs: Sequence[request_mix.RequestSpec]) -> dict[str, float]:
         "filters": sum(len(s.filters) for s in specs) / n,
         "rows": sum(s.rows for s in specs) / n,
         "joins_same": sum(1 for s in specs for j in s.joins if j.kind == "same") / n,
-        "joins_cross": sum(1 for s in specs for j in s.joins if j.kind == "cross") / n,
+        **{
+            f"joins_cross_{klass}": sum(1 for s in specs for j in s.joins if j.replication == klass)
+            / n
+            for klass in contract_model.JOIN_REPLICATION_CLASSES
+        },
     }
 
 
@@ -145,12 +150,17 @@ def _source_share(
 
 
 def _transport(
-    report: Mapping[str, Any], setup: contract_model.Setup, transport: str, rate: float, draws: int
+    report: Mapping[str, Any],
+    setup: contract_model.Setup,
+    engine: str,
+    transport: str,
+    rate: float,
+    draws: int,
 ) -> TransportSizing:
     server = report["server"].get(transport)
     if server is None:
         raise SizingRefused(f"{transport}: the run has no worker sweep for this transport")
-    cells = report["transports"].get(transport, {})
+    cells = report["engines"][engine]["transports"].get(transport, {})
     gen = request_mix.RequestGenerator(
         setup, transport, _STREAM, cacheable=TRANSPORTS[transport][1] is not None
     )
@@ -164,7 +174,9 @@ def _transport(
     shares = []
     for source, (s_specs, s_hits) in sorted(by_source.items()):
         if source not in cells:
-            raise SizingRefused(f"{transport}.{source}: the run has no cost model for this source")
+            raise SizingRefused(
+                f"{engine}.{transport}.{source}: the run has no cost model for this source"
+            )
         shares.append(
             _source_share(transport, source, s_specs, s_hits, draws, cells[source], setup)
         )
@@ -182,21 +194,31 @@ def _transport(
 
 
 def size(
-    report: Mapping[str, Any], setup: contract_model.Setup, draws: int = DEFAULT_DRAWS
+    report: Mapping[str, Any],
+    setup: contract_model.Setup,
+    engine: str,
+    draws: int = DEFAULT_DRAWS,
 ) -> Sizing:
     """The physical cores, workers and in-flight requests per worker the contract's workload
-    needs, by the report's models. One worker count and one in-flight bound serve every
-    transport, so each is the largest any of the workload's transports needs."""
+    needs with ``engine``, by the report's models for it. One worker count and one in-flight
+    bound serve every transport, so each is the largest any of the workload's transports
+    needs."""
+    if engine not in report["engines"]:
+        raise SizingRefused(
+            f"engine {engine}: the run has no knob sweep with it "
+            f"(it has: {', '.join(sorted(report['engines'])) or 'none'})"
+        )
     if setup.workload is None:
         raise SizingRefused("workload: the contract describes no workload (rate and transports)")
     rate = setup.workload.rate_per_s
     sized = tuple(
-        _transport(report, setup, t, rate * w, draws)
+        _transport(report, setup, engine, t, rate * w, draws)
         for t, w in setup.workload.transport_weights.items()
         if w > 0
     )
     cores = math.ceil(sum(t.physical_cores for t in sized))
     return Sizing(
+        engine=engine,
         rate_per_s=rate,
         draws=draws,
         transports=sized,

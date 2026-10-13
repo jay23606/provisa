@@ -141,6 +141,11 @@ knobs:
   # hint, x-provisa-cache metadata). 1 is the optimistic test; 0 sends every request uncached.
   # REST and JSON:API have no opt-in: they are uncached whatever this says.
   cache: {probability: 1.0}
+  # Probability that a request's cross-source joins are drawn by how their two ends are read
+  # (both_live, both_replica, mixed: one live, one replica), and each class's weight when they are.
+  # The class follows from the sources' replication settings above. 0 draws joins whatever their
+  # class.
+  join_replication: {probability: 0, weights: {both_live: 1.0}}
   source_weights:
     bench-postgresql: 1.0
     bench-clickhouse: 0.0

@@ -31,6 +31,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+import cost_model as cm
 import sizing as sz
 
 TITLE = "Provisa sizing and tuning guide"
@@ -121,8 +122,33 @@ def _workers(report: Mapping[str, Any]) -> list[str]:
     return out
 
 
-def _cells(report: Mapping[str, Any]) -> list[tuple[str, str, Mapping[str, Any]]]:
-    return [(t, s, c) for t, by in report["transports"].items() for s, c in by.items()]
+_P = "engines.<engine>.transports.<transport>.<source>"
+_KNOBS = ("fields", "filters", "rows", "joins_same", *cm.JOIN_CROSS_KNOBS)
+
+
+def _cells(report: Mapping[str, Any]) -> list[tuple[str, str, str, Mapping[str, Any]]]:
+    """(engine, transport, source, cell), every engine side by side."""
+    return [
+        (e, t, s, c)
+        for e, by_engine in report["engines"].items()
+        for t, by in by_engine["transports"].items()
+        for s, c in by.items()
+    ]
+
+
+def _cost_table(cells: list[tuple[str, str, str, Mapping[str, Any]]], model: str) -> list[str]:
+    out = [
+        "| Engine | Transport | Source | Base ms | Per field | Per filter | Per row "
+        "| Per same-source join | Per cross-source join, both live "
+        "| Per cross-source join, both replica | Per cross-source join, one of each | Fit (R²) |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|",
+    ]
+    for e, t, s, c in cells:
+        m = c[model]
+        unit = m["per_unit"]
+        per = " | ".join(_n(unit[k], 4) if k in unit else "–" for k in _KNOBS)
+        out.append(f"| {e} | {t} | {s} | {_n(m['base'], 3)} | {per} | {_n(m['r2'], 3)} |")
+    return out
 
 
 def _costs(report: Mapping[str, Any]) -> list[str]:
@@ -132,36 +158,34 @@ def _costs(report: Mapping[str, Any]) -> list[str]:
     out = [
         "## What a request costs",
         "",
-        "Provisa CPU per request, uncached: a base cost, plus a cost per selected field, filter, "
-        "row returned, same-source join and cross-source join. A dash: the run did not vary "
-        "that knob, so it has no cost and a workload that uses it cannot be sized from this run.",
+        "Provisa CPU per request, uncached, per engine: a base cost, plus a cost per selected "
+        "field, filter, row returned, same-source join and cross-source join, the last by how its "
+        "two ends are read (both live, both from replicas, or one of each). A dash: the run did "
+        "not vary that knob, so it has no cost and a workload that uses it cannot be sized from "
+        "this run.",
         "",
-        "| Transport | Source | Base ms | Per field | Per filter | Per row | Per same-source join "
-        "| Per cross-source join | Fit (R²) |",
-        "|---|---|---|---|---|---|---|---|---|",
-    ]
-    for t, s, c in cells:
-        unit = c["provisa_cpu"]["per_unit"]
-        knobs = ("fields", "filters", "rows", "joins_same", "joins_cross")
-        per = " | ".join(_n(unit[k], 4) if k in unit else "–" for k in knobs)
-        out.append(
-            f"| {t} | {s} | {_n(c['provisa_cpu']['base'], 3)} | {per} "
-            f"| {_n(c['provisa_cpu']['r2'], 3)} |"
-        )
-    out += [
+        *_cost_table(cells, "provisa_cpu"),
         "",
-        _from(
-            "transports.<transport>.<source>.provisa_cpu.base",
-            "transports.<transport>.<source>.provisa_cpu.per_unit",
-            "transports.<transport>.<source>.provisa_cpu.r2",
-        ),
+        _from(f"{_P}.provisa_cpu.base", f"{_P}.provisa_cpu.per_unit", f"{_P}.provisa_cpu.r2"),
         "",
     ]
+    engine_cells = [(e, t, s, c) for e, t, s, c in cells if c["engine_cpu"] is not None]
+    if engine_cells:
+        out += [
+            "The engine's own CPU per request, where the engine runs as a server of its own. A "
+            "request the engine does not serve costs it nothing; a federated read or a "
+            "cross-source join shows here.",
+            "",
+            *_cost_table(engine_cells, "engine_cpu"),
+            "",
+            _from(f"{_P}.engine_cpu.base", f"{_P}.engine_cpu.per_unit", f"{_P}.engine_cpu.r2"),
+            "",
+        ]
     return out
 
 
 def _cache(report: Mapping[str, Any]) -> list[str]:
-    cells = [(t, s, c) for t, s, c in _cells(report) if c["cache"] is not None]
+    cells = [(e, t, s, c) for e, t, s, c in _cells(report) if c["cache"] is not None]
     if not cells:
         return []
     out = [
@@ -171,60 +195,76 @@ def _cache(report: Mapping[str, Any]) -> list[str]:
         "from the cache. What a hit saves is what opting in buys; a request that never repeats "
         "gains nothing from it.",
         "",
-        "| Transport | Source | Miss ms | Hit ms | Saved per hit ms |",
-        "|---|---|---|---|---|",
+        "| Engine | Transport | Source | Miss ms | Hit ms | Saved per hit ms |",
+        "|---|---|---|---|---|---|",
     ]
-    for t, s, c in cells:
+    for e, t, s, c in cells:
         k = c["cache"]
         out.append(
-            f"| {t} | {s} | {_n(k['miss_ms'], 3)} | {_n(k['hit_ms'], 3)} "
+            f"| {e} | {t} | {s} | {_n(k['miss_ms'], 3)} | {_n(k['hit_ms'], 3)} "
             f"| {_n(k['miss_ms'] - k['hit_ms'], 3)} |"
         )
-    out += [
-        "",
-        _from(
-            "transports.<transport>.<source>.cache.miss_ms",
-            "transports.<transport>.<source>.cache.hit_ms",
-        ),
-        "",
-    ]
+    out += ["", _from(f"{_P}.cache.miss_ms", f"{_P}.cache.hit_ms"), ""]
     return out
 
 
+def _break_even_row(prefix: str, b: Mapping[str, Any]) -> str:
+    rate = _n(b["requests_per_s"], 1) if b["requests_per_s"] is not None else b["reason"]
+    return (
+        f"| {prefix} | {_n(b['live_ms'], 3)} | {_n(b['replica_ms'], 3)} "
+        f"| {_n(b['refresh_cpu_s'], 2)} | {b['ttl_s']} | {rate} |"
+    )
+
+
 def _break_even(report: Mapping[str, Any]) -> list[str]:
-    cells = [(t, s, c) for t, s, c in _cells(report) if c["break_even"] is not None]
-    if not cells:
+    cells = [(e, t, s, c) for e, t, s, c in _cells(report) if c["break_even"] is not None]
+    joins = [(e, t, s, c) for e, t, s, c in _cells(report) if c["join_break_even"] is not None]
+    if not cells and not joins:
         return []
     out = [
         "## Live or replica reads, and the TTL",
         "",
         "A replica makes each read cheaper and costs a refresh every TTL. Above the break-even "
-        "rate a replica costs less CPU (Provisa and the source together) than reading live; "
-        "below it, reading live does. The break-even is the refresh's CPU per second over what "
-        "one read saves: (refresh CPU s × 1000 / TTL s) / (live ms − replica ms). Doubling the "
-        "TTL halves the break-even rate, at the price of data up to twice as old.",
-        "",
-        "| Transport | Source | Live ms | Replica ms | Refresh CPU s | TTL s | Break-even req/s |",
-        "|---|---|---|---|---|---|---|",
-    ]
-    for t, s, c in cells:
-        b = c["break_even"]
-        rate = _n(b["requests_per_s"], 1) if b["requests_per_s"] is not None else b["reason"]
-        out.append(
-            f"| {t} | {s} | {_n(b['live_ms'], 3)} | {_n(b['replica_ms'], 3)} "
-            f"| {_n(b['refresh_cpu_s'], 2)} | {b['ttl_s']} | {rate} |"
-        )
-    out += [
-        "",
-        _from(
-            "transports.<transport>.<source>.break_even.live_ms",
-            "transports.<transport>.<source>.break_even.replica_ms",
-            "transports.<transport>.<source>.break_even.refresh_cpu_s",
-            "transports.<transport>.<source>.break_even.ttl_s",
-            "transports.<transport>.<source>.break_even.requests_per_s",
-        ),
+        "rate a replica costs less CPU (Provisa, the sources and the engine together) than "
+        "reading live; below it, reading live does. The break-even is the refresh's CPU per "
+        "second over what one read saves: (refresh CPU s × 1000 / TTL s) / (live ms − replica "
+        "ms). Doubling the TTL halves the break-even rate, at the price of data up to twice as "
+        "old.",
         "",
     ]
+    if cells:
+        out += [
+            "| Engine | Transport | Source | Live ms | Replica ms | Refresh CPU s | TTL s "
+            "| Break-even req/s |",
+            "|---|---|---|---|---|---|---|---|",
+            *(_break_even_row(f"{e} | {t} | {s}", c["break_even"]) for e, t, s, c in cells),
+            "",
+            _from(
+                f"{_P}.break_even.live_ms",
+                f"{_P}.break_even.replica_ms",
+                f"{_P}.break_even.refresh_cpu_s",
+                f"{_P}.break_even.ttl_s",
+                f"{_P}.break_even.requests_per_s",
+            ),
+            "",
+        ]
+    if joins:
+        out += [
+            "A cross-source join read with both ends live, against both ends from replicas, by "
+            "the number of cross-source joins in the request:",
+            "",
+            "| Engine | Transport | Source | Joins | Live ms | Replica ms | Refresh CPU s | TTL s "
+            "| Break-even req/s |",
+            "|---|---|---|---|---|---|---|---|---|",
+            *(
+                _break_even_row(f"{e} | {t} | {s} | {n}", b)
+                for e, t, s, c in joins
+                for n, b in c["join_break_even"].items()
+            ),
+            "",
+            _from(f"{_P}.join_break_even.<joins>"),
+            "",
+        ]
     return out
 
 
@@ -232,7 +272,7 @@ def _sizing(sized: sz.Sizing) -> list[str]:
     out = [
         "## Sizing this workload",
         "",
-        f"{_n(sized.rate_per_s, 0)} requests per second. Each transport's requests were drawn "
+        f"{_n(sized.rate_per_s, 0)} requests per second, with the {sized.engine} engine. Each transport's requests were drawn "
         f"from the workload's own description ({sized.draws:,} per transport) and costed by the "
         "models below: a hit at the hit cost, a miss at the source's model for its fields, "
         "filters, rows and joins. Physical cores are the Provisa CPU per second over what a "
@@ -248,7 +288,8 @@ def _sizing(sized: sz.Sizing) -> list[str]:
             out.append(
                 f"| {t.transport} | {_n(t.rate_per_s, 0)} | {s.source} | {s.share:.0%} "
                 f"| {_n(m['fields'], 1)} | {_n(m['filters'], 1)} | {_n(m['rows'], 1)} "
-                f"| {_n(m['joins_same'], 2)} | {_n(m['joins_cross'], 2)} | {s.hit_share:.0%} "
+                f"| {_n(m['joins_same'], 2)} "
+                f"| {_n(sum(m[k] for k in cm.JOIN_CROSS_KNOBS), 2)} | {s.hit_share:.0%} "
                 f"| {_n(s.cpu_ms, 3)} |"
             )
     out += [
@@ -270,8 +311,8 @@ def _sizing(sized: sz.Sizing) -> list[str]:
         "transports needs.",
         "",
         _from(
-            "transports.<transport>.<source>.provisa_cpu",
-            "transports.<transport>.<source>.cache.hit_ms",
+            f"{_P}.provisa_cpu",
+            f"{_P}.cache.hit_ms",
             "server.<transport>.capacity_factor",
             "server.<transport>.workers_per_physical_core",
             "server.<transport>.in_flight_per_worker",
@@ -311,6 +352,11 @@ def main() -> int:
         "--resolved-names", help="resolved-names.json of the deployment the contract names"
     )
     parser.add_argument("--draws", type=int, default=sz.DEFAULT_DRAWS)
+    parser.add_argument(
+        "--engine",
+        default="pg",
+        help="the engine the workload is sized with: one the run swept (default: pg)",
+    )
     args = parser.parse_args()
     if bool(args.setup) != bool(args.resolved_names):
         parser.error("--setup and --resolved-names go together")
@@ -322,7 +368,7 @@ def main() -> int:
             known_transports=list(optimistic_load.TRANSPORTS),
             deployment=lookup.read_resolved(Path(args.resolved_names)),
         )
-        sized = sz.size(report, setup, args.draws)
+        sized = sz.size(report, setup, args.engine, args.draws)
     Path(args.out).write_text(render(report, sized))
     return 0
 

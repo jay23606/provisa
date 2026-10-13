@@ -16,6 +16,7 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
 import yaml
 
 BENCH = Path(__file__).resolve().parents[3] / "demo" / "named" / "perf" / "bench"
@@ -66,13 +67,13 @@ def test_one_knob_at_a_time_per_transport_and_source(tmp_path: Path) -> None:
         )
     )
     assert set(runs) == {
-        "pgwire.bench-postgresql.baseline",
-        "pgwire.bench-postgresql.fields.1",
-        "pgwire.bench-postgresql.fields.3",
-        "pgwire.bench-postgresql.rows.10",
+        "pg.pgwire.bench-postgresql.baseline",
+        "pg.pgwire.bench-postgresql.fields.1",
+        "pg.pgwire.bench-postgresql.fields.3",
+        "pg.pgwire.bench-postgresql.rows.10",
     }
-    base = _load(runs["pgwire.bench-postgresql.baseline"], tmp_path)
-    fields3 = _load(runs["pgwire.bench-postgresql.fields.3"], tmp_path)
+    base = _load(runs["pg.pgwire.bench-postgresql.baseline"], tmp_path)
+    fields3 = _load(runs["pg.pgwire.bench-postgresql.fields.3"], tmp_path)
     assert list(base.transports) == ["pgwire"]
     assert base.knobs.source_weights == {
         "bench-postgresql": 1.0,
@@ -102,7 +103,7 @@ def test_a_variant_that_the_contract_cannot_serve_is_skipped_with_the_reason() -
             deployment=_NO_REST,
         )
     )
-    run = runs["rest.bench-clickhouse.baseline"]
+    run = runs["pg.rest.bench-clickhouse.baseline"]
     assert run.contract is None
     assert "is not exposed in rest by the deployment" in run.skipped
 
@@ -111,10 +112,10 @@ def test_joins_the_transport_cannot_express_are_skipped() -> None:
     runs = _by_name(
         _plan(transports=["grpc"], sources=["bench-postgresql"], values={"joins_same_source": [1]})
     )
-    assert runs["grpc.bench-postgresql.baseline"].contract is not None
+    assert runs["pg.grpc.bench-postgresql.baseline"].contract is not None
     assert (
         "joins cannot be expressed on grpc"
-        in runs["grpc.bench-postgresql.joins_same_source.1"].skipped
+        in runs["pg.grpc.bench-postgresql.joins_same_source.1"].skipped
     )
 
 
@@ -122,22 +123,22 @@ def test_more_fields_than_the_table_has_is_skipped() -> None:
     runs = _by_name(
         _plan(transports=["data_sql"], sources=["bench-mongodb"], values={"fields": [2, 9]})
     )
-    assert runs["data_sql.bench-mongodb.fields.2"].contract is not None
-    assert "draws up to 9 fields" in runs["data_sql.bench-mongodb.fields.9"].skipped
+    assert runs["pg.data_sql.bench-mongodb.fields.2"].contract is not None
+    assert "draws up to 9 fields" in runs["pg.data_sql.bench-mongodb.fields.9"].skipped
 
 
 def test_cache_sweep() -> None:
     runs = _by_name(
         _plan(transports=["graphql"], sources=["bench-postgresql"], values={}, cache=[0.0, 0.5])
     )
-    assert runs["graphql.bench-postgresql.cache.0.0"].contract["knobs"]["cache"] == {
+    assert runs["pg.graphql.bench-postgresql.cache.0.0"].contract["knobs"]["cache"] == {
         "probability": 0.0
     }
-    assert runs["graphql.bench-postgresql.cache.0.5"].contract["knobs"]["cache"] == {
+    assert runs["pg.graphql.bench-postgresql.cache.0.5"].contract["knobs"]["cache"] == {
         "probability": 0.5
     }
     # knob runs are uncached, so a knob's cost is never mixed with the cache's
-    assert runs["graphql.bench-postgresql.baseline"].contract["knobs"]["cache"] == {
+    assert runs["pg.graphql.bench-postgresql.baseline"].contract["knobs"]["cache"] == {
         "probability": 0.0
     }
 
@@ -152,8 +153,8 @@ def test_replication_sweep_sets_the_setting_and_its_ttl(tmp_path: Path) -> None:
             ttl_s=300,
         )
     )
-    live = runs["data_sql.bench-postgresql.replication.live"].contract
-    replica = runs["data_sql.bench-postgresql.replication.replica"].contract
+    live = runs["pg.data_sql.bench-postgresql.replication.live"].contract
+    replica = runs["pg.data_sql.bench-postgresql.replication.replica"].contract
     assert live["sources"]["bench-postgresql"]["replication"] == {
         "setting": "live",
         "ttl_seconds": 0,
@@ -163,7 +164,7 @@ def test_replication_sweep_sets_the_setting_and_its_ttl(tmp_path: Path) -> None:
         "ttl_seconds": 300,
     }
     # the deployment need not already have it: a replication run applies the setting itself
-    assert runs["data_sql.bench-postgresql.replication.replica"].skipped is None
+    assert runs["pg.data_sql.bench-postgresql.replication.replica"].skipped is None
 
 
 def test_a_replica_without_a_ttl_is_skipped() -> None:
@@ -178,7 +179,7 @@ def test_a_replica_without_a_ttl_is_skipped() -> None:
     )
     assert (
         "a replica needs its refresh TTL"
-        in runs["data_sql.bench-clickhouse.replication.replica"].skipped
+        in runs["pg.data_sql.bench-clickhouse.replication.replica"].skipped
     )
 
 
@@ -187,7 +188,7 @@ def test_the_default_plan_covers_every_transport_and_source() -> None:
     names = {r.name for r in runs}
     for t in TRANSPORTS:
         for s in ("bench-postgresql", "bench-clickhouse", "bench-mongodb", "bench-neo4j"):
-            assert f"{t}.{s}.baseline" in names
+            assert f"pg.{t}.{s}.baseline" in names
     # every run is either a loadable contract or says why not
     assert all((r.contract is None) != (r.skipped is None) for r in runs)
     assert any(r.contract is not None for r in runs)
@@ -204,23 +205,27 @@ def test_write_plan_writes_contracts_and_a_manifest(tmp_path: Path) -> None:
     manifest = json.loads((tmp_path / "manifest.json").read_text())
     by = {m["name"]: m for m in manifest["runs"]}
     assert (
-        by["pgwire.bench-postgresql.rows.10"]["contract"] == "pgwire.bench-postgresql.rows.10.yaml"
+        by["pg.pgwire.bench-postgresql.rows.10"]["contract"]
+        == "pg.pgwire.bench-postgresql.rows.10.yaml"
     )
-    assert (tmp_path / "pgwire.bench-postgresql.rows.10.yaml").exists()
-    assert by["rest.bench-clickhouse.baseline"]["contract"] is None
+    assert (tmp_path / "pg.pgwire.bench-postgresql.rows.10.yaml").exists()
+    assert by["pg.rest.bench-clickhouse.baseline"]["contract"] is None
     assert (
         "is not exposed in rest by the deployment"
-        in by["rest.bench-clickhouse.baseline"]["skipped"]
+        in by["pg.rest.bench-clickhouse.baseline"]["skipped"]
     )
-    assert by["pgwire.bench-postgresql.rows.10"] == {
-        "name": "pgwire.bench-postgresql.rows.10",
+    assert by["pg.pgwire.bench-postgresql.rows.10"] == {
+        "name": "pg.pgwire.bench-postgresql.rows.10",
         "transport": "pgwire",
         "source": "bench-postgresql",
         "knob": "rows",
         "value": 10,
-        "contract": "pgwire.bench-postgresql.rows.10.yaml",
+        "contract": "pg.pgwire.bench-postgresql.rows.10.yaml",
         "skipped": None,
-        "server_env": None,
+        "server_env": {"PROVISA_ENGINE": "pg"},
+        "join_replication": None,
+        "apply_replication": False,
+        "engine": "pg",
     }
     assert manifest["label"] == "internal: not for publication"
     assert manifest["hardware"] == {"physical_cores": 8, "shared_host": True}
@@ -267,7 +272,11 @@ def test_the_worker_sweep_plans_each_pair_of_workers_and_in_flight_per_transport
     }
     run = runs["pgwire.workers.16.threads.4"]
     assert run.knob == "workers" and run.value == {"workers": 16, "request_threads": 4}
-    assert run.server_env == {"PROVISA_WORKERS": "16", "PROVISA_REQUEST_THREADS": "4"}
+    assert run.server_env == {
+        "PROVISA_WORKERS": "16",
+        "PROVISA_REQUEST_THREADS": "4",
+        "PROVISA_ENGINE": "pg",
+    }
     # the base contract as it stands, one transport: the optimistic request
     setup = _load(run, tmp_path)
     assert list(setup.transports) == ["pgwire"]
@@ -310,5 +319,46 @@ def test_the_manifest_carries_a_worker_runs_server_environment(tmp_path: Path) -
     sweeps.write_plan(runs, tmp_path, hardware=sweeps.Hardware(16, False))
     manifest = json.loads((tmp_path / "manifest.json").read_text())
     (entry,) = manifest["runs"]
-    assert entry["server_env"] == {"PROVISA_WORKERS": "4", "PROVISA_REQUEST_THREADS": "2"}
+    assert entry["server_env"] == {
+        "PROVISA_WORKERS": "4",
+        "PROVISA_REQUEST_THREADS": "2",
+        "PROVISA_ENGINE": "pg",
+    }
     assert manifest["hardware"] == {"physical_cores": 16, "shared_host": False}
+
+
+def test_the_knob_sweep_runs_once_per_engine_kept_apart() -> None:
+    runs = _by_name(
+        _plan(
+            transports=["pgwire"],
+            sources=["bench-postgresql"],
+            values={"rows": [10]},
+            cache=[],
+            engines=["pg", "duckdb", "trino"],
+        )
+    )
+    assert set(runs) == {
+        f"{e}.pgwire.bench-postgresql.{k}"
+        for e in ("pg", "duckdb", "trino")
+        for k in ("baseline", "rows.10")
+    }
+    run = runs["duckdb.pgwire.bench-postgresql.rows.10"]
+    assert run.engine == "duckdb"
+    assert run.server_env == {"PROVISA_ENGINE": "duckdb"}
+
+
+def test_an_unknown_engine_is_refused() -> None:
+    with pytest.raises(ValueError, match="unknown engine 'spark'"):
+        _plan(transports=["pgwire"], sources=["bench-postgresql"], engines=["spark"])
+
+
+def test_the_manifest_names_each_engines_container(tmp_path: Path) -> None:
+    runs = _plan(transports=["pgwire"], sources=["bench-postgresql"], values={}, cache=[])
+    sweeps.write_plan(
+        runs,
+        tmp_path,
+        hardware=sweeps.Hardware(16, False),
+        engine_containers={"pg": "perf-engine-postgresql-1"},
+    )
+    manifest = json.loads((tmp_path / "manifest.json").read_text())
+    assert manifest["engine_containers"] == {"pg": "perf-engine-postgresql-1"}

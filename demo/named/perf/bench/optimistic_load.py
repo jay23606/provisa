@@ -459,6 +459,12 @@ def knob_means(records: list[Record]) -> dict[str, float] | None:
         "rows": mean(lambda s: s.rows),
         "joins_same": mean(lambda s: sum(1 for j in s.joins if j.kind == "same")),
         "joins_cross": mean(lambda s: sum(1 for j in s.joins if j.kind == "cross")),
+        **{
+            f"joins_cross_{klass}": mean(
+                lambda s, klass=klass: sum(1 for j in s.joins if j.replication == klass)
+            )
+            for klass in contract_model.JOIN_REPLICATION_CLASSES
+        },
         "cache_opt_in": mean(lambda s: s.cached),
         "repeat": mean(lambda s: bool(s.repeat)),
         "federated": mean(lambda s: s.route == "federated"),

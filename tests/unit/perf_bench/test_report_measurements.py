@@ -71,8 +71,8 @@ def _rec(
     return (0.001, spec, None, rows, n_cols)
 
 
-def _step(kind: str) -> contract_model.JoinStep:
-    return contract_model.JoinStep(0, kind, "s", "t", "a", "b", True, None, None)
+def _step(kind: str, replication: str | None = None) -> contract_model.JoinStep:
+    return contract_model.JoinStep(0, kind, "s", "t", "a", "b", True, None, None, replication)
 
 
 def test_summary_reports_the_mean_of_every_knob() -> None:
@@ -81,7 +81,12 @@ def test_summary_reports_the_mean_of_every_knob() -> None:
         _rec(
             n_cols=3, n_filters=2, rows=10, joins=(_step("same"),), cached=True, route="federated"
         ),
-        _rec(n_cols=2, rows=4, joins=(_step("cross"), _step("cross")), repeat=1),
+        _rec(
+            n_cols=2,
+            rows=4,
+            joins=(_step("cross", "both_replica"), _step("cross", "mixed")),
+            repeat=1,
+        ),
         _rec(n_cols=2, route="direct"),
     ]
     means = ol.summarize_requests(reqs, window_s=1.0)["knob_means"]
@@ -91,6 +96,10 @@ def test_summary_reports_the_mean_of_every_knob() -> None:
         "rows": 4.0,
         "joins_same": 0.25,
         "joins_cross": 0.5,
+        # each cross-source join by how its two ends are read
+        "joins_cross_both_live": 0.0,
+        "joins_cross_both_replica": 0.25,
+        "joins_cross_mixed": 0.25,
         "cache_opt_in": 0.25,
         "repeat": 0.25,
         "federated": 0.25,

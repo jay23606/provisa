@@ -32,7 +32,9 @@ PROVISA = {
     "filters": 0.030,
     "rows": 0.0010,
     "joins_same": 0.50,
-    "joins_cross": 1.20,
+    "joins_cross_both_live": 1.20,
+    "joins_cross_both_replica": 0.40,
+    "joins_cross_mixed": 0.90,
 }
 SOURCE = {
     "base": 0.05,
@@ -40,9 +42,17 @@ SOURCE = {
     "filters": 0.010,
     "rows": 0.0030,
     "joins_same": 0.10,
-    "joins_cross": 0.00,
+    "joins_cross_both_live": 0.30,
+    "joins_cross_both_replica": 0.00,
+    "joins_cross_mixed": 0.15,
 }
-ZERO = {"fields": 1.0, "filters": 0.0, "rows": 1.0, "joins_same": 0.0, "joins_cross": 0.0}
+ZERO = {
+    "fields": 1.0,
+    "filters": 0.0,
+    "rows": 1.0,
+    "joins_same": 0.0,
+    **{k: 0.0 for k in cm.JOIN_CROSS_KNOBS},
+}
 
 
 def _cpu(model: dict[str, float], means: dict[str, float]) -> float:
@@ -62,6 +72,7 @@ def _write_run(
     src: float | None = None,
     ttl: int = 0,
     extra: dict | None = None,
+    replication: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     step = {
         "concurrency": 1,
@@ -73,8 +84,9 @@ def _write_run(
     busy = {**step, "concurrency": 16, "server_cpu_ms_per_request": 99.0}  # not the one costed
     out = root / "results" / name / "optimistic"
     out.mkdir(parents=True)
-    setting = "replica" if ttl else "live"
-    replication = {source: {"replication": setting, "ttl_seconds": ttl, "route": "auto"}}
+    if replication is None:
+        setting = "replica" if ttl else "live"
+        replication = {source: {"replication": setting, "ttl_seconds": ttl, "route": "auto"}}
     (out / f"{transport}.json").write_text(
         json.dumps({"transport": transport, "replication": replication, "steps": [busy, step]})
     )
@@ -86,6 +98,7 @@ def _write_run(
         "value": value,
         "contract": f"{name}.yaml",
         "skipped": None,
+        "engine": "pg",
     }
 
 
@@ -102,9 +115,8 @@ def _sweep(
         "filters": [1, 2],
         "rows": [10, 100],
         "joins_same_source": [1, 2],
-        "joins_cross_source": [1, 2],
     }
-    key = {"joins_same_source": "joins_same", "joins_cross_source": "joins_cross"}
+    key = {"joins_same_source": "joins_same"}
     for knob, vals in plan.items():
         for v in vals:
             means = dict(ZERO)
@@ -114,15 +126,68 @@ def _sweep(
                     root, f"{transport}.{source}.{knob}.{v}", transport, source, knob, v, means
                 )
             )
+    # the cross-source join values, once per class of how the join's two ends are read
+    for klass in ("both_live", "both_replica", "mixed"):
+        for v in (1, 2):
+            means = dict(ZERO)
+            means[f"joins_cross_{klass}"] = float(v)
+            name = f"{transport}.{source}.joins_cross_source.{v}.{klass}"
+            run = _write_run(
+                root,
+                name,
+                transport,
+                source,
+                "joins_cross_source",
+                v,
+                means,
+                replication=_read_as(source, klass),
+                extra={"source_cpu_ms_per_request": {source: _cpu(SOURCE, means), OTHER: 0.5}},
+            )
+            if klass == "both_replica":
+                _idle(root, name, {source: 0.01, OTHER: 0.02})
+            runs.append({**run, "join_replication": klass})
     return runs
 
 
+OTHER = "bench-clickhouse"  # the other end of the cross-source joins
+
+
+def _read_as(source: str, klass: str) -> dict[str, dict[str, Any]]:
+    live = {"replication": "live", "ttl_seconds": 0, "route": "auto"}
+    replica = {"replication": "replica", "ttl_seconds": 60, "route": "auto"}
+    own = live if klass in ("both_live", "mixed") else replica
+    other = live if klass == "both_live" else replica
+    return {source: own, OTHER: other}
+
+
+def _idle(root: Path, name: str, sources: dict[str, float], **extra: Any) -> None:
+    (root / "results" / name / "optimistic" / "idle.json").write_text(
+        json.dumps(
+            {
+                "window_s": 120.0,
+                "server_cpu_cores": 0.02,
+                "source_cpu_cores": sources,
+                "source_cpu_error": None,
+                **extra,
+            }
+        )
+    )
+
+
 HARDWARE = {"physical_cores": 8, "shared_host": True}
+ENGINES: dict[str, str] = {}  # every engine runs inside Provisa unless a test says otherwise
 
 
 def _manifest(root: Path, runs: list[dict[str, Any]]) -> None:
     (root / "manifest.json").write_text(
-        json.dumps({"label": "internal: not for publication", "hardware": HARDWARE, "runs": runs})
+        json.dumps(
+            {
+                "label": "internal: not for publication",
+                "hardware": HARDWARE,
+                "engine_containers": ENGINES,
+                "runs": runs,
+            }
+        )
     )
 
 
@@ -131,7 +196,7 @@ def test_the_report_recovers_the_cost_of_each_knob_for_provisa_and_the_source(
 ) -> None:
     _manifest(tmp_path, _sweep(tmp_path))
     report = br.build_report(tmp_path)
-    cell = report["transports"]["graphql"]["bench-postgresql"]
+    cell = report["engines"]["pg"]["transports"]["graphql"]["bench-postgresql"]
     assert cell["provisa_cpu"]["base"] == pytest.approx(PROVISA["base"])
     for knob in cm.KNOBS:
         assert cell["provisa_cpu"]["per_unit"][knob] == pytest.approx(PROVISA[knob]), knob
@@ -150,8 +215,8 @@ def test_a_knob_that_could_not_be_swept_is_named_not_modelled(tmp_path: Path) ->
         r for r in _sweep(tmp_path) if r["knob"] not in ("joins_same_source", "joins_cross_source")
     ]
     _manifest(tmp_path, runs)
-    cell = br.build_report(tmp_path)["transports"]["graphql"]["bench-postgresql"]
-    assert set(cell["not_modelled"]) == {"joins_same", "joins_cross"}
+    cell = br.build_report(tmp_path)["engines"]["pg"]["transports"]["graphql"]["bench-postgresql"]
+    assert set(cell["not_modelled"]) == {"joins_same", *cm.JOIN_CROSS_KNOBS}
     assert "does not vary" in cell["not_modelled"]["joins_same"]
     assert set(cell["provisa_cpu"]["per_unit"]) == {"fields", "filters", "rows"}
 
@@ -204,7 +269,15 @@ def test_a_run_whose_transport_failed_is_an_error(tmp_path: Path) -> None:
 
 def test_a_mix_run_is_checked_against_the_model(tmp_path: Path) -> None:
     runs = _sweep(tmp_path)
-    mix = {"fields": 2.5, "filters": 0.7, "rows": 30.0, "joins_same": 0.3, "joins_cross": 0.6}
+    mix = {
+        "fields": 2.5,
+        "filters": 0.7,
+        "rows": 30.0,
+        "joins_same": 0.3,
+        "joins_cross_both_live": 0.2,
+        "joins_cross_both_replica": 0.3,
+        "joins_cross_mixed": 0.1,
+    }
     runs.append(
         _write_run(
             tmp_path,
@@ -219,7 +292,9 @@ def test_a_mix_run_is_checked_against_the_model(tmp_path: Path) -> None:
         )
     )
     _manifest(tmp_path, runs)
-    checks = br.build_report(tmp_path)["transports"]["graphql"]["bench-postgresql"]["mix_checks"]
+    checks = br.build_report(tmp_path)["engines"]["pg"]["transports"]["graphql"][
+        "bench-postgresql"
+    ]["mix_checks"]
     (check,) = checks
     assert check["name"] == "graphql.bench-postgresql.mix"
     assert check["provisa_cpu"]["relative_error"] == pytest.approx(0.2 / 1.2)
@@ -262,7 +337,9 @@ def test_break_even_between_live_and_replica(tmp_path: Path) -> None:
         )
     )
     _manifest(tmp_path, runs + [direct, mat])
-    be = br.build_report(tmp_path)["transports"]["data_sql"]["bench-clickhouse"]["break_even"]
+    be = br.build_report(tmp_path)["engines"]["pg"]["transports"]["data_sql"]["bench-clickhouse"][
+        "break_even"
+    ]
     # live costs 2.0 ms per request, a replica 0.5; idle 0.05 cores x 60 s = 3 CPU-s per refresh
     assert be["live_ms"] == pytest.approx(2.0) and be["replica_ms"] == pytest.approx(0.5)
     assert be["refresh_cpu_s"] == pytest.approx(3.0) and be["ttl_s"] == 60
@@ -299,7 +376,7 @@ def test_break_even_needs_the_idle_measurement(tmp_path: Path) -> None:
 
 def test_sizing_inputs_come_from_the_baseline(tmp_path: Path) -> None:
     _manifest(tmp_path, _sweep(tmp_path))
-    cell = br.build_report(tmp_path)["transports"]["graphql"]["bench-postgresql"]
+    cell = br.build_report(tmp_path)["engines"]["pg"]["transports"]["graphql"]["bench-postgresql"]
     baseline_ms = _cpu(PROVISA, ZERO)
     assert cell["sizing"]["provisa_cpu_ms_per_request"] == pytest.approx(baseline_ms)
     assert cell["sizing"]["requests_per_s_per_core"] == pytest.approx(1000 / baseline_ms)
@@ -332,7 +409,7 @@ def test_the_cache_runs_give_the_cost_of_a_hit_and_a_miss_kept_out_of_the_model(
         extra={"hit_ratio": 0.9},
     )
     _manifest(tmp_path, runs + [miss, opted])
-    cell = br.build_report(tmp_path)["transports"]["graphql"]["bench-postgresql"]
+    cell = br.build_report(tmp_path)["engines"]["pg"]["transports"]["graphql"]["bench-postgresql"]
     assert cell["cache"]["miss_ms"] == pytest.approx(2.0)
     assert cell["cache"]["hit_ms"] == pytest.approx(0.3)
     # the cache runs are not observations of the knob model
@@ -362,7 +439,7 @@ def test_an_opted_in_run_with_no_hits_is_an_error(tmp_path: Path) -> None:
 
 def test_the_cell_records_what_its_baseline_measured(tmp_path: Path) -> None:
     _manifest(tmp_path, _sweep(tmp_path))
-    cell = br.build_report(tmp_path)["transports"]["graphql"]["bench-postgresql"]
+    cell = br.build_report(tmp_path)["engines"]["pg"]["transports"]["graphql"]["bench-postgresql"]
     assert cell["baseline_knob_means"] == ZERO
     assert cell["replication"] == {"replication": "live", "ttl_seconds": 0, "route": "auto"}
     assert cell["cache"] is None
@@ -383,6 +460,7 @@ def _worker_run(
         "value": {"workers": workers, "request_threads": threads},
         "contract": f"{name}.yaml",
         "skipped": None,
+        "engine": "pg",
         "server_env": {"PROVISA_WORKERS": str(workers), "PROVISA_REQUEST_THREADS": str(threads)},
     }
 
@@ -429,7 +507,7 @@ def test_the_worker_sweep_gives_workers_per_core_in_flight_per_worker_and_capaci
     _manifest(tmp_path, runs)
     report = br.build_report(tmp_path, tolerance=0.05)
     s = report["server"]["graphql"]
-    assert report["transports"] == {}
+    assert report["engines"] == {}
     # best 1700; within 5% is >= 1615: 16 workers is the fewest, and at 16 two threads is
     assert s["best_peak_req_per_s"] == 1700.0
     assert (s["workers"], s["in_flight_per_worker"]) == (16, 2)
@@ -448,3 +526,20 @@ def test_a_worker_run_with_no_error_free_step_is_an_error(tmp_path: Path) -> Non
     _manifest(tmp_path, [_worker_run(tmp_path, "pgwire", 8, 1, steps)])
     with pytest.raises(ValueError, match="pgwire.workers.8.threads.1: no step completed without"):
         br.build_report(tmp_path)
+
+
+def test_each_engines_runs_are_reported_apart(tmp_path: Path) -> None:
+    runs = _sweep(tmp_path)
+    duck = tmp_path / "duck"
+    duck_runs = [{**r, "engine": "duckdb"} for r in _sweep(duck)]
+    # one root holds both: the duckdb runs' results moved under it with distinct names
+    for r in duck_runs:
+        src = duck / "results" / r["name"]
+        r["name"] = "duckdb." + r["name"]
+        src.rename(tmp_path / "results" / r["name"])
+    _manifest(tmp_path, runs + duck_runs)
+    report = br.build_report(tmp_path)
+    assert set(report["engines"]) == {"pg", "duckdb"}
+    for engine in ("pg", "duckdb"):
+        cell = report["engines"][engine]["transports"]["graphql"]["bench-postgresql"]
+        assert cell["provisa_cpu"]["base"] == pytest.approx(PROVISA["base"])

@@ -142,6 +142,10 @@ class RequestGenerator:
             else 0
         )
         self._history: deque[RequestSpec] = deque(maxlen=window)
+        # join_replication: drawn every request (applies, and which class), so the other knobs'
+        # streams never shift
+        self._join_replication = setup.join_replication(transport)
+        self._join_replication_rng = random.Random(f"{setup.seed}/{stream}/join-replication")
         # (source, table) with the weight it is drawn at: source weight x table weight
         weights = setup.source_weights(transport)
         self._targets: list[tuple[str, contract_model.Table]] = []
@@ -162,6 +166,12 @@ class RequestGenerator:
                 else 0
                 for kind in ("same", "cross")
             }
+            | {
+                klass: contract_joins.reachable_joins(setup, transport, sid, t.name, "cross", klass)
+                if self._can_join
+                else 0
+                for klass in contract_model.JOIN_REPLICATION_CLASSES
+            }
             for sid, t in self._targets
         ]
 
@@ -181,7 +191,8 @@ class RequestGenerator:
         n_rows = self._rows.next()
         n_same = self._joins_same.next() or 0
         n_cross = self._joins_cross.next() or 0
-        source, table = self._start(n_same, n_cross)
+        klass = self._join_class()
+        source, table = self._start(n_same, n_cross, klass)
         return RequestSpec(
             source=source,
             table=table.name,
@@ -189,7 +200,7 @@ class RequestGenerator:
             rows=self._base_rows if n_rows is None else n_rows,
             cached=cached,
             filters=self._draw_filters(table, n_filters),
-            joins=self._draw_joins(source, table, n_same, n_cross),
+            joins=self._draw_joins(source, table, n_same, n_cross, klass),
             route=self._route(source),
             role=self._role_rng.choices(
                 [r.role for r in self._roles], weights=[r.weight for r in self._roles]
@@ -205,12 +216,25 @@ class RequestGenerator:
             return mode.mode
         return "federated" if self._route_rng.random() < mode.federated_probability else "direct"
 
-    def _start(self, n_same: int, n_cross: int) -> tuple[str, contract_model.Table]:
+    def _join_class(self) -> str | None:
+        """The class the request's cross-source joins are drawn from, or None (any)."""
+        knob = self._join_replication
+        applies = self._join_replication_rng.random() < knob.probability
+        classes = list(knob.weights)
+        klass = self._join_replication_rng.choices(
+            classes, weights=[knob.weights[c] for c in classes]
+        )[0]
+        return klass if applies else None
+
+    def _start(
+        self, n_same: int, n_cross: int, klass: str | None = None
+    ) -> tuple[str, contract_model.Table]:
         """The request's own table: drawn by weight among the targets that can carry the joins."""
+        cross = "cross" if klass is None else klass
         ok = [
             i
             for i, reach in enumerate(self._reach)
-            if reach["same"] >= n_same and reach["cross"] >= n_cross
+            if reach["same"] >= n_same and reach[cross] >= n_cross
         ]
         if not ok:
             raise RuntimeError(
@@ -221,7 +245,12 @@ class RequestGenerator:
         return self._targets[i]
 
     def _draw_joins(
-        self, source: str, table: contract_model.Table, n_same: int, n_cross: int
+        self,
+        source: str,
+        table: contract_model.Table,
+        n_same: int,
+        n_cross: int,
+        klass: str | None = None,
     ) -> tuple[contract_model.JoinStep, ...]:
         members = [(source, table.name)]
         steps: list[contract_model.JoinStep] = []
@@ -229,7 +258,7 @@ class RequestGenerator:
         for kind, n in (("same", n_same), ("cross", n_cross)):
             for _ in range(n):
                 options = contract_joins.expandable_joins(
-                    self._setup, self._transport, members, kind
+                    self._setup, self._transport, members, kind, klass if kind == "cross" else None
                 )
                 if not options:
                     raise RuntimeError(

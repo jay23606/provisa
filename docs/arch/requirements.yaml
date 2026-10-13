@@ -71653,7 +71653,22 @@
     report (and, to size a workload, a contract): hardware, the sizing, workers and in-flight per worker
     with every measured point, the per-request costs, the cache opt-in (miss, hit, saving) and live
     versus replica with the break-even and how the TTL moves it; every figure names the report statistic
-    it comes from. The guide carries no internal label; the report stays internal.'
+    it comes from. The guide carries no internal label; the report stays internal. (Amended 2026-10-13,
+    CROSS-SOURCE JOINS UNDER EACH REPLICATION SETTING:) The maintainer ruled: "fold it in as a knob". A
+    knob, join_replication, settable per transport: a probability and a weight per class of how a cross-
+    source join two ends are read, both live, both from replicas, or mixed (one of each); the class
+    follows from the sources replication settings, and a class the settings cannot give is refused. The
+    sweep runs the cross-source join values once per class, setting the sources so every join is read
+    that way. The cost model costs a cross-source join per class; the report gives Provisa CPU, source
+    CPU and, where the engine runs in a container of its own, engine CPU per request; and the break-even
+    between both ends live and both from replicas is given per number of joins, counting Provisa, the
+    sources the switch moved and the engine. (Amended 2026-10-13, ENGINE AS A SWEEP DIMENSION:) The
+    maintainer ruled: "add engine as a SWEEP DIMENSION (not a knob; it''s set at server start)". The
+    knob sweep runs once per engine named (pg by default; pg, duckdb, trino), the server started with
+    each, each engine results kept apart; the report and the guide give the cost models, cache figures
+    and break-evens per engine side by side; sizing takes an engine and refuses one the run did not
+    sweep. On the three-device benchmark the pg engine and Trino run on device 3, each its own
+    container; DuckDB runs inside Provisa on device 1.'
   use_case: Fixed single-query benchmarks show per-transport overhead and ceilings; they do not show how
     the platform behaves under the mixed, varied traffic real deployments see. A seeded random workload
     with adjustable mix, skew and cacheability lets one harness model a BI-heavy, app-heavy or extract-heavy

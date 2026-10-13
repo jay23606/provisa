@@ -38,7 +38,15 @@ PERF_CONTRACT = BENCH / "setups" / "perf-stack.yaml"
 ENV = {"PROVISA_HTTP_BASE_URL": "http://localhost:8001"}
 TRANSPORTS = list(optimistic_load.TRANSPORTS)
 DRAWS = 2_000
-ZERO = {"fields": 1.0, "filters": 0.0, "rows": 1.0, "joins_same": 0.0, "joins_cross": 0.0}
+ZERO = {
+    "fields": 1.0,
+    "filters": 0.0,
+    "rows": 1.0,
+    "joins_same": 0.0,
+    "joins_cross_both_live": 0.0,
+    "joins_cross_both_replica": 0.0,
+    "joins_cross_mixed": 0.0,
+}
 WORKLOAD = {"rate_per_s": 1000, "transport_weights": {"graphql": 0.6, "pgwire": 0.4}}
 
 
@@ -58,7 +66,10 @@ def _cell(base: float, *, cache: dict | None = None, not_modelled: dict | None =
     return {
         "provisa_cpu": {"base": base, "per_unit": per_unit, "r2": 0.99, "n": 9},
         "not_modelled": (
-            {"joins_cross": "knob 'joins_cross' does not vary across the observations"}
+            {
+                k: f"knob {k!r} does not vary across the observations"
+                for k in ("joins_cross_both_live", "joins_cross_both_replica", "joins_cross_mixed")
+            }
             if not_modelled is None
             else not_modelled
         ),
@@ -68,6 +79,8 @@ def _cell(base: float, *, cache: dict | None = None, not_modelled: dict | None =
         if cache is None
         else cache,
         "break_even": None,
+        "join_break_even": None,
+        "engine_cpu": None,
         "mix_checks": [],
         "sizing": {"provisa_cpu_ms_per_request": base, "requests_per_s_per_core": 1000 / base},
     }
@@ -102,9 +115,14 @@ def _report() -> dict[str, Any]:
         "label": "internal: not for publication",
         "hardware": {"physical_cores": 8, "shared_host": True},
         "tolerance": 0.05,
-        "transports": {
-            "graphql": {"bench-postgresql": _cell(2.0)},
-            "pgwire": {"bench-postgresql": _cell(1.0)},
+        "engines": {
+            "pg": {
+                "engine_container": None,
+                "transports": {
+                    "graphql": {"bench-postgresql": _cell(2.0)},
+                    "pgwire": {"bench-postgresql": _cell(1.0)},
+                },
+            }
         },
         "server": {"graphql": _server(1.0, 1, 1.5), "pgwire": _server(2.0, 2, 1.6)},
         "skipped": [],
@@ -150,7 +168,7 @@ def test_an_invalid_workload_is_refused_naming_the_field(workload: dict, message
 
 
 def test_the_workload_is_sized_into_physical_cores_workers_and_in_flight() -> None:
-    sized = sz.size(_report(), _setup(_raw()), DRAWS)
+    sized = sz.size(_report(), _setup(_raw()), "pg", DRAWS)
     by = {t.transport: t for t in sized.transports}
     # every knob at zero and every request opted in: the same request each time, a hit after the
     # first
@@ -173,7 +191,7 @@ def test_uncached_requests_cost_the_model_at_the_workloads_knob_means() -> None:
     raw = _raw({"rate_per_s": 100, "transport_weights": {"graphql": 1}})
     raw["knobs"]["cache"] = {"probability": 0.0}
     raw["knobs"]["filters"] = {"probability": 1, "distribution": {"kind": "constant", "value": 2}}
-    sized = sz.size(_report(), _setup(raw), DRAWS)
+    sized = sz.size(_report(), _setup(raw), "pg", DRAWS)
     (t,) = sized.transports
     (s,) = t.sources
     assert s.hit_share == 0 and s.hit_ms is None
@@ -182,19 +200,21 @@ def test_uncached_requests_cost_the_model_at_the_workloads_knob_means() -> None:
 
 
 def test_sizing_is_the_same_for_the_same_contract() -> None:
-    assert sz.size(_report(), _setup(_raw()), DRAWS) == sz.size(_report(), _setup(_raw()), DRAWS)
+    assert sz.size(_report(), _setup(_raw()), "pg", DRAWS) == sz.size(
+        _report(), _setup(_raw()), "pg", DRAWS
+    )
 
 
 def test_a_contract_with_no_workload_is_refused() -> None:
     with pytest.raises(sz.SizingRefused, match="workload: the contract describes no workload"):
-        sz.size(_report(), _setup(_raw(None)), DRAWS)
+        sz.size(_report(), _setup(_raw(None)), "pg", DRAWS)
 
 
 def test_a_transport_without_a_worker_sweep_is_refused() -> None:
     report = _report()
     del report["server"]["pgwire"]
     with pytest.raises(sz.SizingRefused, match="pgwire: the run has no worker sweep"):
-        sz.size(report, _setup(_raw()), DRAWS)
+        sz.size(report, _setup(_raw()), "pg", DRAWS)
 
 
 def test_a_source_without_a_cost_model_is_refused() -> None:
@@ -208,12 +228,12 @@ def test_a_source_without_a_cost_model_is_refused() -> None:
     with pytest.raises(
         sz.SizingRefused, match="graphql.bench-clickhouse: the run has no cost model"
     ):
-        sz.size(_report(), _setup(raw), DRAWS)
+        sz.size(_report(), _setup(raw), "pg", DRAWS)
 
 
 def test_a_knob_the_run_could_not_cost_is_refused() -> None:
     report = _report()
-    report["transports"]["graphql"]["bench-postgresql"] = _cell(
+    report["engines"]["pg"]["transports"]["graphql"]["bench-postgresql"] = _cell(
         2.0, not_modelled={"filters": "knob 'filters' does not vary across the observations"}
     )
     raw = _raw({"rate_per_s": 100, "transport_weights": {"graphql": 1}})
@@ -222,7 +242,7 @@ def test_a_knob_the_run_could_not_cost_is_refused() -> None:
         sz.SizingRefused,
         match="graphql.bench-postgresql: the workload sets filters but the run has no cost",
     ):
-        sz.size(report, _setup(raw), DRAWS)
+        sz.size(report, _setup(raw), "pg", DRAWS)
 
 
 def test_a_route_hint_is_refused() -> None:
@@ -230,12 +250,12 @@ def test_a_route_hint_is_refused() -> None:
     raw["transports"] = {"graphql": {}}  # a transport with a route hint
     raw["knobs"]["route"]["bench-postgresql"] = {"mode": "direct", "federated_probability": 0}
     with pytest.raises(sz.SizingRefused, match="route hints .* are not in the cost model"):
-        sz.size(_report(), _setup(raw), DRAWS)
+        sz.size(_report(), _setup(raw), "pg", DRAWS)
 
 
 def test_a_replication_setting_other_than_the_measured_one_is_refused() -> None:
     report = _report()
-    report["transports"]["graphql"]["bench-postgresql"]["replication"] = {
+    report["engines"]["pg"]["transports"]["graphql"]["bench-postgresql"]["replication"] = {
         "replication": "replica",
         "ttl_seconds": 300,
         "route": "auto",
@@ -245,15 +265,15 @@ def test_a_replication_setting_other_than_the_measured_one_is_refused() -> None:
         sz.SizingRefused,
         match="the workload reads it live .TTL 0 s.; the run measured it replica .TTL 300 s.",
     ):
-        sz.size(report, _setup(raw), DRAWS)
+        sz.size(report, _setup(raw), "pg", DRAWS)
 
 
 def test_cache_hits_without_cache_figures_are_refused() -> None:
     report = _report()
-    report["transports"]["graphql"]["bench-postgresql"]["cache"] = None
+    report["engines"]["pg"]["transports"]["graphql"]["bench-postgresql"]["cache"] = None
     raw = _raw({"rate_per_s": 100, "transport_weights": {"graphql": 1}})
     with pytest.raises(sz.SizingRefused, match="hit the response cache, and the run has no cache"):
-        sz.size(report, _setup(raw), DRAWS)
+        sz.size(report, _setup(raw), "pg", DRAWS)
 
 
 # --- the guide ---------------------------------------------------------------------------------
@@ -261,7 +281,7 @@ def test_cache_hits_without_cache_figures_are_refused() -> None:
 
 def _with_break_even(report: dict[str, Any]) -> dict[str, Any]:
     out = copy.deepcopy(report)
-    out["transports"]["pgwire"]["bench-postgresql"]["break_even"] = {
+    out["engines"]["pg"]["transports"]["pgwire"]["bench-postgresql"]["break_even"] = {
         "live_ms": 2.0,
         "replica_ms": 0.5,
         "refresh_cpu_s": 3.0,
@@ -281,13 +301,16 @@ def test_the_guide_gives_each_tuning_figure_with_its_report_statistic() -> None:
     assert "`server.<transport>.workers_per_physical_core`" in text
     assert "`server.<transport>.in_flight_per_worker`" in text
     # the cache opt-in: miss, hit, saving
-    assert "| graphql | bench-postgresql | 2.000 | 0.300 | 1.700 |" in text
-    assert "`transports.<transport>.<source>.cache.hit_ms`" in text
+    assert "| pg | graphql | bench-postgresql | 2.000 | 0.300 | 1.700 |" in text
+    assert "`engines.<engine>.transports.<transport>.<source>.cache.hit_ms`" in text
     # live or replica, with the break-even and its TTL
-    assert "| pgwire | bench-postgresql | 2.000 | 0.500 | 3.00 | 60 | 33.3 |" in text
-    assert "`transports.<transport>.<source>.break_even.requests_per_s`" in text
+    assert "| pg | pgwire | bench-postgresql | 2.000 | 0.500 | 3.00 | 60 | 33.3 |" in text
+    assert "`engines.<engine>.transports.<transport>.<source>.break_even.requests_per_s`" in text
     # a knob with no cost shows as such
-    assert "| graphql | bench-postgresql | 2.000 | 0.0100 | 0.0300 | 0.0010 | 0.5000 | – |" in text
+    assert (
+        "| pg | graphql | bench-postgresql | 2.000 | 0.0100 | 0.0300 | 0.0010 | 0.5000 | – | – | – "
+        "| 0.990 |"
+    ) in text
 
 
 def test_the_guide_carries_no_internal_label() -> None:
@@ -295,9 +318,55 @@ def test_the_guide_carries_no_internal_label() -> None:
 
 
 def test_the_guide_sizes_a_workload() -> None:
-    sized = sz.size(_report(), _setup(_raw()), DRAWS)
+    sized = sz.size(_report(), _setup(_raw()), "pg", DRAWS)
     text = guide.render(_report(), sized)
     assert "## Sizing this workload" in text
     assert (sized.physical_cores, sized.workers, sized.in_flight_per_worker) == (1, 2, 2)
     assert "**1 physical core, 2 worker processes, 2 in-flight requests per worker.**" in text
     assert "`server.<transport>.capacity_factor`" in text
+
+
+def test_an_engine_the_run_did_not_sweep_is_refused() -> None:
+    with pytest.raises(sz.SizingRefused, match="engine trino: the run has no knob sweep with it"):
+        sz.size(_report(), _setup(_raw()), "trino", DRAWS)
+
+
+def test_each_engine_is_sized_from_its_own_models() -> None:
+    report = _report()
+    report["engines"]["duckdb"] = copy.deepcopy(report["engines"]["pg"])
+    report["engines"]["duckdb"]["transports"]["graphql"]["bench-postgresql"] = _cell(4.0)
+    raw = _raw({"rate_per_s": 100, "transport_weights": {"graphql": 1}})
+    raw["knobs"]["cache"] = {"probability": 0.0}
+    pg = sz.size(report, _setup(raw), "pg", DRAWS)
+    duckdb = sz.size(report, _setup(raw), "duckdb", DRAWS)
+    assert (pg.engine, duckdb.engine) == ("pg", "duckdb")
+    assert duckdb.transports[0].cpu_ms - pg.transports[0].cpu_ms == pytest.approx(2.0)
+
+
+def test_the_guide_sets_engines_side_by_side() -> None:
+    report = _report()
+    report["engines"]["trino"] = copy.deepcopy(report["engines"]["pg"])
+    text = guide.render(report)
+    assert "| pg | graphql | bench-postgresql |" in text
+    assert "| trino | graphql | bench-postgresql |" in text
+
+
+def test_the_guide_shows_the_engines_cost_and_the_join_break_even() -> None:
+    report = _report()
+    cell = report["engines"]["pg"]["transports"]["graphql"]["bench-postgresql"]
+    cell["engine_cpu"] = cell["provisa_cpu"]
+    cell["join_break_even"] = {
+        "1": {
+            "sources": ["bench-clickhouse", "bench-postgresql"],
+            "live_ms": 5.0,
+            "replica_ms": 2.0,
+            "refresh_cpu_s": 6.0,
+            "ttl_s": 60,
+            "requests_per_s": 33.3333,
+            "reason": None,
+        }
+    }
+    text = guide.render(report)
+    assert "The engine's own CPU per request" in text
+    assert "`engines.<engine>.transports.<transport>.<source>.engine_cpu.base`" in text
+    assert "| pg | graphql | bench-postgresql | 1 | 5.000 | 2.000 | 6.00 | 60 | 33.3 |" in text
