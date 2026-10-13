@@ -115,6 +115,7 @@ def compare(args: Any, output_dir: Path, *, replica_ttl_s: int) -> dict[str, Any
         run_args = argparse.Namespace(
             setup=str(contract),
             server_pid=args.server_pid,
+            server_cpu_url=args.server_cpu_url,
             resolved_names=args.resolved_names,
             apply_replication=True,
             skip_route_verification=args.skip_route_verification,
@@ -136,6 +137,7 @@ def main() -> int:
     )
     parser.add_argument("--resolved-names", default=None)
     parser.add_argument("--server-pid", type=int, default=None)
+    parser.add_argument("--server-cpu-url", default=None)
     args = parser.parse_args()
     args.skip_route_verification = False  # a comparison needs the routes verified
     try:

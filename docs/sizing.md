@@ -139,7 +139,24 @@ Run the baseline contract once. The run asks the deployment what each transport 
   --setup acme.yaml --server-pid "$PROVISA_PID" --output-dir results/first
 ```
 
-`--engine` names the federation engine your deployment runs (`duckdb`, `pg` or `trino`). `--server-pid` is the server's process id; the run includes its child processes and reads their CPU. Server CPU is only measured when the load generator runs on the server's host. [tool-verified: `demo/named/perf/bench/optimistic_load.py:_server_cpu_seconds`]
+`--engine` names the federation engine your deployment runs (`duckdb`, `pg` or `trino`). `--server-pid` is the server's process id; the run reads the CPU time of that process and its child processes (the workers). It reads the process directly, so it works only when the load generator runs on the server's host. [tool-verified: `demo/named/perf/bench/optimistic_load.py:_server_cpu_seconds`]
+
+### Measuring the server's CPU from another host
+
+Run the load generator on its own machine when you can: then it takes no cores from the server. To measure the server's CPU from there, start `server_cpu_agent.py` on the server's host and give the run its URL instead of `--server-pid`:
+
+```bash
+# on the server's host, from demo/named/perf/bench
+../../../../.venv/bin/python3 server_cpu_agent.py --pid "$PROVISA_PID" --listen 10.0.0.5:9555
+
+# on the load generator's host
+../../../../.venv/bin/python3 run_benchmark.py --engine pg --optimistic \
+  --setup acme.yaml --server-cpu-url http://10.0.0.5:9555/ --output-dir results/first
+```
+
+The agent answers one figure, the same one `--server-pid` reads: `GET /` returns `{"pid": ..., "cpu_seconds": ...}`, the cumulative CPU seconds of the server process and its workers. Every other path answers 404, and every other method is refused. [tool-verified: `demo/named/perf/bench/server_cpu_agent.py:handler`] Give a run one of `--server-pid` or `--server-cpu-url`, never both. [tool-verified: `demo/named/perf/bench/optimistic_load.py:server_cpu_source`]
+
+`--listen` is required: the agent has no default address. Bind it to a private address that only the load generator can reach, never a public interface, and stop it (Ctrl+C) when the runs are done.
 
 ### 2. Plan the runs
 
@@ -170,6 +187,8 @@ Each manifest entry names its contract file. Run each one into `results/sizing/r
   --resolved-names results/first/optimistic/resolved-names.json \
   --server-pid "$PROVISA_PID" --output-dir results/sizing/results/graphql.sales-pg.filters.1
 ```
+
+From another host, use `--server-cpu-url` in place of `--server-pid`. A worker run restarts the server, so its process id changes: restart the agent with the new `--pid` too.
 
 Add `--apply-replication` to the replication runs. It sets the source's replication as the run's contract declares and restores it afterwards. [tool-verified: `demo/named/perf/bench/optimistic_load.py:add_arguments`]
 

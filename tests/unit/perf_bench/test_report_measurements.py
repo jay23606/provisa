@@ -525,7 +525,9 @@ def test_an_idle_window_needs_the_server_pid(
 ) -> None:
     monkeypatch.setattr(ol, "run_transport", _fake_report)
     setup = _setup(tmp_path, lambda r: r["load"].update({"idle_window_s": 5}))
-    with pytest.raises(contract_model.SetupError, match="load.idle_window_s needs --server-pid"):
+    with pytest.raises(
+        contract_model.SetupError, match="load.idle_window_s needs --server-pid or --server-cpu-url"
+    ):
         ol.run_all(
             ol.endpoints_from_setup(setup), tmp_path / "out", ["graphql"], (1,), 1.0, 1, None
         )

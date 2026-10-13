@@ -22,6 +22,8 @@ saturated is marked ``client_limited`` and is a measurement of this tool, not of
 
 Server CPU per request is reported when ``--server-pid`` names the server's process (its children
 — uvicorn workers — are included): at concurrency 1 it is the per-transport overhead ranking.
+``--server-pid`` reads the process on this host; from another host, ``--server-cpu-url`` reads
+the same figure from ``server_cpu_agent.py`` running on the server's host.
 
     PROVISA_HTTP_BASE_URL=http://localhost:8001 python optimistic_load.py \\
         --setup setups/perf-stack.yaml --server-pid 1234 --output-dir results/optimistic
@@ -705,21 +707,22 @@ def _client_process(
     )
 
 
-def _server_cpu_seconds(server_pid: int | None) -> float | None:
-    """CPU the server has used so far: the named process and every descendant (its workers)."""
+def _server_cpu_seconds(server_pid: int | str | None) -> float | None:
+    """CPU the server has used so far: the named process and every descendant (its workers).
+    ``server_pid`` is the process id on this host (``--server-pid``), or the URL of the
+    ``server_cpu_agent.py`` running on the server's host (``--server-cpu-url``); None: not
+    measured."""
     if server_pid is None:
         return None
-    import psutil
+    if isinstance(server_pid, str):
+        import httpx
 
-    root = psutil.Process(server_pid)
-    total = 0.0
-    for proc in [root, *root.children(recursive=True)]:
-        try:
-            times = proc.cpu_times()
-        except psutil.NoSuchProcess:
-            continue
-        total += times.user + times.system
-    return total
+        resp = httpx.get(server_pid, timeout=10)
+        resp.raise_for_status()
+        return float(resp.json()["cpu_seconds"])
+    import server_cpu_agent
+
+    return server_cpu_agent.cpu_seconds(server_pid)
 
 
 def _percentile(sorted_values: list[float], q: float) -> float:
@@ -732,7 +735,7 @@ def run_step(
     concurrency: int,
     window_s: float,
     max_processes: int,
-    server_pid: int | None,
+    server_pid: int | str | None,  # a pid on this host, or a server_cpu_agent URL
 ) -> dict:
     """One closed-loop step at ``concurrency`` clients for ``window_s`` seconds."""
     ctx = multiprocessing.get_context("spawn")
@@ -835,7 +838,7 @@ def run_transport(
     steps: tuple[int, ...],
     window_s: float,
     max_processes: int,
-    server_pid: int | None,
+    server_pid: int | str | None,  # a pid on this host, or a server_cpu_agent URL
     audit: Any = None,
 ) -> dict:
     """One transport's report. ``audit`` (``replication.audit_reader``): every step is checked
@@ -935,12 +938,12 @@ def run_all(
     steps: tuple[int, ...],
     window_s: float,
     max_processes: int,
-    server_pid: int | None,
+    server_pid: int | str | None,  # a pid on this host, or a server_cpu_agent URL
     audit: Any = None,
 ) -> list[dict]:
     output_dir.mkdir(parents=True, exist_ok=True)
     if ep.setup.load.idle_window_s and server_pid is None:
-        raise contract_model.SetupError("load.idle_window_s needs --server-pid")
+        raise contract_model.SetupError("load.idle_window_s needs --server-pid or --server-cpu-url")
     reports = []
     for transport in transports:
         report = run_transport(transport, ep, steps, window_s, max_processes, server_pid, audit)
@@ -1036,7 +1039,14 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
         "--server-pid",
         type=int,
         default=None,
-        help="The server's process id (its children are included): reports server CPU per request",
+        help="The server's process id (its children are included): reports server CPU per request. "
+        "The load generator must run on the server's host; see --server-cpu-url otherwise.",
+    )
+    parser.add_argument(
+        "--server-cpu-url",
+        default=None,
+        help="URL of server_cpu_agent.py running on the server's host (http://HOST:PORT/): reports "
+        "server CPU per request when the load generator runs on another host.",
     )
 
 
@@ -1120,6 +1130,14 @@ def _refuse_contract_owned_flags(argv: list[str]) -> None:
             )
 
 
+def server_cpu_source(args: argparse.Namespace) -> int | str | None:
+    """Where the server's CPU is read: its pid on this host, or its agent's URL; None: neither
+    was given, so server CPU is not measured."""
+    if args.server_pid is not None and args.server_cpu_url is not None:
+        raise contract_model.SetupError("--server-pid and --server-cpu-url: give one, not both")
+    return args.server_pid if args.server_pid is not None else args.server_cpu_url
+
+
 def run_from_args(
     args: argparse.Namespace, output_dir: Path, argv: list[str] | None = None
 ) -> list[dict]:
@@ -1167,7 +1185,7 @@ def run_from_args(
             setup.load.steps,
             setup.load.window_s,
             processes,
-            args.server_pid,
+            server_cpu_source(args),
             audit=audit,
         )
 
