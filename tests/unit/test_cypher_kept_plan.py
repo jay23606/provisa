@@ -50,6 +50,7 @@ def _ctx(table_id: int = 1) -> SimpleNamespace:
         table_id=table_id,
         source_id="pg",
         catalog_name="postgresql",
+        source_type="postgresql",
         schema_name="public",
         table_name="orders",
         domain_id="sales",
