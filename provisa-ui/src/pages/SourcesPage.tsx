@@ -36,7 +36,7 @@ import {
 } from "@mantine/core";
 import { FilterInput } from "../components/admin/FilterInput";
 import { HelpBubble } from "../components/HelpBubble";
-import { Tip } from "../components/Tip";
+import { TipSurface } from "../components/Tip";
 import { RefreshCw } from "lucide-react";
 import { fetchSettings, fetchFederationEngine } from "../api/admin";
 import type { PlatformSettings, FederationEngineState } from "../api/admin";
@@ -1323,12 +1323,15 @@ export function SourcesPage() {
           </Button>
         )}
         {(s.type === "graphql" || s.type === "openapi" || s.type === "grpc") && (
-          <Tip
-            text={
+          // Held open while the refresh runs: pressing the icon closes its hint, and a busy icon
+          // is disabled, so pointing at it shows nothing -- the hint is what says it is running.
+          <TipSurface
+            content={
               refreshingSourceId === s.id
                 ? t("sourcesPage.refreshing")
                 : t("sourcesPage.refreshSchema")
             }
+            opened={refreshingSourceId === s.id}
             named
           >
             <ActionIcon
@@ -1339,7 +1342,7 @@ export function SourcesPage() {
             >
               <RefreshCw size={14} />
             </ActionIcon>
-          </Tip>
+          </TipSurface>
         )}
       </Group>
     </PanelActions>
