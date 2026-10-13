@@ -170,6 +170,7 @@ def build_adapter_loaders(state: Any, engine: Any) -> dict[str, Any]:
         make_clickhouse_loader,
         make_druid_loader,
         make_elasticsearch_loader,
+        make_file_loader,
         make_firebird_loader,
         make_graphql_remote_loader,
         make_grpc_remote_loader,
@@ -205,6 +206,10 @@ def build_adapter_loaders(state: Any, engine: Any) -> dict[str, Any]:
     if grpc_sources:
         loaders["grpc_remote"] = make_grpc_remote_loader(grpc_sources)
     loaders["sqlite"] = make_sqlite_loader()
+    # #255: a csv or parquet file is read by its own reader too, so a source floored to its replica
+    # (which has no live attach on any engine) still builds it.
+    loaders["csv"] = make_file_loader("csv")
+    loaders["parquet"] = make_file_loader("parquet")
     # REQ-1730: no engine but DuckDB reaches firebird/airport at all (no Trino/pg connector for
     # either) — same unconditional shape as sqlite above, not gated by engine_attaches (there is
     # nothing for any OTHER engine to attach).

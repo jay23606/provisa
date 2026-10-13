@@ -536,19 +536,23 @@ def make_sqlite_loader() -> AdapterLoader:
 
 def _scratch_attach(conn: Any, connector_details: dict) -> None:
     """Attach the source on a scratch connection: its connector's extension, then what its
-    location needs (REQ-1997: the extension reaching a remote file, and its secret)."""
+    location needs (REQ-1997: the extension reaching a remote file, and its secret). A file DuckDB
+    reads with a core function (a csv or parquet file, :func:`make_file_loader`) names no
+    extension and has nothing to attach: only its location's needs are met."""
     from provisa.federation.duckdb_extensions import install_and_load
 
-    install_and_load(
-        conn,
-        connector_details["extension"],
-        from_community=connector_details.get("install_from_community", True),
-    )
+    if "extension" in connector_details:
+        install_and_load(
+            conn,
+            connector_details["extension"],
+            from_community=connector_details.get("install_from_community", True),
+        )
     for ext in connector_details.get("extensions", ()):
         install_and_load(conn, ext, from_community=False)
     if connector_details.get("secret_ddl"):
         conn.execute(connector_details["secret_ddl"])
-    conn.execute(connector_details["attach"])
+    if "attach" in connector_details:
+        conn.execute(connector_details["attach"])
 
 
 def _duckdb_extension_scratch_read(connector_details: dict, select_sql: str) -> list[dict]:
@@ -591,6 +595,57 @@ def _duckdb_extension_scratch_batches(
             yield [dict(zip(names, row)) for row in chunk]
     finally:
         conn.close()
+
+
+#: The file types DuckDB reads with a core function, and that function (the DuckDB connectors'
+#: own scanner views: ``DuckDBCsvConnector``, ``DuckDBParquetConnector``).
+_FILE_READERS = {"csv": "read_csv_auto", "parquet": "read_parquet"}
+
+
+def make_file_loader(source_type: str) -> AdapterLoader:
+    """Build the row-fetch of a csv or parquet file source (#255): the file read straight, through a
+    scratch DuckDB connection, with the reader the DuckDB engine's own scanner view uses.
+
+    A source the operator floors (``replicate: 0``, REQ-030/826/1141) has no live attach on any
+    engine (REQ-1912), so its replica cannot be built by an engine read of that attach; it is built
+    from the file, as a sqlite file's is (:func:`make_sqlite_loader`)."""
+    from provisa.compiler.sql_literals import sql_literal
+    from provisa.core.org_files import resolve_path
+    from provisa.core.secrets import resolve_secrets
+    from provisa.federation.connector_duckdb import file_location_details
+
+    reader = _FILE_READERS[source_type]
+
+    def _plan(source: Any, columns: list[str]) -> tuple[dict, str]:
+        """The scratch connection's location needs and the SELECT of ``columns`` from the file."""
+        path = getattr(source, "path", None)
+        if not path:
+            raise ValueError(f"{source_type} source {source.id!r} has no path")
+        # REQ-1919: the path is kept as written and resolved at use; REQ-1997: {files}/... is read
+        # where it resolves.
+        located = sql_literal(resolve_path(resolve_secrets(path)), "duckdb")
+        select = ", ".join(f'"{c}"' for c in columns)
+        return file_location_details(source), f"SELECT {select} FROM {reader}({located})"
+
+    async def _load(source: Any, table: Any) -> list[dict]:
+        columns = [c.name for c in table.columns if getattr(c, "native_filter_type", None) is None]
+        if not columns:
+            return []
+        details, sql = _plan(source, columns)
+        return await asyncio.to_thread(_duckdb_extension_scratch_read, details, sql)
+
+    def _replica_source(source: Any, table: Any, columns: list[tuple[str, str]]) -> Any:
+        from provisa.federation.replica_source import BlockingCursorSource
+
+        del table  # a file source's one table is the file
+        details, sql = _plan(source, [name for name, _ in columns])
+        return BlockingCursorSource(
+            lambda batch_rows: _duckdb_extension_scratch_batches(details, sql, batch_rows),
+            columns,
+        )
+
+    _load.replica_source = _replica_source  # type: ignore[attr-defined]
+    return _load
 
 
 def make_firebird_loader() -> AdapterLoader:
