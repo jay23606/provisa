@@ -121,6 +121,23 @@ async def upsert(  # REQ-012, REQ-250, REQ-1919
     )
 
 
+async def create(conn: "Connection", source: Source) -> None:  # REQ-012, REQ-2006
+    """Write a NEW source: an INSERT, so two creates of one id that both found it free race in the
+    database, and the second is refused (:class:`SourceIdTaken`) instead of overwriting the first."""
+    from sqlalchemy.exc import IntegrityError
+
+    model_change.name("create", "source", source.id)  # REQ-1524
+    from provisa.core.repositories.region import require_selected
+    from provisa.security.sandbox_egress import pinned_source
+
+    pinned_source(source)  # REQ-2006, as upsert
+    await require_selected(conn, f"source {source.id}", source.region)  # REQ-1921
+    try:
+        await conn.execute_core(sources.insert().values(**_source_values(source)))
+    except IntegrityError as exc:
+        raise SourceIdTaken(source.id) from exc
+
+
 async def owned_if_reconnected(conn: "Connection", values: dict) -> dict:  # REQ-1942
     """``values`` -- a ``sources`` row about to be written -- marked the environment's OWN when
     they change the connection of a source whose connection was copied from the parent or is none:
@@ -231,7 +248,8 @@ async def remove_where(conn: "Connection", *where) -> None:
 
 
 class SourceIdTaken(ValueError):
-    """A rename onto the id of another source: refused, naming it, before anything is written."""
+    """A rename or a create onto the id of another source: refused, naming it (a create's, when
+    another create took the id after it was judged free)."""
 
     def __init__(self, source_id: str) -> None:
         self.source_id = source_id

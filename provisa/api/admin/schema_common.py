@@ -515,12 +515,18 @@ def _expand_wikipedia_if_needed(input: SourceInput) -> Optional[MutationResult]:
     return None
 
 
-async def _upsert_source_with_domains(pool, model, input: SourceInput) -> None:
-    """Upsert the source model and update allowed_domains in the DB."""
+async def _upsert_source_with_domains(
+    pool, model, input: SourceInput, *, create: bool = False
+) -> None:
+    """Write the source model -- a new one (``create``: refused when its id was taken meanwhile,
+    ``SourceIdTaken``) or a replacement -- and its allowed_domains."""
     from provisa.core.repositories import source as source_repo
 
     async with pool.acquire() as conn:
-        await source_repo.upsert(conn, model)
+        if create:
+            await source_repo.create(conn, model)
+        else:
+            await source_repo.upsert(conn, model)
         _domains = [d for d in (input.allowed_domains or []) if d.strip()]
         if _domains:
             await conn.execute_core(

@@ -394,11 +394,10 @@ def test_a_named_sandbox_is_the_persons_own_from_every_device(tier):
     assert _names(rows) == sorted(_ROWS["alpha"])
 
 
-def test_two_devices_writing_at_once_leave_one_whole_source(tier):
-    """Two devices of one named sandbox register the same source at the same moment. Saving a
-    source is an upsert, so both saves land and the model holds that one source, whole -- the
-    second write does not corrupt the first. (Writes to the sandbox's DuckDB store are serialized
-    by the store's file lock; a write-write conflict DuckDB itself raises is refused by name,
+def test_two_devices_writing_at_once_one_succeeds_and_the_other_is_refused_by_name(tier):
+    """Two devices of one named sandbox create the same source at the same moment: one is
+    created, the other is refused by name, and the model holds that one source, whole. (A
+    write-write conflict DuckDB itself raises is refused by name too,
     tests/unit/test_duckdb_write_conflict.py.)"""
     import concurrent.futures
 
@@ -432,7 +431,9 @@ def test_two_devices_writing_at_once_leave_one_whole_source(tier):
 
     with concurrent.futures.ThreadPoolExecutor(2) as pool:
         results = list(pool.map(lambda _: register(), range(2)))
-    assert [r["success"] for r in results] == [True, True], results
+    assert sorted(r["success"] for r in results) == [False, True], results
+    refused = next(r for r in results if not r["success"])
+    assert refused["code"] == "schema.source_id_taken", refused
     listed = httpx.post(
         f"{tier.base_url}/admin/graphql",
         json={"query": "{ sources { id type } }"},

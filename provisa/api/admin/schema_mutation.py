@@ -2033,7 +2033,18 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
 
         _named = [d for d in (input.allowed_domains or []) if d.strip()]
         require_reach_of_added_domains(info, None, _named, empty_is_all=True)
-        await _upsert_source_with_domains(pool, model, input)
+        try:
+            await _upsert_source_with_domains(pool, model, input, create=True)
+        except _source_repo.SourceIdTaken as taken:
+            # Its id was free when judged above and was taken since, by another create of the
+            # same source (two devices of one person at once): refused by name, never overwritten.
+            await state.source_pools.remove(input.id)
+            return MutationResult(
+                success=False,
+                message=str(taken),
+                code="schema.source_id_taken",
+                params={"source": input.id},
+            )
 
         _domains = [d for d in (input.allowed_domains or []) if d.strip()]
         if _domains:
