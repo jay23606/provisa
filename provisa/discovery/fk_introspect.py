@@ -58,41 +58,100 @@ def _engine() -> "_Engine":
 # SQL templates per dialect
 # ---------------------------------------------------------------------------
 
-# Outbound: FKs defined ON this table → ref table (many-to-one)
-_PG_OUTBOUND = """
-SELECT
-    kcu.column_name          AS fk_column,
-    ccu.table_name           AS ref_table,
-    ccu.column_name          AS ref_column
+# A foreign key's referenced columns are read from the key it references: the constraint's
+# row in ``referential_constraints`` names that key (``unique_constraint_schema`` / ``_name``),
+# and each foreign-key column's ``position_in_unique_constraint`` is the position of the column
+# it is paired with in that key. So a composite key keeps its pairing, column by column, and a
+# foreign key listed in another order than the key it references is still paired correctly.
+# ``constraint_column_usage`` cannot say this (it lists the referenced columns with no pairing,
+# so a two-column key came back as four pairs), and the Calcite pgwire servers do not serve it.
+# Standard information_schema only, so one query serves PostgreSQL and every source that speaks
+# its wire protocol.
+_PG_FK_PAIRS = """
 FROM information_schema.table_constraints      AS tc
 JOIN information_schema.key_column_usage       AS kcu
-    ON tc.constraint_name = kcu.constraint_name
-   AND tc.table_schema    = kcu.table_schema
-JOIN information_schema.constraint_column_usage AS ccu
-    ON ccu.constraint_name = tc.constraint_name
-   AND ccu.table_schema   = tc.table_schema
+    ON kcu.constraint_schema = tc.constraint_schema
+   AND kcu.constraint_name   = tc.constraint_name
+   AND kcu.table_schema      = tc.table_schema
+   AND kcu.table_name        = tc.table_name
+JOIN information_schema.referential_constraints AS rc
+    ON rc.constraint_schema = tc.constraint_schema
+   AND rc.constraint_name   = tc.constraint_name
+JOIN information_schema.key_column_usage       AS ref
+    ON ref.constraint_schema = rc.unique_constraint_schema
+   AND ref.constraint_name   = rc.unique_constraint_name
+   AND ref.ordinal_position  = kcu.position_in_unique_constraint
 WHERE tc.constraint_type = 'FOREIGN KEY'
-  AND tc.table_schema    = $1
-  AND tc.table_name      = $2
 """
 
+# Outbound: FKs defined ON this table → ref table (many-to-one)
+_PG_OUTBOUND = (
+    """
+SELECT
+    kcu.column_name          AS fk_column,
+    ref.table_name           AS ref_table,
+    ref.column_name          AS ref_column
+"""
+    + _PG_FK_PAIRS
+    + """
+  AND tc.table_schema    = $1
+  AND tc.table_name      = $2
+ORDER BY tc.constraint_name, kcu.ordinal_position
+"""
+)
+
 # Inbound: OTHER tables have FKs pointing TO this table (one-to-many)
-_PG_INBOUND = """
+_PG_INBOUND = (
+    """
 SELECT
     kcu.table_name           AS fk_table,
     kcu.column_name          AS fk_column,
-    ccu.column_name          AS ref_column
-FROM information_schema.table_constraints      AS tc
-JOIN information_schema.key_column_usage       AS kcu
-    ON tc.constraint_name = kcu.constraint_name
-   AND tc.table_schema    = kcu.table_schema
-JOIN information_schema.constraint_column_usage AS ccu
-    ON ccu.constraint_name = tc.constraint_name
-   AND ccu.table_schema   = tc.table_schema
-WHERE tc.constraint_type = 'FOREIGN KEY'
-  AND ccu.table_schema   = $1
-  AND ccu.table_name     = $2
+    ref.column_name          AS ref_column
 """
+    + _PG_FK_PAIRS
+    + """
+  AND ref.table_schema   = $1
+  AND ref.table_name     = $2
+ORDER BY kcu.table_name, tc.constraint_name, kcu.ordinal_position
+"""
+)
+
+#: Source types whose foreign keys are read by the PostgreSQL query above over a pooled driver.
+#: MySQL and MariaDB are not among them: they have no ``constraint_column_usage``, so the
+#: earlier query never returned a row for them, and their ``referential_constraints`` names
+#: every table's primary key ``PRIMARY``, so this query would pair a foreign key with every
+#: primary key of the schema. They need a reader of their own (``referenced_table_name``).
+_PG_FK_TYPES = ("postgresql", "postgres")
+
+
+async def _constraint_driver(source_pools, source_type_lower: str, source_id: str):
+    """``(driver, close)`` for reading ``source_id``'s declared constraints as PostgreSQL: the
+    source's pooled driver, or — for a source read through its bundled Calcite pgwire server
+    (``pgwire_replica.PGWIRE_REPLICA_TYPES``) — a connection to that server, the endpoint the
+    engines attach. ``(None, None)`` for a source that is neither. Raises
+    ``SourceStillStartingError`` while a server has not begun listening."""
+    if source_type_lower in _PG_FK_TYPES:
+        if not source_pools.has(source_id):
+            return None, None
+        return source_pools.get(source_id), None
+    from provisa.federation.pgwire_replica import PGWIRE_REPLICA_TYPES
+
+    if source_type_lower not in PGWIRE_REPLICA_TYPES:
+        return None, None
+    import asyncio
+
+    from provisa.api.admin.schema_query import _source_for_introspection
+    from provisa.executor.drivers.pgwire_server import PgwireServerDriver
+    from provisa.federation.pgwire_replica import ensure_endpoint_for_discovery
+
+    source = await _source_for_introspection(source_id)
+    if source is None:
+        raise LookupError(f"source {source_id!r} is not registered")
+    ports = await asyncio.to_thread(ensure_endpoint_for_discovery, source)
+    driver = PgwireServerDriver()
+    # What the bundled server accepts: it checks no credentials and serves one database.
+    await driver.connect(ports.calcite_child_host, ports.pgwire_port, "provisa", "provisa", "")
+    return driver, driver.close
 
 
 async def _pg_fks(
@@ -266,17 +325,20 @@ async def introspect_fk_constraints(  # REQ-018, REQ-413
     exposes none or does not support constraint introspection.
     """
     source_type_lower = source_type.lower()
-    if not source_pools.has(source_id):
-        return []
-    driver = source_pools.get(source_id)
     try:
-        if source_type_lower in ("postgresql", "postgres", "mysql", "mariadb"):
-            rows = await driver.execute(_PG_OUTBOUND, [schema_name, table_name])
-            return [
-                {"column_name": r[0], "referenced_table": r[1], "referenced_column": r[2]}
-                for r in rows.rows
-            ]
-        if source_type_lower == "sqlite":
+        pg_driver, close = await _constraint_driver(source_pools, source_type_lower, source_id)
+        if pg_driver is not None:
+            try:
+                rows = await pg_driver.execute(_PG_OUTBOUND, [schema_name, table_name])
+                return [
+                    {"column_name": r[0], "referenced_table": r[1], "referenced_column": r[2]}
+                    for r in rows.rows
+                ]
+            finally:
+                if close is not None:
+                    await close()
+        if source_type_lower == "sqlite" and source_pools.has(source_id):
+            driver = source_pools.get(source_id)
             rows = await driver.execute(f'PRAGMA foreign_key_list("{table_name}")', [])
             return [
                 # columns: id, seq, table, from, to, on_update, on_delete, match
@@ -364,14 +426,16 @@ async def auto_register_fk_relationships(  # REQ-018, REQ-399, REQ-413, REQ-415
     """
     source_type_lower = source_type.lower()
 
-    if not source_pools.has(source_id):
-        return 0
-    driver = source_pools.get(source_id)
     try:
-        if source_type_lower in ("postgresql", "postgres", "mysql", "mariadb"):
-            fk_rows = await _pg_fks(driver, schema_name, table_name)
-        elif source_type_lower == "sqlite":
-            fk_rows = await _sqlite_fks(driver, schema_name, table_name)
+        pg_driver, close = await _constraint_driver(source_pools, source_type_lower, source_id)
+        if pg_driver is not None:
+            try:
+                fk_rows = await _pg_fks(pg_driver, schema_name, table_name)
+            finally:
+                if close is not None:
+                    await close()
+        elif source_type_lower == "sqlite" and source_pools.has(source_id):
+            fk_rows = await _sqlite_fks(source_pools.get(source_id), schema_name, table_name)
         else:
             return 0
     except Exception:
