@@ -80,6 +80,7 @@ def test_the_ui_server_sends_a_sandbox_and_a_demo_opening_to_the_sandbox_tier(mo
         route("data/sql", {"host": "cloud.provisa.dev", "x-org-provisa": "sbxtplweblogs"}) == tier
     )
     assert route("public/demos/weblogs", {"host": "cloud.provisa.dev"}) == tier
+    assert route("sandboxes/weblogs", {"host": "cloud.provisa.dev"}) == tier
     assert route("data/sql", {"host": "acme.provisa.dev"}) == main
     assert route("data/sql", {"host": "cloud.provisa.dev", "x-org-provisa": "acme"}) == main
     assert route("auth/me", {"host": "cloud.provisa.dev"}) == main

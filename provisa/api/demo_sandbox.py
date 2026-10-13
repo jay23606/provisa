@@ -107,6 +107,23 @@ async def _open_count(conn: Any) -> int:
     )
 
 
+async def named_sandbox_of(user_id: str, demo: str) -> str | None:
+    """The named sandbox ``user_id`` already has open of ``demo``, if any."""
+    from provisa.api.admin.orgs_router import _admin_pool
+
+    async with _admin_pool().acquire() as conn:
+        row = (
+            await conn.execute_core(
+                select(demo_sandboxes.c.org_id).where(
+                    demo_sandboxes.c.user_id == user_id,
+                    demo_sandboxes.c.demo == demo,
+                    demo_sandboxes.c.kind == NAMED,
+                )
+            )
+        ).fetchone()
+    return row[0] if row is not None else None
+
+
 async def open_sandbox(name: str, *, kind: str, user_id: str | None = None) -> OpenedSandbox:
     """Open a sandbox of the published demo ``name``: a visitor's (``user_id`` None, minted here)
     or a named one for the signed-in ``user_id``."""

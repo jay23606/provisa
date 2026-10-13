@@ -13,22 +13,22 @@
 ``POST /public/demos/{name}`` needs no sign-in: it opens a visitor's sandbox of the published demo
 ``name`` and answers the sandbox's org and the visitor's token, which the page keeps and the
 sandbox's own address is then used with. Served by the sandbox tier only (the UI server routes the
-path there, ui_server.DEMO_OPEN_PREFIX); every other process refuses it by name."""
+path there, ui_server.DEMO_OPEN_PREFIXES); every other process refuses it by name."""
 
 # Requirements: REQ-2006, REQ-1035
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 from provisa.api.errors import ApiError
 
 router = APIRouter(prefix="/public/demos", tags=["demo sandboxes"])
+#: A named ("Try it Out") sandbox, opened by a signed-in person (REQ-2006).
+named_router = APIRouter(prefix="/sandboxes", tags=["demo sandboxes"])
 
 
-@router.post("/{name}")
-async def open_demo(name: str) -> dict:
-    from provisa.api.demo_sandbox import VISITOR, open_sandbox
+def _require_tier() -> None:
     from provisa.api.sandbox_tier import serves_sandboxes
 
     if not serves_sandboxes():
@@ -37,5 +37,30 @@ async def open_demo(name: str) -> dict:
             "sandbox.wrong_tier",
             "Demo sandboxes are opened by the sandbox tier only",
         )
+
+
+@router.post("/{name}")
+async def open_demo(name: str) -> dict:
+    from provisa.api.demo_sandbox import VISITOR, open_sandbox
+
+    _require_tier()
     opened = await open_sandbox(name, kind=VISITOR)
     return {"org_id": opened.org_id, "demo": opened.demo, "token": opened.token}
+
+
+@named_router.post("/{name}")
+async def open_named(name: str, request: Request) -> dict:
+    """The signed-in person's own sandbox of the published demo ``name``: the one they already
+    have open, from any of their devices, or a new one. Nobody else can be admitted to it -- the
+    sandbox role holds no user_management (REQ-1597)."""
+    from provisa.api.demo_sandbox import NAMED, named_sandbox_of, open_sandbox
+
+    _require_tier()
+    identity = getattr(request.state, "identity", None)
+    if identity is None or identity.user_id == "anonymous":
+        raise ApiError(401, "sandbox.sign_in_required", "Sign in to open your own sandbox")
+    existing = await named_sandbox_of(identity.user_id, name)
+    if existing is not None:
+        return {"org_id": existing, "demo": name}
+    opened = await open_sandbox(name, kind=NAMED, user_id=identity.user_id)
+    return {"org_id": opened.org_id, "demo": opened.demo}

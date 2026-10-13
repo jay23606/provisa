@@ -841,7 +841,9 @@ class AuthMiddleware:  # REQ-120, REQ-125, REQ-273
             # could not finish on a commerce deploy. Safe because /billing is control plane — every
             # org-scoped handler authorizes itself with require_org_billing_access_or_creator.
             platform_plane = request.url.path.startswith(
-                ("/auth/", "/setup", "/admin/orgs", "/billing")
+                # REQ-2006: /sandboxes opens the caller's own demo sandbox, an org they do not
+                # belong to yet.
+                ("/auth/", "/setup", "/admin/orgs", "/billing", "/sandboxes/")
             )
             requested_org = _requested_org_from_host(request)
             credential_org = identity.active_org_id

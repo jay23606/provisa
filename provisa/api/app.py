@@ -3948,9 +3948,11 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(settings_catalog_router)
+    from provisa.api.demo_sandbox_router import named_router as named_sandbox_router
     from provisa.api.demo_sandbox_router import router as demo_sandbox_router  # REQ-2006
 
     app.include_router(demo_sandbox_router)
+    app.include_router(named_sandbox_router)
     from provisa.api.admin.org_storage_router import (  # REQ-1046, REQ-1048, REQ-1049
         router as org_storage_router,
     )

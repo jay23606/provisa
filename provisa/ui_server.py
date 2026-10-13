@@ -64,8 +64,9 @@ _API_VERIFY = not API_BASE_URL.startswith("https://")
 # open a demo, is proxied there. Unset, there is no sandbox tier, and the API refuses a sandbox org
 # by name.
 SANDBOX_API_URL = os.environ.get("PROVISA_SANDBOX_API_URL")
-#: The public API path a demo sandbox is opened by (provisa/api/demo_sandbox_router.py).
-DEMO_OPEN_PREFIX = "public/demos/"
+#: The API paths a demo sandbox is opened by (provisa/api/demo_sandbox_router.py): a visitor's,
+#: with no sign-in, and a signed-in person's own.
+DEMO_OPEN_PREFIXES = ("public/demos/", "sandboxes/")
 
 
 def api_base_for(full_path: str, headers: Mapping[str, str]) -> str:
@@ -78,7 +79,7 @@ def api_base_for(full_path: str, headers: Mapping[str, str]) -> str:
     from provisa.security.sni import org_from_host
 
     org = org_from_host(headers.get("host")) or headers.get("x-org-provisa")
-    if full_path.startswith(DEMO_OPEN_PREFIX) or (org is not None and is_sandbox_tier_org(org)):
+    if full_path.startswith(DEMO_OPEN_PREFIXES) or (org is not None and is_sandbox_tier_org(org)):
         return SANDBOX_API_URL
     return API_BASE_URL
 
