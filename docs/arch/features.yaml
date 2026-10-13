@@ -1007,7 +1007,9 @@
     text: You can start Provisa already loaded with a demo. Running the launcher with a demo name picks
       one of the bundled scenarios, and plain demo mode loads the default. In demo mode a complete configuration
       is loaded instead of the first-run wizard, and tier restrictions are lifted so every feature can
-      be shown.
+      be shown. Each demo, instance and organization keeps what you left in the browser, such as the
+      domain filter, saved query tabs and open panels, so switching demos carries none of it across and
+      coming back restores it.
   - id: product-tour-and-demos-sandbox
     text: On the hosted service, a prospect can try Provisa with no signup in an ephemeral sandbox cloned
       from a prepared template. The sandbox is deleted on logout or after a period of inactivity, has

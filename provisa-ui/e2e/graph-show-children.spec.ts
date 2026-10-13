@@ -6,6 +6,7 @@
 // found in the LICENSE file in the root directory of this source tree.
 
 import { test, expect, BACKEND_URL } from "./coverage";
+import { scopedStorageKey } from "./storageScope";
 
 type CyNode = { id: () => string; length: number };
 type CyInstance = {
@@ -44,12 +45,10 @@ test("show children for two nodes keeps both visible", async ({ page }) => {
   });
   // Set pending query before navigation so the page auto-runs it on mount
   await page.goto("/graph", { timeout: 30000 });
-  await page.evaluate(() => {
-    localStorage.setItem(
-      "provisa.graph.pending_query",
-      "MATCH (n:PetStore:Inquiries) RETURN n LIMIT 5",
-    );
-  });
+  const pendingKey = await scopedStorageKey(page.request, "provisa.graph.pending_query");
+  await page.evaluate((k) => {
+    localStorage.setItem(k, "MATCH (n:PetStore:Inquiries) RETURN n LIMIT 5");
+  }, pendingKey);
   await page.reload({ timeout: 30000 });
 
   // Wait for cytoscape to initialize and have at least 2 nodes.

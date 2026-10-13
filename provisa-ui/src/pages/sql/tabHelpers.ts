@@ -10,6 +10,7 @@
 
 import { SQL_QUERY_KEY, NL_PROMPT_KEY, TABS_KEY, tabSqlKey, tabNlKey } from "./types";
 import type { SqlTab } from "./types";
+import { getStored, setStored } from "../../lib/browserStorage";
 
 export function newTabId(): string {
   return crypto?.randomUUID?.() ?? `tab-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
@@ -33,24 +34,19 @@ export function loadTabsMeta(): { tabs: SqlTab[]; activeId: string } {
   let meta: { tabs: { id: string; title: string; detached?: boolean }[]; activeId: string } | null =
     null;
   try {
-    meta = JSON.parse(localStorage.getItem(TABS_KEY) ?? "null");
+    meta = JSON.parse(getStored(TABS_KEY) ?? "null");
   } catch {
     meta = null;
   }
   if (!meta || !meta.tabs?.length) {
     // Migrate legacy single-doc query/prompt into the first tab.
     const id = newTabId();
-    const legacySql = localStorage.getItem(SQL_QUERY_KEY) ?? "";
-    const legacyNl = localStorage.getItem(NL_PROMPT_KEY) ?? "";
+    const legacySql = getStored(SQL_QUERY_KEY) ?? "";
+    const legacyNl = getStored(NL_PROMPT_KEY) ?? "";
     return { tabs: [emptyTab(id, "Query 1", legacySql, legacyNl)], activeId: id };
   }
   const tabs = meta.tabs.map((m) => ({
-    ...emptyTab(
-      m.id,
-      m.title,
-      localStorage.getItem(tabSqlKey(m.id)) ?? "",
-      localStorage.getItem(tabNlKey(m.id)) ?? "",
-    ),
+    ...emptyTab(m.id, m.title, getStored(tabSqlKey(m.id)) ?? "", getStored(tabNlKey(m.id)) ?? ""),
     detached: m.detached === true,
   }));
   const activeId = tabs.some((t) => t.id === meta!.activeId) ? meta.activeId : tabs[0].id;
@@ -59,7 +55,7 @@ export function loadTabsMeta(): { tabs: SqlTab[]; activeId: string } {
 
 export function persistTabsMeta(tabs: SqlTab[], activeId: string) {
   try {
-    localStorage.setItem(
+    setStored(
       TABS_KEY,
       JSON.stringify({
         tabs: tabs.map((t) => ({ id: t.id, title: t.title, detached: t.detached === true })),
@@ -67,8 +63,8 @@ export function persistTabsMeta(tabs: SqlTab[], activeId: string) {
       }),
     );
     for (const t of tabs) {
-      localStorage.setItem(tabSqlKey(t.id), t.sqlText);
-      localStorage.setItem(tabNlKey(t.id), t.nlText);
+      setStored(tabSqlKey(t.id), t.sqlText);
+      setStored(tabNlKey(t.id), t.nlText);
     }
   } catch {
     /* quota */

@@ -29,6 +29,7 @@ import { HelpBubble } from "../components/HelpBubble";
 import { useAuth } from "../context/AuthContext";
 import { actingRoleHeader } from "../lib/actingRole";
 import { Tip } from "../components/Tip";
+import { getStored, setStored } from "../lib/browserStorage";
 
 /** A copy-to-clipboard button that fades in on bubble hover. */
 function CopyButton({ text }: { text: string }) {
@@ -220,8 +221,8 @@ export function McpExplorePage() {
   useEffect(() => {
     try {
       // The product tour seeds a canned conversation here (a live chat needs an LLM key).
-      const seed = sessionStorage.getItem("provisa_mcp_tour_chat");
-      const saved = seed ?? sessionStorage.getItem(storageKey);
+      const seed = getStored("provisa_mcp_tour_chat", { session: true });
+      const saved = seed ?? getStored(storageKey, { session: true });
       /* eslint-disable-next-line react-hooks/set-state-in-effect --
          restore persisted (or tour-seeded) conversation on mount / role change */
       setMessages(saved ? (JSON.parse(saved) as ChatMsg[]) : []);
@@ -232,8 +233,8 @@ export function McpExplorePage() {
   useEffect(() => {
     try {
       // Don't persist the tour's canned chat into the role's real history.
-      if (sessionStorage.getItem("provisa_mcp_tour_chat")) return;
-      sessionStorage.setItem(storageKey, JSON.stringify(messages));
+      if (getStored("provisa_mcp_tour_chat", { session: true })) return;
+      setStored(storageKey, JSON.stringify(messages), { session: true });
     } catch {
       /* storage full / unavailable — persistence is best-effort */
     }
@@ -247,7 +248,7 @@ export function McpExplorePage() {
   const recalledRef = useRef<string | null>(null);
   useEffect(() => {
     try {
-      const saved = sessionStorage.getItem(histKey);
+      const saved = getStored(histKey, { session: true });
       /* eslint-disable-next-line react-hooks/set-state-in-effect -- restore input history */
       setHistory(saved ? (JSON.parse(saved) as string[]) : []);
     } catch {
@@ -282,7 +283,7 @@ export function McpExplorePage() {
     setHistory((h) => {
       const next = h[h.length - 1] === text ? h : [...h, text].slice(-100);
       try {
-        sessionStorage.setItem(histKey, JSON.stringify(next));
+        setStored(histKey, JSON.stringify(next), { session: true });
       } catch {
         /* best-effort */
       }

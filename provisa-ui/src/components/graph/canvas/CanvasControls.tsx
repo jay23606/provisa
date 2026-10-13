@@ -16,6 +16,7 @@ import { ZoomInIcon, ZoomOutIcon, FitScreenIcon } from "../GraphIcons";
 import type { LayoutMode } from "./canvas-types";
 import type { CyInstance } from "../cytoscape-types";
 import { Tip } from "../../Tip";
+import { setStored } from "../../../lib/browserStorage";
 
 interface CanvasControlsProps {
   cyRef: MutableRefObject<CyInstance | null>;
@@ -152,7 +153,7 @@ export function CanvasControls({
             const v = Number(e.currentTarget.value);
             edgeDistanceRef.current = v;
             setEdgeDistance(v);
-            localStorage.setItem("provisa.graph.edgeDistance", String(v));
+            setStored("provisa.graph.edgeDistance", String(v));
             if (nudgeTimerRef.current) clearTimeout(nudgeTimerRef.current);
             nudgeTimerRef.current = setTimeout(() => nudgeLayoutRef.current(), 150);
           }}

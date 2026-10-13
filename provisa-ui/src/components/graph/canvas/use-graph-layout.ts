@@ -16,6 +16,7 @@ import type { ClusterLevel } from "../graph-clusters";
 import type { CyInstance, CyLayoutOptions } from "../cytoscape-types";
 import { LAYOUT_OPTIONS, type LayoutMode } from "./canvas-types";
 import { computeLabelSizeRanges, applyNodeSize, resolveNodeLabel } from "./canvas-helpers";
+import { getStored } from "../../../lib/browserStorage";
 
 interface GraphLayoutRefs {
   cyRef: MutableRefObject<CyInstance | null>;
@@ -57,7 +58,7 @@ export function useGraphLayout({
   const [layoutMode, setLayoutMode] = useState<LayoutMode>("force");
   const layoutModeRef = useRef<LayoutMode>("force");
   const [edgeDistance, setEdgeDistance] = useState(() => {
-    const saved = localStorage.getItem("provisa.graph.edgeDistance");
+    const saved = getStored("provisa.graph.edgeDistance");
     return saved ? Number(saved) : 80;
   });
   const edgeDistanceRef = useRef(edgeDistance);

@@ -55,6 +55,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 async def me(request: Request):
     from provisa.api.app import state
     from provisa.auth.role_mapping import resolve_assignments
+    from provisa.core import control_plane_id
 
     identity = getattr(request.state, "identity", None)
 
@@ -88,6 +89,7 @@ async def me(request: Request):
             "display_name": uid,
             "dev_mode": True,
             "billing": billing,
+            "control_plane_id": control_plane_id.current(),  # REQ-2008
             # REQ-1286: the dev principal's org is the control plane's resolved org_id — the same
             # value that names the org_<id> tenant schema. A literal here names an org whose
             # schema was never created, and every runtime resolution for it fails.
@@ -152,6 +154,8 @@ async def me(request: Request):
         "display_name": identity.display_name,
         "dev_mode": False,
         "billing": billing,
+        # REQ-2008: the UI scopes what it saves in the browser by control plane and org.
+        "control_plane_id": control_plane_id.current(),
         "active_org_id": active_org_id,
         "given_name": prof.given_name if prof is not None else None,
         "family_name": prof.family_name if prof is not None else None,

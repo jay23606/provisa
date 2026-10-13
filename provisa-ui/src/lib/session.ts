@@ -12,6 +12,7 @@ import { clearPersistedAdminCache } from "../apolloClient";
 import { controlPlaneOrigin, isOrgSubdomainHost } from "./authHost";
 import { CHECKED_DOMAINS_KEY, KNOWN_DOMAINS_KEY } from "./domainFilterKeys";
 import { SUPERUSER_TOKEN_KEY } from "./sessionToken";
+import { removeStored, removeStoredEverywhere, setStored } from "./browserStorage";
 
 /**
  * Remembers the last submenu item visited within each nav group. Lives here rather than in NavBar
@@ -19,20 +20,27 @@ import { SUPERUSER_TOKEN_KEY } from "./sessionToken";
  */
 export const LAST_SUBNAV_KEY = "provisa_nav_last_item";
 
-/** localStorage keys that scope client state to ONE signed-in session. */
+/** localStorage keys that scope client state to ONE signed-in session: the session's identity,
+ * saved for the browser as a whole (lib/browserStorage). */
 export const SESSION_KEYS = [
   "provisa_token",
   SUPERUSER_TOKEN_KEY,
   "provisa_org",
   "provisa_role",
+] as const;
+
+/** UI state saved per control plane and org (REQ-2008) that must not outlive the session that
+ * saved it either: on sign-out it goes from every control plane and org it was saved under. */
+export const SESSION_SCOPED_KEYS = [
   // REQ-1349: the remembered subnav item is one identity's preference. Two people sharing a browser
   // profile sign in one at a time, so the key needs no per-login namespace — but it must not survive
   // the handover: the previous identity's remembered tab can name a route the next one has no right
   // to, and entering the group on it lands on the denial page.
   LAST_SUBNAV_KEY,
-  // REQ-1297: the domain filter names domains of one org. Carried into a new session or a new org,
-  // a previously-unchecked domain stays unchecked (mergeCheckedDomains keeps `known`-but-not-
-  // `checked` off), which presented a correctly-provisioned org as one missing its meta/ops domains.
+  // REQ-1297: the domain filter names domains of one org (now saved per org, REQ-2008). Carried
+  // into a new session, a previously-unchecked domain stays unchecked (mergeCheckedDomains keeps
+  // `known`-but-not-`checked` off), which presented a correctly-provisioned org as one missing its
+  // meta/ops domains.
   CHECKED_DOMAINS_KEY,
   KNOWN_DOMAINS_KEY,
 ] as const;
@@ -48,7 +56,8 @@ export const SESSION_KEYS = [
  * cleared it. Session-scoped state is cleared when the session starts, not patched around later.
  */
 export function clearSessionState(): void {
-  for (const key of SESSION_KEYS) localStorage.removeItem(key);
+  for (const key of SESSION_KEYS) removeStored(key, { global: true });
+  for (const key of SESSION_SCOPED_KEYS) removeStoredEverywhere(key);
   clearPersistedAdminCache();
 }
 
@@ -102,11 +111,11 @@ export async function signOut(): Promise<void> {
 /** Begin a session for `token`: clear the prior identity's state first, then store the credential. */
 export function startSession(token: string): void {
   clearSessionState();
-  localStorage.setItem("provisa_token", token);
+  setStored("provisa_token", token, { global: true });
 }
 
 /** REQ-1472: begin a break-glass session — same clearing, stored under the key Firebase does not own. */
 export function startSuperuserSession(token: string): void {
   clearSessionState();
-  localStorage.setItem(SUPERUSER_TOKEN_KEY, token);
+  setStored(SUPERUSER_TOKEN_KEY, token, { global: true });
 }

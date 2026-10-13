@@ -17,6 +17,7 @@ import {
 } from "./serverReachability";
 import { isEngineProbePath, noteRequestEnd, noteRequestStart } from "./engineWake";
 import { noteOrgSelectionRefusal } from "./orgSelection";
+import { getStored, removeStored } from "./browserStorage";
 
 // REQ-1267: on an auth-enforced deploy (firebase/basic) the bearer token lives in
 // localStorage and must ride on EVERY same-origin request. The Apollo link already adds it
@@ -49,7 +50,7 @@ export const ENV_STORAGE_KEY = "provisa_env";
 
 /** The environment the next request will name, or null for prod. */
 export function selectedEnv(): string | null {
-  return localStorage.getItem(ENV_STORAGE_KEY);
+  return getStored(ENV_STORAGE_KEY, { global: true });
 }
 
 /**
@@ -93,7 +94,7 @@ async function repairStaleEnv(res: Response): Promise<void> {
   }
   const code = (body as { error?: { code?: unknown } })?.error?.code;
   if (code !== UNKNOWN_ENV_CODE) return;
-  localStorage.removeItem(ENV_STORAGE_KEY);
+  removeStored(ENV_STORAGE_KEY, { global: true });
   window.location.reload();
 }
 
@@ -146,7 +147,7 @@ export function installAuthFetch(): void {
     const sameOrigin = isSameOrigin(url);
 
     const token = await currentBearer();
-    const orgId = localStorage.getItem("provisa_org");
+    const orgId = getStored("provisa_org", { global: true });
     const env = selectedEnv();
     if (!sameOrigin || (!token && env === null)) return sampled(input, init, sameOrigin, url);
 

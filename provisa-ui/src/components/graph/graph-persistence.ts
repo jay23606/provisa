@@ -10,6 +10,7 @@
 
 import { useState, useCallback } from "react";
 import type { FrameData, GNode, GEdge } from "./graph-model";
+import { getStored, setStored } from "../../lib/browserStorage";
 
 export type Favorite = { id: string; query: string; label: string; ts: number };
 
@@ -20,7 +21,7 @@ export function useLocalStorage<T>(
 ): [T, (v: T | ((prev: T) => T)) => void] {
   const [value, setValue] = useState<T>(() => {
     try {
-      const raw = localStorage.getItem(key);
+      const raw = getStored(key);
       return raw !== null ? (JSON.parse(raw) as T) : initial;
     } catch {
       return initial;
@@ -32,7 +33,7 @@ export function useLocalStorage<T>(
       setValue((prev) => {
         const next = typeof v === "function" ? (v as (p: T) => T)(prev) : v;
         try {
-          localStorage.setItem(key, JSON.stringify(next));
+          setStored(key, JSON.stringify(next));
         } catch {
           /* quota */
         }
@@ -89,7 +90,7 @@ function deserializeFrame(s: SerializedFrame): FrameData {
 
 export function saveGraphState(state: GraphState): void {
   try {
-    localStorage.setItem(
+    setStored(
       LS_KEY,
       JSON.stringify({
         frames: state.frames.map(serializeFrame),
@@ -104,7 +105,7 @@ export function saveGraphState(state: GraphState): void {
 
 function loadGraphState(): GraphState {
   try {
-    const raw = localStorage.getItem(LS_KEY);
+    const raw = getStored(LS_KEY);
     if (!raw) return { frames: [], history: [], currentQuery: DEFAULT_QUERY };
     const s = JSON.parse(raw) as {
       frames?: SerializedFrame[];

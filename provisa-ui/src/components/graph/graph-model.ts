@@ -14,6 +14,7 @@
 // (Module Size — Subdivide Past 1000 Lines).
 
 import type { Relationship } from "../../types/admin";
+import { getStored, setStored } from "../../lib/browserStorage";
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 export const PALETTE = [
@@ -107,22 +108,22 @@ export function getStableNodeId(
   const key = _stableKey(node, pkMap);
   let map: Record<string, number> = {};
   try {
-    map = JSON.parse(localStorage.getItem(LS_IDS) ?? "{}");
+    map = JSON.parse(getStored(LS_IDS) ?? "{}");
   } catch {
     /* */
   }
   if (key in map) return map[key];
   let ctr = 0;
   try {
-    ctr = parseInt(localStorage.getItem(LS_CTR) ?? "0", 10) || 0;
+    ctr = parseInt(getStored(LS_CTR) ?? "0", 10) || 0;
   } catch {
     /* */
   }
   ctr += 1;
   map[key] = ctr;
   try {
-    localStorage.setItem(LS_IDS, JSON.stringify(map));
-    localStorage.setItem(LS_CTR, String(ctr));
+    setStored(LS_IDS, JSON.stringify(map));
+    setStored(LS_CTR, String(ctr));
   } catch {
     /* */
   }

@@ -8,6 +8,7 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
+import { getStored } from "./browserStorage";
 /**
  * REQ-1472: the break-glass session's bearer, and deliberately NOT `provisa_token`.
  *
@@ -30,5 +31,7 @@ export const SUPERUSER_TOKEN_KEY = "provisa_su_token";
  * lib/authFetch, which apolloClient itself imports.
  */
 export function storedToken(): string | null {
-  return localStorage.getItem(SUPERUSER_TOKEN_KEY) ?? localStorage.getItem("provisa_token");
+  return (
+    getStored(SUPERUSER_TOKEN_KEY, { global: true }) ?? getStored("provisa_token", { global: true })
+  );
 }

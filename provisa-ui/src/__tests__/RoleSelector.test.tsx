@@ -76,6 +76,7 @@ function makeAuthValue(overrides: {
     identityErrorStatus: null,
     multitenancy: false,
     billing: false,
+    controlPlaneId: "test-cp",
   };
 }
 

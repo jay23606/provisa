@@ -81532,3 +81532,24 @@
   tests:
   - tests/unit/test_landing_ttl.py
   notes: 'Maintainer 2026-10-12, through the lead: "if the ttl is zero just always goes to live", and "if the engine is say databricks writing a parquet file could be slower". The lead''s design: 0 means 0 (first non-null, as cache/policy.resolve_policy resolves a TTL, removing the `or` fallback that turned 0 into the source''s TTL or the default); a TTL above 0 lands as before; a TTL of 0 inlines a small result through the existing VALUES CTE path and lands a large one in a scratch table dropped after the statement; "small" reuses the org''s large-result threshold, with no new setting. A statement with a scratch table is run through the pipeline terminal, which drops it, rather than streamed by a surface that would not. Lead 2026-10-12: buffering a large TTL-0 read instead of streaming it is acceptable for now; dropping the scratch table when each streaming surface''s drain ends is not worth it yet. And a gRPC remote query''s TTL resolves first-non-null too, a missing one no longer becoming 300 by itself.'
+- id: REQ-2008
+  status: proposed
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI
+  priority: SHOULD
+  type: behavioral
+  feature: product-tour-and-demos-named-demos
+  description: 'Everything the UI saves in the browser is saved per control plane and organization, so each demo, instance and org keeps its own state: the domain filter, the explorers'' saved queries and tabs, remembered collapsibles, and every other remembered choice. Switching to another demo, instance or org carries none of it across; coming back to one restores what was left there. The control plane has an id, a UUID it creates at its first start and keeps (a pristine demo start is a new control plane, so a new id), and reports it to the UI on /auth/me. The UI saves each value under that id, the acting org and its key; acting in no org (a platform administrator before any org exists), it saves under the control plane alone. The pages mount once both are known and mount again when either changes. Saved for the browser as a whole, by name: the session''s identity (the sign-in token, the acting org, role and environment, which ride on the requests that establish the scope, and are reconciled against the server on each load), a pending invitation and a just-claimed administrator slot, the guided tour''s offered, seen, progress and declined marks, the colour scheme and the language. The persisted catalog cache is saved with the control plane and org it holds and dropped when another is entered. Signing out removes the session''s remembered navigation item and domain filter from every control plane and org.'
+  use_case: 'A maintainer switches between the pet store and the weblogs demos in one browser; each opens with its own domain filter and its own saved SQL tabs, and neither shows the other''s.'
+  scenario: 'Given the pet store demo with the ops domain unchecked and a saved SQL tab
+
+    When the weblogs demo is opened in the same browser
+
+    Then every weblogs domain is checked and no pet store tab is shown
+
+    When the pet store demo is opened again
+
+    Then ops is still unchecked and the saved tab is restored'
+  related_reqs: [REQ-1297, REQ-1326, REQ-1349]
+  notes: 'Maintainer 2026-10-13, through the lead: scope all browser-saved UI state by org and control plane, so each named demo, org or instance keeps its own state; switching demos must not carry state across, and coming back to a demo restores its own state. The lead set the key shape (<control plane id>:<org id>:<key>), the id served on an endpoint the UI already loads, one helper with a guard and an explicit global flag. The list of global keys, the no-org scope, the remount on a change of scope and the catalog cache tag are the implementation''s, for the lead to confirm.'

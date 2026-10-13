@@ -46,6 +46,7 @@ import { fetchPublicBranding } from "../api/branding";
 import type { PublicBranding } from "../api/branding";
 import { applyOrgBranding, brandingOrg } from "../lib/orgBranding";
 import { OrgBrandingHeader } from "../components/OrgBrandingHeader";
+import { setStored } from "../lib/browserStorage";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "";
 
@@ -185,7 +186,7 @@ export function LoginPage({ onLoginSuccess, authDisabled }: LoginPageProps) {
   // (the slot was already taken) must not produce a "you are now the administrator" modal.
   const claimAndRecord = async () => {
     if (await claimBootstrap()) {
-      localStorage.setItem(CLAIMED_ADMIN_FLAG, "1");
+      setStored(CLAIMED_ADMIN_FLAG, "1", { global: true });
     }
   };
 

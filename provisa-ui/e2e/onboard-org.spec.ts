@@ -43,6 +43,7 @@ test("member-less user onboards a new org with demo data and is routed into the 
     route.fulfill({
       json: {
         user_id: "carol",
+        control_plane_id: "e2e-control-plane",
         email: "carol@example.com",
         display_name: "Carol",
         dev_mode: false,
@@ -113,6 +114,7 @@ test("member-less user joins an existing org with an invite code and is routed i
     route.fulfill({
       json: {
         user_id: "dave",
+        control_plane_id: "e2e-control-plane",
         email: "dave@example.com",
         display_name: "Dave",
         dev_mode: false,

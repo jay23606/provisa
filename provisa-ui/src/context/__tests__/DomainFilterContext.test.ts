@@ -10,6 +10,7 @@
 import { beforeEach, describe, it, expect } from "vitest";
 import { mergeCheckedDomains, restoreCheckedDomains } from "../DomainFilterContext";
 import { CHECKED_DOMAINS_KEY, KNOWN_DOMAINS_KEY } from "../../lib/domainFilterKeys";
+import { storageKey as scopedKey } from "../../lib/browserStorage";
 
 describe("mergeCheckedDomains", () => {
   it("returns null when there is no persisted state (caller checks everything)", () => {
@@ -49,8 +50,8 @@ describe("restoreCheckedDomains across page loads", () => {
 
   beforeEach(() => {
     localStorage.clear();
-    localStorage.setItem(CHECKED_DOMAINS_KEY, JSON.stringify(PET_STORE));
-    localStorage.setItem(KNOWN_DOMAINS_KEY, JSON.stringify(PET_STORE));
+    localStorage.setItem(scopedKey(CHECKED_DOMAINS_KEY), JSON.stringify(PET_STORE));
+    localStorage.setItem(scopedKey(KNOWN_DOMAINS_KEY), JSON.stringify(PET_STORE));
   });
 
   it("keeps a new demo's domain checked on every load, not only the first", () => {
@@ -62,7 +63,7 @@ describe("restoreCheckedDomains across page loads", () => {
   it("still keeps a domain the user unchecked unchecked across loads", () => {
     restoreCheckedDomains(WEBLOGS);
     const unchecked = WEBLOGS.filter((d) => d !== "ops");
-    localStorage.setItem(CHECKED_DOMAINS_KEY, JSON.stringify(unchecked)); // toggleDomain("ops")
+    localStorage.setItem(scopedKey(CHECKED_DOMAINS_KEY), JSON.stringify(unchecked)); // toggleDomain("ops")
     expect(restoreCheckedDomains(WEBLOGS)).toEqual(new Set(unchecked));
     expect(restoreCheckedDomains(WEBLOGS)).toEqual(new Set(unchecked));
   });

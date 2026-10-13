@@ -17,6 +17,7 @@ import { useTranslation } from "react-i18next";
 import { Ban, Copy, Zap } from "lucide-react";
 import { SourceLogo } from "./SourceLogo";
 import { Tip } from "./Tip";
+import { getStored, setStored } from "../lib/browserStorage";
 
 export interface PickerItem {
   value: string;
@@ -61,7 +62,7 @@ const ALIASES: Record<string, string> = {
 
 function readRecent(): string[] {
   try {
-    const raw = window.localStorage.getItem(RECENT_KEY);
+    const raw = getStored(RECENT_KEY);
     const parsed: unknown = raw ? JSON.parse(raw) : [];
     return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === "string") : [];
   } catch {
@@ -73,7 +74,7 @@ function readRecent(): string[] {
 function writeRecent(value: string): void {
   try {
     const next = [value, ...readRecent().filter((v) => v !== value)].slice(0, RECENT_MAX);
-    window.localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+    setStored(RECENT_KEY, JSON.stringify(next));
   } catch {
     // Same: remembering the pick is a convenience and never blocks it.
   }

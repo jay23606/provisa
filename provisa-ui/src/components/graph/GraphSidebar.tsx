@@ -23,6 +23,7 @@ import {
   type RelContextMenuState,
 } from "./graph-context-menus";
 import { Tip } from "../Tip";
+import { getStored, setStored } from "../../lib/browserStorage";
 
 interface SidebarProps {
   schemaNodeLabels: SchemaNodeLabel[];
@@ -124,7 +125,7 @@ export function Sidebar({
 
   const readCollapsed = (key: string, def: boolean): boolean => {
     try {
-      const v = localStorage.getItem(key);
+      const v = getStored(key);
       return v === null ? def : v === "1";
     } catch {
       return def;
@@ -132,7 +133,7 @@ export function Sidebar({
   };
   const writeCollapsed = (key: string, v: boolean) => {
     try {
-      localStorage.setItem(key, v ? "1" : "0");
+      setStored(key, v ? "1" : "0");
     } catch {
       /* ignore */
     }

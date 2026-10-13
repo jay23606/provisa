@@ -28,6 +28,7 @@ import CodeMirror from "@uiw/react-codemirror";
 import { sql, PostgreSQL } from "@codemirror/lang-sql";
 import * as _neo4jCypherMod from "@neo4j-cypher/codemirror";
 import "@neo4j-cypher/codemirror/css/cypher-codemirror.css";
+import { getStored, setStored } from "../lib/browserStorage";
 /* eslint-disable @typescript-eslint/no-explicit-any -- @neo4j-cypher/codemirror ships no type declarations; its named exports must be destructured from an untyped module */
 const { getCypherLanguageExtensions: _getToolsCypherExts, cypherLinter: _toolsCypherLinter } =
   _neo4jCypherMod as any;
@@ -384,27 +385,27 @@ function ProvisaToolsContent({ roleId }: { roleId: string }) {
   const [cypherCopied, setCypherCopied] = useState(false);
   const [cypherExpanded, setCypherExpanded] = useState(true);
   const [aggregatedSql, setAggregatedSql] = useState(
-    () => localStorage.getItem("provisa-tools:aggregatedSql") !== "false",
+    () => getStored("provisa-tools:aggregatedSql") !== "false",
   );
   const [aggregatedCypher, setAggregatedCypher] = useState(
-    () => localStorage.getItem("provisa-tools:aggregatedCypher") !== "false",
+    () => getStored("provisa-tools:aggregatedCypher") !== "false",
   );
   const [includeFields, setIncludeFields] = useState(
-    () => localStorage.getItem("provisa-tools:includeFields") === "true",
+    () => getStored("provisa-tools:includeFields") === "true",
   );
   const navigate = useNavigate();
   const { compileQuery } = useCompileQuery();
 
   const onAggregatedSqlChange = useCallback((v: boolean) => {
-    localStorage.setItem("provisa-tools:aggregatedSql", String(v));
+    setStored("provisa-tools:aggregatedSql", String(v));
     setAggregatedSql(v);
   }, []);
   const onAggregatedCypherChange = useCallback((v: boolean) => {
-    localStorage.setItem("provisa-tools:aggregatedCypher", String(v));
+    setStored("provisa-tools:aggregatedCypher", String(v));
     setAggregatedCypher(v);
   }, []);
   const onIncludeFieldsChange = useCallback((v: boolean) => {
-    localStorage.setItem("provisa-tools:includeFields", String(v));
+    setStored("provisa-tools:includeFields", String(v));
     setIncludeFields(v);
   }, []);
 
@@ -554,7 +555,7 @@ function ProvisaToolsContent({ roleId }: { roleId: string }) {
                           className="provisa-tools-copy"
                           onClick={(e) => {
                             e.stopPropagation();
-                            localStorage.setItem("provisa.graph.pending_query", displayedCypher);
+                            setStored("provisa.graph.pending_query", displayedCypher);
                             navigate("/graph");
                           }}
                           aria-label="Open in Graph"

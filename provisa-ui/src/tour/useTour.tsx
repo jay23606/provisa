@@ -52,6 +52,7 @@ import {
   TOUR_OFFERED_KEY,
   TOUR_TOPICS_DONE_KEY,
 } from "./tourKeys";
+import { getStored, removeStored, setStored } from "../lib/browserStorage";
 
 // localStorage keys owned by NlPage — mirrored here so the tour can seed a
 // canned result (NL needs an external LLM key, which a demo visitor lacks).
@@ -169,31 +170,28 @@ const PREP_ACTIONS: Record<string, () => void> = {
     // earlier visit would make that same click collapse it instead. Nothing to restore: which
     // row was open is a convenience, not state the visitor authored.
     try {
-      localStorage.removeItem(DATA_PRODUCTS_EXPANDED_KEY);
+      removeStored(DATA_PRODUCTS_EXPANDED_KEY);
     } catch {
       /* localStorage unavailable -- the page mounts collapsed anyway */
     }
   },
   seedMcp() {
     try {
-      sessionStorage.setItem(MCP_TOUR_KEY, JSON.stringify(MCP_TOUR_CHAT));
+      setStored(MCP_TOUR_KEY, JSON.stringify(MCP_TOUR_CHAT), { session: true });
     } catch {
       /* best-effort — the tour bubble text already describes the surface */
     }
   },
   seedNl() {
     // Snapshot the visitor's NL state once (guard against re-entry via Back).
-    if (localStorage.getItem(NL_BACKUP_KEY) === null) {
-      localStorage.setItem(
-        NL_BACKUP_KEY,
-        JSON.stringify({
-          question: localStorage.getItem(NL_QUESTION_KEY),
-          branches: localStorage.getItem(NL_BRANCHES_KEY),
-        }),
-      );
+    if (getStored(NL_BACKUP_KEY) === null) {
+      setStored(NL_BACKUP_KEY, JSON.stringify({
+          question: getStored(NL_QUESTION_KEY),
+          branches: getStored(NL_BRANCHES_KEY),
+        }));
     }
-    localStorage.setItem(NL_QUESTION_KEY, NL_DEMO_QUESTION);
-    localStorage.setItem(NL_BRANCHES_KEY, JSON.stringify(NL_DEMO_BRANCHES));
+    setStored(NL_QUESTION_KEY, NL_DEMO_QUESTION);
+    setStored(NL_BRANCHES_KEY, JSON.stringify(NL_DEMO_BRANCHES));
   },
 };
 
@@ -215,21 +213,21 @@ const BRANCH_NAV: Record<
 /** Restore any state a prep action stashed. No-op if nothing was seeded. */
 function cleanupPrep(): void {
   try {
-    sessionStorage.removeItem(MCP_TOUR_KEY); // drop the canned MCP chat when the tour ends
+    removeStored(MCP_TOUR_KEY, { session: true }); // drop the canned MCP chat when the tour ends
   } catch {
     /* ignore */
   }
-  const raw = localStorage.getItem(NL_BACKUP_KEY);
+  const raw = getStored(NL_BACKUP_KEY);
   if (raw === null) return;
   const restore = (key: string, value: string | null) =>
-    value === null ? localStorage.removeItem(key) : localStorage.setItem(key, value);
+    value === null ? removeStored(key) : setStored(key, value);
   const { question, branches } = JSON.parse(raw) as {
     question: string | null;
     branches: string | null;
   };
   restore(NL_QUESTION_KEY, question);
   restore(NL_BRANCHES_KEY, branches);
-  localStorage.removeItem(NL_BACKUP_KEY);
+  removeStored(NL_BACKUP_KEY);
 }
 
 // Step index the tour was on when dismissed early (X / Esc / backdrop). Lets the next launch pick
@@ -249,30 +247,30 @@ const DEMO_RESET_KEY = TOUR_DEMO_RESET_KEY;
  * backup a running tour may be holding are not the tour's to discard.
  */
 export function resetTourStateForDemoSession(): void {
-  if (sessionStorage.getItem(DEMO_RESET_KEY) === "true") return;
-  sessionStorage.setItem(DEMO_RESET_KEY, "true");
+  if (getStored(DEMO_RESET_KEY, { global: true, session: true }) === "true") return;
+  setStored(DEMO_RESET_KEY, "true", { global: true, session: true });
   // Hand back anything a tour interrupted by a reload still had stashed before dropping the keys.
   cleanupPrep();
-  localStorage.removeItem(TOUR_SEEN_KEY);
-  localStorage.removeItem(TOUR_PROGRESS_KEY);
+  removeStored(TOUR_SEEN_KEY, { global: true });
+  removeStored(TOUR_PROGRESS_KEY, { global: true });
   // The previous visitor's "never again" is not this visitor's.
-  localStorage.removeItem(TOUR_DECLINED_KEY);
-  localStorage.removeItem(TOUR_TOPICS_DONE_KEY);
+  removeStored(TOUR_DECLINED_KEY, { global: true });
+  removeStored(TOUR_TOPICS_DONE_KEY, { global: true });
 }
 
 /** True once the guided tour has been completed or dismissed on this browser. */
 export function hasSeenTour(): boolean {
-  return localStorage.getItem(TOUR_SEEN_KEY) === "true";
+  return getStored(TOUR_SEEN_KEY, { global: true }) === "true";
 }
 
 /** True once the welcome modal's "don't show this again" has been ticked on this browser. */
 export function tourDeclined(): boolean {
-  return localStorage.getItem(TOUR_DECLINED_KEY) === "true";
+  return getStored(TOUR_DECLINED_KEY, { global: true }) === "true";
 }
 
 /** Remember the welcome modal's checkbox, so the offer never returns on this device. */
 export function declineTour(): void {
-  localStorage.setItem(TOUR_DECLINED_KEY, "true");
+  setStored(TOUR_DECLINED_KEY, "true", { global: true });
 }
 
 /**
@@ -286,14 +284,14 @@ export function declineTour(): void {
  */
 export function claimTourOffer(): boolean {
   if (hasSeenTour() || tourDeclined()) return false;
-  if (sessionStorage.getItem(TOUR_OFFERED_KEY) === "answered") return false;
-  sessionStorage.setItem(TOUR_OFFERED_KEY, "pending");
+  if (getStored(TOUR_OFFERED_KEY, { global: true, session: true }) === "answered") return false;
+  setStored(TOUR_OFFERED_KEY, "pending", { global: true, session: true });
   return true;
 }
 
 /** The offer was answered -- started, deferred, or declined. It does not return this session. */
 export function resolveTourOffer(): void {
-  sessionStorage.setItem(TOUR_OFFERED_KEY, "answered");
+  setStored(TOUR_OFFERED_KEY, "answered", { global: true, session: true });
 }
 
 function isCoreStep(index: number): boolean {
@@ -305,7 +303,7 @@ function isCoreStep(index: number): boolean {
  * steps past the first resume — the opening step is a fresh start.
  */
 export function tourResumeStep(): number | null {
-  const raw = localStorage.getItem(TOUR_PROGRESS_KEY);
+  const raw = getStored(TOUR_PROGRESS_KEY, { global: true });
   if (raw === null) return null;
   const n = parseInt(raw, 10);
   // Only the core tour is resumable (REQ-1945): a topic that is left returns to the menu.
@@ -501,12 +499,12 @@ export function TourProvider({ children }: { children: ReactNode }) {
   // and so does every topic however it ends; only a dismissed core tour saves a position instead.
   const endTour = useCallback((how: "completed" | "dismissed" | "deepdives") => {
     setStatus(null);
-    localStorage.setItem(TOUR_SEEN_KEY, "true");
+    setStored(TOUR_SEEN_KEY, "true", { global: true });
     const scope = scopeRef.current;
     if (how !== "dismissed") {
-      localStorage.removeItem(TOUR_PROGRESS_KEY);
+      removeStored(TOUR_PROGRESS_KEY, { global: true });
     } else if (scope === "core" && activeStepRef.current != null) {
-      localStorage.setItem(TOUR_PROGRESS_KEY, String(activeStepRef.current));
+      setStored(TOUR_PROGRESS_KEY, String(activeStepRef.current), { global: true });
     }
     if (how === "completed" && scope && scope !== "core") markTopicCompleted(scope);
     if (how !== "dismissed" || scope !== "core") setMenuOpen(true);
@@ -769,10 +767,10 @@ export function TourProvider({ children }: { children: ReactNode }) {
           // Covers backdrop clicks / Esc, which bypass onCloseClick -- an early dismissal: the core
           // tour saves its step so the next launch resumes there, a topic returns to the menu.
           if (driverRef.current) {
-            localStorage.setItem(TOUR_SEEN_KEY, "true");
+            setStored(TOUR_SEEN_KEY, "true", { global: true });
             if (scope === "core") {
               if (activeStepRef.current != null) {
-                localStorage.setItem(TOUR_PROGRESS_KEY, String(activeStepRef.current));
+                setStored(TOUR_PROGRESS_KEY, String(activeStepRef.current), { global: true });
               }
             } else {
               setMenuOpen(true);

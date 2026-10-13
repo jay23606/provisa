@@ -14,10 +14,10 @@ import type { ReactNode } from "react";
 import type { Capability, Role, RoleAssignment, AuthState, OrgMembership } from "../types/auth";
 import { AuthMeError, fetchMe } from "../api/admin";
 import { useRoles, useDomains } from "../hooks/useAdminQueries";
-import { CHECKED_DOMAINS_KEY, KNOWN_DOMAINS_KEY } from "../lib/domainFilterKeys";
 import { unionDemonstrated } from "../lib/capabilities";
 import { normalizeRole, type RawRole } from "../lib/roles";
 import { clearOrgSelectionRequired } from "../lib/orgSelection";
+import { getStored, removeStored, setStored } from "../lib/browserStorage";
 
 // REQ-1297: dev/no-auth mirrors what the server grants an unsecured caller, and that is now
 // org_admin — the DATA-plane administrator — not platform_admin. The no-auth configs' single
@@ -121,6 +121,8 @@ interface AuthContextValue extends AuthState {
   // Tenancy mode from /setup/status: false hides org-lifecycle affordances (e.g. Delete
   // Organization) that make no sense on a single-tenant deploy.
   multitenancy: boolean;
+  // REQ-2008: the control plane's id from /auth/me; null until it answers (or when it failed).
+  controlPlaneId: string | null;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -154,10 +156,11 @@ export function AuthProvider({
   const [allDomainsList, setAllDomainsList] = useState<string[]>([]);
   const [devMode, setDevMode] = useState(false);
   const [billing, setBilling] = useState(false);
+  const [controlPlaneId, setControlPlaneId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedOrg, setSelectedOrg] = useState<string | null>(() =>
-    localStorage.getItem("provisa_org"),
+    getStored("provisa_org", { global: true }),
   );
   const [wasSelectedOrgValid, setWasSelectedOrgValid] = useState(true);
   const [orgMemberships, setOrgMemberships] = useState<OrgMembership[]>([]);
@@ -191,6 +194,7 @@ export function AuthProvider({
         const me = await fetchMe();
         isDev = me.dev_mode;
         setBilling(me.billing);
+        setControlPlaneId(me.control_plane_id);
         userAssignments = me.assignments;
         setOrgMemberships(me.org_memberships);
         setUserId(me.user_id);
@@ -203,10 +207,10 @@ export function AuthProvider({
         // `provisa_org` is only honoured while it names an org `/auth/me` still reports membership
         // of; otherwise it is stale (org deleted, or left behind by a previous sign-in) and rides
         // on every request as X-Org-Provisa, scoping the whole app to an org that is not theirs.
-        const storedOrg = localStorage.getItem("provisa_org");
+        const storedOrg = getStored("provisa_org", { global: true });
         const isMember = me.org_memberships.some((m) => m.org_id === storedOrg);
         if (storedOrg && !isMember) {
-          localStorage.removeItem("provisa_org");
+          removeStored("provisa_org", { global: true });
         }
         if (!storedOrg || !isMember) {
           const settled =
@@ -219,7 +223,7 @@ export function AuthProvider({
           // and the roles query below is the first of them. Only a membership /auth/me just
           // reported is stored, for the REQ-1326 reason above.
           if (settled && me.org_memberships.some((m) => m.org_id === settled)) {
-            localStorage.setItem("provisa_org", settled);
+            setStored("provisa_org", settled, { global: true });
           }
         }
       } catch (e) {
@@ -235,6 +239,7 @@ export function AuthProvider({
         // token as a dead session rather than a live, member-less onboarding state.
         setUserId(null);
         setBilling(false);
+        setControlPlaneId(null);
         setOrgMemberships([]);
         setEmail(null);
         setDisplayName(null);
@@ -304,12 +309,12 @@ export function AuthProvider({
       // role the user is not assigned with 403 "Role 'x' is not assigned to this user". The rest of
       // the app never sends that header, so the stale role surfaces only there — the OpenAPI page
       // failing to load its spec while every other surface works.
-      const savedRoleId = localStorage.getItem("provisa_role");
+      const savedRoleId = getStored("provisa_role", { global: true });
       const saved = savedRoleId ? allRoles.find((r) => r.id === savedRoleId) : undefined;
       if (saved) {
         setSelectedRole(saved);
       } else {
-        if (savedRoleId) localStorage.removeItem("provisa_role");
+        if (savedRoleId) removeStored("provisa_role", { global: true });
         setSelectedRole((current) =>
           current === "all" || allRoles.some((r) => r.id === current.id) ? current : "all",
         );
@@ -367,8 +372,8 @@ export function AuthProvider({
   function selectRole(r: Role | "all") {
     setSelectedRole(r);
     setSelectedDomain(null);
-    if (r === "all") localStorage.removeItem("provisa_role");
-    else localStorage.setItem("provisa_role", (r as Role).id);
+    if (r === "all") removeStored("provisa_role", { global: true });
+    else setStored("provisa_role", (r as Role).id, { global: true });
   }
 
   function selectDomain(domain: string | null) {
@@ -377,14 +382,10 @@ export function AuthProvider({
 
   function selectOrg(orgId: string | null) {
     setSelectedOrg(orgId);
-    // REQ-1297: the persisted domain filter belongs to the org being left. Its domain ids are that
-    // org's, and a domain it had unchecked would stay unchecked in the org being entered — the
-    // reported "the new org has no meta or ops domain" with both present server-side. Drop it so the
-    // incoming org's domains all start checked.
-    localStorage.removeItem(CHECKED_DOMAINS_KEY);
-    localStorage.removeItem(KNOWN_DOMAINS_KEY);
-    if (orgId) localStorage.setItem("provisa_org", orgId);
-    else localStorage.removeItem("provisa_org");
+    // REQ-1297/REQ-2008: the domain filter is saved per org, so the org being entered reads its own
+    // and the one being left keeps its own for when it is entered again.
+    if (orgId) setStored("provisa_org", orgId, { global: true });
+    else removeStored("provisa_org", { global: true });
     if (orgId) clearOrgSelectionRequired();
   }
 
@@ -408,7 +409,7 @@ export function AuthProvider({
   // per invalid transition, without the cascading-render risk of setState-in-effect.
   if (!loading && selectedOrg !== null && !selectedOrgValid && wasSelectedOrgValid) {
     setWasSelectedOrgValid(false);
-    localStorage.removeItem("provisa_org");
+    removeStored("provisa_org", { global: true });
     setSelectedOrg(null);
   } else if (selectedOrgValid && !wasSelectedOrgValid) {
     setWasSelectedOrgValid(true);
@@ -445,6 +446,7 @@ export function AuthProvider({
         familyName,
         authEnabled,
         multitenancy,
+        controlPlaneId,
       }}
     >
       {children}

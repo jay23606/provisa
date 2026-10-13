@@ -71,6 +71,7 @@ def client(monkeypatch, serve_deployment_org):
     # plane, and the billing flag is the only thing under test.
     serve_deployment_org("acme")
     monkeypatch.setattr(app_module.state, "auth_config", None, raising=False)
+    monkeypatch.setattr("provisa.core.control_plane_id.current", lambda: "cp-1")  # made at start
     monkeypatch.setattr(app_module.state, "tenant_db", _Db(), raising=False)
     monkeypatch.setattr(app_module.state, "model_db", app_module.state.tenant_db, raising=False)
 
@@ -90,7 +91,9 @@ def _set_plugin(monkeypatch, module):
 
 def test_billing_is_true_where_the_commercial_plugin_is_installed(client, monkeypatch):
     _set_plugin(monkeypatch, SimpleNamespace())
-    assert client.get("/auth/me").json()["billing"] is True
+    body = client.get("/auth/me").json()
+    assert body["billing"] is True
+    assert body["control_plane_id"] == "cp-1"  # REQ-2008: the UI scopes browser state by it
 
 
 def test_billing_is_false_on_a_self_hosted_deployment(client, monkeypatch):

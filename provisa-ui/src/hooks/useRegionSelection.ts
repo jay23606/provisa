@@ -14,12 +14,13 @@
 
 import { useCallback, useState } from "react";
 import { coerceSelection, type RegionSelection } from "./regionFilter";
+import { getStored, setStored } from "../lib/browserStorage";
 
 const KEY = "provisa.admin.regionFilter";
 
 function readStored(): string | null {
   try {
-    return localStorage.getItem(KEY);
+    return getStored(KEY);
   } catch {
     return null;
   }
@@ -27,7 +28,7 @@ function readStored(): string | null {
 
 function writeStored(value: string): void {
   try {
-    localStorage.setItem(KEY, value);
+    setStored(KEY, value);
   } catch {
     // Per-viewer convenience only: nothing to do if storage is unavailable.
   }

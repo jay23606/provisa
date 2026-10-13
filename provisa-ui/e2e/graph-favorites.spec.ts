@@ -7,6 +7,7 @@
 
 import { test, expect } from "./coverage";
 import type { Page } from "@playwright/test";
+import { scopedStorageKey } from "./storageScope";
 
 const QUERY = "MATCH (n:Inquiries) RETURN n LIMIT 5";
 
@@ -15,10 +16,14 @@ async function seedFavoriteAndOpenPanel(page: Page) {
   // init script rather than by goto -> evaluate -> reload: that sequence costs two full loads of the
   // Istanbul-instrumented bundle through the one Vite server all workers share, which on a loaded
   // CI runner ran past this helper's 15s tab budget and the 30s test timeout.
-  await page.addInitScript((q) => {
-    const fav = { id: "test-fav-1", query: q, label: "My Favorite", ts: Date.now() };
-    localStorage.setItem("provisa.graph.favorites", JSON.stringify([fav]));
-  }, QUERY);
+  const favoritesKey = await scopedStorageKey(page.request, "provisa.graph.favorites");
+  await page.addInitScript(
+    ([k, q]) => {
+      const fav = { id: "test-fav-1", query: q, label: "My Favorite", ts: Date.now() };
+      localStorage.setItem(k, JSON.stringify([fav]));
+    },
+    [favoritesKey, QUERY],
+  );
   await page.goto("/graph");
 
   // Click the Favorites tab (tabs are icon-only; identified by title attribute)

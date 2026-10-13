@@ -25,6 +25,7 @@ import {
   undoEnvironment,
 } from "../api/environments";
 import type { BranchSync, Environment } from "../api/environments";
+import { removeStored, setStored } from "../lib/browserStorage";
 
 /** The environment every request is served from when none is named (provisa/api/env_routing.py). */
 const DEFAULT_ENV = "prod";
@@ -86,7 +87,7 @@ export function EnvSwitcher() {
       // repair below. Not for a demonstrated caller (REQ-1608): the right was never held, so there
       // is no prior selection to repair, and this role has no environments to fetch anyway.
       if (!demonstrated && selectedEnv() !== null) {
-        localStorage.removeItem(ENV_STORAGE_KEY);
+        removeStored(ENV_STORAGE_KEY, { global: true });
         window.location.reload();
       }
       return;
@@ -96,7 +97,7 @@ export function EnvSwitcher() {
     // offer — is refused on every request a confined membership makes, so dropping it is the repair
     // for a selection the server cannot serve, the same as the two repairs around it.
     if (pinnedEnv !== null && selectedEnv() !== null && selectedEnv() !== pinnedEnv) {
-      localStorage.removeItem(ENV_STORAGE_KEY);
+      removeStored(ENV_STORAGE_KEY, { global: true });
       window.location.reload();
       return;
     }
@@ -112,7 +113,7 @@ export function EnvSwitcher() {
           // not a fallback around a missing value.
           const stored = selectedEnv();
           if (stored !== null && !rows.some((e) => e.name === stored)) {
-            localStorage.removeItem(ENV_STORAGE_KEY);
+            removeStored(ENV_STORAGE_KEY, { global: true });
             window.location.reload();
           }
         })
@@ -157,8 +158,8 @@ export function EnvSwitcher() {
     if (name === active) return;
     // prod is the environment a request naming none is served, so selecting it is clearing the
     // selection rather than sending its name.
-    if (name === DEFAULT_ENV) localStorage.removeItem(ENV_STORAGE_KEY);
-    else localStorage.setItem(ENV_STORAGE_KEY, name);
+    if (name === DEFAULT_ENV) removeStored(ENV_STORAGE_KEY, { global: true });
+    else setStored(ENV_STORAGE_KEY, name, { global: true });
     await modelReplaced();
     notifications.show({ color: "green", message: t("envSwitcher.switched", { env: name }) });
   }

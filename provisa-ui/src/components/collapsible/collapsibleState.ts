@@ -8,6 +8,7 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
+import { getStored, setStored } from "../../lib/browserStorage";
 /**
  * Which collapsible panels a viewer left open or closed, kept in this browser so a panel opens as
  * it was left: one key, ``{panel id: {item: open}}``. It is this viewer's convenience only. Where
@@ -21,7 +22,7 @@ export type CollapsibleStates = Record<string, Record<string, boolean>>;
 
 export function readCollapsibleStates(): CollapsibleStates {
   try {
-    const raw = window.localStorage.getItem(KEY);
+    const raw = getStored(KEY);
     const parsed: unknown = raw ? JSON.parse(raw) : null;
     return parsed && typeof parsed === "object" ? (parsed as CollapsibleStates) : {};
   } catch {
@@ -34,7 +35,7 @@ export function writeCollapsibleState(id: string, items: Record<string, boolean>
   try {
     const all = readCollapsibleStates();
     all[id] = { ...all[id], ...items };
-    window.localStorage.setItem(KEY, JSON.stringify(all));
+    setStored(KEY, JSON.stringify(all));
   } catch {
     // Storage unavailable: the state holds for this page view and is not remembered.
   }

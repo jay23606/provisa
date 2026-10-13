@@ -64,6 +64,7 @@ def stack(monkeypatch):
     root.roles = _SEEDED
     state.rate_limiter = NoopRateLimiter()
     monkeypatch.setattr("provisa.api.app.state", state)
+    monkeypatch.setattr("provisa.core.control_plane_id.current", lambda: "cp-1")  # made at start
 
     def _app(memberships: list[str]) -> TestClient:
         admin = _Pool(
@@ -101,6 +102,7 @@ def test_a_member_naming_no_org_gets_their_memberships(stack):
     body = resp.json()
     assert body["active_org_id"] is None
     assert [m["org_id"] for m in body["org_memberships"]] == ["default"]
+    assert body["control_plane_id"] == "cp-1"  # REQ-2008
 
 
 def test_a_user_with_no_membership_gets_none(stack):

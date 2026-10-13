@@ -35,6 +35,7 @@ vi.mock("../hooks/useAdminQueries", () => ({
 
 import { SqlPage } from "../pages/SqlPage";
 import { tabSqlKey } from "../pages/sql/types";
+import { storageKey as scopedKey } from "../lib/browserStorage";
 
 // CodeMirror measures text with Range.getClientRects, which jsdom does not implement.
 Range.prototype.getClientRects = () => [] as unknown as DOMRectList;
@@ -43,7 +44,7 @@ Range.prototype.getBoundingClientRect = () => new DOMRect();
 /** The SQL each open tab holds, as the page persists it. */
 function tabSql(): string[] {
   return Object.keys(localStorage)
-    .filter((k) => k.startsWith(tabSqlKey("")))
+    .filter((k) => k.startsWith(scopedKey(tabSqlKey(""))))
     .map((k) => localStorage.getItem(k) ?? "");
 }
 

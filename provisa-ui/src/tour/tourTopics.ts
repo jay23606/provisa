@@ -17,6 +17,7 @@
 
 import { TOPIC_IDS, type TopicId } from "./tourSteps";
 import { TOUR_TOPICS_DONE_KEY } from "./tourKeys";
+import { getStored, setStored } from "../lib/browserStorage";
 
 export { TOPIC_IDS };
 export type { TopicId };
@@ -24,7 +25,7 @@ export type { TopicId };
 /** Topics the viewer has completed (Done on a topic's last step), in the order they were finished. */
 export function completedTopics(): TopicId[] {
   try {
-    const raw = localStorage.getItem(TOUR_TOPICS_DONE_KEY);
+    const raw = getStored(TOUR_TOPICS_DONE_KEY, { global: true });
     if (raw === null) return [];
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
@@ -39,7 +40,7 @@ export function markTopicCompleted(id: TopicId): void {
   const done = completedTopics();
   if (done.includes(id)) return;
   try {
-    localStorage.setItem(TOUR_TOPICS_DONE_KEY, JSON.stringify([...done, id]));
+    setStored(TOUR_TOPICS_DONE_KEY, JSON.stringify([...done, id]), { global: true });
   } catch {
     // REQ-1945: as above -- a browser that refuses storage just does not remember the mark.
   }

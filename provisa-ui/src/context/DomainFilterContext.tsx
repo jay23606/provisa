@@ -9,6 +9,7 @@ import { createContext, useContext, useState, useEffect } from "react";
 import { useAuth } from "./AuthContext";
 import { fetchSettings } from "../api/admin";
 import { CHECKED_DOMAINS_KEY, KNOWN_DOMAINS_KEY } from "../lib/domainFilterKeys";
+import { getStored, setStored } from "../lib/browserStorage";
 
 interface DomainFilterContextValue {
   domains: string[];
@@ -45,22 +46,22 @@ export function mergeCheckedDomains(
 // next load, so it read as unchecked by the user and its tables vanished from every list.
 export function restoreCheckedDomains(available: string[]): Set<string> {
   try {
-    const savedChecked = localStorage.getItem(CHECKED_DOMAINS_KEY);
-    const savedKnown = localStorage.getItem(KNOWN_DOMAINS_KEY);
+    const savedChecked = getStored(CHECKED_DOMAINS_KEY);
+    const savedKnown = getStored(KNOWN_DOMAINS_KEY);
     const merged = mergeCheckedDomains(
       available,
       savedChecked ? JSON.parse(savedChecked) : null,
       savedKnown ? JSON.parse(savedKnown) : null,
     );
     if (merged) {
-      localStorage.setItem(KNOWN_DOMAINS_KEY, JSON.stringify(available));
-      localStorage.setItem(CHECKED_DOMAINS_KEY, JSON.stringify([...merged]));
+      setStored(KNOWN_DOMAINS_KEY, JSON.stringify(available));
+      setStored(CHECKED_DOMAINS_KEY, JSON.stringify([...merged]));
       return merged;
     }
   } catch {
     // ignore
   }
-  localStorage.setItem(KNOWN_DOMAINS_KEY, JSON.stringify(available));
+  setStored(KNOWN_DOMAINS_KEY, JSON.stringify(available));
   return new Set(available);
 }
 
@@ -128,7 +129,7 @@ export function DomainFilterProvider({ children }: { children: React.ReactNode }
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
-      localStorage.setItem(CHECKED_DOMAINS_KEY, JSON.stringify([...next]));
+      setStored(CHECKED_DOMAINS_KEY, JSON.stringify([...next]));
       return next;
     });
   }
@@ -141,13 +142,12 @@ export function DomainFilterProvider({ children }: { children: React.ReactNode }
     setCheckedDomains((prev) => {
       if (prev.has(id)) return prev;
       const next = new Set(prev).add(id);
-      localStorage.setItem(CHECKED_DOMAINS_KEY, JSON.stringify([...next]));
+      setStored(CHECKED_DOMAINS_KEY, JSON.stringify([...next]));
       return next;
     });
     try {
-      const known: string[] = JSON.parse(localStorage.getItem(KNOWN_DOMAINS_KEY) || "[]");
-      if (!known.includes(id))
-        localStorage.setItem(KNOWN_DOMAINS_KEY, JSON.stringify([...known, id]));
+      const known: string[] = JSON.parse(getStored(KNOWN_DOMAINS_KEY) || "[]");
+      if (!known.includes(id)) setStored(KNOWN_DOMAINS_KEY, JSON.stringify([...known, id]));
     } catch {
       // ignore
     }

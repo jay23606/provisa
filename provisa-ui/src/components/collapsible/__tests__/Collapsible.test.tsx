@@ -15,6 +15,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "../../../test-utils/render";
 import { CollapsibleItem, Collapsibles } from "../Collapsible";
+import { storageKey as scopedKey } from "../../../lib/browserStorage";
 
 function panels(reveal?: string) {
   return render(
@@ -54,14 +55,16 @@ describe("Collapsibles", () => {
     first.unmount();
     panels();
     expect([expanded("a"), expanded("b")]).toEqual(["false", "true"]);
-    expect(JSON.parse(window.localStorage.getItem("provisa.collapsibles") ?? "{}")).toEqual({
+    expect(
+      JSON.parse(window.localStorage.getItem(scopedKey("provisa.collapsibles")) ?? "{}"),
+    ).toEqual({
       "test.page": { a: false, b: true, c: true },
     });
   });
 
   it("holds an item that needs attention open whatever was left", () => {
     window.localStorage.setItem(
-      "provisa.collapsibles",
+      scopedKey("provisa.collapsibles"),
       JSON.stringify({ "test.page": { c: false } }),
     );
     panels();

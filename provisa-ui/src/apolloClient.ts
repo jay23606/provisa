@@ -12,6 +12,7 @@ import { ApolloClient, InMemoryCache, HttpLink, ApolloLink } from "@apollo/clien
 import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval";
 import { map } from "rxjs/operators";
 import { currentBearer, ENV_HEADER, ORG_HEADER, selectedEnv } from "./lib/authFetch";
+import { getStored, removeStored, setStored, storageKey, storageScope } from "./lib/browserStorage";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "";
 
@@ -30,7 +31,7 @@ const httpLink = new HttpLink({
 });
 
 const authLink = new ApolloLink((operation, forward) => {
-  const orgId = localStorage.getItem("provisa_org");
+  const orgId = getStored("provisa_org", { global: true });
   const env = selectedEnv();
   // REQ-1317: the name the middleware reads. REQ-1487: and the environment within it — GraphQL
   // does not pass through the fetch interceptor's header path, so a query left without this would
@@ -80,7 +81,7 @@ const SCHEMA_VERSION_KEY = "admin-schema-version";
  * of. Called when a session starts or ends, never mid-session. */
 export function clearPersistedAdminCache(): void {
   void dropPersistedCache();
-  localStorage.removeItem(SCHEMA_VERSION_KEY);
+  removeStored(SCHEMA_VERSION_KEY, { global: true });
   void client.clearStore();
 }
 
@@ -95,8 +96,20 @@ export function clearPersistedAdminCache(): void {
  * the environment now selected, and the views holding them re-render with the answer.
  */
 export function modelReplaced(): Promise<unknown> {
-  localStorage.removeItem(SCHEMA_VERSION_KEY);
+  removeStored(SCHEMA_VERSION_KEY, { global: true });
   return Promise.all([dropPersistedCache(), client.resetStore().catch(() => {})]);
+}
+
+/** REQ-2008: the scope gate has bound the scope `scope` (lib/browserStorage's `storageKey("")`).
+ * A snapshot restored from another control plane or org is that one's catalog: it goes, from
+ * memory and from disk, and the active queries run again in this one. */
+export function adoptCacheScope(scope: string): Promise<unknown> {
+  if (restoredScope === null || restoredScope === scope) {
+    restoredScope = scope;
+    return Promise.resolve();
+  }
+  restoredScope = scope;
+  return modelReplaced();
 }
 
 /** Discard the persisted snapshot in both stores. The localStorage removal is not dead code: the
@@ -104,7 +117,7 @@ export function modelReplaced(): Promise<unknown> {
  * still holds that entry — several megabytes of the origin's 5 MB budget, charged to every other
  * feature that stores anything, until something deletes it. */
 function dropPersistedCache(): Promise<void> {
-  localStorage.removeItem(CACHE_KEY);
+  removeStored(CACHE_KEY, { global: true });
   return idbDel(CACHE_KEY).catch((e: unknown) => {
     console.warn("Failed to discard the persisted Apollo cache:", e);
   });
@@ -160,12 +173,12 @@ const schemaVersionLink = new ApolloLink((operation, forward) =>
       const ctx = operation.getContext();
       const version = ctx.response?.headers?.get("x-schema-version");
       if (version === null || version === undefined) return response;
-      const stored = localStorage.getItem(SCHEMA_VERSION_KEY);
+      const stored = getStored(SCHEMA_VERSION_KEY, { global: true });
       if (stored !== null && stored !== version) {
-        localStorage.setItem(SCHEMA_VERSION_KEY, version);
+        setStored(SCHEMA_VERSION_KEY, version, { global: true });
         _scheduleActiveRefetch();
       } else if (stored === null) {
-        localStorage.setItem(SCHEMA_VERSION_KEY, version);
+        setStored(SCHEMA_VERSION_KEY, version, { global: true });
       }
       return response;
     }),
@@ -194,13 +207,19 @@ export const client = new ApolloClient({
  * A snapshot written by an older schema is refused, not migrated — that is what CACHE_VERSION is
  * for: stale or partial entities (dangling refs, dropped non-null fields) must never be replayed
  * into a live read. */
+/** REQ-2008: the control plane and org the restored snapshot was saved in (lib/browserStorage's
+ * `storageKey("")`). The snapshot is restored before either is known; when the scope gate binds
+ * another, `adoptCacheScope` drops it. */
+let restoredScope: string | null = null;
+
 export const cacheRestored: Promise<void> =
   typeof window === "undefined"
     ? Promise.resolve()
-    : idbGet<{ version: string; data: unknown }>(CACHE_KEY)
+    : idbGet<{ version: string; scope: string; data: unknown }>(CACHE_KEY)
         .then((stored) => {
           if (stored === undefined) return;
           if (stored.version !== CACHE_VERSION) return dropPersistedCache();
+          restoredScope = stored.scope;
           cache.restore(stored.data as Parameters<typeof cache.restore>[0]);
         })
         .catch((e: unknown) => {
@@ -221,13 +240,21 @@ if (typeof window !== "undefined") {
   const persist = () => {
     // Serialized: idbSet is asynchronous and the interval does not wait for it, so two writes of a
     // multi-megabyte extract could otherwise overlap on every tick.
+    // REQ-2008: saved with the scope it holds; nothing is saved before a scope is bound.
+    if (storageScope() === null) return persisting;
+    const scope = storageKey("");
     persisting = persisting.then(() =>
-      idbSet(CACHE_KEY, { version: CACHE_VERSION, data: cache.extract() }).catch((e: unknown) => {
-        if (persistIntervalId !== null) clearInterval(persistIntervalId);
-        document.removeEventListener("visibilitychange", flushIfHidden);
-        void dropPersistedCache();
-        console.warn("Apollo cache snapshot could not be persisted; disabled for this session:", e);
-      }),
+      idbSet(CACHE_KEY, { version: CACHE_VERSION, scope, data: cache.extract() }).catch(
+        (e: unknown) => {
+          if (persistIntervalId !== null) clearInterval(persistIntervalId);
+          document.removeEventListener("visibilitychange", flushIfHidden);
+          void dropPersistedCache();
+          console.warn(
+            "Apollo cache snapshot could not be persisted; disabled for this session:",
+            e,
+          );
+        },
+      ),
     );
     return persisting;
   };
