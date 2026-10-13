@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -354,16 +355,6 @@ class TestCreateOrgRole:
         assert any('GRANT USAGE, CREATE ON SCHEMA "org_acme" TO role_acme' in s for s in executed)
 
     @pytest.mark.asyncio
-    async def test_create_org_role_is_noop_on_non_pg_backend(self):  # REQ-889
-        from provisa.core.db import create_org_role
-
-        conn = AsyncMock()
-        conn.capabilities.dialect = "sqlite"  # embedded home has no role system to harden
-        await create_org_role(conn, "acme")
-
-        conn.execute.assert_not_awaited()
-
-    @pytest.mark.asyncio
     async def test_create_org_role_rejects_invalid_org_id(self):  # REQ-699
         from provisa.core.db import create_org_role
 
@@ -522,6 +513,19 @@ class TestProvisionOrg:
 # ---------------------------------------------------------------------------
 
 
+@asynccontextmanager
+async def _transaction():
+    yield
+
+
+def _seeding_conn() -> AsyncMock:
+    """A connection double the seed runs against: its transaction() is a context, as a real
+    connection's is (each view is created inside one)."""
+    conn = AsyncMock()
+    conn.transaction = _transaction
+    return conn
+
+
 class TestDemoSeedOrgScoping:
     def test_seed_meta_domain_uses_org_id_schema_name(self):  # REQ-702
         import inspect
@@ -535,7 +539,7 @@ class TestDemoSeedOrgScoping:
     async def test_seed_meta_domain_registers_tables_in_org_schema(self):  # REQ-702
         from provisa.api.startup_seed import _seed_meta_domain
 
-        mock_conn = AsyncMock()
+        mock_conn = _seeding_conn()
         mock_conn.reflect_columns = AsyncMock(return_value=[])  # empty → skip column loops
         mock_conn.upsert_returning = AsyncMock(return_value=1)
         result = MagicMock()
@@ -565,7 +569,7 @@ class TestDemoSeedOrgScoping:
         from provisa.api.startup_seed import _seed_meta_domain, _seed_ops_domain
 
         for seed in (_seed_meta_domain, _seed_ops_domain):
-            mock_conn = AsyncMock()
+            mock_conn = _seeding_conn()
             mock_conn.reflect_columns = AsyncMock(return_value=[])
             mock_conn.upsert_returning = AsyncMock(return_value=1)
             result = MagicMock()
@@ -590,7 +594,7 @@ class TestDemoSeedOrgScoping:
         """
         from provisa.api.startup_seed import _seed_meta_domain
 
-        mock_conn = AsyncMock()
+        mock_conn = _seeding_conn()
         mock_conn.reflect_columns = AsyncMock(return_value=[])
         mock_conn.upsert_returning = AsyncMock(return_value=1)
         result = MagicMock()

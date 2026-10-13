@@ -98,7 +98,9 @@ class _Acquire:
         return False
 
 
-def _state(monkeypatch, engine, source, registered: list[dict], *, catalog: str) -> SimpleNamespace:
+def _state(
+    monkeypatch, engine, source, registered: list[dict], *, catalog: str, plane=None
+) -> SimpleNamespace:
     """An org's state as the routes are published from it: the registry holds ``registered``."""
 
     async def _fetch_tables(_conn):
@@ -126,7 +128,9 @@ def _state(monkeypatch, engine, source, registered: list[dict], *, catalog: str)
     return SimpleNamespace(
         org_id=_ORG,
         config=SimpleNamespace(sources=[source], tables=[]),
-        model_db=(_one_db := SimpleNamespace(acquire=lambda: _Acquire())),
+        # The engine attaches the control plane its walk reads (REQ-2014): a real one where the
+        # engine is a running DuckDB, else a stand-in that is only acquired.
+        model_db=(_one_db := plane.org() if plane else SimpleNamespace(acquire=lambda: _Acquire())),
         tenant_db=_one_db,
         federation_engine=SimpleNamespace(engine=engine),
         source_catalogs={source.id: catalog},
@@ -274,7 +278,7 @@ def _sqlite_shop(tmp_path) -> str:
 
 
 async def test_duckdb_reads_the_replica_once_a_live_attached_table_is_floored(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, control_plane
 ):
     """A table attached live on a running engine, then floored (the operator's setting turned
     on): its live view is removed, and the statement the engine runs reads the replica."""
@@ -297,7 +301,7 @@ async def test_duckdb_reads_the_replica_once_a_live_attached_table_is_floored(
 
     def _walk(source: Source) -> SimpleNamespace:
         """The engine's attach walk over the registry, as a query triggers it."""
-        state = _state(monkeypatch, engine, source, registered, catalog="src")
+        state = _state(monkeypatch, engine, source, registered, catalog="src", plane=control_plane)
         state.runtime_sources, state.tables = {}, registered
         backend._runtime_for(state)
         return state

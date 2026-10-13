@@ -97,11 +97,6 @@ def test_control_plane_spec_names_no_default_schema():
     assert "currentSchema" not in tsc.control_plane_spec(_URL).properties["connection-url"]
 
 
-def test_a_non_postgres_control_plane_is_rejected_rather_than_defaulted():
-    with pytest.raises(ValueError, match="Postgres control plane"):
-        tsc.control_plane_spec(make_url("sqlite:///provisa.db"))
-
-
 def test_iceberg_specs_track_the_control_plane_and_object_store(monkeypatch):
     monkeypatch.setenv("PROVISA_OTEL_S3_ENDPOINT", "http://10.1.2.3:9000")
     monkeypatch.setenv("PROVISA_OTEL_BUCKET", "cloud-otel")

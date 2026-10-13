@@ -101,9 +101,16 @@ class TestTheSeedCarriesTheDescriptions:
 
     def _payloads(self, seeder, **kw):
         import asyncio
+        from contextlib import asynccontextmanager
         from unittest.mock import AsyncMock
 
+        @asynccontextmanager
+        async def _transaction():
+            yield
+
         conn = AsyncMock()
+        # Each view is created inside a transaction, a context on a real connection.
+        conn.transaction = _transaction
         conn.upsert_returning = AsyncMock(return_value=7)
         # Reflect the columns the relation actually exposes: a view-backed registration (derived_tags)
         # has no surrogate id, so a fixed one-column stand-in would demand a description for a column

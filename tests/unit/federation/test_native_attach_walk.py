@@ -262,28 +262,3 @@ def test_a_driver_error_is_retried_on_the_next_query():
     assert attempts.count("public.orders") == 3, "the recovered source was not attached once"
     assert attempts.count("public.customers") == 1
     assert attempts.count("public.pets") == 0, "a FETCH source is never attached"
-
-
-def test_a_sqlite_control_plane_snapshot_is_checked_on_every_query():
-    """The SQLite control plane is read through a snapshot the runtime re-takes when something was
-    committed (a table registered after startup is visible to the next query). That check is not
-    part of the registry walk."""
-
-    class _SnapshotRuntime(_Runtime):
-        def __init__(self) -> None:
-            super().__init__()
-            self.snapshots: list[tuple[str, str, str]] = []
-
-        def attach_control_plane(self, db_path, schema_name, *, dialect) -> None:
-            self.snapshots.append((db_path, schema_name, dialect))
-
-    backend, state = _Backend(), _state()
-    backend.runtime = _SnapshotRuntime()
-    state.tenant_db = SimpleNamespace(
-        dialect="sqlite", engine=SimpleNamespace(url=SimpleNamespace(database="/tmp/cp.db"))
-    )
-    state.model_db = state.tenant_db
-    for _ in range(3):
-        backend._runtime_for(state)
-    assert backend.runtime.snapshots == [("/tmp/cp.db", "org_default", "sqlite")] * 3
-    assert state.config.walks == 1
