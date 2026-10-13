@@ -4573,6 +4573,9 @@ async def _route_compiled(
         role_id,
         table_ids=_table_ids,
         nf_args=_nf_args,
+        # REQ-031: a write goes to its source's own driver. The engine reaches an attached source
+        # (sqlite, a DuckDB file) through a view, which takes no write.
+        is_mutation=_is_write,
         steward_hint=steward_hint,
         extra_selections=extra_selections,
     )
