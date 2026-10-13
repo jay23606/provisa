@@ -74,6 +74,12 @@ class SourcePool:  # REQ-052, REQ-053
                 extra or {}
             )  # warehouse drivers read federation_hints; RDBMS drivers no-op
             connect_port = pgbouncer_port if use_pgbouncer else port
+            if host:
+                # REQ-2006: checked at the connection itself, whatever the row said when saved --
+                # the name may resolve elsewhere by now.
+                from provisa.security.sandbox_egress import require_allowed
+
+                require_allowed(host, connect_port)
             await driver.connect(host, connect_port, database, user, password, min_size, max_size)
             from provisa.vector.capability import detect_vector_capability
 

@@ -112,6 +112,7 @@ from provisa.api.admin.schema_common import (  # noqa: E402
     _expand_wikipedia_if_needed,
     google_workspace_refusal,
     logs_refusal,
+    sandbox_destination_refusal,
     file_source_path,
     google_workspace_organisation_refusal,
     microsoft_365_organisation_refusal,
@@ -1941,6 +1942,11 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                 _logs_refusal = logs_refusal(input) or file_source_path(input)  # REQ-1996/1997
                 if _logs_refusal is not None:
                     return _logs_refusal
+                # REQ-2006: a sandbox org's source is checked BEFORE the connection that validates
+                # it is opened -- validating it would already reach where it points.
+                _egress_refusal = sandbox_destination_refusal(input)
+                if _egress_refusal is not None:
+                    return _egress_refusal
                 await _add_source_pool(state, input)
         except Exception as _conn_err:
             logging.getLogger(__name__).exception(

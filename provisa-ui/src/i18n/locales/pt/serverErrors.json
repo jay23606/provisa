@@ -554,6 +554,9 @@
       "too_large": "O arquivo é maior que os {{limit}} bytes que um envio pode ter.",
       "bad_name": "{{name}} não pode ser o nome de um arquivo enviado: use letras, dígitos, '.', '_' e '-'.",
       "not_a_file_source": "Uma fonte {{type}} não recebe arquivo por envio."
+    },
+    "sources": {
+      "private_destination": "As fontes de um sandbox só podem alcançar endereços públicos; {{host}} é {{address}}, que não é um deles."
     }
   }
 }

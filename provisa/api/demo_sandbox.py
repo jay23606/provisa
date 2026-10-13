@@ -255,7 +255,7 @@ async def _copy_replicas(template_org: str, org_id: str) -> None:
     from provisa.core.environments import org_schema
     from provisa.core.regions import DEFAULT_REGION
     from provisa.core.database import Database
-    from provisa.core.schema_org import replica_state
+    from provisa.federation import replica_state
     from provisa.federation.engine import embedded_store_dsn
     from provisa.federation.materialize_broker import copy_schema
     from provisa.federation.replica_address import REPLICAS_SUFFIX
@@ -283,14 +283,7 @@ async def _copy_replicas(template_org: str, org_id: str) -> None:
         engine, name="org-state", search_path=org_schema(org_id), holds="state"
     )
     async with template_state.acquire() as conn:
-        rows = [
-            dict(r._mapping)
-            for r in (
-                await conn.execute_core(
-                    select(replica_state).where(replica_state.c.completed_at.is_not(None))
-                )
-            ).fetchall()
-        ]
+        rows = await replica_state.completed_rows(conn)
     built = _store_identity(org_id)
     definitions = await _sandbox_definitions(template_org, org_id, rows)
     for row in rows:
@@ -305,9 +298,8 @@ async def _copy_replicas(template_org: str, org_id: str) -> None:
             build_wait=None,
             build_progress=None,
         )
-    if rows:
-        async with sandbox_state.acquire() as conn:
-            await conn.execute_core_many(insert(replica_state), rows)
+    async with sandbox_state.acquire() as conn:
+        await replica_state.record_copied(conn, rows)
 
 
 async def _sandbox_definitions(
@@ -416,6 +408,9 @@ async def reap(org_id: str) -> None:
         async with _admin_pool().acquire() as conn:
             await conn.execute_core(delete(user_profiles).where(user_profiles.c.user_id == row[1]))
     _touched.pop(org_id, None)
+    from provisa.security.sandbox_egress import forget
+
+    forget(org_id)
     folder = org_files.folder(org_id)
     if folder.exists():
         await asyncio.to_thread(shutil.rmtree, folder)

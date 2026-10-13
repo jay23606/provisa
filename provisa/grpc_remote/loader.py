@@ -20,6 +20,8 @@ Two distinct operations:
 
 from __future__ import annotations
 
+from provisa.security import sandbox_egress  # REQ-2006
+
 import os
 import re
 from pathlib import Path
@@ -171,9 +173,7 @@ async def load_proto(  # REQ-322, REQ-329
         ValueError        — proto parse error
     """
     if path_or_url.startswith("http://") or path_or_url.startswith("https://"):
-        import httpx
-
-        r = httpx.get(path_or_url, timeout=30, follow_redirects=True)
+        r = sandbox_egress.checked_get(path_or_url, timeout=30)
         r.raise_for_status()
         text = r.text
     else:

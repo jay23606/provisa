@@ -25,6 +25,8 @@ table.
 # Requirements: REQ-1923
 from __future__ import annotations
 
+from provisa.security import sandbox_egress  # REQ-2006
+
 import httpx
 from graphql import (
     DocumentNode,
@@ -206,7 +208,9 @@ async def fit_table_to_credential(
         variables = {**variables, "pageCursor": None}
     headers = {"Content-Type": "application/json", **_build_headers(auth)}
     omitted: list[dict] = []
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(
+        timeout=30.0, event_hooks=sandbox_egress.http_event_hooks()
+    ) as client:
         for _ in range(_MAX_ROUNDS):
             resp = await client.post(
                 url, json={"query": query, "variables": variables}, headers=headers

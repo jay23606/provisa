@@ -20,6 +20,8 @@ Endpoints:
 # Requirements: REQ-307, REQ-308, REQ-310, REQ-311, REQ-312, REQ-313, REQ-597, REQ-598, REQ-599, REQ-600, REQ-602, REQ-1923
 
 from __future__ import annotations
+
+from provisa.security import sandbox_egress  # REQ-2006
 import logging
 from typing import TYPE_CHECKING
 
@@ -74,7 +76,9 @@ async def _verify_live_auth(url: str, auth: dict | None, verify_query: str) -> N
     from provisa.graphql_remote.introspect import _build_headers
 
     headers = {"Content-Type": "application/json", **_build_headers(auth)}
-    async with httpx.AsyncClient(timeout=10.0) as client:
+    async with httpx.AsyncClient(
+        timeout=10.0, event_hooks=sandbox_egress.http_event_hooks()
+    ) as client:
         resp = await client.post(url, json={"query": verify_query}, headers=headers)
         resp.raise_for_status()
         data = resp.json()

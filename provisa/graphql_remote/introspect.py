@@ -12,6 +12,8 @@
 
 # Requirements: REQ-307, REQ-311
 from __future__ import annotations
+
+from provisa.security import sandbox_egress  # REQ-2006
 import httpx
 
 INTROSPECTION_QUERY = """
@@ -57,7 +59,9 @@ async def introspect_schema(url: str, auth: dict | None = None) -> dict:  # REQ-
     Raises httpx.HTTPError on network/HTTP failure.
     """
     headers = {"Content-Type": "application/json", **_build_headers(auth)}
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(
+        timeout=30.0, event_hooks=sandbox_egress.http_event_hooks()
+    ) as client:
         resp = await client.post(url, json={"query": INTROSPECTION_QUERY}, headers=headers)
         resp.raise_for_status()
         data = resp.json()

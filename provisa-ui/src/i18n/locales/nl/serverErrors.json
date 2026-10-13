@@ -554,6 +554,9 @@
       "too_large": "Het bestand is groter dan de {{limit}} bytes die een upload mag zijn.",
       "bad_name": "{{name}} kan niet de naam van een geüpload bestand zijn: gebruik letters, cijfers, '.', '_' en '-'.",
       "not_a_file_source": "Een {{type}}-bron krijgt geen bestand via upload."
+    },
+    "sources": {
+      "private_destination": "De bronnen van een sandbox mogen alleen openbare adressen bereiken; {{host}} is {{address}}, en dat is er geen."
     }
   }
 }

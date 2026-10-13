@@ -240,24 +240,41 @@ async def _replica_progress(rt) -> tuple[int, list[str], int]:
     """How many of the template's replicas have landed, the tables whose last build failed, and
     how many tables its demo's configuration declares (the built-in tables every org registers
     are not the demo's, and are not replicated)."""
-    from sqlalchemy import select
-
-    from provisa.core.schema_org import replica_state
+    from provisa.federation import replica_state
 
     declared = len(template_seed(rt.org_id).tables)
     async with rt.tenant_db.acquire() as conn:
-        rows = (
-            await conn.execute_core(
-                select(
-                    replica_state.c.table_name,
-                    replica_state.c.build_state,
-                    replica_state.c.completed_at,
-                ).where(replica_state.c.retired_at.is_(None))
-            )
-        ).fetchall()
-    landed = sum(1 for r in rows if r[2] is not None)
-    failed = [r[0] for r in rows if r[1] == "failed" and r[2] is None]
+        landed, failed = await replica_state.progress(conn)
     return landed, failed, declared
 
 
 _build_tasks: set = set()
+
+
+async def record_demo_destinations(org_id: str) -> None:
+    """Record, for the sandbox org ``org_id``, the destinations its demo's configuration declares
+    (provisa.security.sandbox_egress): a demo template's and a demo sandbox's are the named demo's
+    sources, and the hosted sandbox org's (REQ-1598) are the deployment's demo configuration's."""
+    from sqlalchemy import select
+
+    from provisa.api.admin.orgs_router import _admin_pool
+    from provisa.api.app import state
+    from provisa.core.org_ids import is_sandbox_tier_org
+    from provisa.core.schema_admin import demo_sandboxes
+    from provisa.security.sandbox_egress import set_demo_destinations, source_fields
+
+    if is_template_org(org_id):
+        sources = template_seed(org_id).sources
+    elif is_sandbox_tier_org(org_id):
+        async with _admin_pool().acquire() as conn:
+            row = (
+                await conn.execute_core(
+                    select(demo_sandboxes.c.demo).where(demo_sandboxes.c.org_id == org_id)
+                )
+            ).fetchone()
+        if row is None:
+            raise RuntimeError(f"sandbox org {org_id!r} has no demo_sandboxes row")
+        sources = template_seed(template_org_id(row[0])).sources
+    else:
+        sources = state.seed_config.sources
+    set_demo_destinations(org_id, [source_fields(s) for s in sources])

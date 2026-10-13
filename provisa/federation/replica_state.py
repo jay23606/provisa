@@ -55,7 +55,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from sqlalchemy import and_, case, func, or_, select, update
+from sqlalchemy import and_, case, func, insert, or_, select, update
 from sqlalchemy.exc import IntegrityError
 
 from provisa.core import config_stamp
@@ -1043,3 +1043,35 @@ async def index_state_current(conn: "Connection", key: ReplicaKey, landed_at: st
         )
     ).scalar_one_or_none()
     return state is not None and state["for"] == landed_at
+
+
+# --- a demo sandbox's copy of its template's replicas (REQ-2006) ------------------------------
+
+
+async def completed_rows(conn: "Connection") -> list[dict]:
+    """Every replica record that has a completed build, whole: what a demo sandbox copies from
+    its template along with the replicas themselves."""
+    rows = (
+        await conn.execute_core(select(replica_state).where(_t.completed_at.is_not(None)))
+    ).fetchall()
+    return [dict(r._mapping) for r in rows]
+
+
+async def record_copied(conn: "Connection", rows: list[dict]) -> None:
+    """Record replicas copied into this store from another org's (a demo sandbox's, from its
+    template): each completed as the row says, idle, with no build of this org's own behind it."""
+    if rows:
+        await conn.execute_core_many(insert(replica_state), rows)
+
+
+async def progress(conn: "Connection") -> tuple[int, list[str]]:
+    """How many live replicas have a completed build, and the tables whose last build failed and
+    left none (a demo template's readiness, REQ-2006)."""
+    rows = (
+        await conn.execute_core(
+            select(_t.table_name, _t.build_state, _t.completed_at).where(_t.retired_at.is_(None))
+        )
+    ).fetchall()
+    landed = sum(1 for r in rows if r[2] is not None)
+    failed = [r[0] for r in rows if r[1] == FAILED and r[2] is None]
+    return landed, failed

@@ -554,6 +554,9 @@
       "too_large": "Le fichier dépasse les {{limit}} octets qu'un téléversement peut faire.",
       "bad_name": "{{name}} ne peut pas être le nom d'un fichier téléversé : utilisez des lettres, des chiffres, '.', '_' et '-'.",
       "not_a_file_source": "Une source {{type}} ne reçoit pas de fichier par téléversement."
+    },
+    "sources": {
+      "private_destination": "Les sources d'un bac à sable ne peuvent atteindre que des adresses publiques ; {{host}} est {{address}}, qui n'en est pas une."
     }
   }
 }

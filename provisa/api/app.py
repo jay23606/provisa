@@ -1950,6 +1950,13 @@ async def _build_org_runtime(
     # REQ-2006: a demo sandbox's runtime opens its DuckDB file, so it is built by the sandbox tier
     # alone, and an ordinary org's never by the sandbox tier.
     require_this_tier(org_id)
+    from provisa.security.sandbox_egress import confined
+
+    if confined(org_id):
+        # REQ-2006: what its demo declares is reached; any other destination must be public.
+        from provisa.api.demo_templates import record_demo_destinations
+
+        await record_demo_destinations(org_id)
     from provisa.core.db import apply_tenancy_role_grants, init_schema
     from provisa.audit.query_log import init_audit_schema
 
@@ -3428,6 +3435,18 @@ def create_app() -> FastAPI:
 
     from provisa.core.sandbox_limits import SandboxDiskFull as _SandboxDiskFull
     from provisa.federation.duckdb_runtime import WriteConflict as _WriteConflict
+
+    from provisa.security.sandbox_egress import (
+        PrivateDestinationRefused as _PrivateDestinationRefused,
+    )
+
+    @app.exception_handler(_PrivateDestinationRefused)
+    async def _private_destination_handler(_req: _Request, exc: _PrivateDestinationRefused):  # noqa: F841  # pyright: ignore[reportUnusedFunction, reportUnusedVariable]
+        # REQ-2006: a sandbox org's source names a destination that is not public; not reached.
+        return _JSONResponse(
+            status_code=403,
+            content={"detail": str(exc), "code": exc.code, "params": exc.params},
+        )
 
     @app.exception_handler(_SandboxDiskFull)
     async def _sandbox_disk_full_handler(_req: _Request, exc: _SandboxDiskFull):  # noqa: F841  # pyright: ignore[reportUnusedFunction, reportUnusedVariable]

@@ -554,6 +554,9 @@
       "too_large": "El archivo supera los {{limit}} bytes que puede tener una subida.",
       "bad_name": "{{name}} no puede ser el nombre de un archivo subido: use letras, dígitos, '.', '_' y '-'.",
       "not_a_file_source": "A un origen {{type}} no se le da un archivo por subida."
+    },
+    "sources": {
+      "private_destination": "Las fuentes de un sandbox solo pueden llegar a direcciones públicas; {{host}} es {{address}}, que no lo es."
     }
   }
 }

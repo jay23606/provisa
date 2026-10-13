@@ -106,6 +106,10 @@ async def upsert(  # REQ-012, REQ-250, REQ-1919
     """Create the source, or replace its definition."""
     model_change.name("upsert", "source", source.id)  # REQ-1524
     from provisa.core.repositories.region import require_selected
+    from provisa.security.sandbox_egress import require_registered_source_allowed
+
+    # REQ-2006: a sandbox org's source reaches only its demo's own destinations and public ones.
+    require_registered_source_allowed(source)
 
     await require_selected(conn, f"source {source.id}", source.region)  # REQ-1921
     values = await owned_if_reconnected(conn, _source_values(source))

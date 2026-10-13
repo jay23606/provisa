@@ -267,3 +267,61 @@ def _age(org_id: str) -> None:
             )
     finally:
         engine.dispose()
+
+
+class _Listener:
+    """A TCP port on this host that counts the connections made to it."""
+
+    def __init__(self) -> None:
+        import socket
+        import threading
+
+        self._sock = socket.socket()
+        self._sock.bind(("127.0.0.1", 0))
+        self._sock.listen(16)
+        self.port = self._sock.getsockname()[1]
+        self.accepted = 0
+        threading.Thread(target=self._serve, daemon=True).start()
+
+    def _serve(self) -> None:
+        while True:
+            try:
+                conn, _ = self._sock.accept()
+            except OSError:
+                return
+            self.accepted += 1
+            conn.close()
+
+    def close(self) -> None:
+        self._sock.close()
+
+
+def _admin_graphql(tier, sandbox: dict, query: str) -> httpx.Response:
+    return httpx.post(
+        f"{tier.base_url}/admin/graphql",
+        json={"query": query},
+        headers={"Authorization": f"Bearer {sandbox['token']}", "x-org-provisa": sandbox["org_id"]},
+        timeout=120,
+    )
+
+
+def test_a_sandbox_source_on_a_private_address_is_refused_and_never_reached(tier, alpha):
+    """A visitor's source pointed at this host's loopback is refused by name when it is
+    registered, before the connection that would validate it is opened: nothing reaches the port.
+    (Before the check, the registration's own validation opened four connections to it.)"""
+    listener = _Listener()
+    try:
+        created = _admin_graphql(
+            tier,
+            alpha,
+            'mutation { createSource(input: {id: "probe", type: "postgresql", host: "127.0.0.1", '
+            f'port: {listener.port}, database: "x", username: "u", password: "p"}}) '
+            "{ success message code } }",
+        )
+        assert created.status_code == 200, created.text
+        result = created.json()["data"]["createSource"]
+        assert result["success"] is False and result["code"] == "sources.private_destination"
+        time.sleep(2)
+        assert listener.accepted == 0
+    finally:
+        listener.close()

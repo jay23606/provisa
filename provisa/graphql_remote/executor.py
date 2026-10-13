@@ -11,6 +11,8 @@
 """Execute queries against a remote GraphQL endpoint (REQ-309)."""
 
 from __future__ import annotations
+
+from provisa.security import sandbox_egress  # REQ-2006
 import asyncio
 import json
 import logging
@@ -367,7 +369,9 @@ async def connection_pages(  # REQ-309
     the remote reports a page after it. A missing parent (the root field returned null) has no
     pages. One page is held at a time."""
     cursor: str | None = None
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(
+        timeout=30.0, event_hooks=sandbox_egress.http_event_hooks()
+    ) as client:
         while True:
             connection, page_size = await _connection_page(client, read, cursor, page_size)
             if connection is None:
@@ -524,7 +528,9 @@ async def execute_remote(  # REQ-309, REQ-307, REQ-310, REQ-313
             pagination_arg_strs.append(f"{offset_arg}: {offset}")
 
     data: dict = {}
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(
+        timeout=30.0, event_hooks=sandbox_egress.http_event_hooks()
+    ) as client:
         for attempt in range(2):
             supplied = [a for a in required_args or [] if a["name"] in (variables or {})]
             query = _field_query(field_name, selected_cols, supplied, pagination_arg_strs)
@@ -577,7 +583,7 @@ def iter_remote_rows_spooled(  # REQ-1915, REQ-1923
 
     selected = list(columns)
     headers = {"Content-Type": "application/json", **_build_headers(auth)}
-    with httpx.Client(timeout=30.0) as client:
+    with httpx.Client(timeout=30.0, event_hooks=sandbox_egress.http_sync_event_hooks()) as client:
         for attempt in range(2):
             selection = "\n".join(selected) if selected else "__typename"
             payload = {"query": f"query {{ {field_name} {{ {selection} }} }}"}

@@ -554,6 +554,9 @@
       "too_large": "Die Datei ist größer als die {{limit}} Bytes, die ein Upload haben darf.",
       "bad_name": "{{name}} kann nicht der Name einer hochgeladenen Datei sein: Verwenden Sie Buchstaben, Ziffern, '.', '_' und '-'.",
       "not_a_file_source": "Einer {{type}}-Quelle wird keine Datei per Upload gegeben."
+    },
+    "sources": {
+      "private_destination": "Die Quellen einer Sandbox dürfen nur öffentliche Adressen erreichen; {{host}} ist {{address}}, und das ist keine."
     }
   }
 }

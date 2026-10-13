@@ -528,6 +528,34 @@ async def _upsert_source_with_domains(pool, model, input: SourceInput) -> None:
             )
 
 
+def sandbox_destination_refusal(input: SourceInput) -> "MutationResult | None":
+    """REQ-2006: the refusal of a sandbox org's source that names a destination its demo does not
+    declare and that is not public (provisa.security.sandbox_egress), or None."""
+    import json
+
+    from provisa.security.sandbox_egress import PrivateDestinationRefused, require_source_allowed
+
+    fields = {
+        "host": input.host,
+        "port": input.port,
+        "path": input.path,
+        "mapping": json.loads(input.mapping_json) if input.mapping_json else None,
+        "federation_hints": (
+            json.loads(input.federation_hints_json) if input.federation_hints_json else None
+        ),
+    }
+    try:
+        require_source_allowed(fields)
+    except PrivateDestinationRefused as refused:
+        return MutationResult(
+            success=False,
+            message=f"Source {input.id!r}: {refused}",
+            code=refused.code,
+            params={"source": input.id, **refused.params},
+        )
+    return None
+
+
 async def _add_source_pool(state, input: SourceInput) -> None:
     """Register a direct connection pool for the source if a driver exists."""
     from provisa.executor.drivers.registry import has_driver

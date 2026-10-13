@@ -23,6 +23,8 @@ Endpoints:
 
 from __future__ import annotations
 
+from provisa.security import sandbox_egress  # REQ-2006
+
 import logging
 import re
 
@@ -79,9 +81,7 @@ async def _load_and_register(  # REQ-322, REQ-323, REQ-324, REQ-325, REQ-326, RE
 
     # Re-read raw text for storage
     if proto_path.startswith("http://") or proto_path.startswith("https://"):
-        import httpx
-
-        r = httpx.get(proto_path, timeout=30, follow_redirects=True)
+        r = sandbox_egress.checked_get(proto_path, timeout=30)
         r.raise_for_status()
         proto_text = r.text
     else:

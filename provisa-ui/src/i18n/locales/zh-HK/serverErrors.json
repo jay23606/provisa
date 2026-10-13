@@ -554,6 +554,9 @@
       "too_large": "檔案超過上載容許的 {{limit}} 位元組。",
       "bad_name": "{{name}} 不能作為上載檔案的名稱：請使用字母、數字、'.'、'_' 及 '-'。",
       "not_a_file_source": "{{type}} 資料來源不經上載取得檔案。"
+    },
+    "sources": {
+      "private_destination": "沙盒的資料來源只能存取公共地址；{{host}} 是 {{address}}，不是公共地址。"
     }
   }
 }
