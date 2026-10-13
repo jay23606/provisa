@@ -7,8 +7,9 @@
 // A freshly-created view's domain must become visible without a reload: mergeCheckedDomains defaults
 // any newly-appeared domain to checked while preserving domains the user explicitly unchecked.
 
-import { describe, it, expect } from "vitest";
-import { mergeCheckedDomains } from "../DomainFilterContext";
+import { beforeEach, describe, it, expect } from "vitest";
+import { mergeCheckedDomains, restoreCheckedDomains } from "../DomainFilterContext";
+import { CHECKED_DOMAINS_KEY, KNOWN_DOMAINS_KEY } from "../../lib/domainFilterKeys";
 
 describe("mergeCheckedDomains", () => {
   it("returns null when there is no persisted state (caller checks everything)", () => {
@@ -37,5 +38,37 @@ describe("mergeCheckedDomains", () => {
     const merged = mergeCheckedDomains(["sales", "ops", "marketing"], ["sales"], ["sales", "ops"]);
     // ops stays off (known+unchecked); marketing is new → on.
     expect(merged).toEqual(new Set(["sales", "marketing"]));
+  });
+});
+
+// One browser, two demos: the pet store left its domains in localStorage; the weblogs demo
+// declares "shop". Each page load restores the filter from what the last one saved.
+describe("restoreCheckedDomains across page loads", () => {
+  const PET_STORE = ["pet-store", "shelter", "meta", "ops"];
+  const WEBLOGS = ["shop", "meta", "ops", "default"];
+
+  beforeEach(() => {
+    localStorage.clear();
+    localStorage.setItem(CHECKED_DOMAINS_KEY, JSON.stringify(PET_STORE));
+    localStorage.setItem(KNOWN_DOMAINS_KEY, JSON.stringify(PET_STORE));
+  });
+
+  it("keeps a new demo's domain checked on every load, not only the first", () => {
+    expect(restoreCheckedDomains(WEBLOGS)).toEqual(new Set(WEBLOGS));
+    // The reload: shop is known now, and must still be checked -- it was never unchecked.
+    expect(restoreCheckedDomains(WEBLOGS)).toEqual(new Set(WEBLOGS));
+  });
+
+  it("still keeps a domain the user unchecked unchecked across loads", () => {
+    restoreCheckedDomains(WEBLOGS);
+    const unchecked = WEBLOGS.filter((d) => d !== "ops");
+    localStorage.setItem(CHECKED_DOMAINS_KEY, JSON.stringify(unchecked)); // toggleDomain("ops")
+    expect(restoreCheckedDomains(WEBLOGS)).toEqual(new Set(unchecked));
+    expect(restoreCheckedDomains(WEBLOGS)).toEqual(new Set(unchecked));
+  });
+
+  it("checks the first demo's domains again when it comes back", () => {
+    restoreCheckedDomains(WEBLOGS);
+    expect(restoreCheckedDomains(PET_STORE)).toEqual(new Set(PET_STORE));
   });
 });
