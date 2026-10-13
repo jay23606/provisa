@@ -23,7 +23,7 @@ from __future__ import annotations
 import pytest
 import pytest_asyncio
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.requires_trino, pytest.mark.integration]
 
 psycopg2 = pytest.importorskip("psycopg2")
 

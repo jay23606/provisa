@@ -336,6 +336,8 @@ markers = [
     "unit: fast, no external services required",
     "bdd: pytest-bdd scenario tests (generated from tests/features/)",
     "integration: requires Docker Compose stack (PG + Trino)",
+    "local_platform: runs on the local test platform (embedded Postgres, fakeredis; tests/local_platform.py) — no Docker stack",
+    "requires_trino: reaches a Trino coordinator — the CI side of the test platform (tests/local_platform.py)",
     "e2e: full HTTP pipeline tests against running app",
     "slow: long-running tests",
     "requires_neo4j: requires Neo4j service (docker compose up neo4j)",

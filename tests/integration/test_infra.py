@@ -19,7 +19,7 @@ import trino.dbapi
 from provisa.core.catalog import create_catalog
 from provisa.core.models import Source, SourceType
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.requires_trino, pytest.mark.integration]
 
 
 @pytest.fixture(scope="module", autouse=True)

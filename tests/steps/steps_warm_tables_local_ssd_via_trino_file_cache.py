@@ -30,6 +30,9 @@ from provisa.core.replicate import resolved_replicate
 from provisa.federation.replica_routing import reads_replica, table_floor
 from tests.steps.hot_replication_world import THRESHOLD, World
 
+# Builds a Trino engine (hot_replication_world): the CI side (tests/local_platform.py).
+pytestmark = [pytest.mark.requires_trino]
+
 scenarios("../features/REQ-239.feature")
 scenarios("../features/REQ-238.feature")
 

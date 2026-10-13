@@ -31,7 +31,11 @@ import httpx
 import pytest
 import pytest_asyncio
 
-pytestmark = [pytest.mark.integration, pytest.mark.asyncio(loop_scope="session")]
+pytestmark = [
+    pytest.mark.requires_trino,
+    pytest.mark.integration,
+    pytest.mark.asyncio(loop_scope="session"),
+]
 
 pytest.importorskip("duckdb")
 

@@ -54,6 +54,7 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
 pytestmark = [
+    pytest.mark.requires_trino,
     pytest.mark.e2e,
     pytest.mark.requires_warehouse,
     pytest.mark.asyncio(loop_scope="session"),

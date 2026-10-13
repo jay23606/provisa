@@ -122,6 +122,9 @@ from provisa.core.models import (
 )
 from provisa.federation.trino_connectors import TRINO_CONNECTORS, trino_connector_name
 
+# Reaches a Trino coordinator: the CI side (tests/local_platform.py).
+pytestmark = [pytest.mark.requires_trino]
+
 
 # ---------------------------------------------------------------------------
 # Shared fixture

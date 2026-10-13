@@ -236,7 +236,7 @@ def _reap_stray_pgserver():
 
 
 @pytest.fixture(scope="session", autouse=True)
-def _db_snapshot_restore():
+def _db_snapshot_restore(request):
     """Snapshot the PG DB before the test session and restore it after.
 
     Tests are free to corrupt DB state — it will be restored at session end.
@@ -245,10 +245,13 @@ def _db_snapshot_restore():
     """
     import time
 
-    # No isolated stack was provisioned (PYTEST_NO_DOCKER — e.g. the linux-mem lane runs
-    # a single pgserver-backed suite in a bare container). There is no app PG at
-    # PG_HOST:PG_PORT to snapshot, and pg_dump may be absent — nothing to protect.
-    if os.environ.get("PYTEST_NO_DOCKER"):
+    from tests.conftest import _needs_shared_stack
+
+    # No isolated stack was provisioned (PYTEST_NO_DOCKER — e.g. the linux-mem lane runs a single
+    # pgserver-backed suite in a bare container — or a session of only local_platform tests, which
+    # bring their own Postgres). There is no app PG at PG_HOST:PG_PORT to snapshot, and pg_dump
+    # may be absent — nothing to protect.
+    if os.environ.get("PYTEST_NO_DOCKER") or not _needs_shared_stack(request.session.items):
         yield
         return
 

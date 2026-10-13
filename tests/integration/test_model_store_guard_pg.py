@@ -30,7 +30,7 @@ from provisa.core.db import init_schema
 from tests.unit.test_model_store_guard import *  # noqa: F403 — the scenarios themselves
 from tests.unit.test_model_store_guard import Plane
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.integration, pytest.mark.local_platform]
 
 _ORG_ID = "guardscenarios"
 _SCHEMA = f"org_{_ORG_ID}"

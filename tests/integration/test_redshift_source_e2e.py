@@ -51,6 +51,7 @@ from tests.integration.redshift_cluster import (
 )
 
 pytestmark = [
+    pytest.mark.requires_trino,
     pytest.mark.integration,
     pytest.mark.requires_redshift,
     pytest.mark.requires_warehouse,

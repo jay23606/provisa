@@ -33,7 +33,7 @@ import pytest
 from tests.integration.test_join_pattern_refresh_e2e import _pg
 from tests.integration.test_synthetic_dataset_e2e import _call, _generate_whole_model, _sql
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.requires_trino, pytest.mark.integration]
 
 pytest.importorskip("duckdb")
 

@@ -57,6 +57,9 @@ from provisa.executor.direct import _WRITE_RE
 from provisa.executor.trino import execute_trino
 from provisa.transpiler.router import Route, decide_route
 
+# Reaches a Trino coordinator: the CI side (tests/local_platform.py).
+pytestmark = [pytest.mark.requires_trino]
+
 scenarios("../features/REQ-275.feature")
 scenarios("../features/REQ-276.feature")
 scenarios("../features/REQ-277.feature")

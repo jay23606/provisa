@@ -23,6 +23,9 @@ import os
 import pytest
 from pytest_bdd import given, when, then, scenarios
 
+# Reaches a Trino coordinator: the CI side (tests/local_platform.py).
+pytestmark = [pytest.mark.requires_trino]
+
 scenarios("../features/REQ-161.feature")
 
 

@@ -24,6 +24,9 @@ from provisa.kafka.source import (
     KafkaTopicConfig,
 )
 
+# Reaches a Trino coordinator: the CI side (tests/local_platform.py).
+pytestmark = [pytest.mark.requires_trino]
+
 scenarios("../features/REQ-147.feature")
 scenarios("../features/REQ-149.feature")
 

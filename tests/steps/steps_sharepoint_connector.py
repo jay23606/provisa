@@ -15,6 +15,9 @@ from provisa.core.catalog import _build_catalog_properties
 from provisa.core.models import Column, Source, SourceType, Table
 from provisa.federation.trino_connectors import TRINO_CONNECTORS, trino_connector_name
 
+# Reaches a Trino coordinator: the CI side (tests/local_platform.py).
+pytestmark = [pytest.mark.requires_trino]
+
 scenarios("../features/REQ-726.feature")
 scenarios("../features/REQ-727.feature")
 scenarios("../features/REQ-728.feature")

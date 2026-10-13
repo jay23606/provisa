@@ -43,7 +43,7 @@ import json
 import pytest
 import pytest_asyncio
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.requires_trino, pytest.mark.integration]
 
 _ORG = "cmd_compose_surfaces"
 _ROLE = "org_admin"

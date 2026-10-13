@@ -53,6 +53,7 @@ import trino.dbapi
 import trino.exceptions
 
 pytestmark = [
+    pytest.mark.requires_trino,
     pytest.mark.integration,
     pytest.mark.requires_sharepoint,
     pytest.mark.requires_warehouse,

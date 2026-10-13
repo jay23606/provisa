@@ -17,6 +17,9 @@ from tests.helpers import registry_write_ops, registry_write_returns_rows
 from provisa.compiler.introspect import ColumnMetadata
 from provisa.compiler.schema_gen import SchemaInput, generate_schema
 
+# Reaches a Trino coordinator: the CI side (tests/local_platform.py).
+pytestmark = [pytest.mark.requires_trino]
+
 
 # ---------------------------------------------------------------------------
 # Shared data fixture

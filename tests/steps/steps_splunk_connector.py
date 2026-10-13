@@ -14,6 +14,9 @@ from pytest_bdd import given, parsers, scenario, then, when
 from provisa.core.models import Source, SourceType
 from provisa.federation.trino_connectors import trino_connector_name
 
+# Reaches a Trino coordinator: the CI side (tests/local_platform.py).
+pytestmark = [pytest.mark.requires_trino]
+
 
 # ---------------------------------------------------------------------------
 # Scenario bindings

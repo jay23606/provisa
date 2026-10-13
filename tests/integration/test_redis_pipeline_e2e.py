@@ -37,7 +37,11 @@ from tests.integration.connector_source_harness import (
     connector_client,  # noqa: F401 — imported for pytest fixture discovery
 )
 
-pytestmark = [pytest.mark.integration, pytest.mark.asyncio(loop_scope="session")]
+pytestmark = [
+    pytest.mark.requires_trino,
+    pytest.mark.integration,
+    pytest.mark.asyncio(loop_scope="session"),
+]
 
 _SOURCE_ID = "redis_pipeline"
 _DOMAIN = "redis_e2e"

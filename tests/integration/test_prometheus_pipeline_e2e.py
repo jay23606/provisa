@@ -44,7 +44,11 @@ from tests.integration.connector_source_harness import (
     register_table,
 )
 
-pytestmark = [pytest.mark.e2e, pytest.mark.asyncio(loop_scope="session")]
+pytestmark = [
+    pytest.mark.requires_trino,
+    pytest.mark.e2e,
+    pytest.mark.asyncio(loop_scope="session"),
+]
 
 # Hyphen-free id, empty database — keeps the recorded catalog name and the physical one identical.
 _SOURCE_ID = "prometheus_pipeline"

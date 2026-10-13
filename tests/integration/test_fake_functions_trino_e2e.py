@@ -23,7 +23,7 @@ import trino
 
 from provisa.fakes.digest import digest, fingerprint
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.requires_trino, pytest.mark.integration]
 
 
 @pytest.fixture

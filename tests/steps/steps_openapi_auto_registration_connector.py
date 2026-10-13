@@ -60,6 +60,9 @@ from provisa.api_source.engine_cache import (
 )
 from provisa.executor.session import EngineSession
 
+# Reaches a Trino coordinator: the CI side (tests/local_platform.py).
+pytestmark = [pytest.mark.requires_trino]
+
 scenarios("../features/REQ-601.feature")
 scenarios("../features/REQ-316.feature")
 scenarios("../features/REQ-315.feature")

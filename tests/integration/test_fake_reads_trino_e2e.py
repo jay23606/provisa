@@ -32,7 +32,7 @@ from provisa.fakes import digest as digest_mod
 from provisa.security.masking import MaskingRule, MaskType
 from provisa.transpiler.transpile import transpile_to_trino
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.requires_trino, pytest.mark.integration]
 
 _TABLE = f"fake_read_people_{uuid.uuid4().hex[:8]}"
 _COLUMNS = [

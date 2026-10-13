@@ -41,7 +41,7 @@ import pytest
 
 from tests.integration.isolated_server import IsolatedServer, drop_org_schema
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.requires_trino, pytest.mark.integration]
 
 _ORG = "protocol_aggregate_parity"
 _ROLE = "org_admin"

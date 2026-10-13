@@ -42,7 +42,7 @@ from provisa.core.schema_org import (
 
 from tests.helpers import ready_org_folder
 
-pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
+pytestmark = [pytest.mark.integration, pytest.mark.local_platform, pytest.mark.asyncio]
 
 ENV = "dev"
 

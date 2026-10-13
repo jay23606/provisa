@@ -27,7 +27,7 @@ import trino
 
 from provisa.core.region_stores import ForeignRegion
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.requires_trino, pytest.mark.integration]
 
 _ORG = "acme"
 

@@ -69,6 +69,7 @@ from tests.itest_stack import ITEST_PROJECT as _ITEST_PROJECT
 _AMD64 = platform.machine() in ("x86_64", "amd64")
 
 pytestmark = [
+    pytest.mark.requires_trino,
     pytest.mark.integration,
     pytest.mark.asyncio(loop_scope="session"),
     pytest.mark.skipif(

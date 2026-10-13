@@ -34,7 +34,7 @@ from provisa.core.db import init_schema, org_schema
 from provisa.core.schema_admin import deployment_settings as settings_table
 from provisa.core.schema_admin import init_registry_schema
 
-pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
+pytestmark = [pytest.mark.integration, pytest.mark.local_platform, pytest.mark.asyncio]
 
 _SCHEMA_SQL = (Path(__file__).parents[2] / "provisa" / "core" / "schema.sql").read_text()
 
