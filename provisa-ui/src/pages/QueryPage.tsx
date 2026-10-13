@@ -59,7 +59,8 @@ import {
   setStored,
   storedKeys,
 } from "../lib/browserStorage";
-import { useExampleQueries } from "../context/ExampleQueriesContext";
+import { useNamedDemo } from "../context/NamedDemoContext";
+import { operationNameOf } from "./graphqlOperationName";
 
 /** Register # @provisa hint completions in the GraphQL Monaco editor. */
 monaco.languages.registerCompletionItemProvider("graphql", {
@@ -543,7 +544,10 @@ function OpenFromNav({ query, autoRun }: { query: string; autoRun: boolean }) {
     if (!queryEditor || done.current) return;
     done.current = true;
     addTab();
-    updateActiveTabValues({ query });
+    // The operation name with the query: GraphiQL titles a tab by the operation name it last read
+    // from the editor, which is the name of the tab this one was opened from (REQ-2010: a demo's
+    // tour hands over one query after another, each its own titled tab).
+    updateActiveTabValues({ query, operationName: operationNameOf(query) });
     queryEditor.setValue(query);
     if (!autoRun) return;
     const t = setTimeout(() => run(), 100);
@@ -560,7 +564,7 @@ export function QueryPage() {
   const [graphiqlStorage] = useState(() => scopedStorage("graphiql:"));
   // REQ-2009: a named demo's example queries are the explorer's first tabs. GraphiQL opens them
   // only while the scope has no tabs saved, so the first time a demo is opened, not after.
-  const exampleQueries = useExampleQueries();
+  const { exampleQueries } = useNamedDemo();
   const [defaultTabs] = useState(() =>
     exampleQueries.length > 0 ? exampleQueries.map((e) => ({ query: e.query })) : undefined,
   );

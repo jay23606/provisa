@@ -552,6 +552,12 @@ export function SqlEditorPanel({
           onChange={(v) => setRole(v ?? role)}
           allowDeselect={false}
           data-testid="sql-role"
+          // REQ-2010: a demo's tour picks a role here by its id; the "All" set is "all".
+          renderOption={({ option }) => (
+            <span data-sql-role-option={option.value.includes(",") ? "all" : option.value}>
+              {option.label}
+            </span>
+          )}
           style={{ width: "140px" }}
         />
         <div style={{ flex: 1 }} />

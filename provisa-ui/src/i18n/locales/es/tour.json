@@ -22,7 +22,8 @@
       "intro": "Un modelo para sus datos, metadatos y procesamiento, siempre sincronizado y reutilizado en todas partes. Elija un tema: cada uno es un recorrido breve e independiente, y «Listo» le devuelve aquí. La brújula de la barra de herramientas vuelve a abrir este menú en cualquier momento.",
       "completed": "Completado",
       "steps": "Pasos: {{count}}",
-      "coreTour": "Empezar desde el principio"
+      "coreTour": "Empezar desde el principio",
+      "thisDemo": "Esta demo"
     },
     "topics": {
       "connect": {
@@ -290,6 +291,50 @@
       "stepRelsAgents": {
         "title": "Relaciones y agentes de IA",
         "description": "🤖 El modelo y sus relaciones están disponibles para los agentes de IA — Polly y los agentes que se conectan por MCP — y determinan las consultas que esos agentes escriben.<p>Un agente se ejecuta bajo un rol, así que se le aplica la misma regla que a una persona: una consulta que hace joins fuera de las relaciones registradas <strong>falla</strong>. Se hace cumplir, no es solo una recomendación.</p><p>Además, es decisión suya. Para que un agente descubra relaciones, conceda a su rol el derecho <code>ignore_relationships</code>; para mantenerlo dentro de barreras, deje al rol sin él. Es la misma concesión deliberada que para una identidad de confianza (nunca se aplica en modo de alta seguridad).</p>"
+      },
+      "weblogsSources": {
+        "title": "Los dos registros de una tienda web",
+        "description": "Esta demo lee como tablas los registros de una pequeña tienda web. <strong>shop_access</strong> es el registro de acceso de nginx: una fila por solicitud, con su ruta, estado y tiempo."
+      },
+      "weblogsDbLog": {
+        "title": "El registro de la base de datos",
+        "description": "<strong>shop_db_log</strong> es el registro de sentencias de la base de datos de la tienda: una fila por sentencia ejecutada, con su duración. Ninguno de los dos se copia ni se carga antes; ambos se leen donde están."
+      },
+      "weblogsJoin": {
+        "title": "Una solicitud, dos registros",
+        "description": "nginx da un id a cada solicitud, y la tienda nombra cada conexión a la base de datos con él. La relación <strong>LOGGED_FOR</strong> une por ese id cada sentencia con la solicitud a la que sirvió."
+      },
+      "weblogsSlowestPages": {
+        "title": "Las páginas más lentas",
+        "description": "Una de las consultas de ejemplo de la demo, ejecutada: cada ruta con su número de solicitudes y su tiempo medio y máximo, las diez más lentas primero. Una sola consulta GraphQL las agrupa y ordena."
+      },
+      "weblogsStatements": {
+        "title": "El SQL detrás de una página lenta",
+        "description": "Las mismas solicitudes unidas a sus sentencias: para las páginas más lentas, cada sentencia que ejecutaron y cuánto tardó. Ahí se fue el tiempo."
+      },
+      "weblogsDbErrors": {
+        "title": "Solicitudes que fallaron en la base de datos",
+        "description": "Solicitudes cuya sentencia falló, agrupadas por página y por código de error de la base de datos. El registro web muestra un 500; el de la base de datos dice por qué."
+      },
+      "weblogsCustomers": {
+        "title": "Clientes, como administrador",
+        "description": "Los clientes de la tienda, leídos como administrador. Están todas las columnas, también el correo electrónico."
+      },
+      "weblogsAnalyst": {
+        "title": "Cambiar al analista",
+        "description": "El rol analyst no puede ver direcciones de correo. Siguiente cambia a ese rol."
+      },
+      "weblogsCustomersMasked": {
+        "title": "Clientes, como analista",
+        "description": "La misma consulta como analista. La columna email ha desaparecido: los derechos del rol deciden lo que devuelve cada consulta, sea cual sea el lenguaje en que se escriba."
+      },
+      "weblogsRoleBack": {
+        "title": "Volver a todos los roles",
+        "description": "Siguiente vuelve a todos los roles. Después vienen la visita del producto y sus Deep Dives."
+      },
+      "weblogsGlossary": {
+        "title": "Las palabras de la propia tienda",
+        "description": "El glosario de la demo dice qué significan los registros: <strong>slow page</strong> es un tipo de solicitud web, derivado de la latencia de página. Sus términos y los vínculos entre ellos, la ontología de la tienda, permiten encontrar los registros por lo que significan y no por nombres de columna."
       }
     },
     "status": {
@@ -301,6 +346,12 @@
       "skip": "Omitir este paso",
       "exit": "Salir del recorrido",
       "cancel": "Cancelar"
+    },
+    "demos": {
+      "weblogs": {
+        "title": "Los registros de la tienda web",
+        "summary": "Los registros web y de base de datos de la tienda, unidos: las páginas más lentas y el SQL que las explica, las solicitudes que fallaron en la base de datos y lo que puede ver un analista."
+      }
     }
   }
 }

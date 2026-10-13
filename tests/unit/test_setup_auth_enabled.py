@@ -40,7 +40,9 @@ async def test_status_demo_no_auth_is_unsecured(monkeypatch):
         "demo_mode": True,
         "auth_enabled": False,
         "multitenancy": False,
+        "named_demo": None,  # REQ-2010
         "example_queries": [],  # REQ-2009: no named demo was started
+        "demo_tour": [],  # REQ-2010
     }
 
 
@@ -59,7 +61,9 @@ async def test_status_demo_firebase_config_is_enforced(monkeypatch):
         "demo_mode": True,
         "auth_enabled": True,
         "multitenancy": False,
+        "named_demo": None,  # REQ-2010
         "example_queries": [],  # REQ-2009: no named demo was started
+        "demo_tour": [],  # REQ-2010
     }
 
 
@@ -75,5 +79,7 @@ async def test_status_non_demo_no_auth_needs_setup(monkeypatch):
         "demo_mode": False,
         "auth_enabled": False,
         "multitenancy": False,
+        "named_demo": None,  # REQ-2010
         "example_queries": [],  # REQ-2009: no named demo was started
+        "demo_tour": [],  # REQ-2010
     }

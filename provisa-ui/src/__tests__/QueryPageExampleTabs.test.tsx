@@ -54,7 +54,7 @@ vi.mock("../plugins/headers-quick-insert", () => ({ HeadersQuickInsert: () => nu
 
 import { MantineProvider } from "@mantine/core";
 import { QueryPage } from "../pages/QueryPage";
-import { ExampleQueriesContext } from "../context/ExampleQueriesContext";
+import { NamedDemoContext, NO_NAMED_DEMO } from "../context/NamedDemoContext";
 import { bindStorageScope } from "../lib/browserStorage";
 import type { ExampleQuery } from "../api/setup";
 
@@ -67,11 +67,11 @@ function open(examples: ExampleQuery[]) {
   graphiql.props = null;
   return render(
     <MantineProvider>
-      <ExampleQueriesContext.Provider value={examples}>
+      <NamedDemoContext.Provider value={{ ...NO_NAMED_DEMO, exampleQueries: examples }}>
         <MemoryRouter initialEntries={["/query"]}>
           <QueryPage />
         </MemoryRouter>
-      </ExampleQueriesContext.Provider>
+      </NamedDemoContext.Provider>
     </MantineProvider>,
   );
 }

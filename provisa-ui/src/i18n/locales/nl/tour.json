@@ -22,7 +22,8 @@
       "intro": "Eén model voor je data, metadata en verwerking, gesynchroniseerd en overal hergebruikt. Kies een onderwerp: elk is een korte tour op zich, en met Klaar kom je hier terug. Het kompas in de werkbalk opent dit menu altijd opnieuw.",
       "completed": "Voltooid",
       "steps": "Stappen: {{count}}",
-      "coreTour": "Begin bij het begin"
+      "coreTour": "Begin bij het begin",
+      "thisDemo": "Deze demo"
     },
     "topics": {
       "connect": {
@@ -290,6 +291,50 @@
       "stepRelsAgents": {
         "title": "Relaties en AI-agents",
         "description": "🤖 Het model en zijn relaties zijn beschikbaar voor AI-agents — Polly en agents die via MCP verbinden — en bepalen de query's die deze agents schrijven.<p>Een agent draait onder een rol, dus voor hem geldt dezelfde regel als voor een persoon: een query die buiten de geregistreerde relaties joint, <strong>mislukt</strong>. Dit wordt afgedwongen, niet alleen aanbevolen.</p><p>Het is ook uw keuze. Om een agent relaties te laten ontdekken, geeft u zijn rol het recht <code>ignore_relationships</code>; om hem binnen vangrails te houden, laat u de rol het recht niet hebben. Het is dezelfde bewuste toekenning als voor een vertrouwde identiteit (in de modus voor hoge beveiliging nooit van kracht).</p>"
+      },
+      "weblogsSources": {
+        "title": "De twee logs van een webwinkel",
+        "description": "Deze demo leest de logs van een kleine webwinkel als tabellen. <strong>shop_access</strong> is het toegangslog van nginx: één rij per verzoek, met pad, status en tijd."
+      },
+      "weblogsDbLog": {
+        "title": "Het log van de database",
+        "description": "<strong>shop_db_log</strong> is het opdrachtenlog van de database van de winkel: één rij per uitgevoerde opdracht, met de duur ervan. Geen van beide logs wordt eerst gekopieerd of geladen; beide worden gelezen waar ze staan."
+      },
+      "weblogsJoin": {
+        "title": "Eén verzoek, twee logs",
+        "description": "nginx geeft elk verzoek een id, en de winkel noemt elke databaseverbinding daarnaar. De relatie <strong>LOGGED_FOR</strong> koppelt via dat id elke opdracht aan het verzoek dat ze bediende."
+      },
+      "weblogsSlowestPages": {
+        "title": "De traagste pagina's",
+        "description": "Een van de voorbeeldquery's van de demo, uitgevoerd: elk pad met het aantal verzoeken en de gemiddelde en langste tijd, de tien traagste eerst. Eén GraphQL-query groepeert en rangschikt ze."
+      },
+      "weblogsStatements": {
+        "title": "De SQL achter een trage pagina",
+        "description": "Dezelfde verzoeken gekoppeld aan hun opdrachten: voor de traagste pagina's elke uitgevoerde opdracht en hoe lang die duurde. Hier ging de tijd heen."
+      },
+      "weblogsDbErrors": {
+        "title": "Verzoeken die in de database mislukten",
+        "description": "Verzoeken waarvan de opdracht mislukte, gegroepeerd per pagina en per foutcode van de database. Het weblog toont een 500; het databaselog zegt waarom."
+      },
+      "weblogsCustomers": {
+        "title": "Klanten, als beheerder",
+        "description": "De klanten van de winkel, gelezen als beheerder. Elke kolom is er, ook het e-mailadres."
+      },
+      "weblogsAnalyst": {
+        "title": "Overschakelen naar de analist",
+        "description": "De rol analyst mag geen e-mailadressen zien. Volgende schakelt ernaar over."
+      },
+      "weblogsCustomersMasked": {
+        "title": "Klanten, als analist",
+        "description": "Dezelfde query als analist. De kolom email is weg: de rechten van de rol bepalen wat elke query teruggeeft, in welke taal hij ook geschreven is."
+      },
+      "weblogsRoleBack": {
+        "title": "Terug naar alle rollen",
+        "description": "Volgende schakelt terug naar alle rollen. Daarna volgen de producttour en de Deep Dives."
+      },
+      "weblogsGlossary": {
+        "title": "De eigen woorden van de winkel",
+        "description": "De woordenlijst van de demo zegt wat de logs betekenen: <strong>slow page</strong> is een soort webverzoek, afgeleid van de paginalatentie. De termen en de verbanden ertussen, de ontologie van de winkel, laten iedereen de logs vinden op betekenis in plaats van op kolomnamen."
       }
     },
     "status": {
@@ -301,6 +346,12 @@
       "skip": "Deze stap overslaan",
       "exit": "Rondleiding beëindigen",
       "cancel": "Annuleren"
+    },
+    "demos": {
+      "weblogs": {
+        "title": "De logs van de webwinkel",
+        "summary": "Het web- en databaselog van de winkel, gekoppeld: de traagste pagina's en de SQL erachter, de verzoeken die in de database mislukten en wat een analist mag zien."
+      }
     }
   }
 }

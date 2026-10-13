@@ -42,6 +42,8 @@ export function RelationshipRow({
       <ListRow
         onClick={onToggle}
         selected={selected}
+        // REQ-2010: a demo's tour points at a relationship by its alias.
+        data-tour-relationship={r.alias ?? undefined}
         role="button"
         tabIndex={0}
         aria-expanded={selected}
