@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: aae5a714-6afc-40ae-b223-8e11fcaac3f1
 #
 # This source code is licensed under the Business Source License 1.1
 """REQ-1997, the maintainer's ruling: "all uploaded file paths must be relative to the org path
