@@ -83,11 +83,12 @@ import {
   LabelWithHelp,
 } from "../form/FormLayout";
 import { Tip } from "../Tip";
+import { getStored, setStored } from "../../lib/browserStorage";
 
 // Per-viewer list-filter preferences; never reachable from other viewers or the server.
 function readStoredBool(key: string, fallback: boolean): boolean {
   try {
-    const raw = window.localStorage.getItem(key);
+    const raw = getStored(key);
     return raw === null ? fallback : raw === "true";
   } catch {
     return fallback;
@@ -96,7 +97,7 @@ function readStoredBool(key: string, fallback: boolean): boolean {
 
 function writeStoredBool(key: string, value: boolean): void {
   try {
-    window.localStorage.setItem(key, String(value));
+    setStored(key, String(value));
   } catch {
     // Private mode / storage disabled: the preference just doesn't persist this session.
   }

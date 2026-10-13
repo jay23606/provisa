@@ -50,6 +50,7 @@ vi.mock("../api/admin", async (importOriginal) => ({
   setOrgEncryption: vi.fn(),
 }));
 import { fetchOrgEncryption } from "../api/admin";
+import { storageKey as scopedKey } from "../lib/browserStorage";
 const mockOrgKey = vi.mocked(fetchOrgEncryption);
 
 const mockFetch = vi.mocked(fetchSecrets);
@@ -288,7 +289,9 @@ describe("SecretsTab secrets-service panel", () => {
   it("remembers that it was opened, and restores that on the next visit", async () => {
     await openService();
     expect(
-      JSON.parse(localStorage.getItem("provisa.collapsibles") ?? "{}")["admin.secrets.service"],
+      JSON.parse(localStorage.getItem(scopedKey("provisa.collapsibles")) ?? "{}")[
+        "admin.secrets.service"
+      ],
     ).toEqual({ service: true });
     cleanup();
     render(<SecretsTab />);

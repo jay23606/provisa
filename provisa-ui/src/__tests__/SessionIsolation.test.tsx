@@ -35,8 +35,10 @@ import {
   startSession,
   startSuperuserSession,
   SESSION_KEYS,
+  SESSION_SCOPED_KEYS,
 } from "../lib/session";
 import { SUPERUSER_TOKEN_KEY, storedToken } from "../lib/sessionToken";
+import { bindStorageScope, storageKey } from "../lib/browserStorage";
 
 const mockFetchMe = vi.mocked(fetchMe);
 
@@ -101,10 +103,22 @@ describe("session-scoped client state (REQ-1326)", () => {
     for (const key of SESSION_KEYS) localStorage.setItem(key, "previous");
     localStorage.setItem("apollo-cache", '{"ROOT_QUERY":{}}');
 
+    // REQ-2008: the session's UI state is saved per control plane and org; it goes from each.
+    for (const scope of [
+      { controlPlaneId: "cp-a", orgId: "acme" },
+      { controlPlaneId: "cp-b", orgId: null },
+    ]) {
+      bindStorageScope(scope);
+      for (const key of SESSION_SCOPED_KEYS) localStorage.setItem(storageKey(key), "previous");
+    }
+
     clearSessionState();
 
     for (const key of SESSION_KEYS) expect(localStorage.getItem(key)).toBeNull();
     expect(localStorage.getItem("apollo-cache")).toBeNull();
+    for (const key of SESSION_SCOPED_KEYS) {
+      expect(Object.keys(localStorage).filter((k) => k.endsWith(`:${key}`))).toEqual([]);
+    }
   });
 
   // The regression itself: a stored org the server does not report membership of.

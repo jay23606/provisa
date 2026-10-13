@@ -83,7 +83,12 @@ async function stubDeployment(
       return route.fulfill({ status: 401, json: { detail: "Authentication required" } });
     }
     return route.fulfill({
-      json: { ...identity, email: "carol@example.com", dev_mode: false },
+      json: {
+        ...identity,
+        email: "carol@example.com",
+        dev_mode: false,
+        control_plane_id: "e2e-control-plane",
+      },
     });
   });
   await page.route("**/auth/bootstrap-status", (route: Route) =>

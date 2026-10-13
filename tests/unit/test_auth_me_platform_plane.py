@@ -81,6 +81,7 @@ def state(monkeypatch):
     acme.model_db = cast("Any", _Db(["acme_analyst"]))
     state.org_registry.set("acme", acme)
     monkeypatch.setattr("provisa.api.app.state", state)
+    monkeypatch.setattr("provisa.core.control_plane_id.current", lambda: "cp-1")  # made at start
     monkeypatch.setattr("provisa.federation.engine_wake.prewarm_engine", lambda *_a: None)
     return state
 

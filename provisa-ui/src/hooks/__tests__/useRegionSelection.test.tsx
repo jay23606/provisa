@@ -15,6 +15,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 import { useRegionSelection } from "../useRegionSelection";
 import { REGION_ALL } from "../regionFilter";
+import { storageKey as scopedKey } from "../../lib/browserStorage";
 
 const REGIONS = ["us", "eu"];
 
@@ -33,11 +34,11 @@ describe("useRegionSelection (REQ-1922)", () => {
     expect(result.current[0]).toBe("us");
     act(() => result.current[1]("eu"));
     expect(result.current[0]).toBe("eu");
-    expect(localStorage.getItem("provisa.admin.regionFilter")).toBe("eu");
+    expect(localStorage.getItem(scopedKey("provisa.admin.regionFilter"))).toBe("eu");
   });
 
   it("restores a stored selection on the next mount", () => {
-    localStorage.setItem("provisa.admin.regionFilter", "eu");
+    localStorage.setItem(scopedKey("provisa.admin.regionFilter"), "eu");
     const { result } = renderHook(() => useRegionSelection(REGIONS, "us"));
     expect(result.current[0]).toBe("eu");
   });
@@ -55,7 +56,7 @@ describe("useRegionSelection (REQ-1922)", () => {
   });
 
   it("clamps a stored region that no longer exists to the default", () => {
-    localStorage.setItem("provisa.admin.regionFilter", "gone");
+    localStorage.setItem(scopedKey("provisa.admin.regionFilter"), "gone");
     const { result } = renderHook(() => useRegionSelection(REGIONS, "us"));
     expect(result.current[0]).toBe("us");
   });

@@ -52,6 +52,7 @@ import { SqlEditorPanel } from "./sql/SqlEditorPanel";
 import { ResultsPanel } from "./sql/ResultsPanel";
 import { ViewModal } from "./sql/ViewModal";
 import { domainToSqlName } from "../naming";
+import { getStored, removeStored, setStored } from "../lib/browserStorage";
 
 // ── SqlPage ──────────────────────────────────────────────────────────────────
 
@@ -171,9 +172,7 @@ export function SqlPage() {
   // The last run's result landed in the results store (not kept with the tab: a run tells it).
   const [resultRedirect, setResultRedirect] = useState<ResultRedirect | null>(null);
   const [execMs, setExecMs] = useState<number | null>(active0.execMs);
-  const [statsEnabled, setStatsEnabled] = useState(
-    () => localStorage.getItem("sql:statsEnabled") === "true",
-  );
+  const [statsEnabled, setStatsEnabled] = useState(() => getStored("sql:statsEnabled") === "true");
   const [queryStats, setQueryStats] = useState<unknown>(null);
   // REQ-1519: the plan Analyze last described, and the reason a description was refused.
   const [analyzePlan, setAnalyzePlan] = useState<ExplainResponse | null>(null);
@@ -234,7 +233,7 @@ export function SqlPage() {
   }, []);
 
   useEffect(() => {
-    localStorage.removeItem("provisa.sql.pending_query");
+    removeStored("provisa.sql.pending_query");
   }, []);
 
   // Persist tab metadata + per-tab sql/nl whenever the active tab's text changes.
@@ -540,8 +539,8 @@ export function SqlPage() {
       }
       const idx = merged.findIndex((t) => t.id === id);
       const remaining = merged.filter((t) => t.id !== id);
-      localStorage.removeItem(tabSqlKey(id));
-      localStorage.removeItem(tabNlKey(id));
+      removeStored(tabSqlKey(id));
+      removeStored(tabNlKey(id));
       idbDel(tabResultsKey(id));
       if (id === activeTabId) {
         const next = remaining[Math.min(idx, remaining.length - 1)];
@@ -611,7 +610,7 @@ export function SqlPage() {
       ensureDomainChecked(viewDomainId.trim());
       refetchTables();
       refetchRelationships();
-      localStorage.setItem("provisa.schema.version", String(Date.now()));
+      setStored("provisa.schema.version", String(Date.now()));
       window.dispatchEvent(new StorageEvent("storage", { key: "provisa.schema.version" }));
     } catch (e) {
       setViewMsg(`Error: ${e instanceof Error ? e.message : String(e)}`);
@@ -844,7 +843,7 @@ export function SqlPage() {
             checked={statsEnabled}
             onChange={(e) => {
               setStatsEnabled(e.currentTarget.checked);
-              localStorage.setItem("sql:statsEnabled", String(e.currentTarget.checked));
+              setStored("sql:statsEnabled", String(e.currentTarget.checked));
             }}
             data-testid="sql-page-stats-checkbox"
           />

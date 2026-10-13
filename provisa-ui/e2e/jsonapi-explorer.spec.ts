@@ -6,6 +6,7 @@
 // found in the LICENSE file in the root directory of this source tree.
 
 import { test, expect } from "./coverage";
+import { scopedStorageKey } from "./storageScope";
 
 const ROLE = "admin";
 
@@ -49,12 +50,10 @@ test("REQ-800: executing query triggers /data/jsonapi network request", async ({
   // analyst cannot access (domain_access: [pet-store, shelter] only) and would
   // return 404, causing a browser console error caught by the coverage fixture.
   // pet-store/pets is the only table in the pet-store domain — always accessible.
-  await page.addInitScript(() => {
-    localStorage.setItem(
-      "provisa.jsonapi.settings",
-      JSON.stringify({ selectedTable: "pet-store/pets", pageSize: "20" }),
-    );
-  });
+  const settingsKey = await scopedStorageKey(page.request, "provisa.jsonapi.settings");
+  await page.addInitScript((k) => {
+    localStorage.setItem(k, JSON.stringify({ selectedTable: "pet-store/pets", pageSize: "20" }));
+  }, settingsKey);
 
   const jsonapiRequests: string[] = [];
   page.on("request", (req) => {
@@ -90,12 +89,10 @@ test("REQ-800: pagination links rendered after successful query", async ({
 test("REQ-1361: includeNodes checkbox forwards includeNodes=true on group-by queries", async ({
   page,
 }) => {
-  await page.addInitScript(() => {
-    localStorage.setItem(
-      "provisa.jsonapi.settings",
-      JSON.stringify({ selectedTable: "pet-store/pets", pageSize: "20" }),
-    );
-  });
+  const settingsKey = await scopedStorageKey(page.request, "provisa.jsonapi.settings");
+  await page.addInitScript((k) => {
+    localStorage.setItem(k, JSON.stringify({ selectedTable: "pet-store/pets", pageSize: "20" }));
+  }, settingsKey);
 
   const jsonapiRequests: string[] = [];
   page.on("request", (req) => {

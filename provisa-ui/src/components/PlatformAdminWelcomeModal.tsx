@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Button, List, Modal, Stack, Text, Title } from "@mantine/core";
 import { FormFooter } from "./form/FormLayout";
+import { getStored, removeStored } from "../lib/browserStorage";
 
 /** Set by LoginPage when POST /auth/claim-bootstrap reports the slot was taken by this sign-in. */
 export const CLAIMED_ADMIN_FLAG = "provisa_claimed_platform_admin";
@@ -40,10 +41,12 @@ export const CLAIMED_ADMIN_FLAG = "provisa_claimed_platform_admin";
 export function PlatformAdminWelcomeModal() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [opened, setOpened] = useState(() => localStorage.getItem(CLAIMED_ADMIN_FLAG) === "1");
+  const [opened, setOpened] = useState(
+    () => getStored(CLAIMED_ADMIN_FLAG, { global: true }) === "1",
+  );
 
   const close = () => {
-    localStorage.removeItem(CLAIMED_ADMIN_FLAG);
+    removeStored(CLAIMED_ADMIN_FLAG, { global: true });
     setOpened(false);
   };
 

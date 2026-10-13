@@ -3114,6 +3114,10 @@ async def lifespan(_app: FastAPI):  # pyright: ignore[reportUnusedParameter, rep
     # start, held by this process for its engine's functions and exported to a separate engine.
     assert state.admin_db is not None  # the platform control plane holds the settings
     _set_fake_key(_fake_key.ensure(state.admin_db))
+    # REQ-2008: the control plane's id, created at its first start; the UI scopes browser state by it.
+    from provisa.core import control_plane_id as _control_plane_id
+
+    _control_plane_id.ensure(state.admin_db)
 
     await _cluster_nodes.register(state.platform_state_db)
     _node_heartbeat = spawn_long_lived(

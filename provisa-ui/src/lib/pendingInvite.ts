@@ -8,6 +8,7 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
+import { getStored, removeStored, setStored } from "./browserStorage";
 /**
  * REQ-1616: the invitation an arriving visitor is holding, kept until it is redeemed.
  *
@@ -29,15 +30,15 @@ const PENDING_INVITE_KEY = "provisa_pending_invite";
 
 /** Write down an invitation token seen in the address bar, before anything navigates. */
 export function rememberInvite(token: string): void {
-  localStorage.setItem(PENDING_INVITE_KEY, token);
+  setStored(PENDING_INVITE_KEY, token, { global: true });
 }
 
 /** The invitation still owed a redemption, or null. */
 export function pendingInvite(): string | null {
-  return localStorage.getItem(PENDING_INVITE_KEY);
+  return getStored(PENDING_INVITE_KEY, { global: true });
 }
 
 /** Drop the invitation: it was redeemed, or the server refused it and a retry would refuse it too. */
 export function forgetInvite(): void {
-  localStorage.removeItem(PENDING_INVITE_KEY);
+  removeStored(PENDING_INVITE_KEY, { global: true });
 }

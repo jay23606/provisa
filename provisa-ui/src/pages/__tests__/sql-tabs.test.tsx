@@ -79,6 +79,7 @@ vi.mock("../../hooks/useAdminQueries", async (importOriginal) => ({
 }));
 
 import { SqlPage } from "../SqlPage";
+import { storageKey as scopedKey } from "../../lib/browserStorage";
 
 const TABS_KEY = "provisa.sql.tabs";
 
@@ -134,10 +135,10 @@ describe("SQL explore query tabs", () => {
     await user.type(editor(), "select persisted");
 
     await waitFor(() => {
-      const meta = JSON.parse(localStorage.getItem(TABS_KEY) ?? "null");
+      const meta = JSON.parse(localStorage.getItem(scopedKey(TABS_KEY)) ?? "null");
       expect(meta?.tabs?.length).toBe(1);
       const id = meta.tabs[0].id;
-      expect(localStorage.getItem(`provisa.sql.tab.${id}`)).toBe("select persisted");
+      expect(localStorage.getItem(scopedKey(`provisa.sql.tab.${id}`))).toBe("select persisted");
     });
   });
 

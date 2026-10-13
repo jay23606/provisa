@@ -15,6 +15,7 @@
 import { meetsRequirement } from "../lib/capabilities";
 import { LAST_SUBNAV_KEY } from "../lib/session";
 import type { Capability } from "../types/auth";
+import { getStored, setStored } from "../lib/browserStorage";
 
 export interface DropdownItem {
   to: string;
@@ -242,14 +243,14 @@ export const NAV_GROUPS: NavGroup[] = [
 // group restores that item instead of always landing on the first one.
 // The key itself lives in lib/session so clearSessionState drops it at sign-in.
 function readLastSubnav(): Record<string, string> {
-  const raw = localStorage.getItem(LAST_SUBNAV_KEY);
+  const raw = getStored(LAST_SUBNAV_KEY);
   if (!raw) return {};
   const parsed: unknown = JSON.parse(raw);
   return parsed && typeof parsed === "object" ? (parsed as Record<string, string>) : {};
 }
 
 export function writeLastSubnav(groupId: string, to: string) {
-  localStorage.setItem(LAST_SUBNAV_KEY, JSON.stringify({ ...readLastSubnav(), [groupId]: to }));
+  setStored(LAST_SUBNAV_KEY, JSON.stringify({ ...readLastSubnav(), [groupId]: to }));
 }
 
 // The submenu item within a group to navigate to on entry: the remembered one (if still valid,

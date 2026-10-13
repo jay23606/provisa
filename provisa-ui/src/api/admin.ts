@@ -41,6 +41,7 @@ export async function fetchMe(): Promise<{
   dev_mode: boolean;
   billing: boolean; // REQ-1469
   active_org_id: string | null;
+  control_plane_id: string; // REQ-2008: browser state is saved per control plane and org
   org_memberships: OrgMembership[];
   assignments: RoleAssignment[];
 }> {

@@ -52,6 +52,13 @@ import { serverMessage } from "../i18n/serverMessage";
 import { domainGqlAlias } from "../types/admin";
 import { actingRoleHeader } from "../lib/actingRole";
 import { localizedStreamFrame } from "./streamErrors";
+import {
+  getStored,
+  removeStored,
+  scopedStorage,
+  setStored,
+  storedKeys,
+} from "../lib/browserStorage";
 
 /** Register # @provisa hint completions in the GraphQL Monaco editor. */
 monaco.languages.registerCompletionItemProvider("graphql", {
@@ -547,6 +554,9 @@ function OpenFromNav({ query, autoRun }: { query: string; autoRun: boolean }) {
 
 /** Query development page — embeds GraphiQL with Explorer (REQ-062). */
 export function QueryPage() {
+  // REQ-2008: GraphiQL's tabs, history and headers are saved in this control plane's and org's
+  // scope; the page mounts again when it changes, so each scope opens its own tabs.
+  const [graphiqlStorage] = useState(() => scopedStorage("graphiql:"));
   // REQ-1516: start the engine on arrival, not on the first Run. Sign-in already prewarms
   // (REQ-1471), which covers a session that queries soon after it starts; it does not cover the tab
   // left open past the idle window, where the shard is reaped underneath the operator. Composing a
@@ -575,19 +585,19 @@ export function QueryPage() {
     setHanded((prev) => ({ query, autoRun: payload.autoRun === true, seq: (prev?.seq ?? 0) + 1 }));
   });
   const [initialVisiblePlugin] = useState<string | undefined>(
-    () => localStorage.getItem("query:visiblePlugin") ?? undefined,
+    () => getStored("query:visiblePlugin") ?? undefined,
   );
   const [initialEditorTab] = useState<"variables" | "headers">(
-    () => (localStorage.getItem("query:editorTab") as "variables" | "headers") ?? "variables",
+    () => (getStored("query:editorTab") as "variables" | "headers") ?? "variables",
   );
   const [redirectFormat, setRedirectFormat] = useState(
-    () => localStorage.getItem("query:redirectFormat") ?? "",
+    () => getStored("query:redirectFormat") ?? "",
   );
   const [redirectThreshold, setRedirectThreshold] = useState(
-    () => localStorage.getItem("query:redirectThreshold") ?? "",
+    () => getStored("query:redirectThreshold") ?? "",
   );
   const [statsEnabled, setStatsEnabled] = useState(
-    () => localStorage.getItem("query:statsEnabled") === "true",
+    () => getStored("query:statsEnabled") === "true",
   );
   const [queryElapsedMs, setQueryElapsedMs] = useState<number | null>(null);
   const [redirectResult, setRedirectResult] = useState<RedirectInfo | null>(null);
@@ -631,7 +641,7 @@ export function QueryPage() {
     const handler = (e: MouseEvent) => {
       const name = (e.target as HTMLElement).closest<HTMLElement>("[data-name]")?.dataset.name;
       if (name === "variables" || name === "headers") {
-        localStorage.setItem("query:editorTab", name);
+        setStored("query:editorTab", name);
       }
     };
     document.addEventListener("click", handler, true);
@@ -678,14 +688,14 @@ export function QueryPage() {
     /* eslint-enable react-hooks/set-state-in-effect */
     const domain = [...checkedDomains].sort().join(",");
     const cacheKey = `introspection:${roleHeader}:${domain}:${serverSchemaVersion}`;
-    const cached = sessionStorage.getItem(cacheKey);
+    const cached = getStored(cacheKey, { session: true });
     if (cached) {
       try {
         setDomainSchema(buildClientSchema(JSON.parse(cached)));
         setSchemaError(null);
         return;
       } catch {
-        sessionStorage.removeItem(cacheKey);
+        removeStored(cacheKey, { session: true });
       }
     }
     const controller = new AbortController();
@@ -697,11 +707,11 @@ export function QueryPage() {
       .then((r) => r.json())
       .then((json) => {
         if (json.data) {
-          sessionStorage.setItem(cacheKey, JSON.stringify(json.data));
+          setStored(cacheKey, JSON.stringify(json.data), { session: true });
           // Prune stale entries from prior schema versions
-          for (let i = sessionStorage.length - 1; i >= 0; i--) {
-            const k = sessionStorage.key(i);
-            if (k && k.startsWith("introspection:") && k !== cacheKey) sessionStorage.removeItem(k);
+          for (const k of storedKeys({ session: true })) {
+            if (k.startsWith("introspection:") && k !== cacheKey)
+              removeStored(k, { session: true });
           }
           setDomainSchema(buildClientSchema(json.data));
           setSchemaError(null);
@@ -826,21 +836,20 @@ export function QueryPage() {
 
   const onFormatChange = useCallback((value: string | null) => {
     const v = value ?? "";
-    localStorage.setItem("query:redirectFormat", v);
+    setStored("query:redirectFormat", v);
     setRedirectFormat(v);
   }, []);
   const onThresholdChange = useCallback((value: string | number) => {
     const v = value === "" ? "" : String(value);
-    localStorage.setItem("query:redirectThreshold", v);
+    setStored("query:redirectThreshold", v);
     setRedirectThreshold(v);
   }, []);
   const onStatsChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setStatsEnabled(e.currentTarget.checked);
-    localStorage.setItem("query:statsEnabled", String(e.currentTarget.checked));
+    setStored("query:statsEnabled", String(e.currentTarget.checked));
   }, []);
   const onPluginVisibilityChange = useCallback(
-    (plugin: { title: string } | null) =>
-      localStorage.setItem("query:visiblePlugin", plugin?.title ?? ""),
+    (plugin: { title: string } | null) => setStored("query:visiblePlugin", plugin?.title ?? ""),
     [],
   );
 
@@ -949,6 +958,7 @@ export function QueryPage() {
         onTogglePluginVisibility={onPluginVisibilityChange}
         defaultEditorToolsVisibility={initialEditorTab}
         shouldPersistHeaders
+        storage={graphiqlStorage}
       >
         {handed && <OpenFromNav key={handed.seq} query={handed.query} autoRun={handed.autoRun} />}
         <GraphiQL.Footer>

@@ -51,6 +51,7 @@ import {
 import { useListSortGroup, type ListColumn } from "../components/list/useListSortGroup";
 import { PageLoading } from "../components/PageLoading";
 import { FormFooter } from "../components/form/FormLayout";
+import { getStored, removeStored, setStored } from "../lib/browserStorage";
 
 // Exported for the tour, which clears it so the page mounts collapsed and its click on the first
 // row deterministically EXPANDS rather than toggling whatever a prior visit left open.
@@ -106,7 +107,7 @@ export function DataProductsPage() {
     const linked = searchParams.get("product");
     if (linked) return linked;
     try {
-      return localStorage.getItem(EXPANDED_STORAGE_KEY);
+      return getStored(EXPANDED_STORAGE_KEY);
     } catch {
       return null;
     }
@@ -123,8 +124,8 @@ export function DataProductsPage() {
       { replace: true },
     );
     try {
-      if (id) localStorage.setItem(EXPANDED_STORAGE_KEY, id);
-      else localStorage.removeItem(EXPANDED_STORAGE_KEY);
+      if (id) setStored(EXPANDED_STORAGE_KEY, id);
+      else removeStored(EXPANDED_STORAGE_KEY);
     } catch {
       // localStorage unavailable (private mode, quota) — expanded state just won't persist
     }

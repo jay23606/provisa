@@ -40,6 +40,7 @@ import { QueryBar } from "../components/graph/QueryBar";
 import { NativeFilterModal } from "../components/graph/graph-context-menus";
 import { Neo4jExportModal } from "../components/graph/Neo4jExportModal";
 import { buildDropExpansion } from "./graph-drop";
+import { getStored, removeStored, setStored } from "../lib/browserStorage";
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export function GraphPage() {
@@ -61,7 +62,7 @@ export function GraphPage() {
   // hand-off (useNavPayload below), whether the page was just opened or already open. Each has its
   // own sequence number, and the run effect runs each one once.
   const [forwarded, setForwarded] = useState<{ query: string; seq: number } | null>(() => {
-    const pending = localStorage.getItem("provisa.graph.pending_query");
+    const pending = getStored("provisa.graph.pending_query");
     return pending ? { query: pending, seq: 0 } : null;
   });
   const ranSeqRef = useRef<number | null>(null);
@@ -259,7 +260,7 @@ export function GraphPage() {
     const domainsKey = [...checkedDomains].sort().join(",");
     const countsKey = `provisa.graph.counts.${role?.id ?? "default"}.${domainsKey}`;
     try {
-      const cached = localStorage.getItem(countsKey);
+      const cached = getStored(countsKey);
       if (cached) {
         const c = JSON.parse(cached) as {
           node_count: number;
@@ -288,7 +289,7 @@ export function GraphPage() {
         setTotalRelCount(rel_count);
         setLabelCounts(label_counts);
         try {
-          localStorage.setItem(countsKey, JSON.stringify({ node_count, rel_count, label_counts }));
+          setStored(countsKey, JSON.stringify({ node_count, rel_count, label_counts }));
         } catch {
           /* quota */
         }
@@ -399,7 +400,7 @@ export function GraphPage() {
     // has resolved, then run exactly once with the correct role.
     if (authLoading || !forwarded || ranSeqRef.current === forwarded.seq) return;
     ranSeqRef.current = forwarded.seq;
-    localStorage.removeItem("provisa.graph.pending_query");
+    removeStored("provisa.graph.pending_query");
     setHistoryQuery(forwarded.query);
     runQuery(forwarded.query);
   }, [runQuery, authLoading, forwarded]);

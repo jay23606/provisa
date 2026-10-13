@@ -45,6 +45,7 @@ const filter = {
 vi.mock("../context/DomainFilterContext", () => ({ useDomainFilter: () => filter }));
 
 import { listGlossaryTerms } from "../api/glossary";
+import { storageKey as scopedKey } from "../lib/browserStorage";
 
 const mockList = vi.mocked(listGlossaryTerms);
 
@@ -119,7 +120,7 @@ describe("glossary proposed filter", () => {
     const { unmount } = render(<GlossaryTab />);
     await screen.findByTestId("glossary-item-1");
     fireEvent.click(screen.getByTestId("glossary-show-proposed"));
-    expect(window.localStorage.getItem("glossary.showProposed")).toBe("false");
+    expect(window.localStorage.getItem(scopedKey("glossary.showProposed"))).toBe("false");
     unmount();
 
     render(<GlossaryTab />);

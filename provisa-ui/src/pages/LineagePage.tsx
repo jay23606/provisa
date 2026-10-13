@@ -46,6 +46,7 @@ import { useAuth } from "../context/AuthContext";
 import { CapabilityGate } from "../components/CapabilityGate";
 import { fetchOrgRoles } from "../api/admin";
 import { Tip } from "../components/Tip";
+import { getStored, removeStored, setStored } from "../lib/browserStorage";
 
 const DEFAULT_SQL =
   "SELECT o.id, e.embedding, upper(e.geo) AS geo_u\nFROM orders o JOIN enrich_grpc_set('main.public.orders') e ON o.id = e.id";
@@ -58,7 +59,7 @@ const COLLAPSED_KEY = "provisa.lineage.collapsed";
 
 function loadStoredGraph(): LineageGraphData | null {
   try {
-    const raw = sessionStorage.getItem(GRAPH_KEY);
+    const raw = getStored(GRAPH_KEY, { session: true });
     return raw ? (JSON.parse(raw) as LineageGraphData) : null;
   } catch {
     return null;
@@ -67,7 +68,7 @@ function loadStoredGraph(): LineageGraphData | null {
 
 function loadStoredCollapsed(): Set<string> {
   try {
-    const raw = sessionStorage.getItem(COLLAPSED_KEY);
+    const raw = getStored(COLLAPSED_KEY, { session: true });
     return new Set(raw ? (JSON.parse(raw) as string[]) : []);
   } catch {
     return new Set();
@@ -78,7 +79,7 @@ export function LineagePage(): React.ReactElement {
   const { t } = useTranslation();
   const [params] = useSearchParams();
   const [sql, setSql] = useState(
-    params.get("sql") || sessionStorage.getItem(SQL_KEY) || DEFAULT_SQL,
+    params.get("sql") || getStored(SQL_KEY, { session: true }) || DEFAULT_SQL,
   );
   // Restore the previously rendered graph unless a deep-link is driving a fresh build.
   const [graph, setGraph] = useState<LineageGraphData | null>(() =>
@@ -133,14 +134,14 @@ export function LineagePage(): React.ReactElement {
 
   // Persist query + graph on every change so a later remount restores exactly what was here.
   useEffect(() => {
-    sessionStorage.setItem(SQL_KEY, sql);
+    setStored(SQL_KEY, sql, { session: true });
   }, [sql]);
   useEffect(() => {
-    if (graph) sessionStorage.setItem(GRAPH_KEY, JSON.stringify(graph));
-    else sessionStorage.removeItem(GRAPH_KEY);
+    if (graph) setStored(GRAPH_KEY, JSON.stringify(graph), { session: true });
+    else removeStored(GRAPH_KEY, { session: true });
   }, [graph]);
   useEffect(() => {
-    sessionStorage.setItem(COLLAPSED_KEY, JSON.stringify([...collapsed]));
+    setStored(COLLAPSED_KEY, JSON.stringify([...collapsed]), { session: true });
   }, [collapsed]);
 
   const run = async (fn: () => Promise<LineageGraphData>, collapseAll = false) => {

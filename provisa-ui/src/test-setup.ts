@@ -20,10 +20,18 @@ configure({ asyncUtilTimeout: 10000 });
 import "fake-indexeddb/auto";
 import { afterEach, vi } from "vitest";
 import { cleanup } from "@testing-library/react";
+import { bindStorageScope } from "./lib/browserStorage";
 
 // @testing-library/react auto-cleanup doesn't reliably fire between tests in
 // vitest's vmThreads pool.  Register it explicitly so DOM state never leaks.
 afterEach(cleanup);
+
+// REQ-2008: in the app every page mounts inside the scope gate, which binds the control plane and
+// org the page saves its state under (lib/browserStorage). A component test renders a page without
+// it, so it runs in this scope; a test of the scoping binds its own and this one is put back.
+export const TEST_STORAGE_SCOPE = { controlPlaneId: "test-cp", orgId: "test-org" } as const;
+bindStorageScope(TEST_STORAGE_SCOPE);
+afterEach(() => bindStorageScope(TEST_STORAGE_SCOPE));
 
 // Mantine components (ScrollArea, Select, transitions) depend on browser APIs
 // jsdom does not implement. Provide the standard polyfills once, globally, so

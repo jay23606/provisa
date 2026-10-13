@@ -10,12 +10,13 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { NAV_GROUPS, entryItem } from "../components/navGroups";
-import { LAST_SUBNAV_KEY, SESSION_KEYS } from "../lib/session";
+import { LAST_SUBNAV_KEY, SESSION_SCOPED_KEYS } from "../lib/session";
+import { storageKey as scopedKey } from "../lib/browserStorage";
 
 const admin = NAV_GROUPS.find((g) => g.id === "admin")!;
 
 function remember(to: string) {
-  localStorage.setItem(LAST_SUBNAV_KEY, JSON.stringify({ admin: to }));
+  localStorage.setItem(scopedKey(LAST_SUBNAV_KEY), JSON.stringify({ admin: to }));
 }
 
 describe("entryItem", () => {
@@ -71,6 +72,6 @@ describe("entryItem", () => {
   });
 
   it("clears the remembered item at session start so it cannot cross identities", () => {
-    expect(SESSION_KEYS).toContain(LAST_SUBNAV_KEY);
+    expect(SESSION_SCOPED_KEYS).toContain(LAST_SUBNAV_KEY);
   });
 });

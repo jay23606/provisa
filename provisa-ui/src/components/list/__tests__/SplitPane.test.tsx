@@ -25,6 +25,7 @@ import { ListRow } from "../ListTable";
 import { usePanelDirty, usePanelLeave } from "../panelLeave";
 import { PanelActions, SplitPane } from "../SplitPane";
 import { HEAD_ACTION_PX } from "../PanelHeadStyle";
+import { storageKey as scopedKey } from "../../../lib/browserStorage";
 
 const KEY = "provisa.test.splitWidth";
 const LABELS = {
@@ -141,7 +142,7 @@ describe("SplitPane", () => {
     fireEvent.pointerMove(window, { clientX: 776 });
     fireEvent.pointerUp(window);
     expect(panel.style.width).toBe("700px");
-    expect(localStorage.getItem(KEY)).toBe("700");
+    expect(localStorage.getItem(scopedKey(KEY))).toBe("700");
   });
 
   it("never squeezes the list or the panel below what each needs", () => {
@@ -159,7 +160,7 @@ describe("SplitPane", () => {
   });
 
   it("is resized from the keyboard with the arrow keys", () => {
-    localStorage.setItem(KEY, "700");
+    localStorage.setItem(scopedKey(KEY), "700");
     render(<Page />);
     fireEvent.click(screen.getByText("orders"));
     size(screen.getByTestId("split"), { clientWidth: 1452 });

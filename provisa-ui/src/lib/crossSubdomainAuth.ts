@@ -26,6 +26,7 @@
 
 import { controlPlaneOrigin, isSiblingOrigin, orgFromHost } from "./authHost";
 import { startSession } from "./session";
+import { getStored, setStored } from "./browserStorage";
 
 const REQUEST = "provisa-auth-request";
 const TOKEN = "provisa-auth-token";
@@ -157,11 +158,11 @@ export async function establishOrgSubdomainSession(): Promise<boolean> {
   // A different bearer than the one this origin last held means a different identity may be
   // signing in, so clear the previous session's org/role/cache the same way a local sign-in does
   // (REQ-1326) instead of letting it ride along under the new token.
-  if (token !== localStorage.getItem("provisa_token")) startSession(token);
+  if (token !== getStored("provisa_token", { global: true })) startSession(token);
   // REQ-1276: on an org host the Host header is the authoritative org, so it is set from the URL
   // rather than from anything carried over — and after startSession, which clears this key.
-  localStorage.setItem("provisa_org", orgFromHost());
-  startTokenRefresh((refreshed) => localStorage.setItem("provisa_token", refreshed));
+  setStored("provisa_org", orgFromHost(), { global: true });
+  startTokenRefresh((refreshed) => setStored("provisa_token", refreshed, { global: true }));
   return true;
 }
 

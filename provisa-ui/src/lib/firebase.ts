@@ -21,6 +21,7 @@ import {
   signOut as fbSignOut,
   type Auth,
 } from "firebase/auth";
+import { removeStored, setStored } from "./browserStorage";
 
 type FirebaseWebConfig = { apiKey: string; authDomain: string; projectId: string };
 
@@ -189,7 +190,7 @@ export function installFirebaseTokenSync(): Promise<void> {
         // near expiry, so this always writes a currently-valid token.
         user
           .getIdToken()
-          .then((idToken) => localStorage.setItem("provisa_token", idToken))
+          .then((idToken) => setStored("provisa_token", idToken, { global: true }))
           .catch((err: unknown) => {
             // A rejected refresh (revoked/disabled session) is a legitimate signed-out state,
             // not a bug to swallow: surface it, clear the dead bearer, and let boot proceed to
@@ -201,11 +202,11 @@ export function installFirebaseTokenSync(): Promise<void> {
             // forced logout/login cycle. Only codes that mean the credential itself is dead clear
             // it; a transient failure keeps the stored token, which is still valid until it
             // expires and which the next `onIdTokenChanged` will replace.
-            if (!isTransientAuthError(err)) localStorage.removeItem("provisa_token");
+            if (!isTransientAuthError(err)) removeStored("provisa_token", { global: true });
           })
           .finally(settle);
       } else {
-        localStorage.removeItem("provisa_token");
+        removeStored("provisa_token", { global: true });
         settle();
       }
     });
@@ -233,7 +234,7 @@ export async function currentFirebaseToken(): Promise<string | null> {
   const user = firebaseAuth().currentUser;
   if (!user) return null;
   const token = await user.getIdToken();
-  localStorage.setItem("provisa_token", token);
+  setStored("provisa_token", token, { global: true });
   return token;
 }
 

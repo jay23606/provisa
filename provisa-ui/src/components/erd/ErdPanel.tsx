@@ -41,6 +41,7 @@ import { applyTaxiLanes, clearTaxiLanes } from "./sections/erd-taxi";
 import { getErdPalette } from "./sections/erd-palette";
 import type { TooltipState, ErdPanelProps } from "./sections/erd-types";
 import { Tip } from "../Tip";
+import { getStored, setStored } from "../../lib/browserStorage";
 
 // ── cytoscape plugin registration ────────────────────────────────────────────
 type CyExt = Parameters<typeof cytoscape.use>[0];
@@ -87,21 +88,19 @@ export function ErdPanel({
   const pinnedNodesRef = useRef<Map<string, { x: number; y: number }>>(new Map());
 
   const [columnDetail, setColumnDetail] = useState<ColumnDetail>(
-    () => (localStorage.getItem("erd.columnDetail") as ColumnDetail | null) ?? "key",
+    () => (getStored("erd.columnDetail") as ColumnDetail | null) ?? "key",
   );
   const [edgeRouting, setEdgeRouting] = useState<"bezier" | "taxi">(
-    () => (localStorage.getItem("erd.edgeRouting") as "bezier" | "taxi" | null) ?? "bezier",
+    () => (getStored("erd.edgeRouting") as "bezier" | "taxi" | null) ?? "bezier",
   );
   const edgeRoutingRef = useRef<"bezier" | "taxi">(
-    (localStorage.getItem("erd.edgeRouting") as "bezier" | "taxi" | null) ?? "bezier",
+    (getStored("erd.edgeRouting") as "bezier" | "taxi" | null) ?? "bezier",
   );
   const [gridSnap, setGridSnap] = useState<number>(() =>
-    parseInt(localStorage.getItem("erd.gridSnap") ?? "0", 10),
+    parseInt(getStored("erd.gridSnap") ?? "0", 10),
   );
-  const gridSnapRef = useRef<number>(parseInt(localStorage.getItem("erd.gridSnap") ?? "0", 10));
-  const [showOrphans, setShowOrphans] = useState(
-    () => localStorage.getItem("erd.showOrphans") !== "false",
-  );
+  const gridSnapRef = useRef<number>(parseInt(getStored("erd.gridSnap") ?? "0", 10));
+  const [showOrphans, setShowOrphans] = useState(() => getStored("erd.showOrphans") !== "false");
   const showOrphansRef = useRef(showOrphans);
   useEffect(() => {
     showOrphansRef.current = showOrphans;
@@ -173,16 +172,16 @@ export function ErdPanel({
 
   // Persist toolbar choices across sessions.
   useEffect(() => {
-    localStorage.setItem("erd.columnDetail", columnDetail);
+    setStored("erd.columnDetail", columnDetail);
   }, [columnDetail]);
   useEffect(() => {
-    localStorage.setItem("erd.edgeRouting", edgeRouting);
+    setStored("erd.edgeRouting", edgeRouting);
   }, [edgeRouting]);
   useEffect(() => {
-    localStorage.setItem("erd.gridSnap", String(gridSnap));
+    setStored("erd.gridSnap", String(gridSnap));
   }, [gridSnap]);
   useEffect(() => {
-    localStorage.setItem("erd.showOrphans", String(showOrphans));
+    setStored("erd.showOrphans", String(showOrphans));
   }, [showOrphans]);
 
   // All domain IDs present in the table list (before hiding).

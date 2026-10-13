@@ -58,6 +58,7 @@ import { actingRoleHeader } from "../lib/actingRole";
 import { Tip } from "../components/Tip";
 import { ParamsSection } from "./jsonapi/ParamsSection";
 import { dataColumnsOf, useJsonApiParams } from "./jsonapi/useJsonApiParams";
+import { getStored, setStored } from "../lib/browserStorage";
 
 const JSONAPI_SETTINGS_KEY = "provisa.jsonapi.settings";
 const FILTER_OPS = ["eq", "neq", "gt", "gte", "lt", "lte", "like"];
@@ -129,7 +130,7 @@ export function JsonApiPage() {
   // table list loads (below); page size is stable so it initializes directly.
   const savedSettings = useMemo<{ selectedTable?: string; pageSize?: string }>(() => {
     try {
-      return JSON.parse(localStorage.getItem(JSONAPI_SETTINGS_KEY) || "{}");
+      return JSON.parse(getStored(JSONAPI_SETTINGS_KEY) || "{}");
     } catch {
       return {};
     }
@@ -371,7 +372,7 @@ export function JsonApiPage() {
 
   // Persist stable explorer settings across sessions.
   useEffect(() => {
-    localStorage.setItem(JSONAPI_SETTINGS_KEY, JSON.stringify({ selectedTable, pageSize }));
+    setStored(JSONAPI_SETTINGS_KEY, JSON.stringify({ selectedTable, pageSize }));
   }, [selectedTable, pageSize]);
 
   function toggleField(col: string) {

@@ -6,6 +6,7 @@
 // found in the LICENSE file in the root directory of this source tree.
 
 import { test, expect, BACKEND_URL } from "./coverage";
+import { scopedStorageKey } from "./storageScope";
 
 // Three-line Cypher against PetStore:Inquiries only — the test exercises LAYOUT (line count /
 // clipping), not data.  Inquiries is warmed in global-setup; avoiding the Pets OPTIONAL MATCH
@@ -25,9 +26,13 @@ test("query panel expands to show all lines without clipping", async ({ page }) 
   await page.goto("/graph");
 
   // Inject a multi-line pending query so the frame appears on load
-  await page.evaluate((q) => {
-    localStorage.setItem("provisa.graph.pending_query", q);
-  }, MULTI_LINE_QUERY);
+  const pendingKey = await scopedStorageKey(page.request, "provisa.graph.pending_query");
+  await page.evaluate(
+    ([k, q]) => {
+      localStorage.setItem(k, q);
+    },
+    [pendingKey, MULTI_LINE_QUERY],
+  );
   await page.reload();
 
   // The frame header starts in collapsed mode; click the collapsed display to open the editor.
@@ -81,9 +86,13 @@ test("query panel in expanded modal shows all lines without clipping", async ({ 
   });
   await page.goto("/graph");
 
-  await page.evaluate((q) => {
-    localStorage.setItem("provisa.graph.pending_query", q);
-  }, MULTI_LINE_QUERY);
+  const pendingKey = await scopedStorageKey(page.request, "provisa.graph.pending_query");
+  await page.evaluate(
+    ([k, q]) => {
+      localStorage.setItem(k, q);
+    },
+    [pendingKey, MULTI_LINE_QUERY],
+  );
   await page.reload();
 
   // The frame header starts in collapsed mode; click to open the editor before expanding.

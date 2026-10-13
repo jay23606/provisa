@@ -31,6 +31,7 @@ import { CollapsibleItem, Collapsibles } from "../components/collapsible/Collaps
 import { HelpBubble } from "../components/HelpBubble";
 import { useAuth } from "../context/AuthContext";
 import { submitNlQuery, streamNlResult, type NlBranchEvent } from "../api/admin";
+import { getStored, setStored } from "../lib/browserStorage";
 
 const EXPLORER_ROUTES: Record<string, { path: string; stateKey: string }> = {
   sql: { path: "/sql", stateKey: "sql" },
@@ -118,15 +119,15 @@ export function NlPage() {
   const NL_QUESTION_KEY = "nl-question";
   const NL_BRANCHES_KEY = "nl-branches";
   const NL_STRICT_KEY = "nl-strict";
-  const [question, setQuestion] = useState(() => localStorage.getItem(NL_QUESTION_KEY) ?? "");
+  const [question, setQuestion] = useState(() => getStored(NL_QUESTION_KEY) ?? "");
   // Strict is the default: an unset key means the user has never toggled it, so only an
   // explicit "0" turns it off. The toggle writes the key on every change (see the Switch below).
-  const [strict, setStrict] = useState(() => localStorage.getItem(NL_STRICT_KEY) !== "0");
+  const [strict, setStrict] = useState(() => getStored(NL_STRICT_KEY) !== "0");
   const [submitting, setSubmitting] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [branches, setBranches] = useState<Record<Target, BranchState>>(() => {
     try {
-      const saved = localStorage.getItem(NL_BRANCHES_KEY);
+      const saved = getStored(NL_BRANCHES_KEY);
       const parsed = saved ? JSON.parse(saved) : {};
       return {
         sql: parsed.sql ?? EMPTY_BRANCH,
@@ -147,13 +148,11 @@ export function NlPage() {
       };
     }
   });
-  const [hasResults, setHasResults] = useState(
-    () => localStorage.getItem(NL_BRANCHES_KEY) !== null,
-  );
+  const [hasResults, setHasResults] = useState(() => getStored(NL_BRANCHES_KEY) !== null);
   const cancelRef = useRef<(() => void) | null>(null);
 
   const saveBranches = useCallback((next: Record<Target, BranchState>) => {
-    localStorage.setItem(NL_BRANCHES_KEY, JSON.stringify(next));
+    setStored(NL_BRANCHES_KEY, JSON.stringify(next));
     setBranches(next);
   }, []);
 
@@ -208,7 +207,7 @@ export function NlPage() {
             ...prev,
             [t]: { query: event.query, result: event.result, error: event.error, loading: false },
           };
-          localStorage.setItem(NL_BRANCHES_KEY, JSON.stringify(next));
+          setStored(NL_BRANCHES_KEY, JSON.stringify(next));
           return next;
         });
       },
@@ -219,7 +218,7 @@ export function NlPage() {
           for (const t of TARGETS) {
             if (next[t].loading) next[t] = { ...EMPTY_BRANCH };
           }
-          localStorage.setItem(NL_BRANCHES_KEY, JSON.stringify(next));
+          setStored(NL_BRANCHES_KEY, JSON.stringify(next));
           return next;
         });
       },
@@ -231,7 +230,7 @@ export function NlPage() {
           for (const t of TARGETS) {
             if (next[t].loading) next[t] = { ...EMPTY_BRANCH, error: msg };
           }
-          localStorage.setItem(NL_BRANCHES_KEY, JSON.stringify(next));
+          setStored(NL_BRANCHES_KEY, JSON.stringify(next));
           return next;
         });
       },
@@ -274,7 +273,7 @@ export function NlPage() {
               data-testid="nl-question-input"
               onChange={(e) => {
                 setQuestion(e.currentTarget.value);
-                localStorage.setItem(NL_QUESTION_KEY, e.currentTarget.value);
+                setStored(NL_QUESTION_KEY, e.currentTarget.value);
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
@@ -297,7 +296,7 @@ export function NlPage() {
               onChange={(e) => {
                 const next = e.currentTarget.checked;
                 setStrict(next);
-                localStorage.setItem(NL_STRICT_KEY, next ? "1" : "0");
+                setStored(NL_STRICT_KEY, next ? "1" : "0");
               }}
               data-testid="nl-strict-toggle"
             />

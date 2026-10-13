@@ -12,6 +12,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "../../test-utils/render";
 import { SourceTypePicker, type PickerGroup } from "../SourceTypePicker";
+import { storageKey as scopedKey } from "../../lib/browserStorage";
 
 const GROUPS: PickerGroup[] = [
   {
@@ -147,9 +148,9 @@ describe("SourceTypePicker", () => {
     fireEvent.click(await screen.findByTestId("source-type-option-kafka"));
     expect(onPick).toHaveBeenCalledWith("kafka");
     expect(onClose).toHaveBeenCalled();
-    expect(JSON.parse(window.localStorage.getItem("provisa.sourceTypePicker.recent")!)).toEqual([
-      "kafka",
-    ]);
+    expect(
+      JSON.parse(window.localStorage.getItem(scopedKey("provisa.sourceTypePicker.recent"))!),
+    ).toEqual(["kafka"]);
   });
 
   it("a type the engine cannot reach is shown but cannot be picked", async () => {
