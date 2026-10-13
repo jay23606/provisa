@@ -88,9 +88,11 @@ async def _template_ready(demo: PublishedDemo) -> None:
         ).fetchone()
     ready = row is not None and row[0] == "ready"
     if ready:
+        from provisa.api.demo_templates import _replica_progress
+
         rt = await ensure_org_runtime(demo.template_org)
-        unlanded = await _unlanded_replicas(rt.tenant_db)
-        ready = not unlanded
+        landed, failed, declared = await _replica_progress(rt)
+        ready = landed >= declared and not failed
     if not ready:
         raise ApiError(
             503,
@@ -98,20 +100,6 @@ async def _template_ready(demo: PublishedDemo) -> None:
             f"The {demo.title} demo is still being prepared; try again shortly",
             demo=demo.name,
         )
-
-
-async def _unlanded_replicas(tenant_db: Any) -> list[str]:
-    from provisa.core.schema_org import replica_state
-
-    async with tenant_db.acquire() as conn:
-        rows = (
-            await conn.execute_core(
-                select(replica_state.c.table_name).where(
-                    replica_state.c.retired_at.is_(None), replica_state.c.completed_at.is_(None)
-                )
-            )
-        ).fetchall()
-    return [r[0] for r in rows]
 
 
 async def _open_count(conn: Any) -> int:
