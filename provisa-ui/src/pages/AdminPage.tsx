@@ -140,7 +140,8 @@ export function AdminPage() {
   const [newDomainId, setNewDomainId] = useState("");
   const [newDomainDesc, setNewDomainDesc] = useState("");
   const [newDomainAlias, setNewDomainAlias] = useState("");
-  const [domainMsg, setDomainMsg] = useState("");
+  // The last domain change's outcome: done (green), or the server's refusal or error (red).
+  const [domainMsg, setDomainMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [loading, setLoading] = useState(true);
   // REQ-1349: the settings this page still reads. The cards that EDIT them moved to the tabs whose
   // subject they are (settingsCards.tsx); what is left is the domain mode, which decides whether
@@ -235,17 +236,37 @@ export function AdminPage() {
 
   const handleAddDomain = async () => {
     if (!newDomainId.trim()) return;
-    await createDomain(newDomainId.trim(), newDomainDesc.trim(), newDomainAlias.trim() || null);
+    setDomainMsg(null);
+    let result: Awaited<ReturnType<typeof createDomain>>;
+    try {
+      result = await createDomain(
+        newDomainId.trim(),
+        newDomainDesc.trim(),
+        newDomainAlias.trim() || null,
+      );
+    } catch (e) {
+      setDomainMsg({ text: e instanceof Error ? e.message : String(e), ok: false });
+      return;
+    }
+    // A refusal (a reserved word, an id in use) is said, and the form stays open to correct it.
+    if (!result.success) {
+      setDomainMsg({ text: result.message, ok: false });
+      return;
+    }
     await refetchDomains();
     closeAddDomain();
-    setDomainMsg(t("adminPage.domainAdded", { id: newDomainId.trim() }));
+    setDomainMsg({ text: t("adminPage.domainAdded", { id: newDomainId.trim() }), ok: true });
   };
 
   const handleDeleteDomain = async (id: string) => {
     const result = await deleteDomain(id);
     if (refusal.refused(result, id)) return;
     await refetchDomains();
-    setDomainMsg(result.success ? t("adminPage.domainDeleted", { id }) : result.message);
+    setDomainMsg(
+      result.success
+        ? { text: t("adminPage.domainDeleted", { id }), ok: true }
+        : { text: result.message, ok: false },
+    );
   };
 
   if (loading) return <PageLoading message={t("adminPage.loading")} />;
@@ -320,8 +341,12 @@ export function AdminPage() {
               </CollapsibleItem>
             </Collapsibles>
             {domainMsg && (
-              <Alert color="green" variant="light">
-                {domainMsg}
+              <Alert
+                color={domainMsg.ok ? "green" : "red"}
+                variant="light"
+                data-testid="domain-msg"
+              >
+                {domainMsg.text}
               </Alert>
             )}
             {/* The opener sits above the list it adds to and is hidden while its form is open. */}

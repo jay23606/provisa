@@ -59,6 +59,7 @@ export function JoinNotice() {
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("joinNotice.leaveError"));
+    } finally {
       setBusy(false);
     }
   }

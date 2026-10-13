@@ -337,9 +337,13 @@ export function SqlPage() {
   const handleShowExpansion = useCallback(async () => {
     setExpansionOpen(true);
     setExpansionLoading(true);
-    const { text } = await fetchExpansion();
-    setExpansionText(text);
-    setExpansionLoading(false);
+    try {
+      // fetchExpansion answers a failure as its text.
+      const { text } = await fetchExpansion();
+      setExpansionText(text);
+    } finally {
+      setExpansionLoading(false);
+    }
   }, [fetchExpansion]);
 
   // REQ-1723: the same rule the SCHEMA tree filters by (below) has to filter the
@@ -646,8 +650,9 @@ export function SqlPage() {
     } catch (e) {
       setAnalyzePlan(null);
       setAnalyzeError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setAnalyzing(false);
     }
-    setAnalyzing(false);
     setResultTab("analyze");
   }, [sqlText, role]);
 
@@ -661,7 +666,13 @@ export function SqlPage() {
     const t0 = performance.now();
     const inner = aliased.trim().replace(/;+$/, "");
     const sampledSql = wrapSampledSql(inner, sampleMode, sampleSize);
-    const result = await runSql(sampledSql, role, statsEnabled);
+    let result: Awaited<ReturnType<typeof runSql>>;
+    try {
+      // runSql answers a failure as the result's error.
+      result = await runSql(sampledSql, role, statsEnabled);
+    } finally {
+      setRunning(false);
+    }
     const durationMs = Math.round(performance.now() - t0);
     setExecMs(durationMs);
     setQueryStats(result.provisa_stats ?? null);
@@ -691,7 +702,6 @@ export function SqlPage() {
     }
     resetGrid();
     setResultTab("results");
-    setRunning(false);
     const entry = {
       sql: aliased.trim(),
       role,

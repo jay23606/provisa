@@ -137,9 +137,15 @@ function ResponseCacheTab({ platform }: { platform: boolean }) {
   const handlePurgeAll = async () => {
     setPurging(true);
     setMsg("");
-    const result = await purgeCache();
-    setMsg(result.message);
-    setPurging(false);
+    try {
+      const result = await purgeCache();
+      setMsg(result.message);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : String(e));
+      return;
+    } finally {
+      setPurging(false);
+    }
     await refetchStats();
     await refetchTableStats();
   };
@@ -435,10 +441,19 @@ function MaterializedStoreTab({ platform }: { platform: boolean }) {
   const [refreshing, setRefreshing] = useState<string | null>(null);
   const [mvPage, setMvPage] = useState(0);
 
+  // Why the last refresh did not start: the server's refusal, or the error it raised.
+  const [refreshMsg, setRefreshMsg] = useState("");
   const handleRefresh = async (id: string) => {
     setRefreshing(id);
-    await refreshMV(id);
-    setRefreshing(null);
+    setRefreshMsg("");
+    try {
+      const result = await refreshMV(id);
+      if (!result.success) setRefreshMsg(result.message);
+    } catch (e) {
+      setRefreshMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRefreshing(null);
+    }
   };
 
   const [mvGrouped, setMvGrouped] = useState(false);
@@ -449,6 +464,11 @@ function MaterializedStoreTab({ platform }: { platform: boolean }) {
       <Text size="sm" c="dimmed">
         {t("cacheManager.materialized.description")}
       </Text>
+      {refreshMsg && (
+        <Alert color="red" data-testid="mv-refresh-error">
+          {refreshMsg}
+        </Alert>
+      )}
       <SimpleGrid cols={{ base: 2, sm: 2 }}>
         <StatCard
           value={info?.engineName ?? unknown}

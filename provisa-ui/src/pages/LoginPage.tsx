@@ -208,27 +208,34 @@ export function LoginPage({ onLoginSuccess, authDisabled }: LoginPageProps) {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const resp = await fetch(`${API_BASE}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-    });
-    if (!resp.ok) {
-      const body = await resp.json().catch(() => ({ detail: resp.statusText }));
-      setError(serverMessage(body, requestFailed("Login", resp.status)));
+    let token: string | null = null;
+    try {
+      const resp = await fetch(`${API_BASE}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      if (!resp.ok) {
+        const body = await resp.json().catch(() => ({ detail: resp.statusText }));
+        setError(serverMessage(body, requestFailed("Login", resp.status)));
+        return;
+      }
+      const data = await resp.json();
+      // REQ-1326: a sign-in starts a session, so the previous one's org/role/cache go first.
+      startSession(data.access_token);
+      // REQ-1290: same explicit claim as the Firebase paths — the server never claims the
+      // platform-admin slot on its own, so signing in from the first-login page is what takes it.
+      if (firstLogin) {
+        await claimAndRecord();
+      }
+      token = data.access_token;
+    } catch (e) {
+      // The server did not answer (it is down, or the network is).
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
       setLoading(false);
-      return;
     }
-    const data = await resp.json();
-    // REQ-1326: a sign-in starts a session, so the previous one's org/role/cache go first.
-    startSession(data.access_token);
-    // REQ-1290: same explicit claim as the Firebase paths — the server never claims the
-    // platform-admin slot on its own, so signing in from the first-login page is what takes it.
-    if (firstLogin) {
-      await claimAndRecord();
-    }
-    setLoading(false);
-    finishLogin(data.access_token);
+    if (token) finishLogin(token);
   };
 
   // REQ-1472: the break-glass exchange. Mounted for every provider, so this form works on a
@@ -237,23 +244,30 @@ export function LoginPage({ onLoginSuccess, authDisabled }: LoginPageProps) {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const resp = await fetch(`${API_BASE}/auth/superuser-login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-    });
-    if (!resp.ok) {
-      const body = await resp.json().catch(() => ({ detail: resp.statusText }));
-      setError(serverMessage(body, requestFailed("Login", resp.status)));
+    let token: string | null = null;
+    try {
+      const resp = await fetch(`${API_BASE}/auth/superuser-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      if (!resp.ok) {
+        const body = await resp.json().catch(() => ({ detail: resp.statusText }));
+        setError(serverMessage(body, requestFailed("Login", resp.status)));
+        return;
+      }
+      const data = await resp.json();
+      // REQ-1326: a sign-in starts a session, so the previous one's org/role/cache go first.
+      // REQ-1472: under the operator key — see lib/sessionToken for why it is not `provisa_token`.
+      startSuperuserSession(data.access_token);
+      token = data.access_token;
+    } catch (e) {
+      // The server did not answer (it is down, or the network is).
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
       setLoading(false);
-      return;
     }
-    const data = await resp.json();
-    // REQ-1326: a sign-in starts a session, so the previous one's org/role/cache go first.
-    // REQ-1472: under the operator key — see lib/sessionToken for why it is not `provisa_token`.
-    startSuperuserSession(data.access_token);
-    setLoading(false);
-    finishLogin(data.access_token);
+    if (token) finishLogin(token);
   };
 
   const handleRegister = async (e: FormEvent) => {

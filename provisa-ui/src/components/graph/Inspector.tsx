@@ -51,7 +51,8 @@ interface InspectorProps {
   width: number;
   onResizeStart: (e: React.MouseEvent) => void;
   relationships?: Relationship[];
-  onSaveEdgeAlias?: (relId: number, cqlAlias: string, gqlAlias: string) => Promise<void>;
+  /** Save the edge's aliases; the server's refusal of them, or null when saved. */
+  onSaveEdgeAlias?: (relId: number, cqlAlias: string, gqlAlias: string) => Promise<string | null>;
   pkMap: Record<string, string[]>;
 }
 
@@ -90,6 +91,8 @@ export function Inspector({
   const [edgeCql, setEdgeCql] = useState("");
   const [edgeGql, setEdgeGql] = useState("");
   const [savingAlias, setSavingAlias] = useState(false);
+  // Why the aliases were not saved: the server's refusal, or the error it raised.
+  const [aliasError, setAliasError] = useState("");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const matchedRel = useMemo(() => {
@@ -423,13 +426,24 @@ export function Inspector({
                 loading={savingAlias}
                 onClick={async () => {
                   setSavingAlias(true);
-                  await onSaveEdgeAlias(matchedRel.id, edgeCql, edgeGql);
-                  setSavingAlias(false);
+                  setAliasError("");
+                  try {
+                    setAliasError((await onSaveEdgeAlias(matchedRel.id, edgeCql, edgeGql)) ?? "");
+                  } catch (e) {
+                    setAliasError(e instanceof Error ? e.message : String(e));
+                  } finally {
+                    setSavingAlias(false);
+                  }
                 }}
                 data-testid="inspector-save-alias"
               >
                 {!savingAlias && <Check size={14} />}
               </Button>
+              {aliasError && (
+                <Text size="xs" c="red" role="alert" data-testid="inspector-alias-error">
+                  {aliasError}
+                </Text>
+              )}
             </div>
           )}
         </>

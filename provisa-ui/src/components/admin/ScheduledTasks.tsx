@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "../ConfirmDialog";
 import {
+  Alert,
   Badge,
   Button,
   Card,
@@ -71,6 +72,7 @@ export function ScheduledTasks() {
   const { roles } = useRoles();
   const [argValues, setArgValues] = useState<Record<string, string>>({});
   const [formMsg, setFormMsg] = useState("");
+  const [actionMsg, setActionMsg] = useState("");
   const [creating, setCreating] = useState(false);
 
   const selectedWebhook = webhooks.find((w) => w.name === newWebhookName) ?? null;
@@ -85,17 +87,28 @@ export function ScheduledTasks() {
     setArgValues({});
   };
 
-  const handleToggle = async (id: string, enabled: boolean) => {
-    setToggling(id);
-    await toggleScheduledTask(id, enabled);
-    setToggling(null);
+  // A task's toggle or delete: the server's refusal, or the error it raised, is said above the list.
+  const listAction = async (
+    id: string,
+    setBusy: (id: string | null) => void,
+    run: () => Promise<{ success: boolean; message: string }>,
+  ) => {
+    setBusy(id);
+    setActionMsg("");
+    try {
+      const result = await run();
+      if (!result.success) setActionMsg(result.message);
+    } catch (e) {
+      setActionMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
   };
 
-  const handleDelete = async (id: string) => {
-    setDeleting(id);
-    await deleteScheduledTask(id);
-    setDeleting(null);
-  };
+  const handleToggle = (id: string, enabled: boolean) =>
+    listAction(id, setToggling, () => toggleScheduledTask(id, enabled));
+
+  const handleDelete = (id: string) => listAction(id, setDeleting, () => deleteScheduledTask(id));
 
   const handleCreate = async () => {
     if (!newId.trim() || !newName.trim() || !newCron.trim()) {
@@ -116,26 +129,33 @@ export function ScheduledTasks() {
     }
     setCreating(true);
     setFormMsg("");
-    const result = await createScheduledTask(
-      newKind === "webhook"
-        ? {
-            id: newId.trim(),
-            name: newName.trim(),
-            cron: newCron.trim(),
-            kind: "webhook",
-            webhookName: newWebhookName,
-            argsJson: Object.keys(argValues).length ? JSON.stringify(argValues) : undefined,
-          }
-        : {
-            id: newId.trim(),
-            name: newName.trim(),
-            cron: newCron.trim(),
-            kind: "sql",
-            sql: newSql.trim(),
-            role: newRole ?? undefined,
-          },
-    );
-    setCreating(false);
+    let result: Awaited<ReturnType<typeof createScheduledTask>>;
+    try {
+      result = await createScheduledTask(
+        newKind === "webhook"
+          ? {
+              id: newId.trim(),
+              name: newName.trim(),
+              cron: newCron.trim(),
+              kind: "webhook",
+              webhookName: newWebhookName,
+              argsJson: Object.keys(argValues).length ? JSON.stringify(argValues) : undefined,
+            }
+          : {
+              id: newId.trim(),
+              name: newName.trim(),
+              cron: newCron.trim(),
+              kind: "sql",
+              sql: newSql.trim(),
+              role: newRole ?? undefined,
+            },
+      );
+    } catch (e) {
+      setFormMsg(e instanceof Error ? e.message : String(e));
+      return;
+    } finally {
+      setCreating(false);
+    }
     if (result.success) {
       setShowForm(false);
       resetForm();
@@ -150,6 +170,11 @@ export function ScheduledTasks() {
 
   return (
     <Stack gap="md">
+      {actionMsg && (
+        <Alert color="red" data-testid="scheduled-tasks-action-error">
+          {actionMsg}
+        </Alert>
+      )}
       {!showForm && (
         <FormFooter>
           <Button

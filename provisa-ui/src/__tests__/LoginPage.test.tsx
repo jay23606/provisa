@@ -177,6 +177,21 @@ describe("LoginPage", () => {
     expect(onLoginSuccess).not.toHaveBeenCalled();
   });
 
+  it("says why when the server does not answer, and frees the form", async () => {
+    vi.spyOn(globalThis, "fetch").mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+    renderLogin(<LoginPage onLoginSuccess={onLoginSuccess} authDisabled={false} />);
+
+    fireEvent.change(await screen.findByLabelText("Username"), { target: { value: "u" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "p" } });
+    fireEvent.click(screen.getByRole("button", { name: "Login" }));
+
+    expect(await screen.findByText("Failed to fetch")).toBeInTheDocument();
+    // The button is not left loading: the visitor can try again.
+    expect(screen.getByRole("button", { name: "Login" })).not.toHaveAttribute("data-loading");
+    expect(onLoginSuccess).not.toHaveBeenCalled();
+  });
+
   // ── Loading state ──────────────────────────────────────────────────────────
 
   it('shows "Logging in..." and disables button while request is in flight', async () => {

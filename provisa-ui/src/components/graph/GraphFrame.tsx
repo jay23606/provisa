@@ -84,7 +84,7 @@ interface GraphFrameProps {
   // `relationships` when omitted so existing callers keep working.
   graphRelationships?: Relationship[];
   autoImpute?: boolean;
-  onSaveEdgeAlias?: (relId: number, cqlAlias: string, gqlAlias: string) => Promise<void>;
+  onSaveEdgeAlias?: (relId: number, cqlAlias: string, gqlAlias: string) => Promise<string | null>;
   onSelectedLabelChange?: (label: string | null) => void;
   onAddFavorite?: (query: string) => void;
   isFavorited?: (query: string) => boolean;

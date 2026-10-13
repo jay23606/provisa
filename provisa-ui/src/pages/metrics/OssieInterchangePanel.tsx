@@ -128,60 +128,77 @@ export function OssieInterchangePanel() {
     if (!proposals) return;
     setApplying(true);
     const outcome: Record<string, MutationResult> = {};
-    // Tables first, then relationships (which reference tables), then metrics —
-    // each through the EXISTING registration mutations (REQ-1316).
-    for (const tbl of proposals.tables) {
-      const key: ItemKey = `table:${tbl.name}`;
-      if (!checked.has(key)) continue;
-      outcome[key] = await registerTable({
-        sourceId: tbl.source_id,
-        domainId: proposals.model_name,
-        schemaName: tbl.schema_name,
-        tableName: tbl.table_name,
-        alias: tbl.name !== tbl.table_name ? tbl.name : undefined,
-        description: tbl.description ?? undefined,
-        columns: tbl.columns.map((c) => ({
-          name: c.name,
-          alias: c.alias ?? undefined,
-          visibleTo: ["*"],
-          dataType: c.datatype ?? undefined,
-          description: c.description ?? undefined,
-          isPrimaryKey: c.is_primary_key,
-        })),
-        uniqueConstraints: tbl.unique_keys.map((cols, i) => ({
-          name: `${tbl.table_name}_uq_${i + 1}`,
-          columns: cols,
-        })),
-        modelingRole: tbl.modeling_role ?? undefined,
-        modelingHistory: tbl.modeling_history ?? undefined,
-      });
-    }
-    for (const rel of proposals.relationships) {
-      const key: ItemKey = `rel:${rel.name}`;
-      if (!checked.has(key)) continue;
-      outcome[key] = await upsertRelationship({
-        id: rel.name,
-        sourceTableId: rel.from,
-        targetTableId: rel.to,
-        // A key of several columns is one ordered, comma-separated list on each end.
-        sourceColumn: rel.from_columns.join(","),
-        targetColumn: rel.to_columns.join(","),
-        cardinality: "many-to-one",
-      });
-    }
-    for (const m of proposals.metrics) {
-      const key: ItemKey = `metric:${m.name}`;
-      if (!checked.has(key)) continue;
-      outcome[key] = await upsertMetric({
-        name: m.name,
-        expression: m.expression,
-        datatype: m.datatype,
-        description: m.description,
-        aiContext: m.ai_context,
-      });
+    // A mutation that raises is that item's failure, named; the items after it are still applied.
+    const attempt = async (run: () => Promise<MutationResult>): Promise<MutationResult> => {
+      try {
+        return await run();
+      } catch (e) {
+        return { success: false, message: e instanceof Error ? e.message : String(e) };
+      }
+    };
+    try {
+      // Tables first, then relationships (which reference tables), then metrics —
+      // each through the EXISTING registration mutations (REQ-1316).
+      for (const tbl of proposals.tables) {
+        const key: ItemKey = `table:${tbl.name}`;
+        if (!checked.has(key)) continue;
+        outcome[key] = await attempt(() =>
+          registerTable({
+            sourceId: tbl.source_id,
+            domainId: proposals.model_name,
+            schemaName: tbl.schema_name,
+            tableName: tbl.table_name,
+            alias: tbl.name !== tbl.table_name ? tbl.name : undefined,
+            description: tbl.description ?? undefined,
+            columns: tbl.columns.map((c) => ({
+              name: c.name,
+              alias: c.alias ?? undefined,
+              visibleTo: ["*"],
+              dataType: c.datatype ?? undefined,
+              description: c.description ?? undefined,
+              isPrimaryKey: c.is_primary_key,
+            })),
+            uniqueConstraints: tbl.unique_keys.map((cols, i) => ({
+              name: `${tbl.table_name}_uq_${i + 1}`,
+              columns: cols,
+            })),
+            modelingRole: tbl.modeling_role ?? undefined,
+            modelingHistory: tbl.modeling_history ?? undefined,
+          }),
+        );
+      }
+      for (const rel of proposals.relationships) {
+        const key: ItemKey = `rel:${rel.name}`;
+        if (!checked.has(key)) continue;
+        outcome[key] = await attempt(() =>
+          upsertRelationship({
+            id: rel.name,
+            sourceTableId: rel.from,
+            targetTableId: rel.to,
+            // A key of several columns is one ordered, comma-separated list on each end.
+            sourceColumn: rel.from_columns.join(","),
+            targetColumn: rel.to_columns.join(","),
+            cardinality: "many-to-one",
+          }),
+        );
+      }
+      for (const m of proposals.metrics) {
+        const key: ItemKey = `metric:${m.name}`;
+        if (!checked.has(key)) continue;
+        outcome[key] = await attempt(() =>
+          upsertMetric({
+            name: m.name,
+            expression: m.expression,
+            datatype: m.datatype,
+            description: m.description,
+            aiContext: m.ai_context,
+          }),
+        );
+      }
+    } finally {
+      setApplying(false);
     }
     setResults(outcome);
-    setApplying(false);
   };
 
   const resultBadge = (key: string) => {

@@ -19,6 +19,7 @@ import {
   NumberInput,
   Select,
   Switch,
+  Text,
   TextInput,
   useComputedColorScheme,
 } from "@mantine/core";
@@ -127,6 +128,24 @@ export function SqlEditorPanel({
   // Follows the app colour scheme; undefined = CodeMirror's own light theme.
   const cmTheme = useComputedColorScheme("light") === "dark" ? oneDark : undefined;
   const [nlStrict, setNlStrict] = React.useState(true);
+  // Why the last "Update view" was not saved: the server's refusal, or the error it raised.
+  const [viewSaveError, setViewSaveError] = React.useState("");
+
+  // The NL box's SQL, from Enter or the button. nlToSql answers a failure as its error.
+  const generateSql = async () => {
+    setNlLoading(true);
+    setNlError("");
+    try {
+      const result = await nlToSql(nlText.trim(), role, nlStrict);
+      if (result.error) {
+        setNlError(result.error);
+      } else {
+        setSqlText(result.sql);
+      }
+    } finally {
+      setNlLoading(false);
+    }
+  };
 
   return (
     <>
@@ -285,18 +304,8 @@ export function SqlEditorPanel({
               setNlText(e.currentTarget.value);
               setNlError("");
             }}
-            onKeyDown={async (e) => {
-              if (e.key === "Enter" && nlText.trim() && !nlLoading) {
-                setNlLoading(true);
-                setNlError("");
-                const result = await nlToSql(nlText.trim(), role, nlStrict);
-                setNlLoading(false);
-                if (result.error) {
-                  setNlError(result.error);
-                } else {
-                  setSqlText(result.sql);
-                }
-              }
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && nlText.trim() && !nlLoading) void generateSql();
             }}
           />
         </Box>
@@ -314,17 +323,7 @@ export function SqlEditorPanel({
           size="xs"
           disabled={nlLoading || !nlText.trim()}
           data-testid="sql-nl-generate"
-          onClick={async () => {
-            setNlLoading(true);
-            setNlError("");
-            const result = await nlToSql(nlText.trim(), role, nlStrict);
-            setNlLoading(false);
-            if (result.error) {
-              setNlError(result.error);
-            } else {
-              setSqlText(result.sql);
-            }
-          }}
+          onClick={() => void generateSql()}
           style={{ whiteSpace: "nowrap" }}
         >
           {nlLoading ? t("sqlEditorPanel.generating") : t("sqlEditorPanel.generate")}
@@ -569,37 +568,44 @@ export function SqlEditorPanel({
               data-testid="sql-update-view"
               onClick={async () => {
                 setViewSaving(true);
-                await updateTable({
-                  sourceId: viewTable.sourceId,
-                  domainId: viewTable.domainId ?? "",
-                  schemaName: viewTable.schemaName ?? "",
-                  tableName: viewTable.tableName,
-                  alias: viewTable.alias ?? undefined,
-                  description: viewTable.description ?? undefined,
-                  watermarkColumn: viewTable.watermarkColumn ?? null,
-                  viewSql: sqlText.trim(),
-                  productId: viewTable.productId ?? null, // REQ-1634
-                  columns: viewTable.columns.map((c) => ({
-                    name: c.columnName,
-                    visibleTo: c.visibleTo ?? [],
-                    writableBy: c.writableBy,
-                    unmaskedTo: c.unmaskedTo,
-                    maskType: c.maskType ?? undefined,
-                    maskPattern: c.maskPattern ?? undefined,
-                    maskReplace: c.maskReplace ?? undefined,
-                    maskValue: c.maskValue ?? undefined,
-                    maskPrecision: c.maskPrecision ?? undefined,
-                    alias: c.alias ?? undefined,
-                    description: c.description ?? undefined,
-                    nativeFilterType: c.nativeFilterType ?? undefined,
-                    nativeFilterRequired: c.nativeFilterRequired ?? undefined,
-                    isPrimaryKey: c.isPrimaryKey ?? undefined,
-                    isForeignKey: c.isForeignKey ?? undefined,
-                    isAlternateKey: c.isAlternateKey ?? undefined,
-                    scope: c.scope ?? "domain",
-                  })),
-                });
-                setViewSaving(false);
+                setViewSaveError("");
+                try {
+                  const result = await updateTable({
+                    sourceId: viewTable.sourceId,
+                    domainId: viewTable.domainId ?? "",
+                    schemaName: viewTable.schemaName ?? "",
+                    tableName: viewTable.tableName,
+                    alias: viewTable.alias ?? undefined,
+                    description: viewTable.description ?? undefined,
+                    watermarkColumn: viewTable.watermarkColumn ?? null,
+                    viewSql: sqlText.trim(),
+                    productId: viewTable.productId ?? null, // REQ-1634
+                    columns: viewTable.columns.map((c) => ({
+                      name: c.columnName,
+                      visibleTo: c.visibleTo ?? [],
+                      writableBy: c.writableBy,
+                      unmaskedTo: c.unmaskedTo,
+                      maskType: c.maskType ?? undefined,
+                      maskPattern: c.maskPattern ?? undefined,
+                      maskReplace: c.maskReplace ?? undefined,
+                      maskValue: c.maskValue ?? undefined,
+                      maskPrecision: c.maskPrecision ?? undefined,
+                      alias: c.alias ?? undefined,
+                      description: c.description ?? undefined,
+                      nativeFilterType: c.nativeFilterType ?? undefined,
+                      nativeFilterRequired: c.nativeFilterRequired ?? undefined,
+                      isPrimaryKey: c.isPrimaryKey ?? undefined,
+                      isForeignKey: c.isForeignKey ?? undefined,
+                      isAlternateKey: c.isAlternateKey ?? undefined,
+                      scope: c.scope ?? "domain",
+                    })),
+                  });
+                  if (!result.success) setViewSaveError(result.message);
+                } catch (e) {
+                  setViewSaveError(e instanceof Error ? e.message : String(e));
+                } finally {
+                  setViewSaving(false);
+                }
               }}
             >
               {viewSaving
@@ -607,6 +613,11 @@ export function SqlEditorPanel({
                 : t("sqlEditorPanel.updateView", { tableName: viewTable.tableName })}
             </Button>
           </Tip>
+        )}
+        {viewSaveError && (
+          <Text size="xs" c="red" role="alert" data-testid="sql-update-view-error">
+            {viewSaveError}
+          </Text>
         )}
         {(canCreateView || canRequestView) && sqlText.trim() && (
           <Button
