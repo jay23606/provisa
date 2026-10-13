@@ -28,6 +28,7 @@ import "./tour.css";
 import {
   TOUR_STEPS,
   TOUR_SCOPES,
+  TOUR_PREREQUISITES,
   TOPIC_IDS,
   stepRoute,
   tourItinerary,
@@ -36,7 +37,8 @@ import {
   type TopicId,
   type TourStep,
 } from "./tourSteps";
-import { demoTourSteps } from "./demoTour";
+import { demoTourPrerequisites, demoTourSteps } from "./demoTour";
+import { prerequisitesMet, type OrgHas } from "./tourPrerequisites";
 import { useNamedDemo } from "../context/NamedDemoContext";
 import { TourMenu } from "./TourMenu";
 import { completedTopics, markTopicCompleted } from "./tourTopics";
@@ -46,6 +48,7 @@ import { usePolly } from "../context/pollyState";
 import { hasCapability } from "../lib/capabilities";
 import { prefetchAllPageChunks } from "../pageChunks";
 import { useTourPrefetch } from "../hooks/useAdminQueries";
+import { useOrgHas } from "../hooks/useOrgHas";
 import { prefetchSettings } from "../api/admin";
 import { prefetchLineageGraph } from "../api/lineage";
 import {
@@ -463,7 +466,10 @@ export function TourProvider({ children }: { children: ReactNode }) {
   // Deep Dives menu is open (REQ-1945).
   const [activeScope, setActiveScope] = useState<RunScope | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  // REQ-2013: what the org had when the menu last opened, which decides the tours it offers.
+  const [orgHas, setOrgHas] = useState<OrgHas | null>(null);
   const prefetchTourData = useTourPrefetch();
+  const whatTheOrgHas = useOrgHas();
   const { capabilities } = useAuth();
   // REQ-2010: the named demo's own steps follow TOUR_STEPS in the list the runner walks; its track
   // is those steps (scope "demo").
@@ -510,6 +516,24 @@ export function TourProvider({ children }: { children: ReactNode }) {
   // a child of this provider) called startTour on the very render the rights landed, when this ref
   // still held the empty itinerary of the render before. startTour declines an empty one, and the
   // param is spent by then, so the tour never started at all.
+  // REQ-2013: a tour is offered when this viewer may open some of its pages and the org has what
+  // its steps show.
+  const offered = useCallback(
+    (scope: RunScope, has: OrgHas) =>
+      itineraries[scope].length > 0 &&
+      prerequisitesMet(
+        scope === "demo" ? demoTourPrerequisites(namedDemo.tour) : TOUR_PREREQUISITES[scope],
+        has,
+      ),
+    [itineraries, namedDemo],
+  );
+  // The Deep Dives menu, opened once the org's prerequisites have been checked.
+  const openMenu = useCallback(() => {
+    void whatTheOrgHas().then((has) => {
+      setOrgHas(has);
+      setMenuOpen(true);
+    });
+  }, [whatTheOrgHas]);
   const itineraryRef = useRef(itinerary);
   const scopeRef = useRef<RunScope | null>(null);
   useEffect(() => {
@@ -547,7 +571,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
       if (how === "completed" && scope === "demo") setStored(DEMO_TRACK_DONE_KEY, "true");
       else if (how === "completed" && scope && scope !== "core" && scope !== "demo")
         markTopicCompleted(scope);
-      if (how !== "dismissed" || scope !== "core") setMenuOpen(true);
+      if (how !== "dismissed" || scope !== "core") openMenu();
       cleanupPrep();
       closeTourPolly();
       // Null the ref before destroy so onDestroyed treats this as an intentional end, not a dismissal.
@@ -557,7 +581,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
       setActiveStep(null);
       setActiveScope(null);
     },
-    [closeTourPolly],
+    [closeTourPolly, openMenu],
   );
 
   const clickIfPresent = (selector?: string) => {
@@ -664,6 +688,12 @@ export function TourProvider({ children }: { children: ReactNode }) {
           // same state itself, and two clicks on a toggle leave it where it started.
           if (cancelled) return;
           opener.click();
+          // What the click opens is what `unlessPresent` names. The next click waits for it: an
+          // Edit that swaps the read view for the editor leaves the read view's own section tabs
+          // on screen for a moment, and the next click, taken then, lands on a tab that is going
+          // away -- the editor then opens on its first section and the step's anchor never comes.
+          await waitForElement(open.unlessPresent, undefined, abort.signal);
+          if (cancelled) return;
         }
         if (step.clickBefore) {
           const trigger = await waitForElement(step.clickBefore, undefined, abort.signal);
@@ -822,18 +852,23 @@ export function TourProvider({ children }: { children: ReactNode }) {
   // that source of the race; the in-flight guard (`driverRef.current` set immediately) still blocks
   // a double-start from a second click during the wait.
   // Run one tour: the core tour (resuming a saved position unless `fresh`) or a Deep Dives topic.
+  // REQ-2013: what a launch runs, picked once the org's prerequisites are known: a tour and whether
+  // it starts fresh, or the Deep Dives menu, or nothing at all.
+  type Pick = { scope: RunScope; fresh: boolean } | "menu" | null;
   const launch = useCallback(
-    (scope: RunScope, fresh: boolean) => {
+    (pick: RunScope | ((has: OrgHas) => Pick), fresh: boolean) => {
       if (driverRef.current) return;
-      const steps = itineraries[scope];
       // Nothing this viewer may open: every step's page is denied to them.
-      if (steps.length === 0) return;
-      const resuming = scope === "core" && !fresh && tourResumeStep() !== null;
+      if (typeof pick === "string" && itineraries[pick].length === 0) return;
+      const resuming =
+        (typeof pick === "string" ? pick === "core" : true) && !fresh && tourResumeStep() !== null;
       setMenuOpen(false);
       // The prefetch below is seconds of work on a loaded machine and the button gives no feedback
       // of its own; without this the click looks ignored and gets clicked again.
       setStatus({ kind: "preparing", resuming });
       currentPathRef.current = "";
+      // The tour this launch runs, once it is picked.
+      let running: RunScope | null = null;
       driverRef.current = driver({
         allowClose: true,
         overlayColor: "rgba(10, 12, 20, 0.7)",
@@ -845,12 +880,12 @@ export function TourProvider({ children }: { children: ReactNode }) {
           // tour saves its step so the next launch resumes there, a topic returns to the menu.
           if (driverRef.current) {
             setStored(TOUR_SEEN_KEY, "true", { global: true });
-            if (scope === "core") {
+            if (running === "core") {
               if (activeStepRef.current != null) {
                 setStored(TOUR_PROGRESS_KEY, String(activeStepRef.current), { global: true });
               }
             } else {
-              setMenuOpen(true);
+              openMenu();
             }
             cleanupPrep();
             closeTourPolly();
@@ -863,48 +898,78 @@ export function TourProvider({ children }: { children: ReactNode }) {
       });
       // Both halves of "the destination is ready": its chunk is compiled and its queries are in the
       // cache. Waiting for the data too is what keeps a step from landing on a page still painting
-      // its own "Loading..." state.
-      void Promise.all([prefetchAllPageChunks(), prefetchTourData()]).then(() => {
+      // its own "Loading..." state. REQ-2013: what runs is picked as soon as what the org has is
+      // known; the Deep Dives menu opens then, a tour once its pages are ready too.
+      const orgCheck = whatTheOrgHas();
+      const ready = Promise.all([prefetchAllPageChunks(), prefetchTourData(), orgCheck]);
+      void orgCheck.then((has) => {
+        setOrgHas(has);
         // The wait may have outlasted a dismissal (e.g. immediate Esc) -- don't resurrect it.
         if (!driverRef.current) {
           setStatus(null);
           return;
         }
-        // The step's own runner takes over the status from here: it clears it when the anchor
-        // lands, or replaces it with waiting/stuck. A resumed index outside the itinerary is
-        // snapped forward by the runner effect.
-        setActiveScope(scope);
-        setActiveStep(scope === "core" && !fresh ? (tourResumeStep() ?? steps[0]) : steps[0]);
+        const picked: Pick =
+          typeof pick === "string"
+            ? offered(pick, has)
+              ? { scope: pick, fresh }
+              : "menu"
+            : pick(has);
+        if (picked === null || picked === "menu") {
+          // Nothing to run: the driver goes without counting as a dismissal.
+          const inst = driverRef.current;
+          driverRef.current = null;
+          inst.destroy();
+          setStatus(null);
+          if (picked === "menu") setMenuOpen(true);
+          return;
+        }
+        running = picked.scope;
+        const steps = itineraries[picked.scope];
+        void ready.then(() => {
+          if (!driverRef.current) {
+            setStatus(null);
+            return;
+          }
+          // The step's own runner takes over the status from here: it clears it when the anchor
+          // lands, or replaces it with waiting/stuck. A resumed index outside the itinerary is
+          // snapped forward by the runner effect.
+          setActiveScope(picked.scope);
+          setActiveStep(
+            picked.scope === "core" && !picked.fresh ? (tourResumeStep() ?? steps[0]) : steps[0],
+          );
+        });
       });
     },
-    [itineraries, prefetchTourData, closeTourPolly],
+    [itineraries, prefetchTourData, closeTourPolly, openMenu, whatTheOrgHas, offered],
   );
 
   // REQ-1945: the tour button. A core tour left part-way resumes; once the core tour has been seen
   // the button opens the Deep Dives menu; a first launch (or { restart: true }) runs the core tour.
+  // REQ-2013: each only when the org has what its steps show.
   const startTour = useCallback(
     (opts?: { restart?: boolean }) => {
       if (driverRef.current) return;
-      if (
-        TOPIC_IDS.every((id) => itineraries[id].length === 0) &&
-        itineraries.core.length === 0 &&
-        itineraries.demo.length === 0
-      ) {
-        return;
-      }
-      // REQ-2010: starting the tour from the top, in a named demo, starts with the demo's story;
-      // the product tour is the Deep Dives menu's "Start at the Beginning".
-      if (opts?.restart) launch(itineraries.demo.length > 0 ? "demo" : "core", true);
-      else if (tourResumeStep() !== null) launch("core", false);
-      // REQ-2010: a named demo tells its own story first, until it has been walked to its end.
-      else if (itineraries.demo.length > 0 && !demoTrackDone()) launch("demo", true);
-      else if (hasSeenTour() || itineraries.core.length === 0) setMenuOpen(true);
-      else launch("core", true);
+      launch((has): Pick => {
+        const ok = (scope: RunScope) => offered(scope, has);
+        if (!(ok("core") || ok("demo") || TOPIC_IDS.some(ok))) return null;
+        // REQ-2010: starting the tour from the top, in a named demo, starts with the demo's story;
+        // the product tour is the Deep Dives menu's "Start at the Beginning".
+        if (opts?.restart) {
+          if (ok("demo")) return { scope: "demo", fresh: true };
+          return ok("core") ? { scope: "core", fresh: true } : "menu";
+        }
+        if (tourResumeStep() !== null && ok("core")) return { scope: "core", fresh: false };
+        // REQ-2010: a named demo tells its own story first, until it has been walked to its end.
+        if (ok("demo") && !demoTrackDone()) return { scope: "demo", fresh: true };
+        if (hasSeenTour() || !ok("core")) return "menu";
+        return { scope: "core", fresh: true };
+      }, !!opts?.restart);
     },
-    [itineraries, launch],
+    [launch, offered],
   );
 
-  const menuTopics = TOPIC_IDS.filter((id) => itineraries[id].length > 0).map((id) => ({
+  const menuTopics = TOPIC_IDS.filter((id) => orgHas !== null && offered(id, orgHas)).map((id) => ({
     id,
     steps: itineraries[id].length,
   }));
@@ -929,13 +994,14 @@ export function TourProvider({ children }: { children: ReactNode }) {
         topics={menuTopics}
         completed={completedTopics()}
         demo={
-          namedDemo.name !== null && itineraries.demo.length > 0
+          namedDemo.name !== null && orgHas !== null && offered("demo", orgHas)
             ? { name: namedDemo.name, steps: itineraries.demo.length, done: demoTrackDone() }
             : null
         }
         onDemo={() => launch("demo", true)}
         onPick={(id: TopicId) => launch(id, true)}
-        onCore={() => launch("core", true)}
+        // REQ-2013: the product tour's own start, when the org has what it shows.
+        onCore={orgHas !== null && offered("core", orgHas) ? () => launch("core", true) : null}
         onClose={() => setMenuOpen(false)}
       />
       <TourStatusOverlay

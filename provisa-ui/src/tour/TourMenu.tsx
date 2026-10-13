@@ -47,8 +47,8 @@ export function TourMenu({
   /** Begin the named demo's track at its first step. */
   onDemo: () => void;
   onPick: (id: TopicId) => void;
-  /** Begin the core tour at its first step. */
-  onCore: () => void;
+  /** Begin the core tour at its first step; null when the org lacks what it shows (REQ-2013). */
+  onCore: (() => void) | null;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -60,21 +60,24 @@ export function TourMenu({
       centered
       size="xl"
       transitionProps={{ duration: 0 }}
-      data-testid="tour-menu"
     >
-      <Stack gap="md">
+      {/* The test id is on the menu's content: Mantine's Modal root has no box of its own, so a
+          browser test reading it for visibility sees it hidden while the menu is on screen. */}
+      <Stack gap="md" data-testid="tour-menu">
         <Group justify="space-between" align="flex-start" wrap="wrap">
           <Text size="sm">{t("tour.menu.intro")}</Text>
           {/* flexShrink 0: a shrinking flex item let Mantine's nowrap/ellipsis label clip to "Start the" */}
-          <Button
-            variant="light"
-            size="xs"
-            onClick={onCore}
-            style={{ flexShrink: 0 }}
-            data-testid="tour-menu-core-tour"
-          >
-            {t("tour.menu.coreTour")}
-          </Button>
+          {onCore && (
+            <Button
+              variant="light"
+              size="xs"
+              onClick={onCore}
+              style={{ flexShrink: 0 }}
+              data-testid="tour-menu-core-tour"
+            >
+              {t("tour.menu.coreTour")}
+            </Button>
+          )}
         </Group>
         {demo && (
           <UnstyledButton

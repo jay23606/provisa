@@ -81703,3 +81703,30 @@
     Then the Deep Dives menu opens with the track first, marked done, and the run-as picker is back on all roles'
   related_reqs: [REQ-1945, REQ-2008, REQ-2009, REQ-1641]
   notes: 'Maintainer approval through the lead, 2026-10-13: a use-case tour for unattended demos; a named demo gets its own story track told with its own data, shown first when that demo is open, the generic Deep Dives still available after it; the demo''s steps live with it (tour.yaml), delivered through /setup/status; the existing tour engine runs them; step text translated like other tour steps; a CI check verifies every step target exists in the demo''s config/queries. The role step uses the SQL explorer''s run-as picker (REQ-1013) rather than the app-wide role, because the explorer''s statements run as its own picker; the target kinds, the done mark per control plane and org, and "start the tour" opening the track are the implementation''s.'
+- id: REQ-2013
+  status: proposed
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI
+  priority: SHOULD
+  type: behavioral
+  feature: product-tour-and-demos-guided-tour
+  description: 'Each tour declares its prerequisites, what its steps show of the org beyond the rights its pages need: the sources, the registered tables and whether a data product exists. The product tour and the Deep Dives built on the standard demo''s objects declare them (its pet store, its quality checker''s results, the inquiries lineage, its data products); a named demo''s own track needs the sources its steps show. When the Deep Dives menu opens and when the tour button picks a tour, the check runs against what the current org has, and a tour whose prerequisites are unmet is left out: it is not in the menu, its start (the menu''s "Start at the Beginning" for the product tour) is not offered, and the tour button does not start it. Nothing watches for prerequisites coming back. A step whose target still never appears (anything the check misses) is shown as stuck after the anchor wait, with Retry, Skip and Exit over the step it left, never as the earlier step''s card answering nothing. A step that opens its own starting state with a sequence of clicks takes each next click only once the one before it has opened what it opens.'
+  use_case: 'A maintainer runs the weblogs demo and opens the Deep Dives menu: the deep dives that need the standard demo''s pet store and quality checker are not listed, so none can be started to wait on a row the demo does not have.'
+  scenario: 'Given the weblogs demo, which has no dq-checker source
+
+    When the Deep Dives menu opens
+
+    Then the Data quality, Test data, Query, Model and Publish deep dives and the product tour''s start are not offered, and Connect, Relationships, Govern and Operate are
+
+    Given the standard demo
+
+    When the Deep Dives menu opens
+
+    Then every deep dive and the product tour''s start are offered
+
+    When a step''s target never appears
+
+    Then after the anchor wait the step is shown stuck, with Retry, Skip and Exit'
+  related_reqs: [REQ-1945, REQ-2010]
+  notes: 'Maintainer through the lead, 2026-10-13: the Data Quality deep dive hung on --demo weblogs; a step whose target never appears fails visibly, never hangs; each tour declares its prerequisites, checked when the menu opens against what the current org has; refined to: when a tour''s prerequisites are unmet, remove that option from the menu, no disabled entry and no explanation; nobody restores prerequisites, so the check is evaluated when the menu opens and nothing watches for them. Found while fixing the alpha.481 core UI lane: the e2e tour-profiler-step failures were not changed titles but a step that opened the editor and clicked the read view''s Quality tab as it went away (the editor then opened on Identity and the profiler panel never came), and the stuck notice sat under the earlier step''s card; the tour-deep-dives failures were the menu''s test id on Mantine''s box-less Modal root; the uncaught browser error was FormField handing withAsterisk to a Switch.'

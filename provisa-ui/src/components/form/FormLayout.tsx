@@ -274,6 +274,8 @@ export function FormField({
                 textId={textId}
               />
             ),
+            // Only an input that draws the mark takes the prop: a Checkbox or Switch passes it on
+            // to its DOM element, where React warns of an unknown attribute.
             ...(control.props.required === true ? { withAsterisk: false } : {}),
             // A control that states its own accessible name keeps it; the help is still its
             // description.
