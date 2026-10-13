@@ -21,6 +21,16 @@ set -euo pipefail
 cert="${1:?sharepoint-cert | placeholder-cert}"
 pull_splunk="${2:-}"
 
+# A source the engine-swap harness hands to Trino is addressed host.docker.internal (Trino's
+# container reaches the host's published ports by that name; docker-compose.e2e-mounts.yml gives it
+# host-gateway). Provisa runs natively and reads the same source row -- its direct pool, its
+# replica builds -- so the name must resolve on the runner too, as Docker Desktop resolves it on a
+# developer's machine. Without it the exasol reboot case's replica never built: "Could not resolve
+# IP address of hostname [host.docker.internal]" (swap lane, main 87d09e9c5).
+grep -q '[[:space:]]host\.docker\.internal$' /etc/hosts \
+  || echo "127.0.0.1 host.docker.internal" | sudo tee -a /etc/hosts >/dev/null
+getent hosts host.docker.internal
+
 # A skip caused by the wrong arch would be a green run that executed nothing.
 arch="$(uname -m)"
 echo "runner arch: $arch"
