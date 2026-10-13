@@ -245,7 +245,8 @@
       "spool_full": "Сборка реплики {{table}} отклонена: для буферизации ответа источника требуется {{needed}} байт в каталоге spool этого узла, что превышает лимит {{limit}} (replication.spool_max_bytes).",
       "table_gone": "Таблица {{schema}}.{{table}} источника {{source}} больше не зарегистрирована, поэтому её реплика не собирается.",
       "waiting_engine_jobs": "движок достиг лимита фоновых заданий (replication.engine_jobs)",
-      "waiting_source_cap": "источник достиг лимита прямых чтений (max_live_concurrency)"
+      "waiting_source_cap": "источник достиг лимита прямых чтений (max_live_concurrency)",
+      "waiting_shutdown": "узел, который его взял, завершал работу; следующий проход его построит"
     },
     "roles": {
       "cannot_delete_system": "Нельзя удалять системные роли",

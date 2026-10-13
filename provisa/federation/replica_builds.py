@@ -873,6 +873,13 @@ def wire_replica_runner(scheduler: Any, *, state: Any, platform_url: str) -> Non
     )
 
 
+def stop_replica_runners() -> None:
+    """Process shutdown: every build runner this process registered starts no more builds, so
+    none runs after the engine it builds with has been closed."""
+    for runner in _runners.values():
+        runner.stop()
+
+
 async def request_if_replicated(state: Any, table_id: int, source_id: str, reason: str) -> bool:
     """Ask for a build of the whole-table replica of a table whose rows changed at its source
     (REQ-1915): a write made through Provisa (REQ-1924), or a change its source reported

@@ -245,7 +245,8 @@
       "spool_full": "La construction de la réplique de {{table}} a été refusée : la mise en spool de la réponse de sa source nécessite {{needed}} octets du répertoire de spool de ce nœud, au-delà de la limite de {{limit}} (replication.spool_max_bytes).",
       "table_gone": "La table {{schema}}.{{table}} de la source {{source}} n'est plus enregistrée ; sa réplique n'est donc pas construite.",
       "waiting_engine_jobs": "le moteur a atteint sa limite de tâches d'arrière-plan (replication.engine_jobs)",
-      "waiting_source_cap": "la source a atteint sa limite de lectures en direct (max_live_concurrency)"
+      "waiting_source_cap": "la source a atteint sa limite de lectures en direct (max_live_concurrency)",
+      "waiting_shutdown": "le nœud qui l'avait pris en charge s'arrêtait ; le prochain passage le construit"
     },
     "roles": {
       "cannot_delete_system": "Impossible de supprimer les rôles système",

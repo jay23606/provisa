@@ -245,7 +245,8 @@
       "spool_full": "De replica-build van {{table}} is geweigerd: het spoolen van het antwoord van de bron vereist {{needed}} bytes in de spoolmap van dit knooppunt, boven de limiet van {{limit}} (replication.spool_max_bytes).",
       "table_gone": "Tabel {{schema}}.{{table}} van bron {{source}} is niet meer geregistreerd, dus de replica ervan wordt niet gebouwd.",
       "waiting_engine_jobs": "de engine zit aan zijn limiet voor achtergrondtaken (replication.engine_jobs)",
-      "waiting_source_cap": "de bron zit aan zijn limiet voor live-leesbewerkingen (max_live_concurrency)"
+      "waiting_source_cap": "de bron zit aan zijn limiet voor live-leesbewerkingen (max_live_concurrency)",
+      "waiting_shutdown": "het knooppunt dat het had geclaimd werd afgesloten; de volgende ronde bouwt het"
     },
     "roles": {
       "cannot_delete_system": "Systeemrollen kunnen niet worden verwijderd",

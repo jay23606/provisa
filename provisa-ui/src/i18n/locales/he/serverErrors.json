@@ -245,7 +245,8 @@
       "spool_full": "בניית הרפליקה של {{table}} נדחתה: אחסון זמני של תשובת המקור דורש {{needed}} בתים בספריית ה-spool של צומת זה, מעבר למגבלה של {{limit}} (replication.spool_max_bytes).",
       "table_gone": "הטבלה {{schema}}.{{table}} של המקור {{source}} אינה רשומה עוד, ולכן הרפליקה שלה אינה נבנית.",
       "waiting_engine_jobs": "המנוע הגיע למגבלת משימות הרקע שלו (replication.engine_jobs)",
-      "waiting_source_cap": "המקור הגיע למגבלת הקריאות החיות שלו (max_live_concurrency)"
+      "waiting_source_cap": "המקור הגיע למגבלת הקריאות החיות שלו (max_live_concurrency)",
+      "waiting_shutdown": "הצומת שתפס אותו היה בתהליך כיבוי; המעבר הבא יבנה אותו"
     },
     "roles": {
       "cannot_delete_system": "לא ניתן למחוק תפקידי מערכת",

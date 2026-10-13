@@ -245,7 +245,8 @@
       "spool_full": "{{table}} 的副本构建被拒绝：暂存其源的响应需要此节点暂存目录中的 {{needed}} 字节，超过了 {{limit}} 的上限 (replication.spool_max_bytes)。",
       "table_gone": "源 {{source}} 的表 {{schema}}.{{table}} 已不再注册，因此不会构建其副本。",
       "waiting_engine_jobs": "引擎已达到后台作业上限 (replication.engine_jobs)",
-      "waiting_source_cap": "源已达到实时读取上限 (max_live_concurrency)"
+      "waiting_source_cap": "源已达到实时读取上限 (max_live_concurrency)",
+      "waiting_shutdown": "认领它的节点正在关闭；下一轮将构建它"
     },
     "roles": {
       "cannot_delete_system": "无法删除系统角色",

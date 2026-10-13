@@ -3239,6 +3239,12 @@ async def lifespan(_app: FastAPI):  # pyright: ignore[reportUnusedParameter, rep
         await shutdown_push_listeners(state)
 
     # Stop scheduler (Phase AX)
+    # The build runners start nothing from here on: a pass still in flight, or one a finishing
+    # build chains into, would otherwise start a build after the engine below has closed and
+    # open a new runtime -- with its attached sources' connections -- that nothing closes.
+    from provisa.federation.replica_builds import stop_replica_runners
+
+    stop_replica_runners()
     if state._scheduler is not None:
         with tolerate_shutdown_failure("scheduler shutdown"):
             state._scheduler.shutdown(wait=False)
@@ -3300,6 +3306,13 @@ async def lifespan(_app: FastAPI):  # pyright: ignore[reportUnusedParameter, rep
                     finally:
                         reset_current_org(_tok)
     state.federation_engine.close()
+    # The tenant engine is the process's, built once by _init_control_planes and shared by every
+    # org runtime's handles (REQ-1316); closing a handle above disposes it only when that handle is
+    # over it. Disposed here, so no pooled connection to the control plane outlives the process's
+    # use of it.
+    if state.tenant_engine is not None:
+        state.tenant_engine.dispose()
+        state.tenant_engine = None
     if state.admin_db is not None:
         model_change.detach()
         with tolerate_shutdown_failure("admin_db close"):

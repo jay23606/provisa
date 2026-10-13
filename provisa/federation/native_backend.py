@@ -178,7 +178,9 @@ class NativeEngineBackend(EngineBackend):
         remembered about it, so nothing of one app's engine survives into the next app this
         process starts. A runtime attaches its store once; one that outlived its app answered the
         next app "store attached" from memory while that app named another store, and the cache
-        write then named a catalog that was never attached. Called by the lifespan at shutdown."""
+        write then named a catalog that was never attached. Closing it also releases what its
+        sources hold: DuckDB's postgres extension keeps a pool to an attached source's server for
+        as long as the attaching database lives. Called by the lifespan at shutdown."""
         del state
         with self._walk_lock:
             runtime, self._runtime = self._runtime, None

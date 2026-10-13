@@ -245,7 +245,8 @@
       "spool_full": "{{table}} का रेप्लिका बिल्ड अस्वीकार किया गया: इसके स्रोत के उत्तर को स्पूल करने के लिए इस नोड की स्पूल डायरेक्टरी में {{needed}} बाइट चाहिए, जो {{limit}} की सीमा से अधिक है (replication.spool_max_bytes)।",
       "table_gone": "स्रोत {{source}} की तालिका {{schema}}.{{table}} अब पंजीकृत नहीं है, इसलिए इसकी रेप्लिका नहीं बनाई जाती।",
       "waiting_engine_jobs": "इंजन अपनी बैकग्राउंड जॉब सीमा पर है (replication.engine_jobs)",
-      "waiting_source_cap": "स्रोत अपनी लाइव-रीड सीमा पर है (max_live_concurrency)"
+      "waiting_source_cap": "स्रोत अपनी लाइव-रीड सीमा पर है (max_live_concurrency)",
+      "waiting_shutdown": "इसे दावा करने वाला नोड बंद हो रहा था; अगला पास इसे बनाएगा"
     },
     "roles": {
       "cannot_delete_system": "सिस्टम भूमिकाएँ हटाई नहीं जा सकतीं",

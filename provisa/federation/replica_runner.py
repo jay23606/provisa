@@ -53,7 +53,12 @@ from provisa.federation.data_replicator import (
     GroupReadFailed,
     Progress,
 )
-from provisa.federation.replica_errors import WAITING_ENGINE, WAITING_SOURCE, coded
+from provisa.federation.replica_errors import (
+    WAITING_ENGINE,
+    WAITING_SHUTDOWN,
+    WAITING_SOURCE,
+    coded,
+)
 from provisa.federation.replica_locks import BuildClaim, BuildLocks
 from provisa.federation.replica_state import ReplicaKey
 
@@ -166,6 +171,14 @@ class ReplicaRunner:
         self._group_of = group_of
         self._build_group = build_group
         self._holder = f"{socket.gethostname()}:{os.getpid()}"
+        # Set when the process shuts down: no build is claimed or started after it, so nothing
+        # rebuilds the engine's runtime after the engine has been closed.
+        self._stopped = False
+
+    def stop(self) -> None:
+        """Start no more builds (process shutdown). A build already running ends as it ends; the
+        pass it would chain into does not run."""
+        self._stopped = True
 
     async def run_pass(self) -> int:
         """Start as many requested builds as the limits allow. Returns how many it started.
@@ -181,7 +194,7 @@ class ReplicaRunner:
             reset_current_org(token)
 
     async def _run_pass_bound(self) -> int:
-        if not process_mode.runs_background_work():
+        if not process_mode.runs_background_work() or self._stopped:
             return 0
         if self._housekeeping is not None:
             # What the pass does besides building: dropping the replicas the model retired,
@@ -204,9 +217,25 @@ class ReplicaRunner:
             if job is None:
                 break
             job.slot = slot
+            if self._stopped:
+                # Stopped while this claim was being made: hand it back for the next pass.
+                await self._abandon(job)
+                break
             self._spawn(self._run(job), name=f"replica-build:{'.'.join(job.key)}")
             started += 1
         return started
+
+    async def _abandon(self, job: _Job) -> None:
+        """Release a claimed build that will not run, and put its row back to requested."""
+        try:
+            async with self._db.acquire() as conn:
+                await build_state.unclaim(conn, job.key, waiting_on=WAITING_SHUTDOWN)
+        finally:
+            if job.permit is not None:
+                self._permits.release(*job.permit)
+            job.claim.close()
+            if job.slot is not None:
+                job.slot.release()
 
     async def _claim_one(self) -> _Job | None:
         """Claim one build: the engine's slot, a replica's lock and row, its source's permit."""

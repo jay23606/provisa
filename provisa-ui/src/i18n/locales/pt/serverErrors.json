@@ -245,7 +245,8 @@
       "spool_full": "A compilação da réplica de {{table}} foi recusada: armazenar em spool a resposta da origem exige {{needed}} bytes do diretório de spool deste nó, acima do limite de {{limit}} (replication.spool_max_bytes).",
       "table_gone": "A tabela {{schema}}.{{table}} da origem {{source}} não está mais registrada, portanto sua réplica não é compilada.",
       "waiting_engine_jobs": "o mecanismo está no limite de tarefas em segundo plano (replication.engine_jobs)",
-      "waiting_source_cap": "a origem está no limite de leituras ao vivo (max_live_concurrency)"
+      "waiting_source_cap": "a origem está no limite de leituras ao vivo (max_live_concurrency)",
+      "waiting_shutdown": "o nó que o reivindicou estava sendo desligado; a próxima passagem o constrói"
     },
     "roles": {
       "cannot_delete_system": "Não é possível excluir funções do sistema",
