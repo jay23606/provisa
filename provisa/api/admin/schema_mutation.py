@@ -488,6 +488,30 @@ async def request_carried_out(req: dict) -> None:
         await _rebuild_schemas()
 
 
+async def _require_tag_target_domains(
+    info: StrawberryInfo, conn: "Connection", model
+) -> "MutationResult | None":  # REQ-1531
+    """Gate a tag assignment on its target's domains. A target that is not there is the caller's
+    not-found, answered as one; a domain the caller does not reach raises."""
+    from provisa.api.admin.domain_guard import (
+        DomainLookupError,
+        require_domains,
+        tag_target_domains,
+    )
+
+    try:
+        domains = await tag_target_domains(conn, model)
+    except DomainLookupError as missing:
+        return MutationResult(
+            success=False,
+            message=f"The object this tag assignment names does not exist: {missing}",
+            code="schema.tag_target_not_found",
+            params={"objectType": model.object_type},
+        )
+    require_domains(info, domains)
+    return None
+
+
 def _assignment_target_problem(model) -> "MutationResult | None":  # REQ-1377
     """Reject an assignment whose typed target fields don't match its object_type."""
     from provisa.core.models import TAG_OBJECT_TYPES
@@ -2310,6 +2334,9 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                 )
         pool = await _get_pool()
         async with pool.acquire() as conn:
+            refused = await _require_tag_target_domains(info, cast("Connection", conn), model)
+            if refused is not None:
+                return refused
             tag_row = await tag_repo.get(cast("Connection", conn), input.tag_id)
             if tag_row is None:
                 return MutationResult(
@@ -2354,6 +2381,9 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
             return problem
         pool = await _get_pool()
         async with pool.acquire() as conn:
+            refused = await _require_tag_target_domains(info, cast("Connection", conn), model)
+            if refused is not None:
+                return refused
             tag_row = await tag_repo.get(cast("Connection", conn), input.tag_id)
             if tag_row is None:
                 require_capability(info, "table_registration")

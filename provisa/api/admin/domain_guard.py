@@ -108,6 +108,56 @@ async def metric_domains(conn: "Connection", name: str) -> set[str] | None:
     return domains
 
 
+#: The domain_access value meaning "every domain". A source that names no domains is open to all
+#: of them, so an act on it is an act in all of them.
+_ALL_DOMAINS = "*"
+
+
+async def tag_target_domains(conn: "Connection", assignment: Any) -> set[str]:
+    """The domains a tag assignment's TARGET sits in: the assignment's own domain (REQ-1531).
+
+    A table's, and the same for one of its columns. A relationship's is the domain of the table
+    the edge STARTS at -- relationships are owned by direction. A command's is the domain it sits
+    in (none, for a stored row that names none). A source belongs to every domain it is open to,
+    and one that names none is open to all of them. Raises :class:`DomainLookupError` when the
+    target does not exist.
+    """
+    from sqlalchemy import select
+
+    from provisa.core.repositories import relationship as rel_repo
+    from provisa.core.repositories import source as source_repo
+    from provisa.core.schema_org import tracked_functions, tracked_webhooks
+
+    kind = assignment.object_type
+    if kind in ("table", "column"):
+        return {await table_domain(conn, assignment.table_id)}
+    if kind == "relationship":
+        row = await rel_repo.get(conn, assignment.relationship_id)
+        if row is None:
+            raise DomainLookupError(f"no relationship {assignment.relationship_id!r}")
+        return {await table_domain(conn, row["source_table_id"])}
+    if kind == "command":
+        found = False
+        domains: set[str] = set()
+        for table in (tracked_functions, tracked_webhooks):
+            result = await conn.execute_core(
+                select(table.c.domain_id).where(table.c.name == assignment.command_name)
+            )
+            for (domain_id,) in result.fetchall():
+                found = True
+                if domain_id:
+                    domains.add(domain_id)
+        if not found:
+            raise DomainLookupError(f"no command {assignment.command_name!r}")
+        return domains
+    if kind == "source":
+        row = await source_repo.get(conn, assignment.source_id)
+        if row is None:
+            raise DomainLookupError(f"no source {assignment.source_id!r}")
+        return set(row["allowed_domains"] or [_ALL_DOMAINS])
+    raise DomainLookupError(f"a {kind!r} tag assignment has no target this gate can place")
+
+
 def require_domains(info: "StrawberryInfo", domain_ids: Iterable[str]) -> None:
     """Gate an act that touches several domains: every one of them must be the caller's.
 

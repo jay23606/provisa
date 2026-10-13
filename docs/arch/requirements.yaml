@@ -53705,9 +53705,10 @@
   - REQ-1317
   - REQ-1528
   - REQ-1530
-  notes: 'Maintainer 2026-10-07: changing or deleting a role requires reaching every domain the role already covers (REQ-1944 audit found a sales-only manager could redefine a finance role''s rights). Roadmap audit 2026-10-13: partly built. Missing: the metric half is built (domain_guard.metric_domains); a tag assignment does not yet check the domains of the objects it tags'
+  notes: 'Maintainer 2026-10-07: changing or deleting a role requires reaching every domain the role already covers (REQ-1944 audit found a sales-only manager could redefine a finance role''s rights). Roadmap audit 2026-10-13: partly built. 2026-10-13: assigning or removing a tag is gated on its target''s domains (domain_guard.tag_target_domains). Missing: saving a metric is not gated on the domains its expression reads; deleting one is.'
   tests:
   - tests/unit/test_admin_deletes_need_the_domain.py
+  - tests/unit/test_admin_tag_needs_the_domain.py
   - tests/unit/test_domain_guard.py
 - id: REQ-1532
   status: complete

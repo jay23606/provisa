@@ -16018,7 +16018,7 @@ EVERY MUTATION THAT NAMES A DOMAIN MUST BE GATED ON IT, AND EVERY MUTATION THAT 
 
 **Code:** `provisa/api/admin/capabilities.py`, `provisa/api/admin/schema_mutation.py`, `provisa/api/admin/schema_mutation_ops.py`, `provisa/core/env_authority.py`, `provisa/api/admin/domain_guard.py`
 
-**Tests:** `tests/unit/test_admin_deletes_need_the_domain.py`, `tests/unit/test_domain_guard.py`
+**Tests:** `tests/unit/test_admin_deletes_need_the_domain.py`, `tests/unit/test_admin_tag_needs_the_domain.py`, `tests/unit/test_domain_guard.py`
 
 ### REQ-1532 · Environments {#REQ-1532}
 
