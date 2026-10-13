@@ -310,10 +310,12 @@ def test_a_filtered_similarity_search_on_the_collection_runs_in_qdrant(server):
         _sql(
             server,
             "SELECT id FROM docs WHERE lang = 'en' "
-            "ORDER BY cosine_similarity(text_vec, '[1, 0, 0, 0]') DESC LIMIT 2",
+            "ORDER BY cosine_similarity(text_vec, '[1, 0.2, 0, 0]') DESC LIMIT 2",
         )
     )
     # Document 2 is the second nearest overall but German: the filter is applied before the top-k.
+    # The query leans toward document 3 so it, not document 4, is the second nearest English one
+    # (with [1, 0, 0, 0] the two tie at 0 and either is a correct answer).
     assert [r["id"] for r in rows] == [1, 3]
 
 
