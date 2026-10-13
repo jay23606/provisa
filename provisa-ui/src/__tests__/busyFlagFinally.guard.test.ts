@@ -31,8 +31,6 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "components/admin/SettingField.tsx setPending":
     "the values awaiting a guarded setting's confirmation, not a busy flag",
   "pages/OnboardOrgPage.tsx setBreadthWarning": "a warning's text, not a busy flag",
-  "pages/RelationshipsPage.tsx setSaving":
-    "its three save handlers are being converted with the server's refusal (natural-key audit item 5)",
 };
 
 const BUSY =
