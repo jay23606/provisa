@@ -717,6 +717,13 @@ def _validate_load_protection(
     return None
 
 
+def _engine_name() -> str:
+    """The federation engine the acting org runs on."""
+    from provisa.api.app import state
+
+    return state.federation_engine.name
+
+
 def _validate_source_load_management(input: SourceInput) -> "MutationResult | None":  # REQ-1909
     """The "Load Management and Timeliness" panel's source settings, validated at write time by the
     same rules the config loader and the query path apply: a known change_signal (REQ-929), a
@@ -774,6 +781,15 @@ def _validate_source_load_management(input: SourceInput) -> "MutationResult | No
             "max_live_concurrency must be 1 or more (leave it empty for no cap; to stop live "
             "reads use replicate 0 (always) or load_protected)",
         )
+    if input.type == "postgresql" and _engine_name() == "duckdb":
+        # REQ-1909: the DuckDB engine divides the cap over the workers' connection pools, so a cap
+        # below the worker count is refused here, at save, rather than at the next attach.
+        from provisa.federation.connector_duckdb import PoolCapBelowWorkers, pg_pool_max_connections
+
+        try:
+            pg_pool_max_connections(input.id, input.max_live_concurrency)
+        except PoolCapBelowWorkers as e:
+            return _fail("schema.max_live_concurrency_below_workers", str(e))
     if input.sentinel_path:
         from provisa.events.sentinel_probe import applies_to, build_sentinel_probe
 

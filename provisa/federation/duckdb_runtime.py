@@ -531,6 +531,15 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
             raw_alias = catalog_alias
         if raw_alias not in self._raw_attached:
             self._con.execute(attach)
+            if "configure_pool" in details:  # REQ-1909: the source's share of its live-read cap
+                # The pool is the catalog's as attached: an environment's own attach is named for
+                # its catalog above, and so is the pool its statement configures.
+                self._con.execute(
+                    details["configure_pool"].replace(
+                        f"catalog_name='{details.get('raw_alias', source.id)}'",
+                        f"catalog_name='{raw_alias}'",
+                    )
+                )
             self._raw_attached.add(raw_alias)
             self._raw_attach_ddl[raw_alias] = attach
             self._hold_file(source, raw_alias)

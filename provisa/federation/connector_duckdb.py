@@ -66,6 +66,32 @@ def read_flat_file_sync(path: str, fmt: str, sql: str) -> list[dict]:  # REQ-229
         con.close()
 
 
+class PoolCapBelowWorkers(ValueError):  # REQ-1909
+    """A source's live-read cap is below the deployment's worker count: each worker's pool needs at
+    least one connection, so the cap cannot be honoured."""
+
+
+def pg_pool_max_connections(source_id: str, cap: int | None) -> int | None:  # REQ-1909
+    """The most connections one worker's DuckDB pool may hold to a source: its live-read ``cap``
+    divided over the launch's workers, so every worker's pool together stays within the cap.
+    None for a source with no cap -- its pool is left as the extension builds it.
+
+    Refused by name when the cap is below the worker count: a worker's pool cannot hold less than
+    one connection, and rounding up would let idle connections exceed the cap."""
+    from provisa.core.boot_lock import expected_workers
+
+    if cap is None:
+        return None
+    workers = expected_workers()
+    if cap < workers:
+        raise PoolCapBelowWorkers(
+            f"source {source_id!r}: max_live_concurrency {cap} is below the {workers} workers this "
+            "deployment runs; each worker's connection pool needs at least one connection, so set "
+            f"it to {workers} or more, or leave it empty for no cap"
+        )
+    return cap // workers
+
+
 class DuckDBPostgresConnector(Connector):
     engine = "duckdb"
     source_type = "postgresql"
@@ -93,7 +119,17 @@ class DuckDBPostgresConnector(Connector):
         # attached Postgres exposes its own schemas verbatim, so the remote schema IS the registered
         # schema — the runtime defaults there (no remote_schema override).
         alias = f"_src_{source.id}"
-        return {"attach": f"ATTACH '{dsn}' AS \"{alias}\" (TYPE postgres)", "raw_alias": alias}
+        details = {"attach": f"ATTACH '{dsn}' AS \"{alias}\" (TYPE postgres)", "raw_alias": alias}
+        # REQ-1909: the extension's pool otherwise keeps up to 18 connections and connects past its
+        # limit ('force'); a capped source's pool holds its share of the cap and waits for a free
+        # connection instead.
+        pool = pg_pool_max_connections(source.id, source.max_live_concurrency)
+        if pool is not None:
+            details["configure_pool"] = (
+                f"FROM postgres_configure_pool(catalog_name='{alias}', "
+                f"max_connections={pool}, acquire_mode='wait')"
+            )
+        return details
 
 
 class DuckDBCsvConnector(Connector):
