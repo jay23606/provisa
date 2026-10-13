@@ -439,7 +439,9 @@ async def test_datahub_deprecates_the_old_bound_urn_on_physical_readdress(snapsh
 
 
 @pytest.mark.asyncio
-async def test_publish_snapshot_loads_persists_and_prunes_bindings(snapshot, tmp_path, monkeypatch):
+async def test_publish_snapshot_loads_persists_and_prunes_bindings(
+    snapshot, control_plane, monkeypatch
+):
     """The binding lifecycle rides the single publish path (REQ-1389): stored bindings are
     handed to the provider before the publish, captured ones are persisted after, and a
     binding whose asset left the model is pruned."""
@@ -447,35 +449,10 @@ async def test_publish_snapshot_loads_persists_and_prunes_bindings(snapshot, tmp
 
     from contextlib import asynccontextmanager
 
-    from provisa.core.database import create_engine_from_url
-
     from provisa.api.metadata_export import publishing
-    from provisa.core.database import Database
     from provisa.core.repositories import catalog_binding
-    from provisa.core.schema_org import (
-        catalog_bindings,
-        glossary_term_edges,
-        glossary_term_experts,
-        glossary_term_refs,
-        glossary_terms,
-        registered_tables,
-    )
 
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'tenant.db'}")
-    with engine.begin() as c:
-        # glossary_* + registered_tables: publish_snapshot hydrates the term graph (REQ-1387).
-        catalog_bindings.metadata.create_all(
-            c,
-            tables=[
-                catalog_bindings,
-                registered_tables,
-                glossary_terms,
-                glossary_term_refs,
-                glossary_term_edges,
-                glossary_term_experts,
-            ],
-        )
-    db = Database(engine, name="tenant")
+    db = control_plane.org()
 
     class _TenantDb:
         @asynccontextmanager
@@ -554,7 +531,6 @@ async def test_publish_snapshot_loads_persists_and_prunes_bindings(snapshot, tmp
         stored = await catalog_binding.load_bindings(conn, "atlas")
     # The capture updated the physical key, and the departed asset's binding is pruned.
     assert stored == {uri: ("guid-1", f"{TABLE_FQN}@provisa")}
-    engine.dispose()
 
 
 @pytest.mark.asyncio

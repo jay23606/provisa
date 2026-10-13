@@ -36,14 +36,16 @@ pytestmark = pytest.mark.unit
 
 
 @pytest.fixture
-async def model(tmp_path):
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.schema_org import metadata
+def model(control_plane):
+    from sqlalchemy import insert
 
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'model.db'}")
-    with engine.begin() as raw:
-        metadata.create_all(raw)
-    return Database(engine, "test")
+    from provisa.core.schema_org import domains, sources
+
+    with control_plane.engine().begin() as c:
+        c.exec_driver_sql('SET LOCAL search_path TO "org_default"')
+        c.execute(insert(domains).values(id="sales", description=""))
+        c.execute(insert(sources).values(id="__derived__", type="derived"))
+    return control_plane.org()
 
 
 async def _save_view(conn, name: str, *, draft: bool, materialize: bool) -> None:

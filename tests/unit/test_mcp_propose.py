@@ -22,28 +22,17 @@ import types
 from contextlib import asynccontextmanager
 
 import pytest
-from provisa.core.database import create_engine_from_url
 
 from provisa.core.database import Database
 from provisa.core.repositories import creation_request as cr_repo
-from provisa.core.schema_org import creation_requests
 from tests.role_state import RoleState
 
 pytestmark = pytest.mark.asyncio
 
-_TABLES = [creation_requests]
-
 
 @asynccontextmanager
-async def _db(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'propose.db'}")
-    with engine.begin() as c:
-        creation_requests.metadata.create_all(c, tables=_TABLES)
-    db = Database(engine, name="propose")
-    try:
-        yield db
-    finally:
-        engine.dispose()
+async def _db(control_plane):
+    yield control_plane.org()
 
 
 def _state(db: Database) -> types.SimpleNamespace:
@@ -51,10 +40,10 @@ def _state(db: Database) -> types.SimpleNamespace:
 
 
 class TestProposeSource:
-    async def test_queues_pending_request_never_creates_live_source(self, tmp_path):
+    async def test_queues_pending_request_never_creates_live_source(self, control_plane):
         from provisa.api.mcp import tools
 
-        async with _db(tmp_path) as db:
+        async with _db(control_plane) as db:
             result = await tools.propose_source(
                 _state(db),
                 "analyst",
@@ -78,10 +67,10 @@ class TestProposeSource:
             assert row["requested_by"] == "u-ann"
             assert row["payload"]["_proposed_role"] == "analyst"
 
-    async def test_the_in_app_caller_is_recorded_from_the_request(self, tmp_path):
+    async def test_the_in_app_caller_is_recorded_from_the_request(self, control_plane):
         from provisa.api.mcp import tools
 
-        async with _db(tmp_path) as db:
+        async with _db(control_plane) as db:
             state = _state(db)
             state.roles = {"analyst": {"capabilities": []}}
             request = types.SimpleNamespace(
@@ -94,10 +83,10 @@ class TestProposeSource:
                 (row,) = await cr_repo.list_pending(conn)
             assert row["requested_by"] == "u-bo"
 
-    async def test_a_proposal_nobody_made_is_refused(self, tmp_path):
+    async def test_a_proposal_nobody_made_is_refused(self, control_plane):
         from provisa.api.mcp import tools
 
-        async with _db(tmp_path) as db:
+        async with _db(control_plane) as db:
             with pytest.raises(ValueError, match="needs the user who makes it"):
                 await tools.propose_source(
                     _state(db), "analyst", {"id": "new_pg", "type": "postgresql"}, "why"
@@ -105,44 +94,44 @@ class TestProposeSource:
             async with db.acquire() as conn:
                 assert await cr_repo.list_pending(conn) == []
 
-    async def test_rejects_missing_required_fields(self, tmp_path):
+    async def test_rejects_missing_required_fields(self, control_plane):
         from provisa.api.mcp import tools
 
-        async with _db(tmp_path) as db:
+        async with _db(control_plane) as db:
             with pytest.raises(ValueError):
                 await tools.propose_source(_state(db), "analyst", {"host": "db.internal"}, "why")
 
-    async def test_reason_is_required(self, tmp_path):
+    async def test_reason_is_required(self, control_plane):
         from provisa.api.mcp import tools
 
-        async with _db(tmp_path) as db:
+        async with _db(control_plane) as db:
             with pytest.raises(ValueError, match="reason"):
                 await tools.propose_source(
                     _state(db), "analyst", {"id": "x", "type": "postgresql"}, ""
                 )
 
-    async def test_role_is_required(self, tmp_path):
+    async def test_role_is_required(self, control_plane):
         from provisa.api.mcp import tools
 
-        async with _db(tmp_path) as db:
+        async with _db(control_plane) as db:
             with pytest.raises(ValueError):
                 await tools.propose_source(_state(db), "", {"id": "x", "type": "postgresql"}, "y")
 
-    async def test_unknown_role_rejected(self, tmp_path):
+    async def test_unknown_role_rejected(self, control_plane):
         from provisa.api.mcp import tools
 
-        async with _db(tmp_path) as db:
+        async with _db(control_plane) as db:
             with pytest.raises(PermissionError):
                 await tools.propose_source(
                     _state(db), "nobody", {"id": "x", "type": "postgresql"}, "y"
                 )
 
     async def test_role_with_capability_and_request_gets_confirm_required_not_queued(
-        self, tmp_path
+        self, control_plane
     ):  # REQ-1799
         from provisa.api.mcp import tools
 
-        async with _db(tmp_path) as db:
+        async with _db(control_plane) as db:
             state = _state(db)
             state.roles = {"analyst": {"capabilities": ["source_registration"]}}
             result = await tools.propose_source(
@@ -160,7 +149,7 @@ class TestProposeSource:
             assert pending == []  # nothing queued — the human confirms in-chat instead
 
     async def test_all_role_gets_confirm_required_via_any_held_assignment(
-        self, tmp_path
+        self, control_plane
     ):  # REQ-1799
         # The UI's "Role: All" means every role GRANTED to the user, unioned — its single
         # x-provisa-role header collapses to whichever assignment is first client-side (often a
@@ -171,7 +160,7 @@ class TestProposeSource:
 
         from provisa.api.mcp import tools
 
-        async with _db(tmp_path) as db:
+        async with _db(control_plane) as db:
             state = _state(db)
             state.contexts["platform_admin"] = object()
             state.roles = {
@@ -198,12 +187,14 @@ class TestProposeSource:
             )
             assert result["status"] == "confirm_required"
 
-    async def test_role_with_capability_but_no_request_still_queues(self, tmp_path):  # REQ-1799
+    async def test_role_with_capability_but_no_request_still_queues(
+        self, control_plane
+    ):  # REQ-1799
         # No verified request context (e.g. a non-HTTP caller) — always falls back to the queue,
         # even if the role would otherwise qualify for the confirm_required shortcut.
         from provisa.api.mcp import tools
 
-        async with _db(tmp_path) as db:
+        async with _db(control_plane) as db:
             state = _state(db)
             state.roles = {"analyst": {"capabilities": ["source_registration"]}}
             result = await tools.propose_source(
@@ -215,10 +206,12 @@ class TestProposeSource:
             )
             assert result["status"] == "pending"
 
-    async def test_role_without_capability_queues_even_with_request(self, tmp_path):  # REQ-1799
+    async def test_role_without_capability_queues_even_with_request(
+        self, control_plane
+    ):  # REQ-1799
         from provisa.api.mcp import tools
 
-        async with _db(tmp_path) as db:
+        async with _db(control_plane) as db:
             state = _state(db)
             state.roles = {"analyst": {"capabilities": []}}
             result = await tools.propose_source(
@@ -234,10 +227,10 @@ class TestProposeSource:
 
 
 class TestCreateSourceNow:  # REQ-1799
-    async def test_rejects_role_without_capability(self, tmp_path):
+    async def test_rejects_role_without_capability(self, control_plane):
         from provisa.api.mcp import tools
 
-        async with _db(tmp_path) as db:
+        async with _db(control_plane) as db:
             state = _state(db)
             state.roles = {"analyst": {"capabilities": []}}
             with pytest.raises(PermissionError):
@@ -249,7 +242,9 @@ class TestCreateSourceNow:  # REQ-1799
                     request=object(),
                 )
 
-    async def test_calls_the_same_graphql_resolver_create_source_uses(self, tmp_path, monkeypatch):
+    async def test_calls_the_same_graphql_resolver_create_source_uses(
+        self, control_plane, monkeypatch
+    ):
         from provisa.api.mcp import tools
 
         seen = {}
@@ -267,7 +262,7 @@ class TestCreateSourceNow:  # REQ-1799
 
         monkeypatch.setattr("provisa.api.admin.schema_mutation.Mutation", _FakeMutation)
 
-        async with _db(tmp_path) as db:
+        async with _db(control_plane) as db:
             state = _state(db)
             state.roles = {"analyst": {"capabilities": ["source_registration"]}}
             sentinel_request = object()
@@ -286,10 +281,10 @@ class TestCreateSourceNow:  # REQ-1799
             assert seen["info"].context["request"] is sentinel_request
             assert seen["input"].id == "new_pg"
 
-    async def test_reason_is_required(self, tmp_path):
+    async def test_reason_is_required(self, control_plane):
         from provisa.api.mcp import tools
 
-        async with _db(tmp_path) as db:
+        async with _db(control_plane) as db:
             state = _state(db)
             state.roles = {"analyst": {"capabilities": ["source_registration"]}}
             with pytest.raises(ValueError, match="reason"):
@@ -299,10 +294,10 @@ class TestCreateSourceNow:  # REQ-1799
 
 
 class TestProposeTable:
-    async def test_queues_pending_request_with_columns(self, tmp_path):
+    async def test_queues_pending_request_with_columns(self, control_plane):
         from provisa.api.mcp import tools
 
-        async with _db(tmp_path) as db:
+        async with _db(control_plane) as db:
             result = await tools.propose_table(
                 _state(db),
                 "analyst",
@@ -327,10 +322,10 @@ class TestProposeTable:
             assert row["payload"]["table_name"] == "orders"
             assert row["payload"]["columns"][0]["name"] == "id"
 
-    async def test_rejects_malformed_columns(self, tmp_path):
+    async def test_rejects_malformed_columns(self, control_plane):
         from provisa.api.mcp import tools
 
-        async with _db(tmp_path) as db:
+        async with _db(control_plane) as db:
             with pytest.raises(ValueError):
                 await tools.propose_table(
                     _state(db),
@@ -346,11 +341,11 @@ class TestProposeTable:
                 )
 
     async def test_role_with_capability_and_request_gets_confirm_required_not_queued(
-        self, tmp_path
+        self, control_plane
     ):  # REQ-1799
         from provisa.api.mcp import tools
 
-        async with _db(tmp_path) as db:
+        async with _db(control_plane) as db:
             state = _state(db)
             state.roles = {"analyst": {"capabilities": ["table_registration"]}}
             result = await tools.propose_table(
@@ -375,10 +370,10 @@ class TestProposeTable:
 
 
 class TestRegisterTableNow:  # REQ-1799
-    async def test_rejects_role_without_capability(self, tmp_path):
+    async def test_rejects_role_without_capability(self, control_plane):
         from provisa.api.mcp import tools
 
-        async with _db(tmp_path) as db:
+        async with _db(control_plane) as db:
             state = _state(db)
             state.roles = {"analyst": {"capabilities": []}}
             with pytest.raises(PermissionError):
@@ -396,7 +391,9 @@ class TestRegisterTableNow:  # REQ-1799
                     request=object(),
                 )
 
-    async def test_calls_the_same_graphql_resolver_register_table_uses(self, tmp_path, monkeypatch):
+    async def test_calls_the_same_graphql_resolver_register_table_uses(
+        self, control_plane, monkeypatch
+    ):
         from provisa.api.mcp import tools
 
         seen = {}
@@ -414,7 +411,7 @@ class TestRegisterTableNow:  # REQ-1799
 
         monkeypatch.setattr("provisa.api.admin.schema_mutation.Mutation", _FakeMutation)
 
-        async with _db(tmp_path) as db:
+        async with _db(control_plane) as db:
             state = _state(db)
             state.roles = {"analyst": {"capabilities": ["table_registration"]}}
             sentinel_request = object()
@@ -441,10 +438,10 @@ class TestRegisterTableNow:  # REQ-1799
 
 
 class TestProposeToolsRegistered:
-    async def test_both_tools_are_registered_on_the_mcp_server(self, tmp_path):
+    async def test_both_tools_are_registered_on_the_mcp_server(self, control_plane):
         from provisa.api.mcp.server import build_mcp_server
 
-        async with _db(tmp_path) as db:
+        async with _db(control_plane) as db:
             server = build_mcp_server(_state(db))
             names = {t.name for t in await server.list_tools()}
             assert {"propose_source", "propose_table"} <= names

@@ -56,23 +56,15 @@ SPEC = {
 
 
 @pytest.fixture
-async def control_plane(tmp_path):
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.db import init_schema
-
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'tenant.db'}")
-    db = Database(engine, name="org")
-    await init_schema(db, "", org_id="default")
-    async with db.acquire() as conn:
-        await conn.execute_core(insert(domains).values(id="d"))
-        await conn.execute_core(insert(sources).values(id="petstore", type="openapi"))
-    try:
-        yield db
-    finally:
-        engine.dispose()
+def org_db(control_plane):
+    with control_plane.engine().begin() as c:
+        c.exec_driver_sql('SET LOCAL search_path TO "org_default"')
+        c.execute(insert(domains).values(id="d"))
+        c.execute(insert(sources).values(id="petstore", type="openapi"))
+    return control_plane.org()
 
 
-async def test_an_openapi_table_with_no_paging_is_stored_unpaged_and_loads(control_plane):
+async def test_an_openapi_table_with_no_paging_is_stored_unpaged_and_loads(org_db):
     from provisa.api.admin._openapi_table_registration import persist_openapi_endpoint
     from provisa.api_source.loader import load_api_sources
     from provisa.api_source.openapi_endpoint import register_openapi_source
@@ -90,7 +82,7 @@ async def test_an_openapi_table_with_no_paging_is_stored_unpaged_and_loads(contr
         api_endpoints={},
         api_sources={},
     )
-    async with control_plane.acquire() as conn:
+    async with org_db.acquire() as conn:
         await register_openapi_source(conn, "petstore", BASE)
         await table_repo.upsert(conn, table)
         assert await persist_openapi_endpoint(state, conn, table) is None
@@ -123,7 +115,7 @@ def test_every_nullable_json_column_stores_none_as_sql_null():
     assert offenders == []
 
 
-async def test_the_none_round_trips_as_null_through_an_update(control_plane):
+async def test_the_none_round_trips_as_null_through_an_update(org_db):
     """conn.upsert updates an existing row by a plain UPDATE; that path must keep NULL too."""
     from provisa.core.schema_org import api_endpoints, api_sources
 
@@ -136,7 +128,7 @@ async def test_the_none_round_trips_as_null_through_an_update(control_plane):
         "ttl": 0,
         "pagination": None,
     }
-    async with control_plane.acquire() as conn:
+    async with org_db.acquire() as conn:
         await conn.execute_core(insert(api_sources).values(id="s", type="openapi", base_url=BASE))
         for _ in range(2):  # the first call INSERTs, the second UPDATEs
             await conn.upsert(api_endpoints, row, index_elements=["table_name"])

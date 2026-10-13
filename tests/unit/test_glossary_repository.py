@@ -18,32 +18,24 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 
 import pytest
-from sqlalchemy import select
-from provisa.core.database import create_engine_from_url
+from sqlalchemy import insert, select
 
 from provisa.api.admin.column_dependents import _glossary_dependents
 
-from provisa.core.database import Database
 from provisa.core.models import Column, Table
 from provisa.core.repositories import glossary as glossary_repo
 from provisa.core.repositories import table as table_repo
-from provisa.core.schema_org import (
-    registered_tables,
-)
+from provisa.core.schema_org import domains, registered_tables, sources
 
 
 @asynccontextmanager
-async def _conn(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'g.db'}")
-    with engine.begin() as c:
-        # The whole org schema: deleting a table asks the dependency guard, which reads every
-        # table that can refer to one.
-        registered_tables.metadata.create_all(c)
-    try:
-        async with Database(engine, name="g").acquire() as conn:
-            yield conn
-    finally:
-        engine.dispose()
+async def _conn(control_plane):
+    with control_plane.engine().begin() as c:
+        c.exec_driver_sql('SET LOCAL search_path TO "org_default"')
+        c.execute(insert(domains).values(id="d", description=""))
+        c.execute(insert(sources).values(id="__derived__", type="postgresql"))
+    async with control_plane.org().acquire() as conn:
+        yield conn
 
 
 def _tbl(name: str, columns: list[str]) -> Table:
@@ -63,8 +55,8 @@ async def _term(conn, name: str) -> dict | None:
 
 
 @pytest.mark.asyncio
-async def test_generic_columns_qualify_with_the_table_and_machinery_derives_nothing(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_generic_columns_qualify_with_the_table_and_machinery_derives_nothing(control_plane):
+    async with _conn(control_plane) as conn:
         await table_repo.upsert(
             conn,
             Table(
@@ -95,8 +87,8 @@ async def test_generic_columns_qualify_with_the_table_and_machinery_derives_noth
 
 
 @pytest.mark.asyncio
-async def test_registration_creates_and_dedups_terms(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_registration_creates_and_dedups_terms(control_plane):
+    async with _conn(control_plane) as conn:
         await table_repo.upsert(conn, _tbl("orders", ["cust_id", "order_dt"]))
         await table_repo.upsert(conn, _tbl("customers", ["customerId", "CUSTOMER_KEY"]))
         customer = await _term(conn, "customer")
@@ -107,8 +99,8 @@ async def test_registration_creates_and_dedups_terms(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_column_departure_removes_term_without_abstract_dependents(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_column_departure_removes_term_without_abstract_dependents(control_plane):
+    async with _conn(control_plane) as conn:
         tid = await table_repo.upsert(conn, _tbl("orders", ["cust_id", "order_dt"]))
         assert tid is not None
         await table_repo.upsert(conn, _tbl("orders", ["cust_id"]))
@@ -117,8 +109,8 @@ async def test_column_departure_removes_term_without_abstract_dependents(tmp_pat
 
 
 @pytest.mark.asyncio
-async def test_last_ref_removal_deprecates_when_abstract_term_would_dangle(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_last_ref_removal_deprecates_when_abstract_term_would_dangle(control_plane):
+    async with _conn(control_plane) as conn:
         await table_repo.upsert(conn, _tbl("orders", ["order_dt"]))
         rooted = await _term(conn, "order date")
         assert rooted is not None
@@ -131,11 +123,11 @@ async def test_last_ref_removal_deprecates_when_abstract_term_would_dangle(tmp_p
 
 
 @pytest.mark.asyncio
-async def test_create_abstract_term_lowercases_the_name(tmp_path):  # REQ-1844
+async def test_create_abstract_term_lowercases_the_name(control_plane):  # REQ-1844
     # Every term in this catalog is lowercase — auto-derived ones already are (normalize_term
     # case-folds); a manually-created one that wasn't would be the one inconsistent entry, and
     # would silently invite a same-word duplicate differing only in case.
-    async with _conn(tmp_path) as conn:
+    async with _conn(control_plane) as conn:
         term_id = await glossary_repo.create_abstract_term(conn, "Sepal Length", domains=set())
         term = await glossary_repo.get_term(conn, term_id)
         assert term is not None
@@ -143,16 +135,16 @@ async def test_create_abstract_term_lowercases_the_name(tmp_path):  # REQ-1844
 
 
 @pytest.mark.asyncio
-async def test_create_abstract_term_rejects_a_case_only_duplicate(tmp_path):  # REQ-1844
-    async with _conn(tmp_path) as conn:
+async def test_create_abstract_term_rejects_a_case_only_duplicate(control_plane):  # REQ-1844
+    async with _conn(control_plane) as conn:
         await glossary_repo.create_abstract_term(conn, "sepal length", domains=set())
         with pytest.raises(ValueError):
             await glossary_repo.create_abstract_term(conn, "Sepal Length", domains=set())
 
 
 @pytest.mark.asyncio
-async def test_rename_term_lowercases_the_new_name(tmp_path):  # REQ-1844
-    async with _conn(tmp_path) as conn:
+async def test_rename_term_lowercases_the_new_name(control_plane):  # REQ-1844
+    async with _conn(control_plane) as conn:
         term_id = await glossary_repo.create_abstract_term(conn, "party", domains=set())
         await glossary_repo.rename_term(conn, term_id, "Legal Entity")
         term = await glossary_repo.get_term(conn, term_id)
@@ -161,8 +153,8 @@ async def test_rename_term_lowercases_the_new_name(tmp_path):  # REQ-1844
 
 
 @pytest.mark.asyncio
-async def test_abstract_term_with_alternative_root_path_does_not_block_removal(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_abstract_term_with_alternative_root_path_does_not_block_removal(control_plane):
+    async with _conn(control_plane) as conn:
         await table_repo.upsert(conn, _tbl("orders", ["order_dt", "ship_dt"]))
         order_date = await _term(conn, "order date")
         ship_date = await _term(conn, "ship date")
@@ -180,8 +172,8 @@ async def test_abstract_term_with_alternative_root_path_does_not_block_removal(t
 
 
 @pytest.mark.asyncio
-async def test_relink_revives_deprecated_term(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_relink_revives_deprecated_term(control_plane):
+    async with _conn(control_plane) as conn:
         await table_repo.upsert(conn, _tbl("orders", ["order_dt"]))
         rooted = await _term(conn, "order date")
         assert rooted is not None
@@ -199,8 +191,8 @@ async def test_relink_revives_deprecated_term(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_table_delete_sweeps_terms(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_table_delete_sweeps_terms(control_plane):
+    async with _conn(control_plane) as conn:
         tid = await table_repo.upsert(conn, _tbl("orders", ["order_dt"]))
         assert tid is not None
         assert await _term(conn, "order date") is not None
@@ -209,8 +201,8 @@ async def test_table_delete_sweeps_terms(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_move_ref_settles_the_losing_term(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_move_ref_settles_the_losing_term(control_plane):
+    async with _conn(control_plane) as conn:
         tid = await table_repo.upsert(conn, _tbl("orders", ["cust_id", "buyer_id"]))
         customer = await _term(conn, "customer")
         buyer = await _term(conn, "buyer")
@@ -224,8 +216,8 @@ async def test_move_ref_settles_the_losing_term(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_move_ref_reports_a_surviving_source_term_and_a_missing_ref(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_move_ref_reports_a_surviving_source_term_and_a_missing_ref(control_plane):
+    async with _conn(control_plane) as conn:
         tid = await table_repo.upsert(conn, _tbl("orders", ["cust_id", "buyer_id"]))
         a = await table_repo.upsert(conn, _tbl("invoices", ["cust_id"]))
         buyer = await _term(conn, "buyer")
@@ -240,8 +232,8 @@ async def test_move_ref_reports_a_surviving_source_term_and_a_missing_ref(tmp_pa
 
 
 @pytest.mark.asyncio
-async def test_edge_types_are_a_closed_set(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_edge_types_are_a_closed_set(control_plane):
+    async with _conn(control_plane) as conn:
         a = await glossary_repo.create_abstract_term(conn, "party", domains=set())
         b = await glossary_repo.create_abstract_term(conn, "person", domains=set())
         with pytest.raises(ValueError):
@@ -252,8 +244,8 @@ async def test_edge_types_are_a_closed_set(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_rooted_term_cannot_be_deleted_by_hand(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_rooted_term_cannot_be_deleted_by_hand(control_plane):
+    async with _conn(control_plane) as conn:
         await table_repo.upsert(conn, _tbl("orders", ["cust_id"]))
         customer = await _term(conn, "customer")
         assert customer is not None
@@ -262,8 +254,8 @@ async def test_rooted_term_cannot_be_deleted_by_hand(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_curation_round_trip(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_curation_round_trip(control_plane):
+    async with _conn(control_plane) as conn:
         await table_repo.upsert(conn, _tbl("orders", ["cust_id"]))
         customer = await _term(conn, "customer")
         assert customer is not None
@@ -280,8 +272,8 @@ async def test_curation_round_trip(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_search_terms_matches_name_and_definition(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_search_terms_matches_name_and_definition(control_plane):
+    async with _conn(control_plane) as conn:
         await table_repo.upsert(conn, _tbl("orders", ["cust_id", "order_dt"]))
         customer = await _term(conn, "customer")
         assert customer is not None
@@ -293,10 +285,10 @@ async def test_search_terms_matches_name_and_definition(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_retired_and_deprecated_terms_are_withheld_from_agent_search(tmp_path):
+async def test_retired_and_deprecated_terms_are_withheld_from_agent_search(control_plane):
     """A retired term keeps its refs but must be unreachable through the MCP term search —
     that surface is how an agent binds a question to a column."""
-    async with _conn(tmp_path) as conn:
+    async with _conn(control_plane) as conn:
         await table_repo.upsert(conn, _tbl("orders", ["cust_id", "order_dt"]))
         customer = await _term(conn, "customer")
         assert customer is not None
@@ -317,12 +309,12 @@ async def test_retired_and_deprecated_terms_are_withheld_from_agent_search(tmp_p
 
 
 @pytest.mark.asyncio
-async def test_abstract_term_is_offered_only_while_a_chain_reaches_a_physical_ref(tmp_path):
+async def test_abstract_term_is_offered_only_while_a_chain_reaches_a_physical_ref(control_plane):
     """An abstract term names data only through its relationships: every chain must terminate
     at a term holding a physical ref, or it answers nothing and the search surface withholds
     it. Connectivity ignores definitions — the undefined rooted term still grounds it — but
     out-of-service terms do not conduct."""
-    async with _conn(tmp_path) as conn:
+    async with _conn(control_plane) as conn:
         await table_repo.upsert(conn, _tbl("orders", ["order_dt"]))
         rooted = await _term(conn, "order date")
         assert rooted is not None
@@ -344,10 +336,10 @@ async def test_abstract_term_is_offered_only_while_a_chain_reaches_a_physical_re
 
 
 @pytest.mark.asyncio
-async def test_column_removal_warning_states_each_terms_fate(tmp_path):
+async def test_column_removal_warning_states_each_terms_fate(control_plane):
     """The pre-save warning (REQ-1484) must say what removing the column does to each bound
     term, because the settle rule has already decided it: kept, kept-out-of-service, deleted."""
-    async with _conn(tmp_path) as conn:
+    async with _conn(control_plane) as conn:
         await table_repo.upsert(conn, _tbl("orders", ["cust_id", "order_dt", "ship_dt"]))
         table_id = (await conn.execute_core(select(registered_tables.c.id))).fetchone().id
         order_date = await _term(conn, "order date")
@@ -373,11 +365,11 @@ async def test_column_removal_warning_states_each_terms_fate(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_retirement_survives_re_registration(tmp_path):
+async def test_retirement_survives_re_registration(control_plane):
     """Re-registering the table leaves the retirement alone: nothing in the derived lifecycle
     writes ``retired``, unlike ``deprecated``, which _find_or_create_term clears whenever a
     matching column reappears."""
-    async with _conn(tmp_path) as conn:
+    async with _conn(control_plane) as conn:
         await table_repo.upsert(conn, _tbl("orders", ["cust_id", "order_dt"]))
         customer = await _term(conn, "customer")
         assert customer is not None
@@ -390,8 +382,8 @@ async def test_retirement_survives_re_registration(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_delete_term_names_retire_as_the_remedy(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_delete_term_names_retire_as_the_remedy(control_plane):
+    async with _conn(control_plane) as conn:
         await table_repo.upsert(conn, _tbl("orders", ["cust_id"]))
         customer = await _term(conn, "customer")
         assert customer is not None
@@ -400,8 +392,8 @@ async def test_delete_term_names_retire_as_the_remedy(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_export_graph_shape(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_export_graph_shape(control_plane):
+    async with _conn(control_plane) as conn:
         await table_repo.upsert(conn, _tbl("orders", ["cust_id"]))
         customer = await _term(conn, "customer")
         assert customer is not None

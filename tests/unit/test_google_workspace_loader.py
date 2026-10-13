@@ -464,20 +464,14 @@ class TestTheLoader:
         assert await read["token"]() == "made-up-access-token"
 
     @pytest.fixture
-    def signed_in(self, read, monkeypatch, tmp_path):
+    def signed_in(self, read, monkeypatch, control_plane):
         """What ``connect`` reaches for one mailbox: the organisation's client, its vault and
         its state store, where the owner's approval is kept."""
         from provisa.core import request_context
-        from provisa.core.database import Database, create_engine_from_url
         from provisa.core.mail_platforms import Configured
-        from provisa.core.schema_org import mail_sync_state as table
-        from provisa.core.schema_org import metadata
 
-        engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'state.db'}")
-        with engine.begin() as conn:
-            metadata.create_all(conn, tables=[table])
         seen = SimpleNamespace(asked=[], vault=[], read=read)
-        seen.state = SimpleNamespace(admin_db="admin-plane", tenant_db=Database(engine, name="s"))
+        seen.state = SimpleNamespace(admin_db="admin-plane", tenant_db=control_plane.org())
 
         async def require(admin_db, org_id, platform_id):
             seen.asked.append((admin_db, org_id, platform_id))
@@ -497,7 +491,6 @@ class TestTheLoader:
         token = request_context.set_current_org("acme")
         yield seen
         request_context.reset_current_org(token)
-        engine.dispose()
 
     def _one(self, **more):
         source = self._source()

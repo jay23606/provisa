@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import types
 
-from contextlib import asynccontextmanager
 
 import pytest
 
@@ -51,54 +50,21 @@ def _json_body(body: dict):
 
 
 class _TenantDb:
-    """A real SQLite tenant DB with the catalog_bindings table (REQ-1389).
+    """The control plane's org database, holding the catalog_bindings table (REQ-1389).
 
     The publish path loads and persists vendor bindings around every publish, so the state
     stub has to hand it a working connection rather than a bare object.
     """
 
-    def __init__(self, tmp_path):
-        self._tmp_path = tmp_path
-        self._engine = None
+    def __init__(self, control_plane):
+        self._db = control_plane.org()
 
-    @asynccontextmanager
-    async def acquire(self):
-        from provisa.core.database import create_engine_from_url
-
-        from provisa.core.database import Database
-        from provisa.core.schema_org import (
-            catalog_bindings,
-            glossary_term_edges,
-            glossary_term_experts,
-            glossary_term_refs,
-            glossary_terms,
-            registered_tables,
-        )
-
-        if self._engine is None:
-            self._engine = create_engine_from_url(
-                f"sqlite+pysqlite:///{self._tmp_path / 'tenant.db'}"
-            )
-            with self._engine.begin() as c:
-                # glossary_* + registered_tables: publish_snapshot hydrates the term
-                # graph (REQ-1387).
-                catalog_bindings.metadata.create_all(
-                    c,
-                    tables=[
-                        catalog_bindings,
-                        registered_tables,
-                        glossary_terms,
-                        glossary_term_refs,
-                        glossary_term_edges,
-                        glossary_term_experts,
-                    ],
-                )
-        async with Database(self._engine, name="tenant").acquire() as conn:
-            yield conn
+    def acquire(self):
+        return self._db.acquire()
 
 
 @pytest.fixture
-def surface(monkeypatch, tmp_path):
+def surface(monkeypatch, control_plane):
     """Drive the handlers against recorded org settings and a registered premium org.
 
     Returns a namespace with ``stored`` (what the org has saved — mutate it to set up a case),
@@ -126,7 +92,7 @@ def surface(monkeypatch, tmp_path):
     monkeypatch.setattr(
         "provisa.api.app.state",
         RoleState(
-            model_db=(_one_db := _TenantDb(tmp_path)),
+            model_db=(_one_db := _TenantDb(control_plane)),
             tenant_db=_one_db,
             # REQ-1659: the listing links back at the org's public origin, read off config.mail.
             config=types.SimpleNamespace(

@@ -17,8 +17,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.db import init_schema
+from provisa.core.database import Database
 from provisa.core.models import Column, Table
 from provisa.core.repositories import table as table_repo
 from provisa.federation.registry_view import registered_tables
@@ -27,12 +26,16 @@ pytestmark = pytest.mark.unit
 
 
 @pytest.fixture
-def tenant_db(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'tenant.db'}")
-    db = Database(engine, name="org")
-    asyncio.run(init_schema(db, "", org_id="default"))
-    yield db
-    engine.dispose()
+def tenant_db(control_plane):
+    from sqlalchemy import insert
+
+    from provisa.core.schema_org import domains, sources
+
+    with control_plane.engine().begin() as c:
+        c.exec_driver_sql('SET LOCAL search_path TO "org_default"')
+        c.execute(insert(domains).values(id="d", description=""))
+        c.execute(insert(sources).values(id="files", type="postgresql"))
+    return control_plane.org()
 
 
 def _table(name: str, **settings) -> Table:

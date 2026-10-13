@@ -32,13 +32,14 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import SpanKind
 
+from sqlalchemy import insert
+
 from provisa import otel_compat
 from provisa.api.http_trace_scope import http_trace_scope
 from provisa.api.otel_setup import _bind_http_request_span, _trace_detail_sampler
 from provisa.core import trace_scope as ts
-from provisa.core.database import Database, create_engine_from_url
+from provisa.core.schema_admin import orgs
 from provisa.core.request_context import reset_current_org, set_current_org
-from provisa.core.schema_admin import debug_trace_hint_roles, debug_trace_windows, metadata
 
 
 @pytest.fixture(autouse=True)
@@ -55,14 +56,12 @@ def _no_request_scope_leak():
 
 
 @pytest.fixture
-def served(tmp_path):
+def served(control_plane):
     """A deployment serving org ``acme`` with a real control plane, and a tracer that samples the
     way setup_otel's does."""
-    db = Database(
-        create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}"), name="trace-scope"
-    )
+    db = control_plane.platform
     with db.engine.begin() as conn:
-        metadata.create_all(conn, tables=[debug_trace_windows, debug_trace_hint_roles])
+        conn.execute(insert(orgs), [{"id": o, "name": o} for o in ("acme", "globex")])
     exporter = InMemorySpanExporter()
     provider = TracerProvider(sampler=_trace_detail_sampler(1.0))
     provider.add_span_processor(SimpleSpanProcessor(exporter))

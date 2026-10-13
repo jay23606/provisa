@@ -19,82 +19,56 @@ import json
 from contextlib import asynccontextmanager
 
 import pytest
-from provisa.core.database import create_engine_from_url
+from sqlalchemy import insert
 
-from provisa.core.database import Database
 from provisa.core.models import Column, Table
 from provisa.core.repositories import glossary as glossary_repo
 from provisa.core.repositories import table as table_repo
-from provisa.core.schema_org import (
-    glossary_term_domains,
-    glossary_term_edges,
-    glossary_term_experts,
-    glossary_term_refs,
-    glossary_terms,
-    registered_tables,
-    roles,
-    table_columns,
-    naming_rules,
-)
+from provisa.core.schema_org import domains, sources
 from tests.role_state import RoleState
 
 pytestmark = pytest.mark.asyncio
 
-_TABLES = [
-    registered_tables,
-    table_columns,
-    # naming_rules: the table upsert refuses a taken SQL address under them (REQ-1933).
-    naming_rules,
-    roles,
-    glossary_terms,
-    glossary_term_refs,
-    glossary_term_edges,
-    glossary_term_experts,
-    glossary_term_domains,
-]
-
 
 @asynccontextmanager
-async def _server(tmp_path):
+async def _server(control_plane):
     from provisa.api.mcp.server import build_mcp_server
 
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'mcp.db'}")
-    with engine.begin() as c:
-        registered_tables.metadata.create_all(c, tables=_TABLES)
-    db = Database(engine, name="mcp")
-    try:
-        async with db.acquire() as conn:
-            await table_repo.upsert(
-                conn,
-                Table(
-                    source_id="__derived__",
-                    domain_id="d",
-                    schema_name="s",
-                    table_name="orders",
-                    columns=[Column(name="cust_id", data_type="text", visible_to=[])],
-                    view_sql="SELECT 1",
-                ),
-            )
-        state = RoleState(
-            contexts={"analyst": object()},
-            model_db=db,
-            tenant_db=db,
-            # REQ-1591: the search narrows to the domains the ROLE reaches; "*" is unlimited.
-            roles={"analyst": {"domain_access": ["*"]}},
+    with control_plane.engine().begin() as c:
+        c.exec_driver_sql('SET LOCAL search_path TO "org_default"')
+        c.execute(insert(domains).values(id="d", description=""))
+        c.execute(insert(sources).values(id="__derived__", type="postgresql"))
+    db = control_plane.org()
+    async with db.acquire() as conn:
+        await table_repo.upsert(
+            conn,
+            Table(
+                source_id="__derived__",
+                domain_id="d",
+                schema_name="s",
+                table_name="orders",
+                columns=[Column(name="cust_id", data_type="text", visible_to=[])],
+                view_sql="SELECT 1",
+            ),
         )
-        yield build_mcp_server(state), db
-    finally:
-        engine.dispose()
+    state = RoleState(
+        contexts={"analyst": object()},
+        model_db=db,
+        tenant_db=db,
+        # REQ-1591: the search narrows to the domains the ROLE reaches; "*" is unlimited.
+        roles={"analyst": {"domain_access": ["*"]}},
+    )
+    yield build_mcp_server(state), db
 
 
-async def test_search_terms_is_a_registered_tool(tmp_path):
-    async with _server(tmp_path) as (server, _db):
+async def test_search_terms_is_a_registered_tool(control_plane):
+    async with _server(control_plane) as (server, _db):
         names = {t.name for t in await server.list_tools()}
         assert "search_terms" in names
 
 
-async def test_search_terms_round_trips_through_the_protocol(tmp_path):
-    async with _server(tmp_path) as (server, db):
+async def test_search_terms_round_trips_through_the_protocol(control_plane):
+    async with _server(control_plane) as (server, db):
         # Derived and undefined, so the protocol offers nothing: an agent may only bind a
         # question to a term that is in service, defined, and grounded in a column.
         empty = await server.call_tool("search_terms", {"query": "customer", "role": "analyst"})
@@ -111,7 +85,7 @@ async def test_search_terms_round_trips_through_the_protocol(tmp_path):
         assert term["refs"][0]["column_name"] == "cust_id"
 
 
-async def test_unknown_role_fails_through_the_protocol(tmp_path):
-    async with _server(tmp_path) as (server, _db):
+async def test_unknown_role_fails_through_the_protocol(control_plane):
+    async with _server(control_plane) as (server, _db):
         with pytest.raises(Exception, match="No schema for role"):
             await server.call_tool("search_terms", {"query": "customer", "role": "nobody"})

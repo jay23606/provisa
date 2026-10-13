@@ -27,12 +27,10 @@ from sqlalchemy import select
 
 from provisa.api.admin._landing_ttl import SourceTtl, TableTtl
 from provisa.api.admin.types import ColumnInput, MutationResult, SourceInput, TableInput
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.schema_org import registered_tables, roles, sources, table_columns
+from provisa.core.database import Database
+from provisa.core.schema_org import registered_tables, sources
 
 pytestmark = pytest.mark.unit
-
-_TABLES = [sources, registered_tables, table_columns, roles]
 
 
 class _Pool:
@@ -45,7 +43,7 @@ class _Pool:
 
 @asynccontextmanager
 async def _db(
-    tmp_path,
+    control_plane,
     *,
     source_signal="ttl",
     source_ttl=None,
@@ -59,10 +57,7 @@ async def _db(
     """One source ``s`` (of ``source_type``) with one table ``orders``. ``table_replicate`` 0 (always) says the table
     is replicated (REQ-1907 option B); None = it inherits its source's value, which by default
     is not set either."""
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}")
-    with engine.begin() as c:
-        sources.metadata.create_all(c)
-    db = Database(engine, name="cp")
+    db = control_plane.org()
     async with db.acquire() as conn:
         await conn.execute_core(
             sources.insert().values(
@@ -92,11 +87,7 @@ async def _db(
                 replicate=table_replicate,
             )
         )
-    try:
-        yield db
-    finally:
-        await db.close()
-        engine.dispose()
+    yield db
 
 
 async def _table_row(db: Database):
@@ -165,11 +156,11 @@ _LANDING = [
 @pytest.mark.parametrize("signal", ["ttl", "ttl_probe", "probe"])
 @pytest.mark.parametrize(("tflag", "sflag"), _LANDING)
 async def test_the_check_refuses_a_landed_ttl_table_with_no_cache_ttl(
-    tmp_path, signal, tflag, sflag
+    control_plane, signal, tflag, sflag
 ):
     from provisa.api.admin._landing_ttl import landing_ttl_refusal
 
-    async with _db(tmp_path, source_signal="kafka", table_ttl=60) as db:
+    async with _db(control_plane, source_signal="kafka", table_ttl=60) as db:
         async with db.acquire() as conn:
             bad = await landing_ttl_refusal(
                 conn, "s", source=_s("kafka", None, **sflag), table=_t(signal, None, **tflag)
@@ -192,12 +183,12 @@ async def test_the_check_refuses_a_landed_ttl_table_with_no_cache_ttl(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("signal", ["ttl", "ttl_probe", "probe"])
-async def test_the_check_accepts_a_ttl_table_config_does_not_force_to_land(tmp_path, signal):
+async def test_the_check_accepts_a_ttl_table_config_does_not_force_to_land(control_plane, signal):
     """Nothing in the operator's settings lands it, and the bound engine reads the source in
     place, so it has no replica and needs no landing clock."""
     from provisa.api.admin._landing_ttl import landing_ttl_refusal
 
-    async with _db(tmp_path, source_signal="kafka", table_replicate=None) as db:
+    async with _db(control_plane, source_signal="kafka", table_replicate=None) as db:
         async with db.acquire() as conn:
             assert await landing_ttl_refusal(conn, "s", table=_t(signal, None)) is None
             assert (
@@ -208,12 +199,12 @@ async def test_the_check_accepts_a_ttl_table_config_does_not_force_to_land(tmp_p
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(("tflag", "sflag"), _LANDING)
-async def test_a_probe_on_a_freshness_gated_source_needs_no_cache_ttl(tmp_path, tflag, sflag):
+async def test_a_probe_on_a_freshness_gated_source_needs_no_cache_ttl(control_plane, tflag, sflag):
     """REQ-860: a gated source's probe is judged at each read; without the gate a probe has no
     cadence but the cache_ttl, and is refused without one."""
     from provisa.api.admin._landing_ttl import landing_ttl_refusal
 
-    async with _db(tmp_path, source_signal="kafka") as db:
+    async with _db(control_plane, source_signal="kafka") as db:
         async with db.acquire() as conn:
             gated = _s("kafka", None, freshness_gate=True, **sflag)
             table = _t("probe", None, **tflag)
@@ -227,10 +218,10 @@ async def test_a_probe_on_a_freshness_gated_source_needs_no_cache_ttl(tmp_path, 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("signal", ["native", "debezium", "kafka", "signal"])
 @pytest.mark.parametrize(("tflag", "sflag"), _LANDING)
-async def test_the_no_ttl_freshness_signals_need_no_cache_ttl(tmp_path, signal, tflag, sflag):
+async def test_the_no_ttl_freshness_signals_need_no_cache_ttl(control_plane, signal, tflag, sflag):
     from provisa.api.admin._landing_ttl import landing_ttl_refusal
 
-    async with _db(tmp_path, source_signal="kafka") as db:
+    async with _db(control_plane, source_signal="kafka") as db:
         async with db.acquire() as conn:
             assert (
                 await landing_ttl_refusal(
@@ -250,8 +241,8 @@ async def test_the_no_ttl_freshness_signals_need_no_cache_ttl(tmp_path, signal, 
 
 
 @pytest.mark.asyncio
-async def test_update_table_cache_refuses_clearing_the_only_cache_ttl(tmp_path, monkeypatch):
-    async with _db(tmp_path, source_signal="ttl", table_ttl=60) as db:
+async def test_update_table_cache_refuses_clearing_the_only_cache_ttl(control_plane, monkeypatch):
+    async with _db(control_plane, source_signal="ttl", table_ttl=60) as db:
         table_id = (await _table_row(db)).id
         m, p = _mutation(db)
         with p:
@@ -263,8 +254,10 @@ async def test_update_table_cache_refuses_clearing_the_only_cache_ttl(tmp_path, 
 
 
 @pytest.mark.asyncio
-async def test_update_source_cache_refuses_clearing_a_ttl_the_tables_inherit(tmp_path, monkeypatch):
-    async with _db(tmp_path, source_signal="ttl", source_ttl=300) as db:
+async def test_update_source_cache_refuses_clearing_a_ttl_the_tables_inherit(
+    control_plane, monkeypatch
+):
+    async with _db(control_plane, source_signal="ttl", source_ttl=300) as db:
         m, p = _mutation(db)
         with p:
             result = await m.update_source_cache(
@@ -293,8 +286,8 @@ def _source_input(change_signal: str, cache_ttl: int | None) -> SourceInput:
 
 
 @pytest.mark.asyncio
-async def test_update_source_refuses_a_ttl_signal_its_tables_cannot_clock(tmp_path):
-    async with _db(tmp_path, source_signal="kafka") as db:
+async def test_update_source_refuses_a_ttl_signal_its_tables_cannot_clock(control_plane):
+    async with _db(control_plane, source_signal="kafka") as db:
         m, p = _mutation(db)
         with (
             p,
@@ -308,11 +301,13 @@ async def test_update_source_refuses_a_ttl_signal_its_tables_cannot_clock(tmp_pa
 
 
 @pytest.mark.asyncio
-async def test_create_source_refuses_a_ttl_signal_its_registered_tables_cannot_clock(tmp_path):
-    """A source id re-created over tables still registered under it is judged against them."""
-    async with _db(tmp_path, source_signal="kafka") as db:
-        async with db.acquire() as conn:
-            await conn.execute_core(sources.delete().where(sources.c.id == "s"))
+async def test_create_source_refuses_a_ttl_signal_its_registered_tables_cannot_clock(control_plane):
+    """A source created under an id that has tables registered is judged against them.
+
+    (On SQLite this deleted the source first and created it again over its orphaned tables;
+    PostgreSQL cascades a source's tables with it, so that state cannot exist, and the create is
+    made while the id still holds them.)"""
+    async with _db(control_plane, source_signal="kafka") as db:
         m, p = _mutation(db)
         with (
             p,
@@ -326,7 +321,7 @@ async def test_create_source_refuses_a_ttl_signal_its_registered_tables_cannot_c
                 MagicMock(), _source_input(change_signal="ttl_probe", cache_ttl=None)
             )
         assert result.success is False and result.code == "schema.landing_ttl_required"
-        assert await _source_row(db) is None  # nothing written
+        assert (await _source_row(db)).change_signal == "kafka"  # nothing written
 
 
 def _table_input(**kw) -> TableInput:
@@ -387,12 +382,12 @@ def _table_patches(db: Database):
 
 
 @pytest.mark.asyncio
-async def test_update_table_refuses_a_ttl_signal_with_no_cache_ttl(tmp_path):
+async def test_update_table_refuses_a_ttl_signal_with_no_cache_ttl(control_plane):
     from contextlib import ExitStack
 
     from provisa.api.admin.schema_mutation import Mutation
 
-    async with _db(tmp_path, source_signal="kafka") as db:
+    async with _db(control_plane, source_signal="kafka") as db:
         with ExitStack() as stack:
             for p in _table_patches(db):
                 stack.enter_context(p)
@@ -402,7 +397,7 @@ async def test_update_table_refuses_a_ttl_signal_with_no_cache_ttl(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_update_table_keeps_the_stored_cache_ttl_role_ttl_and_paging(tmp_path):
+async def test_update_table_keeps_the_stored_cache_ttl_role_ttl_and_paging(control_plane):
     """TableInput carries no cache_ttl / role_ttl / row_materialize / pagination; saving the
     table's other fields must not reset them (they are saved through updateTableCache /
     updateTableRoleTtl / updateTablePaging)."""
@@ -410,7 +405,7 @@ async def test_update_table_keeps_the_stored_cache_ttl_role_ttl_and_paging(tmp_p
 
     from provisa.api.admin.schema_mutation import Mutation
 
-    async with _db(tmp_path, source_signal="ttl", table_ttl=60) as db:
+    async with _db(control_plane, source_signal="ttl", table_ttl=60) as db:
         with ExitStack() as stack:
             for p in _table_patches(db):
                 stack.enter_context(p)
@@ -423,11 +418,11 @@ async def test_update_table_keeps_the_stored_cache_ttl_role_ttl_and_paging(tmp_p
 
 
 @pytest.mark.asyncio
-async def test_register_table_refuses_inheriting_a_ttl_signal_with_no_cache_ttl(tmp_path):
+async def test_register_table_refuses_inheriting_a_ttl_signal_with_no_cache_ttl(control_plane):
     from provisa.api.admin import schema_mutation_ops as ops
     from provisa.core.models import Column
 
-    async with _db(tmp_path, source_signal="ttl", table_ttl=60, source_replicate=0) as db:
+    async with _db(control_plane, source_signal="ttl", table_ttl=60, source_replicate=0) as db:
         with (
             patch.object(ops, "_get_pool", new=AsyncMock(return_value=_Pool(db))),
             patch("provisa.api.admin.capabilities.require_capability", return_value=None),
@@ -448,13 +443,13 @@ async def test_register_table_refuses_inheriting_a_ttl_signal_with_no_cache_ttl(
 
 
 @pytest.mark.asyncio
-async def test_register_table_takes_the_cache_ttl_the_registration_states(tmp_path):
+async def test_register_table_takes_the_cache_ttl_the_registration_states(control_plane):
     """The same table that is refused for want of a clock passes the landing check when the
     registration states its own (#208); a negative one is refused by name."""
     from provisa.api.admin import schema_mutation_ops as ops
     from provisa.core.models import Column
 
-    async with _db(tmp_path, source_signal="ttl", table_ttl=60, source_replicate=0) as db:
+    async with _db(control_plane, source_signal="ttl", table_ttl=60, source_replicate=0) as db:
         judged: list[TableTtl] = []
 
         async def judge(conn, source_id, *, table=None, **kw):
@@ -519,9 +514,9 @@ async def test_the_form_is_told_whether_a_kinds_tables_land(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_update_table_cache_accepts_clearing_it_on_a_table_config_does_not_land(
-    tmp_path, monkeypatch
+    control_plane, monkeypatch
 ):
-    async with _db(tmp_path, source_signal="ttl", table_ttl=60, table_replicate=None) as db:
+    async with _db(control_plane, source_signal="ttl", table_ttl=60, table_replicate=None) as db:
         table_id = (await _table_row(db)).id
         m, p = _mutation(db)
         with p:
@@ -575,11 +570,11 @@ def _granted(monkeypatch, state):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("value", [0, 500])
 async def test_update_table_replicate_refuses_a_ttl_table_with_no_cache_ttl(
-    tmp_path, monkeypatch, value
+    control_plane, monkeypatch, value
 ):
     """Saving Always or a Hot threshold on a ttl table that has no refresh clock used to succeed
     and then fail every read of the table; it is refused at save."""
-    async with _db(tmp_path, source_signal="ttl", table_replicate=None) as db:
+    async with _db(control_plane, source_signal="ttl", table_replicate=None) as db:
         table_id = (await _table_row(db)).id
         m, rebuild, patches, state = _replicate_mutation(db)
         with patches[0], patches[1], patches[2]:
@@ -593,8 +588,10 @@ async def test_update_table_replicate_refuses_a_ttl_table_with_no_cache_ttl(
 
 
 @pytest.mark.asyncio
-async def test_update_table_replicate_saves_and_rebuilds_so_the_value_routes(tmp_path, monkeypatch):
-    async with _db(tmp_path, source_signal="ttl", table_ttl=60, table_replicate=None) as db:
+async def test_update_table_replicate_saves_and_rebuilds_so_the_value_routes(
+    control_plane, monkeypatch
+):
+    async with _db(control_plane, source_signal="ttl", table_ttl=60, table_replicate=None) as db:
         table_id = (await _table_row(db)).id
         m, rebuild, patches, state = _replicate_mutation(db)
         with patches[0], patches[1], patches[2]:
@@ -608,9 +605,9 @@ async def test_update_table_replicate_saves_and_rebuilds_so_the_value_routes(tmp
 
 @pytest.mark.asyncio
 async def test_update_source_replicate_refuses_a_ttl_table_it_would_replicate_with_no_cache_ttl(
-    tmp_path, monkeypatch
+    control_plane, monkeypatch
 ):
-    async with _db(tmp_path, source_signal="ttl", table_replicate=None) as db:
+    async with _db(control_plane, source_signal="ttl", table_replicate=None) as db:
         m, rebuild, patches, state = _replicate_mutation(db)
         with patches[0], patches[1], patches[2]:
             result = await m.update_source_replicate(
@@ -622,9 +619,9 @@ async def test_update_source_replicate_refuses_a_ttl_table_it_would_replicate_wi
 
 
 @pytest.mark.asyncio
-async def test_never_is_refused_on_a_load_protected_source(tmp_path, monkeypatch):
+async def test_never_is_refused_on_a_load_protected_source(control_plane, monkeypatch):
     """load_protected with replicate -1 is contradictory (REQ-826): refused at save, naming it."""
-    async with _db(tmp_path, source_signal="kafka", table_replicate=None) as db:
+    async with _db(control_plane, source_signal="kafka", table_replicate=None) as db:
         async with db.acquire() as conn:
             await conn.execute_core(
                 sources.update().where(sources.c.id == "s").values(load_protected=True)
@@ -644,9 +641,13 @@ async def test_never_is_refused_on_a_load_protected_source(tmp_path, monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_load_protection_is_refused_on_a_source_set_to_never(tmp_path, monkeypatch):
+async def test_load_protection_is_refused_on_a_source_set_to_never(control_plane, monkeypatch):
     async with _db(
-        tmp_path, source_signal="kafka", source_ttl=60, table_replicate=None, source_replicate=-1
+        control_plane,
+        source_signal="kafka",
+        source_ttl=60,
+        table_replicate=None,
+        source_replicate=-1,
     ) as db:
         m, rebuild, patches, state = _replicate_mutation(db)
         with patches[0], patches[1], patches[2]:
@@ -660,8 +661,8 @@ async def test_load_protection_is_refused_on_a_source_set_to_never(tmp_path, mon
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("value", [-2, -50])
-async def test_a_value_the_setting_does_not_have_is_refused(tmp_path, monkeypatch, value):
-    async with _db(tmp_path, source_signal="kafka", table_replicate=None) as db:
+async def test_a_value_the_setting_does_not_have_is_refused(control_plane, monkeypatch, value):
+    async with _db(control_plane, source_signal="kafka", table_replicate=None) as db:
         m, _rebuild, patches, state = _replicate_mutation(db)
         with patches[0], patches[1], patches[2]:
             result = await m.update_source_replicate(
@@ -672,9 +673,9 @@ async def test_a_value_the_setting_does_not_have_is_refused(tmp_path, monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_a_non_standard_threshold_is_kept_as_saved(tmp_path, monkeypatch):
+async def test_a_non_standard_threshold_is_kept_as_saved(control_plane, monkeypatch):
     """Any threshold above 0 is a legal value, not only the drop-down's standard ones."""
-    async with _db(tmp_path, source_signal="kafka", table_replicate=None) as db:
+    async with _db(control_plane, source_signal="kafka", table_replicate=None) as db:
         m, _rebuild, patches, state = _replicate_mutation(db)
         with patches[0], patches[1], patches[2]:
             result = await m.update_source_replicate(
@@ -688,7 +689,7 @@ async def test_a_non_standard_threshold_is_kept_as_saved(tmp_path, monkeypatch):
 @pytest.mark.parametrize("source_type", ["elasticsearch", "redis", "cassandra", "prometheus"])
 @pytest.mark.parametrize("signal", ["ttl", "ttl_probe", "probe"])
 async def test_a_table_the_engine_lands_needs_a_cache_ttl_at_save(
-    tmp_path, monkeypatch, source_type, signal
+    control_plane, monkeypatch, source_type, signal
 ):
     """A source the bound engine cannot read in place is served from a replica, whatever the
     operator's settings say, so its ttl / ttl_probe tables need a landing clock when they are
@@ -698,7 +699,7 @@ async def test_a_table_the_engine_lands_needs_a_cache_ttl_at_save(
     from provisa.federation.engine import build_engine
 
     monkeypatch.setattr(appmod.state, "federation_engine", build_engine("duckdb"), raising=False)
-    async with _db(tmp_path, source_type=source_type, table_replicate=None) as db:
+    async with _db(control_plane, source_type=source_type, table_replicate=None) as db:
         async with db.acquire() as conn:
             bad = await landing_ttl_refusal(conn, "s", table=_t(signal, None))
             assert bad is not None and bad.code == "schema.landing_ttl_required"
@@ -715,7 +716,7 @@ async def test_a_table_the_engine_lands_needs_a_cache_ttl_at_save(
 @pytest.mark.parametrize("source_type", ["ingest", "data_profiler", "soda", "great_expectations"])
 @pytest.mark.parametrize("signal", ["ttl", "ttl_probe", "probe"])
 async def test_a_type_that_owns_no_replica_needs_no_cache_ttl_at_save(
-    tmp_path, monkeypatch, source_type, signal
+    control_plane, monkeypatch, source_type, signal
 ):
     """A type that owns no replica (ingest REQ-1771, a profiler's results
     REQ-1934, a checker's scans REQ-1443) is read where it is written and never landed, so its ttl tables are saved without a
@@ -725,7 +726,7 @@ async def test_a_type_that_owns_no_replica_needs_no_cache_ttl_at_save(
     from provisa.federation.engine import build_engine
 
     monkeypatch.setattr(appmod.state, "federation_engine", build_engine("duckdb"), raising=False)
-    async with _db(tmp_path, source_type=source_type, table_replicate=None) as db:
+    async with _db(control_plane, source_type=source_type, table_replicate=None) as db:
         async with db.acquire() as conn:
             assert await landing_ttl_refusal(conn, "s", table=_t(signal, None)) is None
 
@@ -733,7 +734,7 @@ async def test_a_type_that_owns_no_replica_needs_no_cache_ttl_at_save(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("signal", ["ttl", "ttl_probe"])
 async def test_a_databricks_source_read_in_place_needs_no_landing_clock(
-    tmp_path, monkeypatch, signal
+    control_plane, monkeypatch, signal
 ):
     """REQ-1867: on the DuckDB engine a Databricks source lands unless the steward asks to read it
     in place (federation hint reach: scan); only the landed one needs a landing clock. The hint is
@@ -743,7 +744,7 @@ async def test_a_databricks_source_read_in_place_needs_no_landing_clock(
     from provisa.federation.engine import build_engine
 
     monkeypatch.setattr(appmod.state, "federation_engine", build_engine("duckdb"), raising=False)
-    async with _db(tmp_path, source_type="databricks", table_replicate=None) as db:
+    async with _db(control_plane, source_type="databricks", table_replicate=None) as db:
         async with db.acquire() as conn:
             bad = await landing_ttl_refusal(conn, "s", table=_t(signal, None))
             assert bad is not None and bad.code == "schema.landing_ttl_required"
@@ -754,9 +755,13 @@ async def test_a_databricks_source_read_in_place_needs_no_landing_clock(
                 )
                 is None
             )
-    (tmp_path / "hinted").mkdir()
+    async with control_plane.org().acquire() as conn:
+        await conn.execute_core(
+            registered_tables.delete().where(registered_tables.c.source_id == "s")
+        )
+        await conn.execute_core(sources.delete().where(sources.c.id == "s"))
     async with _db(
-        tmp_path / "hinted",
+        control_plane,
         source_type="databricks",
         table_replicate=None,
         federation_hints={"reach": "scan"},
@@ -781,12 +786,12 @@ def test_only_the_mail_kinds_must_state_the_clock_on_the_source():
 @pytest.mark.asyncio
 @pytest.mark.parametrize("kind", _MAIL_KINDS)
 @pytest.mark.parametrize("signal", ["ttl", "ttl_probe"])
-async def test_a_new_mail_source_is_refused_without_a_cache_ttl(tmp_path, kind, signal):
+async def test_a_new_mail_source_is_refused_without_a_cache_ttl(control_plane, kind, signal):
     """Nothing is registered under it yet: the source is still asked for the clock, since every
     table it will have lands and refreshes by it."""
     from provisa.api.admin._landing_ttl import landing_ttl_refusal
 
-    async with _db(tmp_path) as db:
+    async with _db(control_plane) as db:
         async with db.acquire() as conn:
             bad = await landing_ttl_refusal(conn, "mail", source=_s(signal, None), source_type=kind)
             assert bad is not None and bad.success is False
@@ -807,8 +812,8 @@ async def test_a_new_mail_source_is_refused_without_a_cache_ttl(tmp_path, kind, 
 
 
 @pytest.mark.asyncio
-async def test_create_source_refuses_a_mail_source_with_no_cache_ttl(tmp_path):
-    async with _db(tmp_path) as db:
+async def test_create_source_refuses_a_mail_source_with_no_cache_ttl(control_plane):
+    async with _db(control_plane) as db:
         m, p = _mutation(db)
         asked = _source_input(change_signal="ttl", cache_ttl=None)
         asked.id, asked.type = "mail", "microsoft_365"
@@ -830,13 +835,13 @@ async def test_create_source_refuses_a_mail_source_with_no_cache_ttl(tmp_path):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("kind", _MAIL_KINDS)
 async def test_a_table_of_a_stored_mail_source_with_no_clock_is_refused_naming_the_source(
-    tmp_path, kind
+    control_plane, kind
 ):
     """A source saved before the rule has no cache_ttl: registering a table of it is refused by
     the source's own refusal, which says where the value is set."""
     from provisa.api.admin._landing_ttl import landing_ttl_refusal
 
-    async with _db(tmp_path, source_type=kind, table_replicate=None) as db:
+    async with _db(control_plane, source_type=kind, table_replicate=None) as db:
         async with db.acquire() as conn:
             bad = await landing_ttl_refusal(conn, "s", table=_t(None, None))
             assert bad is not None and bad.code == "schema.source_cache_ttl_required"

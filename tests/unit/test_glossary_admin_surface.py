@@ -22,43 +22,23 @@ from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any, cast
 
 import pytest
-from provisa.core.database import create_engine_from_url
+from sqlalchemy import insert
 
 if TYPE_CHECKING:
     from fastapi import Request
 
 from provisa.api.admin import glossary_router
 from provisa.api.errors import ApiError
-from provisa.core.database import Database
 from provisa.core.models import Column, Table
 from provisa.core.repositories import table as table_repo
 from provisa.core.schema_org import (
-    glossary_term_domains,
-    glossary_term_edges,
-    glossary_term_experts,
-    glossary_term_refs,
-    glossary_terms,
+    domains,
+    sources,
     registered_tables,
-    roles,
-    table_columns,
-    naming_rules,
 )
 from tests.role_state import RoleState
 
 pytestmark = pytest.mark.asyncio
-
-_TABLES = [
-    registered_tables,
-    table_columns,
-    # naming_rules: the table upsert refuses a taken SQL address under them (REQ-1933).
-    naming_rules,
-    roles,
-    glossary_terms,
-    glossary_term_refs,
-    glossary_term_edges,
-    glossary_term_experts,
-    glossary_term_domains,
-]
 
 
 def _request(org_id: str = "acme") -> "Request":
@@ -80,11 +60,12 @@ def _with_json(request: "Request", body: dict) -> "Request":
 
 
 @asynccontextmanager
-async def _surface(tmp_path, monkeypatch):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'gl.db'}")
-    with engine.begin() as c:
-        registered_tables.metadata.create_all(c, tables=_TABLES)
-    db = Database(engine, name="gl")
+async def _surface(control_plane, monkeypatch):
+    with control_plane.engine().begin() as c:
+        c.exec_driver_sql('SET LOCAL search_path TO "org_default"')
+        c.execute(insert(domains).values(id="d", description=""))
+        c.execute(insert(sources).values(id="__derived__", type="derived"))
+    db = control_plane.org()
     notified: list[str] = []
 
     async def _pool():
@@ -107,25 +88,22 @@ async def _surface(tmp_path, monkeypatch):
     # app state of its own. Which endpoints narrow by curation scope is asserted in
     # test_glossary_stewardship.py; here it must not block either.
     monkeypatch.setattr(glossary_router, "_curate_authority", lambda request: None)
-    try:
-        async with db.acquire() as conn:
-            await table_repo.upsert(
-                conn,
-                Table(
-                    source_id="__derived__",
-                    domain_id="d",
-                    schema_name="s",
-                    table_name="orders",
-                    columns=[
-                        Column(name="cust_id", data_type="text", visible_to=[]),
-                        Column(name="order_dt", data_type="timestamp", visible_to=[]),
-                    ],
-                    view_sql="SELECT 1",
-                ),
-            )
-        yield db, notified
-    finally:
-        engine.dispose()
+    async with db.acquire() as conn:
+        await table_repo.upsert(
+            conn,
+            Table(
+                source_id="__derived__",
+                domain_id="d",
+                schema_name="s",
+                table_name="orders",
+                columns=[
+                    Column(name="cust_id", data_type="text", visible_to=[]),
+                    Column(name="order_dt", data_type="timestamp", visible_to=[]),
+                ],
+                view_sql="SELECT 1",
+            ),
+        )
+    yield db, notified
 
 
 async def _term_id(name: str) -> int:
@@ -133,8 +111,8 @@ async def _term_id(name: str) -> int:
     return next(t["id"] for t in terms if t["name"] == name)
 
 
-async def test_list_search_and_detail(tmp_path, monkeypatch):
-    async with _surface(tmp_path, monkeypatch):
+async def test_list_search_and_detail(control_plane, monkeypatch):
+    async with _surface(control_plane, monkeypatch):
         terms = await glossary_router.list_terms(_request(), domains=None)
         assert {t["name"] for t in terms} == {"customer", "order date"}
         filtered = await glossary_router.list_terms(_request(), q="custom", domains=None)
@@ -143,8 +121,8 @@ async def test_list_search_and_detail(tmp_path, monkeypatch):
         assert detail["refs"][0]["column_name"] == "cust_id"
 
 
-async def test_curation_mutations_notify_the_exporter(tmp_path, monkeypatch):
-    async with _surface(tmp_path, monkeypatch) as (_db, notified):
+async def test_curation_mutations_notify_the_exporter(control_plane, monkeypatch):
+    async with _surface(control_plane, monkeypatch) as (_db, notified):
         customer = await _term_id("customer")
         created = await glossary_router.create_abstract_term(
             _with_json(_request(), {"name": "party", "definition": "Any actor.", "domains": ["d"]})
@@ -168,8 +146,8 @@ async def test_curation_mutations_notify_the_exporter(tmp_path, monkeypatch):
         assert len(notified) == 4  # every mutation queued a publish
 
 
-async def test_export_excluded_toggle_round_trips_and_notifies(tmp_path, monkeypatch):
-    async with _surface(tmp_path, monkeypatch) as (_db, notified):
+async def test_export_excluded_toggle_round_trips_and_notifies(control_plane, monkeypatch):
+    async with _surface(control_plane, monkeypatch) as (_db, notified):
         customer = await _term_id("customer")
         await glossary_router.update_term(
             _with_json(_request(), {"export_excluded": True}), customer
@@ -184,10 +162,12 @@ async def test_export_excluded_toggle_round_trips_and_notifies(tmp_path, monkeyp
         assert len(notified) == 2
 
 
-async def test_retired_toggle_round_trips_and_hides_the_term_from_mcp_search(tmp_path, monkeypatch):
+async def test_retired_toggle_round_trips_and_hides_the_term_from_mcp_search(
+    control_plane, monkeypatch
+):
     from provisa.api.mcp import tools
 
-    async with _surface(tmp_path, monkeypatch) as (db, notified):
+    async with _surface(control_plane, monkeypatch) as (db, notified):
         state = RoleState(
             contexts={"analyst": object()},
             model_db=db,
@@ -213,9 +193,9 @@ async def test_retired_toggle_round_trips_and_hides_the_term_from_mcp_search(tmp
         assert len(notified) == 3
 
 
-async def test_edge_type_is_correctable_in_place(tmp_path, monkeypatch):
+async def test_edge_type_is_correctable_in_place(control_plane, monkeypatch):
     """Retyping is one act on one relationship, not a withdrawal plus a new assertion."""
-    async with _surface(tmp_path, monkeypatch) as (_db, notified):
+    async with _surface(control_plane, monkeypatch) as (_db, notified):
         customer = await _term_id("customer")
         party = (
             await glossary_router.create_abstract_term(
@@ -260,8 +240,8 @@ async def test_edge_type_is_correctable_in_place(tmp_path, monkeypatch):
         assert len(notified) == 3
 
 
-async def test_free_form_edge_type_is_refused(tmp_path, monkeypatch):
-    async with _surface(tmp_path, monkeypatch) as (_db, notified):
+async def test_free_form_edge_type_is_refused(control_plane, monkeypatch):
+    async with _surface(control_plane, monkeypatch) as (_db, notified):
         customer = await _term_id("customer")
         order_date = await _term_id("order date")
         with pytest.raises(ApiError) as err:
@@ -273,16 +253,16 @@ async def test_free_form_edge_type_is_refused(tmp_path, monkeypatch):
         assert notified == []  # a refused mutation must not queue a publish
 
 
-async def test_rooted_term_delete_is_refused(tmp_path, monkeypatch):
-    async with _surface(tmp_path, monkeypatch) as (_db, notified):
+async def test_rooted_term_delete_is_refused(control_plane, monkeypatch):
+    async with _surface(control_plane, monkeypatch) as (_db, notified):
         with pytest.raises(ApiError) as err:
             await glossary_router.delete_term(_request(), await _term_id("customer"))
         assert err.value.status_code == 400
         assert notified == []
 
 
-async def test_move_ref_and_missing_term_404(tmp_path, monkeypatch):
-    async with _surface(tmp_path, monkeypatch) as (db, _notified):
+async def test_move_ref_and_missing_term_404(control_plane, monkeypatch):
+    async with _surface(control_plane, monkeypatch) as (db, _notified):
         customer = await _term_id("customer")
         async with db.acquire() as conn:
             row = (
@@ -304,8 +284,8 @@ async def test_move_ref_and_missing_term_404(tmp_path, monkeypatch):
         assert err.value.status_code == 404
 
 
-async def test_ref_lookup_serves_the_hover_summary(tmp_path, monkeypatch):
-    async with _surface(tmp_path, monkeypatch) as (db, _notified):
+async def test_ref_lookup_serves_the_hover_summary(control_plane, monkeypatch):
+    async with _surface(control_plane, monkeypatch) as (db, _notified):
         async with db.acquire() as conn:
             row = (
                 await conn.execute_core(
@@ -320,7 +300,7 @@ async def test_ref_lookup_serves_the_hover_summary(tmp_path, monkeypatch):
         assert err.value.status_code == 404
 
 
-async def test_generate_definition_drafts_without_persisting(tmp_path, monkeypatch):
+async def test_generate_definition_drafts_without_persisting(control_plane, monkeypatch):
     from provisa.api.admin import schema_helpers
 
     prompts: list[str] = []
@@ -331,7 +311,7 @@ async def test_generate_definition_drafts_without_persisting(tmp_path, monkeypat
         return "A paying party."
 
     monkeypatch.setattr(schema_helpers, "_call_llm", _fake_llm)
-    async with _surface(tmp_path, monkeypatch) as (_db, notified):
+    async with _surface(control_plane, monkeypatch) as (_db, notified):
         customer = await _term_id("customer")
         result = await glossary_router.generate_definition(_request(), customer)
         assert result == {"definition": "A paying party."}
@@ -346,10 +326,10 @@ async def test_generate_definition_drafts_without_persisting(tmp_path, monkeypat
         assert err.value.status_code == 404
 
 
-async def test_mcp_search_terms_requires_role_and_returns_refs(tmp_path, monkeypatch):
+async def test_mcp_search_terms_requires_role_and_returns_refs(control_plane, monkeypatch):
     from provisa.api.mcp import tools
 
-    async with _surface(tmp_path, monkeypatch) as (db, _notified):
+    async with _surface(control_plane, monkeypatch) as (db, _notified):
         state = RoleState(
             contexts={"analyst": object()},
             model_db=db,

@@ -214,14 +214,8 @@ def test_a_graphql_field_naming_nothing_is_still_unknown():
 
 
 @pytest.fixture
-async def model(tmp_path):
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.schema_org import metadata
-
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'model.db'}")
-    with engine.begin() as raw:
-        metadata.create_all(raw)
-    return Database(engine, "test")
+def model(control_plane):
+    return control_plane.org()
 
 
 def _table(name: str, *, draft: bool):

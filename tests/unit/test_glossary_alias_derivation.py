@@ -16,7 +16,7 @@ and leaves the column still reading ``usr_nm``. So the term follows the alias, a
 re-derives it — until a curator has worked on the term, at which point their work outranks the
 model and pins the ref where it is.
 
-A real SQLite tenant DB through the table repository, because the derivation IS the table upsert.
+A real PostgreSQL org schema through the table repository, because the derivation IS the table upsert.
 """
 
 # Requirements: REQ-1387, REQ-1581
@@ -27,48 +27,22 @@ from contextlib import asynccontextmanager
 
 import pytest
 
-from provisa.core.database import create_engine_from_url
+from sqlalchemy import insert
 
-from provisa.core.database import Database
 from provisa.core.models import Column, Table
 from provisa.core.repositories import glossary as glossary_repo
 from provisa.core.repositories import table as table_repo
-from provisa.core.schema_org import (
-    glossary_term_domains,
-    glossary_term_edges,
-    glossary_term_experts,
-    glossary_term_refs,
-    glossary_terms,
-    registered_tables,
-    roles,
-    table_columns,
-    naming_rules,
-)
-
-_TABLES = [
-    registered_tables,
-    table_columns,
-    # naming_rules: the table upsert refuses a taken SQL address under them (REQ-1933).
-    naming_rules,
-    roles,
-    glossary_terms,
-    glossary_term_refs,
-    glossary_term_edges,
-    glossary_term_experts,
-    glossary_term_domains,
-]
+from provisa.core.schema_org import domains, sources
 
 
 @asynccontextmanager
-async def _conn(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'alias.db'}")
-    with engine.begin() as c:
-        registered_tables.metadata.create_all(c, tables=_TABLES)
-    try:
-        async with Database(engine, name="alias").acquire() as conn:
-            yield conn
-    finally:
-        engine.dispose()
+async def _conn(control_plane):
+    with control_plane.engine().begin() as c:
+        c.exec_driver_sql('SET LOCAL search_path TO "org_default"')
+        c.execute(insert(domains).values(id="d", description=""))
+        c.execute(insert(sources).values(id="__derived__", type="postgresql"))
+    async with control_plane.org().acquire() as conn:
+        yield conn
 
 
 def _accounts(alias: str | None) -> Table:
@@ -102,8 +76,8 @@ async def _term_for_column(conn, column_name: str) -> str | None:
 
 
 @pytest.mark.asyncio
-async def test_the_term_derives_from_the_alias_not_the_physical_name(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_the_term_derives_from_the_alias_not_the_physical_name(control_plane):
+    async with _conn(control_plane) as conn:
         await table_repo.upsert(conn, _accounts("user name"))
 
         assert await _names(conn) == {"user name"}
@@ -112,18 +86,18 @@ async def test_the_term_derives_from_the_alias_not_the_physical_name(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_an_unaliased_column_derives_from_its_physical_name(tmp_path):
+async def test_an_unaliased_column_derives_from_its_physical_name(control_plane):
     """The alias is the business name where there is one; otherwise the column speaks for itself."""
-    async with _conn(tmp_path) as conn:
+    async with _conn(control_plane) as conn:
         await table_repo.upsert(conn, _accounts(None))
 
         assert await _names(conn) == {"usr name"}
 
 
 @pytest.mark.asyncio
-async def test_re_aliasing_a_column_re_derives_its_term(tmp_path):
+async def test_re_aliasing_a_column_re_derives_its_term(control_plane):
     """The glossary follows the model: correcting the alias corrects the term it produced."""
-    async with _conn(tmp_path) as conn:
+    async with _conn(control_plane) as conn:
         await table_repo.upsert(conn, _accounts("user name"))
         await table_repo.upsert(conn, _accounts("login name"))
 
@@ -134,10 +108,10 @@ async def test_re_aliasing_a_column_re_derives_its_term(tmp_path):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("kind", ["definition", "relationship", "expert"])
-async def test_curation_outranks_the_model_and_pins_the_ref(tmp_path, kind):
+async def test_curation_outranks_the_model_and_pins_the_ref(control_plane, kind):
     """A definition, a relationship, or a named expert can only have come from a person. Once one
     exists, an alias edit is the weaker statement and must not move the link off their work."""
-    async with _conn(tmp_path) as conn:
+    async with _conn(control_plane) as conn:
         await table_repo.upsert(conn, _accounts("user name"))
         term = await _term(conn, "user name")
         assert term is not None
@@ -156,8 +130,8 @@ async def test_curation_outranks_the_model_and_pins_the_ref(tmp_path, kind):
 
 
 @pytest.mark.asyncio
-async def test_dropping_the_alias_returns_the_term_to_the_physical_name(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_dropping_the_alias_returns_the_term_to_the_physical_name(control_plane):
+    async with _conn(control_plane) as conn:
         await table_repo.upsert(conn, _accounts("user name"))
         await table_repo.upsert(conn, _accounts(None))
 

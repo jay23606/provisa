@@ -16,28 +16,19 @@ process was restarted, because these code paths never looked at org_settings at 
 
 from __future__ import annotations
 
-
 import pytest
-from provisa.core.database import create_engine_from_url
 
 from provisa.api.mcp import chat as chat_mod
 from provisa.api.mcp import tools as mcp_tools
-from provisa.core.database import Database
 from provisa.core.org_settings import write_org_overrides
-from provisa.core.schema_org import org_settings
 from tests.role_state import RoleState
 
 pytestmark = pytest.mark.asyncio
 
 
 @pytest.fixture
-async def tenant_db(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'org_cfg.db'}")
-    with engine.begin() as c:
-        org_settings.metadata.create_all(c, tables=[org_settings])
-    db = Database(engine, name="tenant")
-    yield db
-    engine.dispose()
+def tenant_db(control_plane):
+    return control_plane.org()
 
 
 def _state(tenant_db):

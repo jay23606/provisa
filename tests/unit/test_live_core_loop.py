@@ -16,10 +16,6 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from provisa.core.database import create_engine_from_url
-
-from provisa.core.database import Database
-from provisa.core.schema_org import event_status, events, node_freshness_state
 from provisa.events import queue
 from provisa.events.handlers import make_source_land
 from provisa.events.processor import (
@@ -35,14 +31,8 @@ _COLS = [("id", "bigint"), ("status", "text")]
 
 
 @asynccontextmanager
-async def _db(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'q.db'}")
-    with engine.begin() as c:
-        events.metadata.create_all(c, tables=[events, event_status, node_freshness_state])
-    try:
-        yield Database(engine, name="q")
-    finally:
-        engine.dispose()
+async def _db(control_plane):
+    yield control_plane.org()
 
 
 def _store_dsn(tmp_path) -> str:
@@ -74,7 +64,7 @@ async def _fan_to(conn, node: str, *, event_type: str = "append", source: str = 
 
 
 @pytest.mark.asyncio
-async def test_req960_post_before_complete_ordering(tmp_path, monkeypatch):
+async def test_req960_post_before_complete_ordering(control_plane, tmp_path, monkeypatch):
     """The one control-plane commit runs post → fan_out → complete in that order (post-before-
     complete): a crash after complete-before-post could lose the ripple; the invariant forbids it."""
     order: list[str] = []
@@ -96,7 +86,7 @@ async def test_req960_post_before_complete_ordering(tmp_path, monkeypatch):
     monkeypatch.setattr(queue, "fan_out", fan)
     monkeypatch.setattr(queue, "complete", complete)
 
-    async with _db(tmp_path) as db, db.acquire() as conn:
+    async with _db(control_plane) as db, db.acquire() as conn:
         await _fan_to(conn, "mv.a")
         proc = _Proc(
             "mv.a",
@@ -135,7 +125,7 @@ async def test_req960_idempotent_append_land_converges(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_req960_crash_between_land_and_commit_reruns_no_lost_ripple(tmp_path):
+async def test_req960_crash_between_land_and_commit_reruns_no_lost_ripple(control_plane, tmp_path):
     """A crash after land but before the commit rolls back atomically (no ripple, claim outstanding);
     the re-run re-lands (idempotent) and commits the ripple — nothing lost."""
     crashed = {"n": 0}
@@ -155,7 +145,7 @@ async def test_req960_crash_between_land_and_commit_reruns_no_lost_ripple(tmp_pa
             self.calls += 1
             return await super().handle(pending, prior_hash=prior_hash, ctx=ctx)
 
-    async with _db(tmp_path) as db:
+    async with _db(control_plane) as db:
         async with db.acquire() as conn:
             await _fan_to(conn, "mv.a")
         proc = _CrashProc(
@@ -189,10 +179,10 @@ async def test_req960_crash_between_land_and_commit_reruns_no_lost_ripple(tmp_pa
 
 
 @pytest.mark.asyncio
-async def test_req959_reassert_on_restart_matches_and_resumes(tmp_path):
+async def test_req959_reassert_on_restart_matches_and_resumes(control_plane, tmp_path):
     """A returning owner CASes its remembered claim — a match means resume (resume_claims returns
     the still-owned ids)."""
-    async with _db(tmp_path) as db, db.acquire() as conn:
+    async with _db(control_plane) as db, db.acquire() as conn:
         up = await _fan_to(conn, "mv.a")
         claimed = await queue.claim(
             conn, dependent_table="mv.a", processor_name="box-1", now=_now()
@@ -205,10 +195,10 @@ async def test_req959_reassert_on_restart_matches_and_resumes(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_req959_reassert_drops_when_peer_took_over(tmp_path):
+async def test_req959_reassert_drops_when_peer_took_over(control_plane, tmp_path):
     """If a peer reclaimed the work while the owner was down, the returning owner's reassert matches
     zero rows → it drops; the peer now owns it."""
-    async with _db(tmp_path) as db, db.acquire() as conn:
+    async with _db(control_plane) as db, db.acquire() as conn:
         up = await _fan_to(conn, "mv.a")
         await queue.claim(conn, dependent_table="mv.a", processor_name="box-1", now=_now())
         # peer steals: reclaim (owner presumed gone) then re-claim under its own name.
@@ -222,10 +212,10 @@ async def test_req959_reassert_drops_when_peer_took_over(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_req959_steal_on_deadline_reclaims_stuck_but_alive(tmp_path):
+async def test_req959_steal_on_deadline_reclaims_stuck_but_alive(control_plane, tmp_path):
     """A stuck-but-alive owner (fresh heartbeat, deadline+grace passed, not completed) is reclaimable
     on the deadline — the failure a heartbeat structurally cannot catch."""
-    async with _db(tmp_path) as db, db.acquire() as conn:
+    async with _db(control_plane) as db, db.acquire() as conn:
         up = await _fan_to(conn, "mv.a")
         now = _now()
         await queue.claim(
@@ -247,11 +237,13 @@ async def test_req959_steal_on_deadline_reclaims_stuck_but_alive(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_req959_superseded_owner_late_commit_fails_cas_applies_nothing(tmp_path):
+async def test_req959_superseded_owner_late_commit_fails_cas_applies_nothing(
+    control_plane, tmp_path
+):
     """A superseded owner's late commit fails the ownership CAS at complete and applies nothing —
     the loop returns a no-op, no ripple, baseline unset (the peer owns the work)."""
 
-    async with _db(tmp_path) as db:
+    async with _db(control_plane) as db:
         async with db.acquire() as conn:
             up = await _fan_to(conn, "mv.a")
 
@@ -336,9 +328,9 @@ async def _events_for(conn, node: str) -> list[dict]:
 
 
 @pytest.mark.asyncio
-async def test_req957_absent_hook_is_identity(tmp_path):
+async def test_req957_absent_hook_is_identity(control_plane, tmp_path):
     dsn = _store_dsn(tmp_path)
-    async with _db(tmp_path) as db:
+    async with _db(control_plane) as db:
         async with db.acquire() as conn:
             await _fan_to(conn, "s.orders")
         proc = _src_proc(db, dsn, preprocess=None)
@@ -350,7 +342,7 @@ async def test_req957_absent_hook_is_identity(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_req1165_quarantine_holds_without_land_or_poison(tmp_path):
+async def test_req1165_quarantine_holds_without_land_or_poison(control_plane, tmp_path):
     """REQ-1165: a QUARANTINE verdict holds — no land, a non-fanned ``quarantine`` event, and the
     claimed events are completed. Distinct from ABORT (which poisons dependents)."""
     dsn = _store_dsn(tmp_path)
@@ -358,7 +350,7 @@ async def test_req1165_quarantine_holds_without_land_or_poison(tmp_path):
     def hold(rows, ctx):
         return ctx.quarantine("held for review")
 
-    async with _db(tmp_path) as db:
+    async with _db(control_plane) as db:
         async with db.acquire() as conn:
             await _fan_to(conn, "s.orders")
         proc = _src_proc(db, dsn, preprocess=hold, deps=["down.x"])
@@ -386,14 +378,14 @@ async def test_req1165_quarantine_holds_without_land_or_poison(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_req957_warn_emits_advisory_and_still_lands(tmp_path):
+async def test_req957_warn_emits_advisory_and_still_lands(control_plane, tmp_path):
     dsn = _store_dsn(tmp_path)
 
     def warn_then_pass(rows, ctx):
         ctx.warn(["late row", "coerced status"])
         return ctx.ok()
 
-    async with _db(tmp_path) as db:
+    async with _db(control_plane) as db:
         async with db.acquire() as conn:
             await _fan_to(conn, "s.orders")
         proc = _src_proc(db, dsn, preprocess=warn_then_pass)
@@ -411,7 +403,7 @@ async def test_req957_warn_emits_advisory_and_still_lands(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_req1662_a_raising_fetch_is_this_nodes_outage_not_the_loops(tmp_path):
+async def test_req1662_a_raising_fetch_is_this_nodes_outage_not_the_loops(control_plane, tmp_path):
     """REQ-1662: a produce that raises for any reason (an adapter whose endpoint refuses the
     connection) is recorded as an error event with an ok=False stamp and the claim completed -- it
     does not escape process_pending, so the tick goes on to the nodes after it."""
@@ -430,7 +422,7 @@ async def test_req1662_a_raising_fetch_is_this_nodes_outage_not_the_loops(tmp_pa
         pk_columns=["id"],
         fetch=refused,
     )
-    async with _db(tmp_path) as db:
+    async with _db(control_plane) as db:
         proc = SourceTableProcessor(
             "s.orders",
             change_signal="ttl",
@@ -453,13 +445,13 @@ async def test_req1662_a_raising_fetch_is_this_nodes_outage_not_the_loops(tmp_pa
             assert state is not None and state["last_refresh_ok"] is False
 
 
-async def test_req957_raise_emits_error_short_circuits_land_and_fans(tmp_path):
+async def test_req957_raise_emits_error_short_circuits_land_and_fans(control_plane, tmp_path):
     dsn = _store_dsn(tmp_path)
 
     def blow_up(rows, ctx):
         raise ValueError("bad batch")
 
-    async with _db(tmp_path) as db:
+    async with _db(control_plane) as db:
         async with db.acquire() as conn:
             await _fan_to(conn, "s.orders")
         proc = _src_proc(db, dsn, preprocess=blow_up, deps=["down.x"])
@@ -485,7 +477,7 @@ async def test_req957_raise_emits_error_short_circuits_land_and_fans(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_req957_claimed_upstream_error_short_circuits_before_produce(tmp_path):
+async def test_req957_claimed_upstream_error_short_circuits_before_produce(control_plane, tmp_path):
     """A claimed upstream error skips produce entirely (a built-in, not the hook): this node emits
     its own error and fans it forward — produce (fetch) never runs."""
     dsn = _store_dsn(tmp_path)
@@ -506,7 +498,7 @@ async def test_req957_claimed_upstream_error_short_circuits_before_produce(tmp_p
         fetch=fetch,
     )
     proc = None
-    async with _db(tmp_path) as db:
+    async with _db(control_plane) as db:
         async with db.acquire() as conn:
             # an upstream node emitted an error, fanned to s.orders
             await _fan_to(conn, "s.orders", event_type="error", source="s.up")
@@ -533,7 +525,7 @@ async def test_req957_claimed_upstream_error_short_circuits_before_produce(tmp_p
 
 
 @pytest.mark.asyncio
-async def test_req957_ctx_carries_readonly_envelope(tmp_path):
+async def test_req957_ctx_carries_readonly_envelope(control_plane, tmp_path):
     """ctx exposes node/kind/claimed/prior_hash/columns to the hook (read-only envelope)."""
     dsn = _store_dsn(tmp_path)
     seen: dict = {}
@@ -545,7 +537,7 @@ async def test_req957_ctx_carries_readonly_envelope(tmp_path):
         seen["columns"] = ctx.columns
         return ctx.ok()
 
-    async with _db(tmp_path) as db:
+    async with _db(control_plane) as db:
         async with db.acquire() as conn:
             await _fan_to(conn, "s.orders")
         proc = _src_proc(db, dsn, preprocess=capture)
@@ -557,14 +549,14 @@ async def test_req957_ctx_carries_readonly_envelope(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_req957_async_hook_and_preprocess_error_type(tmp_path):
+async def test_req957_async_hook_and_preprocess_error_type(control_plane, tmp_path):
     """The hook may be async; a PreprocessError raised directly is honored as the fatal outcome."""
     dsn = _store_dsn(tmp_path)
 
     async def async_reject(rows, ctx):
         raise PreprocessError("rejected async")
 
-    async with _db(tmp_path) as db:
+    async with _db(control_plane) as db:
         async with db.acquire() as conn:
             await _fan_to(conn, "s.orders")
         proc = _src_proc(db, dsn, preprocess=async_reject)

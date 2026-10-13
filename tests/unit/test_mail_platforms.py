@@ -10,7 +10,7 @@
 
 """The mail platforms an organisation's sources sign in to (REQ-1923): entered once by the
 organisation's administrator, kept per organisation with the secret in its vault, and opened by
-``org_settings`` in that organisation alone. The control plane is a real SQLite file; every
+``org_settings`` in that organisation alone. The control plane is a real PostgreSQL database; every
 credential is made up."""
 
 # Requirements: REQ-1923
@@ -22,8 +22,10 @@ import sqlalchemy as sa
 from provisa.api.admin import mail_platforms_router as router
 from provisa.api.errors import ApiError
 from provisa.core import mail_platforms, schema_admin, secrets_store
-from provisa.core.database import Database, create_engine_from_url
 from provisa.core.mail_platforms import Configured, MailPlatformRefused, Platform
+
+#: The organisations the tests enter platforms for: the registry holds each as a row.
+ORGS = ("acme", "globex", "other")
 
 OFF = {"organisation_mailboxes": False}
 
@@ -43,18 +45,7 @@ class _Sealer:
 
 
 @pytest.fixture
-def plane(tmp_path, monkeypatch):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'plane.db'}")
-    with engine.begin() as conn:
-        schema_admin.metadata.create_all(
-            conn,
-            tables=[
-                schema_admin.orgs,
-                schema_admin.org_mail_platforms,
-                schema_admin.secrets_store,
-                schema_admin.deployment_encryption_key,
-            ],
-        )
+def plane(control_plane, monkeypatch):
     monkeypatch.setattr(secrets_store, "_cipher", lambda *, mint: _Sealer())
 
     async def held(conn, *, mint):
@@ -62,7 +53,10 @@ def plane(tmp_path, monkeypatch):
 
     monkeypatch.setattr(secrets_store, "_hold_the_deployments_key", held)
     monkeypatch.setitem(mail_platforms._PLATFORMS, TENANTED, Platform(TENANTED, ("tenant",)))
-    return Database(engine, name="admin")
+    with control_plane.engine().begin() as conn:
+        for org in ORGS:
+            conn.execute(sa.insert(schema_admin.orgs).values(id=org, name=org))
+    return control_plane.platform
 
 
 def _stored(plane) -> list[dict]:
@@ -272,8 +266,6 @@ class TestTheOrganisationsOwnCredential:
         """A reference the administrator typed is found by the vault's own reference search."""
         from provisa.core import secret_references
 
-        with plane.engine.begin() as conn:
-            schema_admin.metadata.create_all(conn)
         await _put(plane, organisation_key="${secret:my_service_account}", **ORG)
         found = await secret_references.references(
             plane, "acme", "my_service_account", environments={}
@@ -447,8 +439,6 @@ class TestTheAdminSurface:
         administrator typed into the field."""
         from provisa.core import secret_references
 
-        with plane.engine.begin() as conn:  # the search reads every table of the plane
-            schema_admin.metadata.create_all(conn)
         name = "my_google_client"
         await secrets_store.put(plane, "acme", name, "x", owner_id=secrets_store.ORG_OWNER)
         await _put(plane, org="acme", client_secret=f"${{secret:{name}}}")

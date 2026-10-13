@@ -340,20 +340,16 @@ def test_a_qualified_name_binds_the_table_it_names():
     ]
 
 
-async def test_the_refresh_record_names_the_tables_a_join_pattern_view_is_bound_to(tmp_path):
+async def test_the_refresh_record_names_the_tables_a_join_pattern_view_is_bound_to(control_plane):
     """The control-plane record of a view (what an environment export writes out) names its
     bound tables qualified, so reading it back binds the same tables."""
     from sqlalchemy import select
 
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.schema_org import materialized_views, metadata, mv_build_state
+    from provisa.core.schema_org import materialized_views
     from provisa.mv.coordination import ensure_mv_row
     from provisa.mv.models import JoinPattern, MVDefinition, TableIdentity
 
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}")
-    with engine.begin() as c:
-        metadata.create_all(c, tables=[materialized_views, mv_build_state])
-    store = Database(engine, name="cp")
+    store = control_plane.org()
     mv = MVDefinition(
         id="jp",
         source_tables=["orders", "lines"],
