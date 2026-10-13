@@ -228,7 +228,8 @@
       "platform_admin_required": "platform_admin required",
       "retry_not_failed": "Org '{{org}}' is '{{state}}', not 'failed' — nothing to retry.",
       "self_role_change": "A user cannot change their own role. Ask another administrator.",
-      "view_not_permitted": "Not permitted to view this org"
+      "view_not_permitted": "Not permitted to view this org",
+      "org_id_sandbox_prefix": "Org ids beginning {{prefix}} are reserved for demo sandboxes."
     },
     "platform": {
       "control_plane_role_required": "A platform administrator is required.",
@@ -557,6 +558,17 @@
     },
     "sources": {
       "private_destination": "A sandbox's sources may reach only public addresses; {{host}} is {{address}}, which is not one."
+    },
+    "sandbox": {
+      "wrong_tier": "This sandbox is served elsewhere; open it from its own address.",
+      "unknown_demo": "There is no published demo named {{demo}}.",
+      "demo_not_ready": "This demo is still being prepared. Try again shortly.",
+      "at_capacity": "Every demo sandbox is in use. Try again shortly.",
+      "disk_full": "This sandbox has used its disk limit of {{limit}} bytes; nothing more can be written to it.",
+      "sign_in_required": "Sign in to open your own sandbox."
+    },
+    "engine": {
+      "write_conflict": "Another change to the same data was written at the same time. Try again."
     }
   }
 }

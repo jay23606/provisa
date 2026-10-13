@@ -228,7 +228,8 @@
       "platform_admin_required": "platform_admin richiesto",
       "retry_not_failed": "L'organizzazione '{{org}}' è in stato '{{state}}', non 'failed' — nulla da ritentare.",
       "self_role_change": "Un utente non può modificare il proprio ruolo. Chiedere a un altro amministratore.",
-      "view_not_permitted": "Visualizzazione di questa organizzazione non consentita"
+      "view_not_permitted": "Visualizzazione di questa organizzazione non consentita",
+      "org_id_sandbox_prefix": "Gli id di organizzazione che iniziano con {{prefix}} sono riservati alle sandbox demo."
     },
     "platform": {
       "control_plane_role_required": "È richiesto un amministratore della piattaforma.",
@@ -557,6 +558,17 @@
     },
     "sources": {
       "private_destination": "Le origini di una sandbox possono raggiungere solo indirizzi pubblici; {{host}} è {{address}}, che non lo è."
+    },
+    "sandbox": {
+      "wrong_tier": "Questa sandbox è servita altrove; aprila dal suo indirizzo.",
+      "unknown_demo": "Non esiste una demo pubblicata di nome {{demo}}.",
+      "demo_not_ready": "Questa demo è ancora in preparazione. Riprova a breve.",
+      "at_capacity": "Tutte le sandbox demo sono in uso. Riprova a breve.",
+      "disk_full": "Questa sandbox ha esaurito il suo limite di disco di {{limit}} byte; non vi si può scrivere altro.",
+      "sign_in_required": "Accedi per aprire la tua sandbox."
+    },
+    "engine": {
+      "write_conflict": "Un'altra modifica agli stessi dati è stata scritta nello stesso momento. Riprova."
     }
   }
 }

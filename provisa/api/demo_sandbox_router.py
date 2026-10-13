@@ -64,3 +64,20 @@ async def open_named(name: str, request: Request) -> dict:
         return {"org_id": existing, "demo": name}
     opened = await open_sandbox(name, kind=NAMED, user_id=identity.user_id)
     return {"org_id": opened.org_id, "demo": opened.demo}
+
+
+@named_router.get("/limits")
+async def limits() -> dict:
+    """The limits every demo sandbox runs under, read from the operator settings that enforce them
+    -- what the sandbox notice and the hosted-sandbox page tell a person, so the two cannot drift
+    apart."""
+    from provisa.core import settings_registry
+
+    _require_tier()
+    return {
+        "engine": "duckdb",
+        "memory_limit": int(settings_registry.value("sandbox.memory_limit")),
+        "disk_limit": int(settings_registry.value("sandbox.disk_limit")),
+        "idle_ttl": int(settings_registry.value("sandbox.idle_ttl")),
+        "max_concurrent": int(settings_registry.value("sandbox.max_concurrent")),
+    }

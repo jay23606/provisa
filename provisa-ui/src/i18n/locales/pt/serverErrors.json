@@ -228,7 +228,8 @@
       "platform_admin_required": "platform_admin necessário",
       "retry_not_failed": "A organização '{{org}}' está em '{{state}}', não em 'failed' — nada a repetir.",
       "self_role_change": "Um usuário não pode alterar a própria função. Peça a outro administrador.",
-      "view_not_permitted": "Sem permissão para exibir esta organização"
+      "view_not_permitted": "Sem permissão para exibir esta organização",
+      "org_id_sandbox_prefix": "Ids de organização que começam com {{prefix}} são reservados para sandboxes de demonstração."
     },
     "platform": {
       "control_plane_role_required": "É necessário um administrador da plataforma.",
@@ -557,6 +558,17 @@
     },
     "sources": {
       "private_destination": "As fontes de um sandbox só podem alcançar endereços públicos; {{host}} é {{address}}, que não é um deles."
+    },
+    "sandbox": {
+      "wrong_tier": "Este sandbox é servido em outro lugar; abra-o pelo seu próprio endereço.",
+      "unknown_demo": "Não há nenhuma demonstração publicada chamada {{demo}}.",
+      "demo_not_ready": "Esta demonstração ainda está sendo preparada. Tente novamente em instantes.",
+      "at_capacity": "Todos os sandboxes de demonstração estão em uso. Tente novamente em instantes.",
+      "disk_full": "Este sandbox atingiu seu limite de disco de {{limit}} bytes; nada mais pode ser gravado nele.",
+      "sign_in_required": "Entre para abrir o seu próprio sandbox."
+    },
+    "engine": {
+      "write_conflict": "Outra alteração nos mesmos dados foi gravada ao mesmo tempo. Tente novamente."
     }
   }
 }

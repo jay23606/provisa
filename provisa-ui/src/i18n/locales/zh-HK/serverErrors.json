@@ -228,7 +228,8 @@
       "platform_admin_required": "需要 platform_admin",
       "retry_not_failed": "組織「{{org}}」的狀態為「{{state}}」，並非「failed」——無需重試。",
       "self_role_change": "使用者不可更改自己的角色。請要求另一位管理員處理。",
-      "view_not_permitted": "不允許檢視此組織"
+      "view_not_permitted": "不允許檢視此組織",
+      "org_id_sandbox_prefix": "以 {{prefix}} 開頭的組織 ID 保留給示範沙盒。"
     },
     "platform": {
       "control_plane_role_required": "需要平台管理員。",
@@ -557,6 +558,17 @@
     },
     "sources": {
       "private_destination": "沙盒的資料來源只能存取公共地址；{{host}} 是 {{address}}，不是公共地址。"
+    },
+    "sandbox": {
+      "wrong_tier": "此沙盒由其他位置提供；請從它自己的地址開啟。",
+      "unknown_demo": "沒有名為 {{demo}} 的已發佈示範。",
+      "demo_not_ready": "此示範仍在準備中。請稍後再試。",
+      "at_capacity": "所有示範沙盒都在使用中。請稍後再試。",
+      "disk_full": "此沙盒已用完 {{limit}} 位元組的磁碟上限；無法再寫入任何內容。",
+      "sign_in_required": "請登入以開啟您自己的沙盒。"
+    },
+    "engine": {
+      "write_conflict": "對同一資料的另一項更改同時被寫入。請重試。"
     }
   }
 }
