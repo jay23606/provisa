@@ -167,7 +167,8 @@ def test_a_selected_tables_columns_are_its_own_then_its_partition_keys(client):
     assert athena.columns(_SOURCE, "sales", "notes") == [
         ("id", "integer"),
         ("name", "text"),
-        ("tags", "text"),
+        # REQ-1965: a native array is a JSON column
+        ("tags", "json"),
         ("price", "numeric"),
         ("day", "date"),
     ]

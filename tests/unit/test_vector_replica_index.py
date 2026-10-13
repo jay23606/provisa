@@ -82,7 +82,8 @@ def test_an_embedding_column_lands_as_a_vector_where_the_engine_indexes_it(platf
 def test_on_trino_an_embedding_column_lands_as_any_other_column():
     source = SimpleNamespace(change_signal=None, type="postgresql")
     args = resolve_landing_args(source, _table(), platform="trino")  # type: ignore[arg-type]
-    assert args.columns == [("id", "integer"), ("vec", "text")]
+    # as any other native array column: JSON (REQ-1965)
+    assert args.columns == [("id", "integer"), ("vec", "json")]
 
 
 def test_a_vector_is_pgvector_in_postgresql_a_float_list_in_duckdb_and_text_elsewhere():

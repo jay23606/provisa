@@ -46,6 +46,8 @@ async def _build(meta: list[AvailableColumnType], *columns: ColumnInput):
             "provisa.api.admin.schema_query.resolve_available_columns_metadata",
             new=AsyncMock(return_value=meta),
         ),
+        # what a natively nested column is at its source (REQ-1965) is not this test's subject
+        patch.object(_table_ops, "_settle_nested_columns", new=AsyncMock(return_value=None)),
     ):
         return await _table_ops._build_columns_for_input(None, _input(*columns))
 
