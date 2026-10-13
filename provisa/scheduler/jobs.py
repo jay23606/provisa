@@ -105,15 +105,37 @@ async def _execute_sql(  # REQ-1003, REQ-1004
     holds the trigger, bound for the run (a scheduled job fires with nothing bound). Failures are
     logged and re-raised — never silently swallowed.
     """
+    import sqlglot
+
+    from provisa.audit.context import audit_identity_scope
     from provisa.core.request_context import reset_current_org, set_current_org
     from provisa.pgwire._pipeline import _execute_plan, _govern_and_route
-    from provisa.scheduler.trigger_sql import checked_trigger_sql
+    from provisa.scheduler.trigger_sql import (
+        TriggerSqlRefused,
+        checked_trigger_sql,
+        command_call,
+    )
 
     rendered = checked_trigger_sql(sql, trigger_id, datetime.now(timezone.utc))
+    call = command_call(sqlglot.parse_one(rendered, read="postgres"))
     token = set_current_org(org_id)
     try:
-        plan = await _govern_and_route(rendered, role)
-        result = await _execute_plan(plan)
+        # REQ-2001: every run is audited, as the trigger's principal on the scheduler's surface.
+        with audit_identity_scope(f"scheduler:{trigger_id}", "scheduler"):
+            if call is not None:
+                from provisa.api.app import state
+                from provisa.pgwire.function_call import maybe_invoke_registered_function
+
+                # One registered command, through the command executor as the trigger's role.
+                result = await maybe_invoke_registered_function(rendered, role, state)
+                if result is None:
+                    raise TriggerSqlRefused(
+                        f"trigger {trigger_id!r}: {call.name!r} is no command role {role!r} "
+                        "may call"
+                    )
+            else:
+                plan = await _govern_and_route(rendered, role)
+                result = await _execute_plan(plan)
     except Exception:
         logger.exception("Trigger %s: scheduled SQL failed: %s", trigger_id, rendered)
         raise

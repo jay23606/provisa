@@ -8,10 +8,12 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 
-"""What a scheduled SQL trigger may run (REQ-1003, REQ-1004).
+"""What a scheduled SQL trigger may run (REQ-1003, REQ-1004, REQ-2001).
 
-A trigger's statement inserts, updates or deletes rows of registered tables — nothing else — and
-runs through the one write admission as the role the trigger names. Creating an object (CREATE
+A trigger's statement inserts, updates or deletes rows of registered tables, or calls one
+registered command (``SELECT name(arguments)``, its arguments values) — nothing else — and runs
+as the role the trigger names: a row write through the one write admission, a command call through
+the command executor's admission. Creating an object (CREATE
 TABLE … AS SELECT, or any other definition) is refused when the trigger is saved and again when it
 runs, naming the trigger. Its date tokens supply values only (scheduler/templating.py).
 """
@@ -27,6 +29,28 @@ from sqlglot.errors import SqlglotError
 from provisa.scheduler.templating import substitute_date_tokens
 
 _ROW_WRITES = (exp.Insert, exp.Update, exp.Delete)
+_VALUES = (exp.Literal, exp.Boolean, exp.Null, exp.Neg)
+
+
+def command_call(statement: exp.Expr) -> exp.Anonymous | None:  # pyright: ignore[reportPrivateImportUsage]
+    """The command a statement calls when it is one call of one: ``SELECT name(values)``, reading
+    no table, its arguments values (REQ-2001). None for any other statement."""
+    if (
+        not isinstance(statement, exp.Select)
+        or statement.args.get("from_")
+        or statement.args.get("from")
+    ):
+        return None
+    if len(statement.expressions) != 1:
+        return None
+    call = statement.expressions[0]
+    if isinstance(call, exp.Alias):
+        call = call.this
+    if not isinstance(call, exp.Anonymous) or not all(
+        isinstance(a, _VALUES) for a in call.expressions
+    ):
+        return None
+    return call
 
 
 class TriggerSqlRefused(ValueError):
@@ -34,8 +58,8 @@ class TriggerSqlRefused(ValueError):
 
 
 def checked_trigger_sql(sql: str, trigger_id: str, run_at: datetime) -> str:
-    """``sql`` with its date tokens rendered for ``run_at``, once it is shown to be one row write.
-    Raises :class:`TriggerSqlRefused` naming ``trigger_id`` otherwise."""
+    """``sql`` with its date tokens rendered for ``run_at``, once it is shown to be one row write
+    or one command call. Raises :class:`TriggerSqlRefused` naming ``trigger_id`` otherwise."""
     try:
         rendered = substitute_date_tokens(sql, run_at)
     except ValueError as exc:
@@ -55,9 +79,10 @@ def checked_trigger_sql(sql: str, trigger_id: str, run_at: datetime) -> str:
             f"{statement.args.get('kind') or ''}); a scheduled statement only inserts, updates "
             "or deletes rows of registered tables"
         )
-    if not isinstance(statement, _ROW_WRITES):
+    if not isinstance(statement, _ROW_WRITES) and command_call(statement) is None:
         raise TriggerSqlRefused(
             f"trigger {trigger_id!r}: a scheduled statement inserts, updates or deletes rows of "
-            f"registered tables; this one is {statement.key.upper()}"
+            f"registered tables, or calls one registered command; this one is "
+            f"{statement.key.upper()}"
         )
     return rendered

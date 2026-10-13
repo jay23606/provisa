@@ -89,6 +89,8 @@ def test_a_sql_trigger_names_the_role_it_runs_as():
         ("CREATE TABLE sales.snap (id int)", "creates an object"),
         ("DROP TABLE sales.orders", "this one is DROP"),
         ("SELECT count(*) FROM sales.orders", "this one is SELECT"),
+        ("SELECT embed_tickets(day) FROM sales.days", "this one is SELECT"),
+        ("SELECT embed_tickets('a'), refund_order(1)", "this one is SELECT"),
         ("DELETE FROM sales.a; DELETE FROM sales.b", "holds 2"),
     ],
 )
@@ -154,3 +156,63 @@ async def test_execute_sql_substitutes_and_routes(monkeypatch):
     assert today in captured["sql"]
     assert captured["role"] == "ops"
     assert captured["executed"] is True
+
+
+def test_one_registered_command_call_is_admitted_with_its_tokens_as_values():
+    # REQ-2001: a trigger runs a statement command by calling it, its argument a date token.
+    rendered = checked_trigger_sql("SELECT embed_tickets('{{iso8601}}')", "hourly", RUN_AT)
+    assert rendered.startswith("SELECT embed_tickets('") and "{{" not in rendered
+
+
+@pytest.mark.asyncio
+async def test_a_command_call_runs_through_the_command_executor_as_the_role_audited(monkeypatch):
+    from types import SimpleNamespace
+
+    from provisa.audit.context import current_audit_identity
+
+    seen: dict = {}
+
+    async def _invoke(sql, role_id, state):
+        seen.update(sql=sql, role=role_id, identity=current_audit_identity())
+        return SimpleNamespace(rows=[{"rows_affected": 2}])
+
+    async def _never(*_a, **_k):
+        raise AssertionError("a command call is not governed as a statement")
+
+    monkeypatch.setattr("provisa.pgwire.function_call.maybe_invoke_registered_function", _invoke)
+    monkeypatch.setattr("provisa.pgwire._pipeline._govern_and_route", _never)
+    await jobs._execute_sql("SELECT embed_tickets('{{iso8601}}')", "hourly", "steward", "default")
+    assert seen["role"] == "steward" and "{{" not in seen["sql"]
+    assert (seen["identity"].user_id, seen["identity"].surface) == ("scheduler:hourly", "scheduler")
+
+
+@pytest.mark.asyncio
+async def test_a_call_of_no_command_the_role_may_call_is_refused(monkeypatch):
+    async def _none(*_a, **_k):
+        return None
+
+    monkeypatch.setattr("provisa.pgwire.function_call.maybe_invoke_registered_function", _none)
+    with pytest.raises(TriggerSqlRefused, match="'nope' is no command role 'ops' may call"):
+        await jobs._execute_sql("SELECT nope(1)", "hourly", "ops", "default")
+
+
+@pytest.mark.asyncio
+async def test_a_scheduled_row_write_is_audited_as_the_trigger(monkeypatch):
+    from provisa.audit.context import current_audit_identity
+
+    seen: dict = {}
+
+    async def _govern(sql, role_id):
+        seen["identity"] = current_audit_identity()
+        return object()
+
+    class _Result:
+        rows: list = []
+
+    async def _execute(plan):
+        return _Result()
+
+    monkeypatch.setattr("provisa.pgwire._pipeline._govern_and_route", _govern)
+    monkeypatch.setattr("provisa.pgwire._pipeline._execute_plan", _execute)
+    await jobs._execute_sql(_PURGE, "t1", "ops", "default")
+    assert seen["identity"].user_id == "scheduler:t1"
