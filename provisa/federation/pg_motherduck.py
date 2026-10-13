@@ -17,6 +17,12 @@ MotherDuck table as a ``duckdb`` table in a Postgres schema of its own naming, s
   name;
 * any other database: its ``main`` is ``ddb$<db>``, any other schema is ``ddb$<db>$<schema>``.
 
+The sync is not done when a table first appears: a restart of the worker re-syncs, recreating
+tables under new OIDs (seen live: a resync some 6 s after the first, and a read failing "could not
+open relation with OID"). A database is read once its synced tables -- their OIDs and MotherDuck
+catalog versions in pg_duckdb's ``duckdb.tables`` -- have held still for ``SETTLE_S``, checked
+once per database per engine runtime.
+
 pg_duckdb holds one MotherDuck server per Postgres instance (a second fails "MotherDuck FDW
 already exists"), so the server is the engine's, whatever it is named, and the engine is signed in
 to one MotherDuck account: a source holding another account's token is refused by name.
@@ -32,6 +38,9 @@ from typing import Any
 
 SERVER = "motherduck"  # the name pg_duckdb's documentation uses, when the engine has none yet
 _POLL_S = 0.5
+# How long a database's synced tables must hold still to count as settled: longer than the ~6 s
+# between pg_duckdb's first sync and the re-sync of a restarted worker, seen live (issue 254).
+SETTLE_S = 10.0
 
 
 class MotherDuckAttachError(RuntimeError):
@@ -102,24 +111,57 @@ def _located(cur: Any, schema: str, table: str) -> str | None:
     return None if row is None else f'"{row[0]}"."{table}"'
 
 
+def _synced(cur: Any, database: str) -> frozenset[tuple[int, str | None]]:
+    """The synced tables of MotherDuck ``database`` as pg_duckdb records them: each one's OID and
+    MotherDuck catalog version."""
+    cur.execute(
+        "SELECT relid::oid::bigint, motherduck_catalog_version FROM duckdb.tables "
+        "WHERE lower(duckdb_db) = lower(%s)",
+        (database,),
+    )
+    return frozenset((int(r[0]), r[1]) for r in cur.fetchall())
+
+
 def attach(
-    cur: Any, motherduck: Mapping[str, Any], source_id: str, schema: str, table: str, wait_s: float
+    cur: Any,
+    motherduck: Mapping[str, Any],
+    source_id: str,
+    schema: str,
+    table: str,
+    wait_s: float,
+    settled: set[str],
 ) -> str:
     """Sign the engine in (once), then wait up to ``wait_s`` seconds for pg_duckdb's sync to
-    create ``schema.table`` of the source's database; the relation to read, or
-    :class:`MotherDuckAttachError` naming the table and where it was looked for."""
+    create ``schema.table`` of the source's database and, the first time this runtime reads the
+    database (``settled`` holds the ones already settled), for the database's synced tables to
+    hold still for ``SETTLE_S``; the relation to read, or :class:`MotherDuckAttachError` naming
+    the table and what it waited for."""
     server = _server(cur, motherduck["server_options"])
     _signed_in(cur, server, motherduck["token"], source_id)
     database = motherduck["database"]
     expected = synced_schema(database, schema, _default_database(cur))
     deadline = time.monotonic() + wait_s
+    seen: frozenset[tuple[int, str | None]] | None = None
+    still_since = time.monotonic()
     while True:
         found = _located(cur, expected, table)
-        if found is not None:
+        if found is not None and database.casefold() in settled:
             return found
+        if found is not None:
+            now = _synced(cur, database)
+            if now != seen:
+                seen, still_since = now, time.monotonic()
+            elif time.monotonic() - still_since >= SETTLE_S:
+                settled.add(database.casefold())
+                return found
         if time.monotonic() >= deadline:
+            what = (
+                f"did not appear in Postgres schema {expected!r}"
+                if found is None
+                else f"appeared in {expected!r} but pg_duckdb's sync did not settle"
+            )
             raise MotherDuckAttachError(
-                f"Source {source_id!r}: MotherDuck table {database}.{schema}.{table} did not "
-                f"appear in Postgres schema {expected!r} within {wait_s:.0f}s of pg_duckdb's sync"
+                f"Source {source_id!r}: MotherDuck table {database}.{schema}.{table} {what} "
+                f"within {wait_s:.0f}s"
             )
         time.sleep(_POLL_S)

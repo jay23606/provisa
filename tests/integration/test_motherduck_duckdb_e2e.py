@@ -7,7 +7,7 @@ DuckDB file with MotherDuck run as one DuckDB statement on the engine's connecti
 dual execution).
 
 Read-only: MotherDuck's public sample_data share, attached by its share address; nothing is
-written to the account. Skipped without MOTHERDUCK_API_TOKEN (tests/env_creds loads it)."""
+written to the account. Needs MOTHERDUCK_API_TOKEN (tests/env_creds loads it locally; the warehouse lane's secret in CI)."""
 
 from __future__ import annotations
 
@@ -18,15 +18,8 @@ import duckdb
 import pytest
 
 from provisa.core.models import SourceType
-from tests.env_creds import unset
 
 pytestmark = [pytest.mark.integration, pytest.mark.requires_warehouse]
-pytestmark.append(
-    pytest.mark.skipif(
-        not os.environ.get("MOTHERDUCK_API_TOKEN"),
-        reason=f"not set: {unset('MOTHERDUCK_API_TOKEN')}",
-    )
-)
 
 #: MotherDuck's public sample data, as its documentation names the share.
 SAMPLE_DATA = "_share/sample_data/23b0d623-1361-421d-ae77-62d701d471e6"

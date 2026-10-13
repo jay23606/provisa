@@ -15,7 +15,7 @@ schema of its own naming some seconds after the engine is signed in -- not by im
 schema. The engine is a pgserver Postgres with pg_duckdb staged into it, as the embedded tier does
 (test_embedded_pg_duckdb_engine_e2e). Read-only: MotherDuck's sample_data database, which every
 account holds; nothing is written to the account. Needs MOTHERDUCK_API_TOKEN (tests/env_creds
-loads it), as test_motherduck_duckdb_e2e does."""
+loads it locally; the warehouse lane's secret in CI)."""
 
 from __future__ import annotations
 
@@ -27,15 +27,8 @@ from types import SimpleNamespace
 import pytest
 
 from provisa.core.models import SourceType
-from tests.env_creds import unset
 
 pytestmark = [pytest.mark.integration, pytest.mark.requires_warehouse]
-pytestmark.append(
-    pytest.mark.skipif(
-        not os.environ.get("MOTHERDUCK_API_TOKEN"),
-        reason=f"not set: {unset('MOTHERDUCK_API_TOKEN')}",
-    )
-)
 
 pgserver = pytest.importorskip("pgserver")
 
