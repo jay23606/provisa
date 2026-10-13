@@ -174,13 +174,27 @@ export const COUNTED = [
 
 const ONES = ["", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
 const TENS = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
+const ORDINAL_ONES = ["", "first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth"];
+const ORDINAL_TENS = ["", "", "twentieth", "thirtieth", "fortieth", "fiftieth", "sixtieth", "seventieth", "eightieth", "ninetieth"];
+function inRange(n) {
+  if (n < 20 || n > 99) throw new Error(`the site writes counts of 20 to 99 in words, not ${n}`);
+}
 /** A number from 20 to 99 in words, as the site writes it ("sixty-four"). */
-const inWords = (n) => TENS[Math.floor(n / 10)] + (n % 10 ? "-" + ONES[n % 10] : "");
+const inWords = (n) => (inRange(n), TENS[Math.floor(n / 10)] + (n % 10 ? "-" + ONES[n % 10] : ""));
+/** Its ordinal ("sixty-fourth"). */
+const inOrdinal = (n) =>
+  (inRange(n), n % 10 ? TENS[Math.floor(n / 10)] + "-" + ORDINAL_ONES[n % 10] : ORDINAL_TENS[n / 10]);
+const capital = (s) => s[0].toUpperCase() + s.slice(1);
 
 /** `text` with every stated count made the picker's: the connectors, the kinds of source, the
-    anchor and heading of the full list, and "the other N" beside the one connector set apart. */
+    anchor and heading of the full list, "the other N" beside the one connector set apart, and the
+    counts the Sources page spells out ("Seventy-two connectors, and one of them …", "Seventy-one
+    of them connect to …", "The seventy-second is a crawler"). */
 export function withCounts(text, total, kinds) {
   return text
+    .replace(/\b[A-Z][a-z]+(?:-[a-z]+)? connectors, and one of them\b/g, `${capital(inWords(total))} connectors, and one of them`)
+    .replace(/\b[A-Z][a-z]+(?:-[a-z]+)? of them connect to\b/g, `${capital(inWords(total - 1))} of them connect to`)
+    .replace(/\bThe [a-z]+(?:-[a-z]+)?(\s+)is a crawler\b/g, (_m, gap) => `The ${inOrdinal(total)}${gap}is a crawler`)
     .replace(/\b\d+ connectors\b/g, `${total} connectors`)
     .replace(/\b\d+\+ kinds of source\b/g, `${kinds}+ kinds of source`)
     .replace(/#the-\d+"/g, `#the-${total}"`)
