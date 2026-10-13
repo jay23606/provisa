@@ -277,15 +277,17 @@ describe("a remote schema's refresh in the panel's head", () => {
     expect(await screen.findByRole("tooltip")).toHaveTextContent("Refresh Schema");
 
     await userEvent.click(refresh);
-    // Running: the icon is busy and its hint says so; its name stays.
+    // Running: the icon is busy and its hint says so, held open -- pressing the icon closed the
+    // hint, and a busy icon is disabled, so pointing at it would show nothing. Its name stays.
     await waitFor(() => expect(refresh).toHaveAttribute("data-loading", "true"));
     expect(refresh).toHaveAccessibleName("Refresh Schema");
-    // The hint's text re-renders on its own; under a loaded run it can follow the icon's state a
-    // frame late, so it is waited for, as the state is.
     await waitFor(() => expect(screen.getByRole("tooltip")).toHaveTextContent("Refreshing..."));
 
     finish(new Response(JSON.stringify({})));
     await waitFor(() => expect(refresh).not.toHaveAttribute("data-loading"));
+    // Done: the hint is no longer held; pointing at the icon again shows its name.
+    await userEvent.unhover(refresh);
+    await userEvent.hover(refresh);
     await waitFor(() => expect(screen.getByRole("tooltip")).toHaveTextContent("Refresh Schema"));
   });
 });
