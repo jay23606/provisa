@@ -30,7 +30,8 @@
           "flight": "Arrow Flight",
           "bolt": "Bolt",
           "grpc": "gRPC",
-          "mcp": "MCP"
+          "mcp": "MCP",
+          "scheduler": "排程工作"
         }
       },
       "max_query_complexity": {

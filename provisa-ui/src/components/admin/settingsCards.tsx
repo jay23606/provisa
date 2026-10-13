@@ -78,6 +78,7 @@ const TRANSPORTS = [
   "bolt",
   "grpc",
   "mcp",
+  "scheduler", // REQ-2001: a scheduled task's run
 ] as const;
 
 /** Transports whose shipped value differs from the default, with the reason shown on the row. */
