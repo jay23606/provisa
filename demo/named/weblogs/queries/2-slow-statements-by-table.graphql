@@ -1,0 +1,19 @@
+# The shop's statements by the table they read or wrote: how many, and their average and longest
+# time in milliseconds, the slowest on average first.
+query SlowStatementsByTable {
+  s__viewRequestSqlGroupBy(
+    by: [tableName]
+    order_by: [{ aggregate: { avg: { durationMs: desc } } }, { groupKey: { tableName: asc } }]
+  ) {
+    groupKey
+    aggregate {
+      count
+      avg {
+        durationMs
+      }
+      max {
+        durationMs
+      }
+    }
+  }
+}

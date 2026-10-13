@@ -20,6 +20,14 @@ export interface SetupStatus {
   // Tenancy mode chosen at setup (REQ-1387-adjacent): drives whether the SPA shows
   // org-lifecycle affordances (e.g. Delete Organization) that make no sense single-tenant.
   multitenancy: boolean;
+  // REQ-2009: the example GraphQL queries the named demo ships (demo/named/<name>/queries), in
+  // order; none when no named demo was started. The GraphQL explorer opens them as its first tabs.
+  example_queries: ExampleQuery[];
+}
+
+export interface ExampleQuery {
+  name: string;
+  query: string;
 }
 
 export async function fetchSetupStatus(): Promise<SetupStatus> {

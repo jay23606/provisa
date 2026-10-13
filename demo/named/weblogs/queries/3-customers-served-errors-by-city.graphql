@@ -1,0 +1,14 @@
+# Customers who were served a server error, by city: how many customers, the errors they were
+# served and the orders they have placed.
+query CustomersServedErrorsByCity {
+  s__viewCustomersWith_5xxGroupBy(by: [city]) {
+    groupKey
+    aggregate {
+      count
+      sum {
+        serverErrors
+        orders
+      }
+    }
+  }
+}

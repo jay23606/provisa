@@ -1,0 +1,22 @@
+# Statement times over every table the shop reads or writes: how many tables, the slowest
+# statement of any, the average of their averages, and each table's own figures.
+query StatementTimesOverall {
+  s__viewSlowStatementsByTableAggregate {
+    aggregate {
+      count
+      max {
+        maxMs
+      }
+      avg {
+        avgMs
+      }
+    }
+    nodes {
+      tableName
+      statements
+      avgMs
+      p95Ms
+      maxMs
+    }
+  }
+}

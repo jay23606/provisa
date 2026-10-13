@@ -66,7 +66,9 @@ async function stubDeployment(
   );
 
   await page.route("**/setup/status", (route: Route) =>
-    route.fulfill({ json: { needs_setup: false, demo_mode: false, auth_enabled: true } }),
+    route.fulfill({
+      json: { needs_setup: false, demo_mode: false, auth_enabled: true, example_queries: [] },
+    }),
   );
   await page.route("**/firebase-config.js", (route: Route) =>
     route.fulfill({ body: "", contentType: "application/javascript" }),

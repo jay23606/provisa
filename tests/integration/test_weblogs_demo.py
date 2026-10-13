@@ -251,3 +251,24 @@ def test_slow_statements_are_grouped_by_table(server):
     # The back office's report reads every order line and sleeps at least 200 ms.
     assert by_table["shop.order_items"]["max_ms"] >= 200
     assert all(float(r["p95_ms"]) <= float(r["max_ms"]) for r in rows)
+
+
+_EXAMPLES = sorted((_DEMO / "queries").glob("*.graphql"))
+
+
+@pytest.mark.parametrize("path", _EXAMPLES, ids=[p.stem for p in _EXAMPLES])
+def test_each_example_query_answers_rows_on_the_demo(server, path):
+    """REQ-2009: every example GraphQL query the demo ships, as the explorer opens it, runs on
+    the demo and answers rows."""
+    resp = httpx.post(
+        f"{server.base_url}/data/graphql",
+        json={"query": path.read_text()},
+        headers={"X-Provisa-Role": _ROLE},
+        timeout=180,
+    )
+    assert resp.status_code == 200, f"{path.name}: HTTP {resp.status_code}: {resp.text}"
+    body = resp.json()
+    assert not body.get("errors"), f"{path.name}: {body['errors']}"
+    (answer,) = body["data"].values()
+    rows = answer["nodes"] if isinstance(answer, dict) else answer
+    assert rows, f"{path.name}: no rows"

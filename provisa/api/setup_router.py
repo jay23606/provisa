@@ -184,6 +184,13 @@ def _auth_enabled(auth_cfg) -> bool:
 
 @router.get("/status")
 async def setup_status():  # REQ-539
+    # REQ-2009: the named demo's example GraphQL queries ride on the status the app loads first.
+    from provisa.core.demo import example_queries
+
+    return {**(await _setup_state()), "example_queries": example_queries()}
+
+
+async def _setup_state() -> dict:  # REQ-539
     from provisa.api.app import state
     from provisa.api.admin._config_io import read_config
 

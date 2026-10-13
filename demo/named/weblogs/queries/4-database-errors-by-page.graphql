@@ -1,0 +1,10 @@
+# Requests whose statement failed in the database, by the page requested and the database's
+# error code.
+query DatabaseErrorsByPage {
+  s__viewRequestsWithDbErrorsGroupBy(by: [path, stateCode]) {
+    groupKey
+    aggregate {
+      count
+    }
+  }
+}

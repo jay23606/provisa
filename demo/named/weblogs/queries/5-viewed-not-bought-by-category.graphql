@@ -1,0 +1,16 @@
+# Products customers looked at that no order has included, by category: how many, how often they
+# were viewed and their average price.
+query ViewedNotBoughtByCategory {
+  s__viewViewedNotBoughtGroupBy(by: [category]) {
+    groupKey
+    aggregate {
+      count
+      sum {
+        views
+      }
+      avg {
+        price
+      }
+    }
+  }
+}
