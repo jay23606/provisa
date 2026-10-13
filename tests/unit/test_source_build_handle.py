@@ -114,7 +114,15 @@ async def test_a_built_event_for_a_replica_in_another_store_asks_for_a_build_her
     assert (await _record(db)).build_state == "requested"
 
 
-def _spec(monkeypatch, *, probe_type="none", watermark=None, preprocess=None, replica_build=True):
+def _spec(
+    monkeypatch,
+    *,
+    probe_type="none",
+    watermark=None,
+    preprocess=None,
+    replica_build=True,
+    source_type="openapi",
+):
     from provisa.federation.strategy import Strategy
 
     monkeypatch.setattr(
@@ -157,7 +165,7 @@ def _spec(monkeypatch, *, probe_type="none", watermark=None, preprocess=None, re
 
     spec = build_source_node_spec(
         table,
-        SimpleNamespace(id="src", type=SimpleNamespace(value="openapi")),
+        SimpleNamespace(id="src", type=SimpleNamespace(value=source_type)),
         engine=SimpleNamespace(dialect="postgres"),
         engine_runtime=runtime,
         source_fetch=lambda src, tbl: None,
@@ -169,6 +177,15 @@ def _spec(monkeypatch, *, probe_type="none", watermark=None, preprocess=None, re
 def test_a_whole_copy_source_node_is_built_by_the_replicator(monkeypatch):
     spec, built = _spec(monkeypatch)
     assert built == [KEY] and spec.handle.replica_key == KEY
+
+
+@pytest.mark.parametrize("source_type", ["soda", "great_expectations", "data_profiler", "ingest"])
+def test_a_source_that_owns_no_replica_is_no_landed_node(monkeypatch, source_type):
+    """A checker's scans are read where they are written (REQ-1443): the engine attaches none of
+    them, and its source node asked a fresh server's build of the demo checker tables, which
+    failed for ever ('no engine-scannable table and no adapter row-fetch is wired')."""
+    spec, built = _spec(monkeypatch, source_type=source_type)
+    assert spec is None and built == []
 
 
 def test_an_append_source_node_keeps_its_own_land(monkeypatch):
