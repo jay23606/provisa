@@ -66,6 +66,10 @@ def _args(path: Path, names: Path, **kw: Any) -> SimpleNamespace:
     base = {
         "setup": str(path),
         "server_pid": None,
+        "server_cpu_url": None,
+        "source_cpu_url": None,
+        "backend_container": [],
+        "device": [],
         "resolved_names": str(names),
         "apply_replication": False,
         "skip_route_verification": True,
@@ -454,6 +458,10 @@ def test_the_compare_command_runs_the_contract_twice_and_diffs(
         SimpleNamespace(
             setup=str(path),
             server_pid=None,
+            server_cpu_url=None,
+            source_cpu_url=None,
+            backend_container=[],
+            device=[],
             resolved_names=str(_names(tmp_path, path)),
             skip_route_verification=False,
         ),

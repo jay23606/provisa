@@ -217,6 +217,10 @@ def test_run_all_runs_the_open_loop_at_its_connection_count(
     args = SimpleNamespace(
         setup=str(path),
         server_pid=None,
+        server_cpu_url=None,
+        source_cpu_url=None,
+        backend_container=[],
+        device=[],
         resolved_names=str(names),
         apply_replication=False,
         skip_route_verification=True,

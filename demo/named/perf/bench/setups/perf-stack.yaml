@@ -141,6 +141,11 @@ knobs:
   # hint, x-provisa-cache metadata, and on REST and JSON:API the x-provisa-cache header). 1 is
   # the optimistic test; 0 sends every request uncached.
   cache: {probability: 1.0}
+  # Probability that a request's cross-source joins are drawn by how their two ends are read
+  # (both_live, both_replica, mixed: one live, one replica), and each class's weight when they are.
+  # The class follows from the sources' replication settings above. 0 draws joins whatever their
+  # class.
+  join_replication: {probability: 0, weights: {both_live: 1.0}}
   source_weights:
     bench-postgresql: 1.0
     bench-clickhouse: 0.0
@@ -184,3 +189,10 @@ load:
   idle_window_s: 0
 
 seed: 0
+
+# A contract may describe the workload a deployment is sized for (sizing.py, sizing_guide.py): its
+# request rate and each transport's share of it; the knobs above describe its requests. A run
+# never reads it (it sends each transport in turn). Example:
+# workload:
+#   rate_per_s: 2000
+#   transport_weights: {graphql: 0.6, pgwire: 0.3, flight_sql: 0.1}

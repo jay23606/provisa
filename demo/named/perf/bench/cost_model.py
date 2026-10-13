@@ -17,7 +17,10 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-KNOBS = ("fields", "filters", "rows", "joins_same", "joins_cross")
+# A cross-source join is costed by how its two ends are read (the join_replication classes): a
+# join served from replicas costs differently from one read live at both sources.
+JOIN_CROSS_KNOBS = ("joins_cross_both_live", "joins_cross_both_replica", "joins_cross_mixed")
+KNOBS = ("fields", "filters", "rows", "joins_same", *JOIN_CROSS_KNOBS)
 _SINGULAR = 1e-9
 
 

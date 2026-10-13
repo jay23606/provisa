@@ -28,8 +28,12 @@ TRUE = {
     "filters": 0.030,
     "rows": 0.0010,
     "joins_same": 0.50,
-    "joins_cross": 1.20,
+    # a cross-source join by how its ends are read
+    "joins_cross_both_live": 1.20,
+    "joins_cross_both_replica": 0.40,
+    "joins_cross_mixed": 0.90,
 }
+ZERO_CROSS = {k: 0.0 for k in cm.JOIN_CROSS_KNOBS}
 
 
 def _obs(**knobs: float) -> cm.Observation:
@@ -38,7 +42,7 @@ def _obs(**knobs: float) -> cm.Observation:
         "filters": 0.0,
         "rows": 1.0,
         "joins_same": 0.0,
-        "joins_cross": 0.0,
+        **ZERO_CROSS,
     } | knobs
     cost = TRUE["base"] + sum(TRUE[k] * v for k, v in means.items())
     return cm.Observation(knob_means=means, cpu_ms=cost)
@@ -54,8 +58,9 @@ def _sweep() -> list[cm.Observation]:
         out.append(_obs(rows=rows))
     for n in (1.0, 2.0):
         out.append(_obs(joins_same=n))
-    for n in (1.0, 2.0):
-        out.append(_obs(joins_cross=n))
+    for knob in cm.JOIN_CROSS_KNOBS:
+        for n in (1.0, 2.0):
+            out.append(_obs(**{knob: n}))
     return out
 
 
@@ -69,7 +74,15 @@ def test_fit_recovers_the_base_and_each_knobs_cost() -> None:
 
 def test_predict_a_mix_the_sweeps_never_ran() -> None:
     model = cm.fit(_sweep())
-    mix = {"fields": 2.5, "filters": 0.7, "rows": 30.0, "joins_same": 0.3, "joins_cross": 0.6}
+    mix = {
+        "fields": 2.5,
+        "filters": 0.7,
+        "rows": 30.0,
+        "joins_same": 0.3,
+        "joins_cross_both_live": 0.2,
+        "joins_cross_both_replica": 0.3,
+        "joins_cross_mixed": 0.1,
+    }
     expected = TRUE["base"] + sum(TRUE[k] * v for k, v in mix.items())
     assert model.predict(mix) == pytest.approx(expected)
 
@@ -81,19 +94,21 @@ def test_a_knob_that_never_varies_cannot_be_costed() -> None:
 
 
 def test_too_few_observations() -> None:
-    with pytest.raises(ValueError, match="needs at least 6 observations, got 3"):
+    with pytest.raises(ValueError, match="needs at least 8 observations, got 3"):
         cm.fit(_sweep()[:3])
 
 
 def test_a_collinear_pair_is_named() -> None:
     obs = []
-    for n in (0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0):
+    for n in (0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0):
         means = {
             "fields": 1 + n,
             "filters": n,
             "rows": 1.0 + n * 2,
             "joins_same": n,
-            "joins_cross": n * 0.5,
+            "joins_cross_both_live": n * 0.5,
+            "joins_cross_both_replica": n * 0.25,
+            "joins_cross_mixed": n * 3,
         }
         obs.append(cm.Observation(means, 1.0 + n))
     with pytest.raises(ValueError, match="knobs move together"):
@@ -103,7 +118,7 @@ def test_a_collinear_pair_is_named() -> None:
 def test_check_reports_how_far_off_the_prediction_is() -> None:
     model = cm.fit(_sweep())
     mixed = cm.Observation(
-        {"fields": 2.0, "filters": 1.0, "rows": 20.0, "joins_same": 0.5, "joins_cross": 0.5},
+        {"fields": 2.0, "filters": 1.0, "rows": 20.0, "joins_same": 0.5, **ZERO_CROSS},
         cpu_ms=0.0,
     )
     predicted = model.predict(mixed.knob_means)

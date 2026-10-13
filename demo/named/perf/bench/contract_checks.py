@@ -184,6 +184,31 @@ def _check_joins(setup: Setup) -> None:
                 f"transports.{transport}: no table reaches {highs['same']} same-source and "
                 f"{highs['cross']} cross-source joins together"
             )
+        _check_join_replication(setup, transport, highs.get("cross", 0))
+
+
+def _check_join_replication(setup: Setup, transport: str, cross_high: int) -> None:
+    """Each class the join_replication knob draws must be reachable by every cross-source join
+    the request can carry: the sources' replication settings decide which classes exist."""
+    knob = setup.join_replication(transport)
+    if knob.probability == 0 or cross_high == 0:
+        return
+    for klass, weight in knob.weights.items():
+        if weight == 0:
+            continue
+        reach = max(
+            (
+                reachable_joins(setup, transport, sid, t.name, "cross", klass)
+                for sid, t in transport_targets(setup, transport)
+            ),
+            default=0,
+        )
+        if reach < cross_high:
+            raise SetupError(
+                f"knobs.join_replication.weights.{klass}: on {transport} no table reaches "
+                f"{cross_high} cross-source joins read {klass} (it reaches {reach}); the "
+                "sources' replication settings decide which classes exist"
+            )
 
 
 def _check_route(setup: Setup) -> None:

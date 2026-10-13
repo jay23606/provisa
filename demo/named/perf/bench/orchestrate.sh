@@ -26,6 +26,8 @@
 # Usage:
 #   ./orchestrate.sh [engine ...]
 #   (engines default to: duckdb pg trino)
+#   ./orchestrate.sh serve --telemetry off|on [--engine pg|duckdb|trino]
+#   (device 1 of the three-device benchmark: Provisa only; see ../METHODOLOGY.md)
 #
 # No login/credentials: --demo perf runs with auth.provider: none (config/provisa-install*.yaml,
 # checked in) — every request is auto-identified with no token at all (verified in
@@ -52,6 +54,13 @@ PYTHON_BIN="$REPO_ROOT/.venv/bin/python3"
 if [ ! -x "$PYTHON_BIN" ]; then
   echo "Expected venv python at $PYTHON_BIN (not found/executable)"
   exit 1
+fi
+
+# The three-device benchmark's device 1 (../METHODOLOGY.md): Provisa only, every backend on device
+# 3. `orchestrate.sh serve --telemetry off|on [--engine pg|duckdb|trino]` — see serve_three_device.sh.
+if [ "${1:-}" = "serve" ]; then
+  shift
+  exec "$SCRIPT_DIR/serve_three_device.sh" "$@"
 fi
 
 # One Python process executes on one core at a time, so the server under test runs a worker

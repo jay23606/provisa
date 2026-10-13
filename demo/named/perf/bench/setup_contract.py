@@ -55,6 +55,7 @@ from contract_parse import (
     _source,
     _str,
     _transports,
+    _workload,
 )
 
 # --------------------------------------------------------------------------------------------
@@ -118,7 +119,7 @@ def setup_from_dict(
             "load",
             "seed",
         ),
-        optional=("cross_source_joins",),
+        optional=("cross_source_joins", "workload"),
     )
     if raw["version"] != CONTRACT_VERSION:
         raise SetupError(f"version: must be {CONTRACT_VERSION}, got {raw['version']!r}")
@@ -145,6 +146,7 @@ def setup_from_dict(
     # request) and this many rows.
     base_raw = _mapping(raw["base"], "base", required=("rows",))
     base = {"rows": _int(base_raw["rows"], "base.rows", minimum=1)}
+    transports = _transports(raw["transports"], "transports", list(known_transports), list(sources))
     setup = Setup(
         name=_str(section["name"], "deployment.name"),
         endpoints=_endpoints(section["endpoints"], "deployment.endpoints", env),
@@ -154,11 +156,12 @@ def setup_from_dict(
         cross_source_joins=cross,
         base=base,
         knobs=_knobs(raw["knobs"], "knobs", list(sources)),
-        transports=_transports(
-            raw["transports"], "transports", list(known_transports), list(sources)
-        ),
+        transports=transports,
         load=_load_section(raw["load"], "load"),
         seed=_int(raw["seed"], "seed"),
+        workload=(
+            _workload(raw["workload"], "workload", list(transports)) if "workload" in raw else None
+        ),
     )
     _check_implemented(setup)
     _check_route(setup)

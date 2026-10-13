@@ -30,6 +30,20 @@ def docker_stats_text() -> str:
     ).stdout
 
 
+def remote_docker_stats(url: str) -> Callable[[], str]:
+    """``docker stats`` snapshots read from another host's ``host_agent.py`` (``/docker-stats``):
+    the containers of the three-device benchmark's backends device."""
+
+    def run() -> str:
+        import httpx
+
+        resp = httpx.get(url, timeout=_DOCKER_TIMEOUT_S)
+        resp.raise_for_status()
+        return resp.text
+
+    return run
+
+
 def parse_docker_stats(text: str) -> dict[str, float]:
     """Container name -> CPU in cores (docker reports 100% for one busy core)."""
     out: dict[str, float] = {}

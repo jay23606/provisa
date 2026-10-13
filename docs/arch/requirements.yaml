@@ -73699,7 +73699,47 @@
     in a conversation with a customer or a prospective customer, the knob runs and the sizing and tuning
     guide are what is used, set to that customer''s workload (their transports, fields, filters, rows,
     joins, source mix and read modes), so the conversation is about realistic figures and not the optimistic
-    ones.'
+    ones. (Amended 2026-10-13, SIZING BUILT:) The knob sweeps run uncached (cache probability 0), so the
+    cost model per transport and source is the cost of a miss; the cache sweep (every request opted in,
+    and none) gives the cost of a hit and of a miss beside it, kept out of the model. The server sizing
+    is swept too: per transport, the optimistic request against a server started with each pair of
+    worker processes and in-flight requests per worker (concurrency.request_threads); the report gives,
+    per transport, each point peak throughput without errors and its p99, the fewest workers and then
+    the fewest in-flight requests per worker whose peak is within a stated tolerance (5% unless the
+    report is asked for another) of the best, the requests per second per physical core at that setting,
+    and a capacity factor (requests per second per physical core times the CPU of one request at the
+    lowest concurrency, over 1000). The sweep plan states the server hardware (physical cores, and
+    whether the sources and the load generator shared its host), never guessed; the report and the guide
+    carry it. A contract may describe a workload: a request rate and each transport share of it (its
+    knobs describe the requests). Sizing draws the workload requests from the contract own seeded
+    generator and gives, per transport and source, the share, the mean of each knob and the share of
+    response-cache hits (a request that opts in and equals an earlier opted-in request); a request costs
+    the fitted model at its knob means on a miss and the measured hit cost on a hit; physical cores are
+    the Provisa CPU per second over the transport capacity factor, summed and rounded up; workers are
+    the cores times the largest workers per physical core among the workload transports, and in-flight
+    per worker the largest any of them needs. A part of the workload the run has no model for is refused
+    by name: a transport without a worker sweep, a source without a cost model on the transport, a knob
+    the run could not cost, a route hint, a replication setting or TTL other than the one measured,
+    cache hits without cache figures. The sizing and tuning guide is generated as Markdown from the
+    report (and, to size a workload, a contract): hardware, the sizing, workers and in-flight per worker
+    with every measured point, the per-request costs, the cache opt-in (miss, hit, saving) and live
+    versus replica with the break-even and how the TTL moves it; every figure names the report statistic
+    it comes from. The guide carries no internal label; the report stays internal. (Amended 2026-10-13,
+    CROSS-SOURCE JOINS UNDER EACH REPLICATION SETTING:) The maintainer ruled: "fold it in as a knob". A
+    knob, join_replication, settable per transport: a probability and a weight per class of how a cross-
+    source join two ends are read, both live, both from replicas, or mixed (one of each); the class
+    follows from the sources replication settings, and a class the settings cannot give is refused. The
+    sweep runs the cross-source join values once per class, setting the sources so every join is read
+    that way. The cost model costs a cross-source join per class; the report gives Provisa CPU, source
+    CPU and, where the engine runs in a container of its own, engine CPU per request; and the break-even
+    between both ends live and both from replicas is given per number of joins, counting Provisa, the
+    sources the switch moved and the engine. (Amended 2026-10-13, ENGINE AS A SWEEP DIMENSION:) The
+    maintainer ruled: "add engine as a SWEEP DIMENSION (not a knob; it''s set at server start)". The
+    knob sweep runs once per engine named (pg by default; pg, duckdb, trino), the server started with
+    each, each engine results kept apart; the report and the guide give the cost models, cache figures
+    and break-evens per engine side by side; sizing takes an engine and refuses one the run did not
+    sweep. On the three-device benchmark the pg engine and Trino run on device 3, each its own
+    container; DuckDB runs inside Provisa on device 1.'
   use_case: Fixed single-query benchmarks show per-transport overhead and ceilings; they do not show how
     the platform behaves under the mixed, varied traffic real deployments see. A seeded random workload
     with adjustable mix, skew and cacheability lets one harness model a BI-heavy, app-heavy or extract-heavy
@@ -73742,6 +73782,20 @@
 
     Then the report gives Provisa CPU per request and source CPU for both modes
 
+
+    Given a report from the knob, cache and worker sweeps and a contract describing a workload of 1,000
+    requests per second, 60% GraphQL and 40% pgwire
+
+    When the workload is sized
+
+    Then the guide gives physical cores, worker processes and in-flight requests per worker, each figure
+    naming the report statistic it comes from
+
+    Given the workload sets a knob the run did not vary on one of its transports and sources
+
+    When the workload is sized
+
+    Then the sizing is refused naming the transport, the source and the knob
     '
   code:
   - demo/named/perf/bench/request_mix.py
