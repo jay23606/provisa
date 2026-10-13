@@ -451,6 +451,7 @@ def _compile_group_by_field(  # REQ-196, REQ-197, REQ-213
 
     select_parts: list[str] = []
     columns: list[ColumnRef] = []
+    _, _, col_aliases = _collect_agg_aliases(field_node)
 
     for col, phys in zip(by_cols, phys_by_cols):
         select_parts.append(_q(phys))
@@ -477,7 +478,8 @@ def _compile_group_by_field(  # REQ-196, REQ-197, REQ-213
                 ColumnRef(
                     alias=None,
                     column=phys,
-                    field_name=col_name,
+                    # A selected column's alias names its result, as on the aggregate root.
+                    field_name=col_aliases.get(func_name, {}).get(col_name, col_name),
                     nested_in=f"aggregate.{func_name}",
                 )
             )

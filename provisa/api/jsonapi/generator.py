@@ -450,12 +450,16 @@ def _get_agg_fields_type(root_field: Any) -> GraphQLObjectType | None:  # REQ-13
 
 
 def _build_agg_selection(
-    agg_fields_type: GraphQLObjectType, funcs_filter: list[str] | None
+    agg_fields_type: GraphQLObjectType,
+    funcs_filter: list[str] | None,
+    gql_to_physical: dict[str, str],
 ) -> str:  # REQ-1359
     """Build the GraphQL sub-selection for an ``aggregate { ... }`` block.
 
     ``funcs_filter`` of None selects every function the schema exposes for this table;
     otherwise only the named functions (already validated against the schema by the caller).
+    A column's aggregate field carries its GraphQL name; JSON:API names it physically
+    (REQ-1417), so each is selected under its physical name as the alias.
     """
     parts = []
     for name, f in agg_fields_type.fields.items():
@@ -463,7 +467,11 @@ def _build_agg_selection(
             continue
         ftype = _unwrap_type(f.type)
         if isinstance(ftype, GraphQLObjectType):
-            parts.append(f"{name} {{ {' '.join(ftype.fields.keys())} }}")
+            cols = [
+                c if gql_to_physical.get(c, c) == c else f"{gql_to_physical[c]}: {c}"
+                for c in ftype.fields
+            ]
+            parts.append(f"{name} {{ {' '.join(cols)} }}")
         else:
             parts.append(name)
     return " ".join(parts) if parts else "count"
@@ -788,7 +796,7 @@ def create_jsonapi_router(state: Any) -> APIRouter:  # REQ-256, REQ-257, REQ-266
                             f"Unknown aggregate function {fn!r}",
                             source_parameter="aggregate",
                         )
-            agg_selection = _build_agg_selection(agg_fields_type, funcs_filter)
+            agg_selection = _build_agg_selection(agg_fields_type, funcs_filter, gql_to_physical)
             agg_variables = _variables(schema, target_field, filters, params)
             if not isinstance(agg_variables, RequestVariables):
                 return agg_variables

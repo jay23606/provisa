@@ -7617,6 +7617,7 @@
   - provisa/compiler/sql_gen.py
   - provisa/mv/
   tests:
+  - tests/unit/test_aggregate_field_names.py
   - tests/unit/test_sql_gen_aggregate.py
   - tests/integration/test_compiler_integration.py
   since: 2026-01
@@ -7657,6 +7658,7 @@
   - provisa/compiler/sql_gen.py
   - provisa/mv/
   tests:
+  - tests/unit/test_aggregate_field_names.py
   - tests/unit/test_sql_gen_aggregate.py
   - tests/integration/test_compiler_integration.py
   since: 2026-01

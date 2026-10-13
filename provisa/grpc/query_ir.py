@@ -475,8 +475,15 @@ def _agg_fields_selection(
     want_cols = set(columns) if columns else None
     if want_cols is not None:
         cols = [(c, t) for c, t in cols if c in want_cols]
-    numeric = [c for c, t in cols if _is_numeric(t)]
-    comparable = [c for c, t in cols if _is_comparable(t)]
+
+    # An aggregate's fields carry the row type's GraphQL names; the proto's are physical, so each
+    # is selected under its physical name as the alias (REQ-196).
+    def _field(phys: str) -> str:
+        gql = ctx.physical_to_gql[(table_id, phys)]
+        return phys if gql == phys else f"{phys}: {gql}"
+
+    numeric = [_field(c) for c, t in cols if _is_numeric(t)]
+    comparable = [_field(c) for c, t in cols if _is_comparable(t)]
     want = set(funcs) if funcs else None
     parts = []
     if want is None or "count" in want:

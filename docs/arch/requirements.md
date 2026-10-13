@@ -2304,7 +2304,7 @@ Auto-generated aggregate queries following Hasura v2 pattern. Every table gets a
 
 **Code:** `provisa/compiler/sql_gen.py`, `provisa/mv/`
 
-**Tests:** `tests/unit/test_sql_gen_aggregate.py`, `tests/integration/test_compiler_integration.py`
+**Tests:** `tests/unit/test_aggregate_field_names.py`, `tests/unit/test_sql_gen_aggregate.py`, `tests/integration/test_compiler_integration.py`
 
 ### REQ-197 · Aggregates {#REQ-197}
 
@@ -2316,7 +2316,7 @@ Per-role aggregate gating via `allow_aggregations` (matching v2) or per-table `a
 
 **Code:** `provisa/compiler/sql_gen.py`, `provisa/mv/`
 
-**Tests:** `tests/unit/test_sql_gen_aggregate.py`, `tests/integration/test_compiler_integration.py`
+**Tests:** `tests/unit/test_aggregate_field_names.py`, `tests/unit/test_sql_gen_aggregate.py`, `tests/integration/test_compiler_integration.py`
 
 ### REQ-198 · Aggregates {#REQ-198}
 

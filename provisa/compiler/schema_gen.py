@@ -80,6 +80,7 @@ from provisa.compiler.schema_inputs import (
     _build_distinct_on_enum,
     _build_order_by_inputs,
     _build_where_input,
+    _gql_col_name,
 )
 
 
@@ -399,8 +400,6 @@ def _build_domain_alias_map(domains: list[dict]) -> dict[str, str]:
 
 def _embedding_columns(t: _TableInfo) -> dict[str, str]:  # REQ-421, REQ-430
     """The table's embedding columns the role is served: GraphQL name -> physical name."""
-    from provisa.compiler.schema_inputs import _gql_col_name
-
     return {_gql_col_name(c, t): c["column_name"] for c in t.visible_columns if c.get("embedding")}
 
 
@@ -640,6 +639,12 @@ def _build_native_filter_args(
         )
 
 
+def _agg_field_names(t: _TableInfo) -> dict[str, str]:
+    """Each visible column's GraphQL field name on the row type, keyed by physical name: the
+    names its aggregate, group-by and having fields carry too (REQ-196, REQ-197)."""
+    return {c["column_name"]: _gql_col_name(c, t) for c in t.visible_columns}
+
+
 def _build_aggregate_query_field(
     t: _TableInfo,
     gql_type: GraphQLObjectType,
@@ -647,7 +652,12 @@ def _build_aggregate_query_field(
     agg_fields_type: GraphQLObjectType | None = None,
 ) -> tuple[str, GraphQLField] | None:
     agg_type = build_aggregate_types(
-        t.type_name, t.visible_columns, t.column_metadata, gql_type, agg_fields_type
+        t.type_name,
+        t.visible_columns,
+        t.column_metadata,
+        gql_type,
+        _agg_field_names(t),
+        agg_fields_type,
     )
     if not agg_type:
         return None
@@ -679,7 +689,9 @@ def _build_group_by_query_field(
         return None
 
     if agg_fields_type is None:
-        agg_fields_type = build_agg_fields_type(t.type_name, t.visible_columns, t.column_metadata)
+        agg_fields_type = build_agg_fields_type(
+            t.type_name, t.visible_columns, t.column_metadata, _agg_field_names(t)
+        )
 
     # REQ-655: aggregates field accepts where: arg for FILTER (WHERE ...) per function
     agg_where = _build_where_input(t, f"{t.type_name}GroupByAgg", enum_types=enum_types)
@@ -705,7 +717,9 @@ def _build_group_by_query_field(
     )
 
     # REQ-655: having: arg on root field for SQL HAVING
-    having_exp = build_having_exp_type(t.type_name, t.visible_columns, t.column_metadata)
+    having_exp = build_having_exp_type(
+        t.type_name, t.visible_columns, t.column_metadata, _agg_field_names(t)
+    )
 
     gb_args: dict[str, GraphQLArgument] = {
         "by": GraphQLArgument(GraphQLNonNull(GraphQLList(GraphQLNonNull(by_enum)))),
@@ -975,6 +989,7 @@ def generate_schema(
                 t.type_name,
                 t.visible_columns,
                 t.column_metadata,
+                _agg_field_names(t),
                 metrics=t.metrics,  # REQ-1319: metrics block inside the aggregate result
             )
 

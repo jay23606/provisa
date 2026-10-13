@@ -92,19 +92,38 @@ def _classify_columns(
     return numeric_cols, comparable_cols
 
 
+def _named(
+    numeric_cols: list[tuple[str, str]],
+    comparable_cols: list[tuple[str, str]],
+    field_names: dict[str, str],
+) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
+    """The classified columns under their GraphQL field names (REQ-196): the aggregate of a
+    column is named as the column is on the row type."""
+    return (
+        [(field_names[c], t) for c, t in numeric_cols],
+        [(field_names[c], t) for c, t in comparable_cols],
+    )
+
+
 def build_agg_fields_type(  # REQ-196
     type_name: str,
     visible_columns: list[dict],
     column_metadata: dict[str, ColumnMetadata],
+    field_names: dict[str, str],
     metrics: list[dict] | None = None,
 ) -> GraphQLObjectType:
     """Build {TypeName}AggregateFields type (count, sum, avg, stddev, variance, min, max).
+
+    ``field_names`` maps each physical column to the field name the table's row type gives it
+    (alias, else the naming convention); a column's aggregate fields carry the same name.
 
     ``metrics`` (REQ-1319) adds a ``metrics`` block: one typed field per governed metric
     whose expression references this table, documented from the metric's description +
     ai_context so introspection carries the business definition.
     """
-    numeric_cols, comparable_cols = _classify_columns(visible_columns, column_metadata)
+    numeric_cols, comparable_cols = _named(
+        *_classify_columns(visible_columns, column_metadata), field_names
+    )
 
     metrics_type: GraphQLObjectType | None = None
     if metrics:
@@ -202,12 +221,15 @@ def build_having_exp_type(  # REQ-197
     type_name: str,
     visible_columns: list[dict],
     column_metadata: dict[str, ColumnMetadata],
+    field_names: dict[str, str],
 ) -> GraphQLInputObjectType | None:
     """Build {TypeName}HavingExp input type for HAVING clause filtering.
 
-    Mirrors AggregateFields structure but uses comparison operator inputs.
+    Mirrors AggregateFields structure, field names included, but uses comparison operator inputs.
     """
-    numeric_cols, comparable_cols = _classify_columns(visible_columns, column_metadata)
+    numeric_cols, comparable_cols = _named(
+        *_classify_columns(visible_columns, column_metadata), field_names
+    )
 
     int_filter = FILTER_TYPE_MAP.get(GraphQLInt)
     float_filter = FILTER_TYPE_MAP.get(GraphQLFloat)
@@ -261,6 +283,7 @@ def build_aggregate_types(  # REQ-196
     visible_columns: list[dict],
     column_metadata: dict[str, ColumnMetadata],
     row_type: GraphQLObjectType,
+    field_names: dict[str, str],
     agg_fields_type: GraphQLObjectType | None = None,
 ) -> GraphQLObjectType | None:
     """Build <Table>Aggregate type with aggregate fields and nodes.
@@ -268,7 +291,9 @@ def build_aggregate_types(  # REQ-196
     Returns None if no columns are eligible for aggregation.
     """
     if agg_fields_type is None:
-        agg_fields_type = build_agg_fields_type(type_name, visible_columns, column_metadata)
+        agg_fields_type = build_agg_fields_type(
+            type_name, visible_columns, column_metadata, field_names
+        )
 
     aggregate_type = cast(
         GraphQLObjectType,

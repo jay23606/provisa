@@ -159,7 +159,7 @@ class TestBuildAggSelection:
     def test_all_functions_when_filter_is_none(self):
         schema, _ = _build_schema_and_ctx()
         agg_fields_type = _get_agg_fields_type(schema.query_type.fields["orders_aggregate"])
-        selection = _build_agg_selection(agg_fields_type, None)
+        selection = _build_agg_selection(agg_fields_type, None, {})
         assert "count" in selection
         assert "sum {" in selection and "amount" in selection
         assert "avg {" in selection and "amount" in selection
@@ -169,7 +169,7 @@ class TestBuildAggSelection:
     def test_only_requested_functions(self):
         schema, _ = _build_schema_and_ctx()
         agg_fields_type = _get_agg_fields_type(schema.query_type.fields["orders_aggregate"])
-        selection = _build_agg_selection(agg_fields_type, ["count", "sum"])
+        selection = _build_agg_selection(agg_fields_type, ["count", "sum"], {})
         assert selection.startswith("count sum {")
         assert "amount" in selection
         assert "avg" not in selection
@@ -177,7 +177,7 @@ class TestBuildAggSelection:
     def test_scalar_field_has_no_subselection(self):
         schema, _ = _build_schema_and_ctx()
         agg_fields_type = _get_agg_fields_type(schema.query_type.fields["orders_aggregate"])
-        selection = _build_agg_selection(agg_fields_type, ["count"])
+        selection = _build_agg_selection(agg_fields_type, ["count"], {})
         assert selection == "count"
 
 
