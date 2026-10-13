@@ -13,7 +13,7 @@
 The model store's ``table.delete`` asks the dependency guard: while a relationship takes part
 in the table, a view reads it, a metric reads it or a command returns it, the delete is refused
 naming each one and nothing is removed. When it may go, its parts go with it by explicit
-statements — on SQLite, where no foreign key would have removed them. ``table.upsert`` refuses
+statements, not by a foreign key. ``table.upsert`` refuses
 a view whose SQL would read the view itself through other views.
 """
 
@@ -29,8 +29,7 @@ from sqlalchemy import func, insert, select
 
 import provisa.api.app as appmod
 from provisa.api.admin import schema_mutation
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.db import _init_schema_portable
+from provisa.core.database import Database
 from provisa.core.models import Column, Table
 from provisa.core.repositories import integrity
 from provisa.core.repositories import table as table_repo
@@ -48,9 +47,8 @@ from provisa.core.schema_org import (
 
 
 @pytest.fixture
-async def plane(monkeypatch) -> Database:
-    db = Database(create_engine_from_url("sqlite+pysqlite:///:memory:"), name="table-delete-test")
-    await _init_schema_portable(db)
+async def plane(monkeypatch, control_plane) -> Database:
+    db = control_plane.org()
     async with db.acquire() as conn:
         await conn.execute_core(insert(sources).values(id="pg", type="postgresql"))
         await conn.execute_core(insert(domains).values(id="sales"))

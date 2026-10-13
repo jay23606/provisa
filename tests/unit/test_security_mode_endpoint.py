@@ -24,18 +24,14 @@ import types
 
 import pytest
 
-from provisa.core import config_stamp
 import provisa.api.app  # noqa: F401 - imported before any test narrows process state
 from provisa.api.admin import security_router
 from provisa.api.errors import ApiError
 from provisa.core import deployment_settings, settings_registry
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.schema_admin import deployment_settings as settings_table
-from provisa.core.schema_admin import metadata
 
 
 @pytest.fixture
-def caller(tmp_path, monkeypatch):
+def caller(tmp_path, monkeypatch, control_plane):
     import provisa.api.admin.capabilities as capmod
 
     monkeypatch.delenv("PROVISA_SECURITY_MODE", raising=False)
@@ -45,12 +41,7 @@ def caller(tmp_path, monkeypatch):
     monkeypatch.setenv("PROVISA_CONFIG", str(cfg))
     monkeypatch.setattr(settings_registry, "_config", {})
     monkeypatch.setattr(settings_registry, "_frozen", None)
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}")
-    with engine.begin() as conn:
-        metadata.create_all(conn, tables=[settings_table, metadata.tables["config_stamp"]])
-        # REQ-1914: the settings snapshot is loaded with the plane's `settings` stamp.
-        config_stamp.install(conn, config_stamp.PLATFORM_TABLES)
-    db = Database(engine, name="platform")
+    db = control_plane.platform
     monkeypatch.setattr(deployment_settings, "_held", None)
     monkeypatch.setattr(deployment_settings, "_db", db)
     monkeypatch.setattr(
@@ -72,7 +63,6 @@ def caller(tmp_path, monkeypatch):
         )
 
     yield types.SimpleNamespace(as_=_as, config=cfg)
-    engine.dispose()
 
 
 PLATFORM_ADMIN = ("platform_settings", "cross_org")

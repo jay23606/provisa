@@ -146,6 +146,9 @@ def planes(monkeypatch):
 
     default_rt = app_state.org_registry.get(app_state.org_id)
     monkeypatch.setattr(app_state, "admin_db", admin_db, raising=False)
+    # REQ-2008: /auth/me reports the control plane's id, which the platform start creates; this
+    # app is assembled from its routers and skips that start.
+    monkeypatch.setattr("provisa.core.control_plane_id.current", lambda: "cp-test")
     monkeypatch.setattr(app_state, "multitenancy", True, raising=False)
     monkeypatch.setattr(default_rt, "tenant_db", tenant_db)
     # REQ-1919: an org's role assignments are its model, kept in its model store; the claim and the

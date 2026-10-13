@@ -11,7 +11,7 @@
 """Every model change commits (REQ-1524).
 
 The control-plane connection records each write to a projected table of an environment's model;
-the change scope commits each written environment once when it ends. Run against a SQLite
+the change scope commits each written environment once when it ends. Run against a
 control plane with the projection's commit captured: what is asserted is WHICH commits are asked
 for, with what message and author. That a commit of an unchanged tree writes nothing is the
 repository's own property (``env_repo.commit_files``), tested there.
@@ -28,8 +28,7 @@ from sqlalchemy import insert, update
 
 from provisa.core import model_change
 from provisa.core.env_deploy import PROJECTED
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.db import _init_schema_portable
+from provisa.core.database import Database
 from provisa.core.model_change import ModelChangeOutsideScope, ModelPlane
 from provisa.core.schema_org import metadata, roles
 from provisa.core.config_loader import apply_config
@@ -177,9 +176,8 @@ async def test_a_table_outside_the_projection_is_not_recorded(model, commits):
 
 
 @pytest.fixture
-async def scenario_model() -> Database:
-    db = Database(create_engine_from_url("sqlite+pysqlite:///:memory:"), name="load-test")
-    await _init_schema_portable(db)
+async def scenario_model(control_plane) -> Database:
+    db = control_plane.org()
     await seed_the_view_source(db)
     db.model = PLANE
     return db

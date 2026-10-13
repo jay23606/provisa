@@ -204,6 +204,9 @@ def planes(monkeypatch):
     from provisa.api.org_runtime import OrgRegistry, OrgRuntime
 
     monkeypatch.setattr(app_state, "admin_db", admin_db, raising=False)
+    # REQ-2008: /auth/me reports the control plane's id, which the platform start creates; this
+    # app is assembled from its routers and skips that start.
+    monkeypatch.setattr("provisa.core.control_plane_id.current", lambda: "cp-test")
     # The app serves "root" and is bound to it (pytestmark deployment_org).
 
     # The org runtime is the data plane; these tests exercise the control plane, so each org's

@@ -23,10 +23,9 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 
 import pytest
+from sqlalchemy import insert
 
-from provisa.core.database import create_engine_from_url
 
-from provisa.core.database import Database
 from provisa.core.models import (
     SYSTEM_TAGS,
     TAG_PARAM_POLICIES,
@@ -39,7 +38,9 @@ from provisa.core.models import (
 )
 from provisa.core.repositories import tag as tag_repo
 from provisa.core.schema_org import (
+    domains,
     registered_tables,
+    sources,
     tag_assignments,
     tag_param_values,
     tags,
@@ -49,15 +50,17 @@ _TABLES = [tags, tag_assignments, tag_param_values, registered_tables]
 
 
 @asynccontextmanager
-async def _conn(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'tags.db'}")
-    with engine.begin() as c:
-        tags.metadata.create_all(c, tables=_TABLES)
-    try:
-        async with Database(engine, name="t").acquire() as conn:
-            yield conn
-    finally:
-        engine.dispose()
+async def _conn(control_plane):
+    async with control_plane.org().acquire() as conn:
+        # The table the assignments point at (table_id=7) and the registrations it needs.
+        await conn.execute_core(insert(domains).values(id="d"))
+        await conn.execute_core(insert(sources).values(id="pg", type="postgresql"))
+        await conn.execute_core(
+            insert(registered_tables).values(
+                id=7, source_id="pg", domain_id="d", schema_name="public", table_name="t"
+            )
+        )
+        yield conn
 
 
 def _column(tag_id: str, column_name: str = "cust_name") -> TagAssignment:
@@ -116,8 +119,8 @@ def test_an_assignment_reports_its_own_base_and_parameter():
 
 
 @pytest.mark.asyncio
-async def test_assign_stores_the_base_id_beside_the_full_one(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_assign_stores_the_base_id_beside_the_full_one(control_plane):
+    async with _conn(control_plane) as conn:
         await tag_repo.assign(conn, _column("entity:customer"))
         rows = await tag_repo.list_assignments(conn)
 
@@ -125,9 +128,9 @@ async def test_assign_stores_the_base_id_beside_the_full_one(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_one_object_carries_one_value_of_a_parameterized_tag(tmp_path):
+async def test_one_object_carries_one_value_of_a_parameterized_tag(control_plane):
     """A column's values are entity names of ONE type; customer AND employee is a contradiction."""
-    async with _conn(tmp_path) as conn:
+    async with _conn(control_plane) as conn:
         await tag_repo.assign(conn, _column("entity:customer"))
         await tag_repo.assign(conn, _column("entity:employee"))
         rows = await tag_repo.list_assignments(conn)
@@ -136,8 +139,8 @@ async def test_one_object_carries_one_value_of_a_parameterized_tag(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_different_columns_may_carry_different_values(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_different_columns_may_carry_different_values(control_plane):
+    async with _conn(control_plane) as conn:
         await tag_repo.assign(conn, _column("entity:customer", "cust_name"))
         await tag_repo.assign(conn, _column("entity:employee", "rep_name"))
         rows = await tag_repo.list_assignments(conn)
@@ -146,9 +149,9 @@ async def test_different_columns_may_carry_different_values(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_the_count_covers_every_parameter_value(tmp_path):
+async def test_the_count_covers_every_parameter_value(control_plane):
     """Counting full ids would report the `entity` registry row as unused while it is in use."""
-    async with _conn(tmp_path) as conn:
+    async with _conn(control_plane) as conn:
         await tag_repo.assign(conn, _column("entity:customer", "cust_name"))
         await tag_repo.assign(conn, _column("entity:employee", "rep_name"))
         await tag_repo.assign(conn, _column("pii", "cust_name"))
@@ -159,8 +162,8 @@ async def test_the_count_covers_every_parameter_value(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_unassign_removes_the_tag_whether_or_not_the_caller_names_the_value(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_unassign_removes_the_tag_whether_or_not_the_caller_names_the_value(control_plane):
+    async with _conn(control_plane) as conn:
         await tag_repo.assign(conn, _column("entity:customer"))
         removed = await tag_repo.unassign(conn, "entity", _column("entity:customer").object_key())
         assert removed is True
@@ -180,8 +183,8 @@ async def test_unassign_removes_the_tag_whether_or_not_the_caller_names_the_valu
 
 
 @pytest.mark.asyncio
-async def test_values_are_listed_for_the_base_tag_in_value_order(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_values_are_listed_for_the_base_tag_in_value_order(control_plane):
+    async with _conn(control_plane) as conn:
         await tag_repo.upsert_param_value(conn, TagParamValue(tag_id="entity", value="vendor"))
         await tag_repo.upsert_param_value(
             conn, TagParamValue(tag_id="entity", value="customer", description="A buying party")
@@ -195,8 +198,8 @@ async def test_values_are_listed_for_the_base_tag_in_value_order(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_upserting_a_value_twice_edits_its_description(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_upserting_a_value_twice_edits_its_description(control_plane):
+    async with _conn(control_plane) as conn:
         await tag_repo.upsert_param_value(conn, TagParamValue(tag_id="entity", value="customer"))
         await tag_repo.upsert_param_value(
             conn, TagParamValue(tag_id="entity", value="customer", description="A buying party")
@@ -207,8 +210,8 @@ async def test_upserting_a_value_twice_edits_its_description(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_a_value_belongs_to_the_base_tag_not_to_a_parameterized_id(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_a_value_belongs_to_the_base_tag_not_to_a_parameterized_id(control_plane):
+    async with _conn(control_plane) as conn:
         await tag_repo.upsert_param_value(
             conn, TagParamValue(tag_id="entity:customer", value="vendor")
         )
@@ -218,8 +221,8 @@ async def test_a_value_belongs_to_the_base_tag_not_to_a_parameterized_id(tmp_pat
 
 
 @pytest.mark.asyncio
-async def test_list_all_spans_tags_and_orders_by_tag_then_value(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_list_all_spans_tags_and_orders_by_tag_then_value(control_plane):
+    async with _conn(control_plane) as conn:
         await tag_repo.upsert_param_value(conn, TagParamValue(tag_id="entity", value="vendor"))
         await tag_repo.upsert_param_value(conn, TagParamValue(tag_id="entity", value="customer"))
         await tag_repo.upsert_param_value(conn, TagParamValue(tag_id="audience", value="internal"))
@@ -233,8 +236,8 @@ async def test_list_all_spans_tags_and_orders_by_tag_then_value(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_the_delete_guard_counts_only_the_value_named(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_the_delete_guard_counts_only_the_value_named(control_plane):
+    async with _conn(control_plane) as conn:
         await tag_repo.assign(conn, _column("entity:customer", "cust_name"))
         await tag_repo.assign(conn, _column("entity:employee", "rep_name"))
 
@@ -245,8 +248,8 @@ async def test_the_delete_guard_counts_only_the_value_named(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_deleting_a_value_leaves_its_siblings_alone(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_deleting_a_value_leaves_its_siblings_alone(control_plane):
+    async with _conn(control_plane) as conn:
         await tag_repo.upsert_param_value(conn, TagParamValue(tag_id="entity", value="customer"))
         await tag_repo.upsert_param_value(conn, TagParamValue(tag_id="entity", value="vendor"))
 
@@ -258,8 +261,8 @@ async def test_deleting_a_value_leaves_its_siblings_alone(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_a_user_tag_may_be_parameterized_too(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_a_user_tag_may_be_parameterized_too(control_plane):
+    async with _conn(control_plane) as conn:
         await tag_repo.upsert(
             conn, Tag(id="audience", applies_to=["table"], param_policy="required")
         )

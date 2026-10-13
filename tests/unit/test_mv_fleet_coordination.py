@@ -10,7 +10,7 @@
 
 """Cross-instance MV refresh coordination (REQ-879).
 
-Two fleet instances of one region share its state store (a single SQLite ``mv_build_state``
+Two fleet instances of one region share its state store (a single ``mv_build_state``
 table, REQ-1922: the region's build of the view). The tests drive the real CAS on that row — no
 per-instance in-memory state — to prove: exactly one instance claims a given MV, a crashed instance's lease expires and is
 reclaimed, a released claim frees the next refresh, a fenced commit rejects a superseded writer,
@@ -27,12 +27,8 @@ import pytest
 
 from tests.helpers import hold_registered_tables
 from sqlalchemy import insert, select, update
-from provisa.core.database import create_engine_from_url
-
-from provisa.core.database import Database
 from provisa.core.schema_org import materialized_views as DEFINITIONS
 from provisa.core.schema_org import mv_build_state as MVT
-from provisa.core.schema_org import metadata
 from provisa.executor.result import QueryResult
 from provisa.mv.coordination import (
     claim_refresh,
@@ -51,17 +47,13 @@ INST_B = "instance-b"
 
 
 @pytest.fixture
-async def store(tmp_path):
-    """The region's state store, shared by both 'instances' (one file DB), holding the view's
-    build row; the model's definition table sits beside it (one DB plays both stores here)."""
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}")
-    with engine.begin() as c:
-        metadata.create_all(c, tables=[DEFINITIONS, MVT])
-    db = Database(engine, name="cp")
+async def store(control_plane):
+    """The region's state store, shared by both 'instances', holding the view's build row; the
+    model's definition table sits beside it (one DB plays both stores here)."""
+    db = control_plane.org()
     async with db.acquire() as conn:
         await conn.execute_core(insert(MVT).values(mv_id=MV_ID, region="default", status="stale"))
-    yield db
-    engine.dispose()
+    return db
 
 
 async def _row(store):
@@ -306,16 +298,19 @@ async def test_refresh_mv_claims_commits_and_marks_fresh(store):
     assert reg.get(MV_ID).status == MVStatus.FRESH
 
 
-def _plain_db(path, *tables):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{path}")
-    with engine.begin() as c:
-        metadata.create_all(c, tables=list(tables))
-    return Database(engine, name=path.stem)
+async def _org_db(control_plane, org_id):
+    """An org of its own on the plane: its model and its state stores are its schema."""
+    from provisa.core.db import init_schema
+    from tests.pg_control_plane import SCHEMA_SQL
+
+    db = control_plane.org(org_id)
+    await init_schema(db, SCHEMA_SQL, org_id=org_id)
+    return db
 
 
 @pytest.mark.asyncio
 async def test_each_region_builds_its_own_copy_of_a_view_against_its_own_state(
-    tmp_path, monkeypatch
+    control_plane, monkeypatch
 ):
     """REQ-1922: one view definition in the model; each region's fleet claims, builds and records
     its own copy in its own state store, naming the region — eu building it neither blocks nor
@@ -324,8 +319,8 @@ async def test_each_region_builds_its_own_copy_of_a_view_against_its_own_state(
 
     from provisa.mv import governed_build
 
-    model = _plain_db(tmp_path / "model.db", DEFINITIONS)
-    eu, us = (_plain_db(tmp_path / f"{r}.db", MVT) for r in ("eu", "us"))
+    model = control_plane.org()
+    eu, us = [await _org_db(control_plane, r) for r in ("eu", "us")]
     mv = _mv()
 
     # What the build reads is test_mv_governed_build's; here, who claims and records it.
@@ -355,14 +350,14 @@ async def test_each_region_builds_its_own_copy_of_a_view_against_its_own_state(
 
 @pytest.mark.asyncio
 async def test_a_view_naming_another_region_is_never_claimed_or_recorded_here(
-    tmp_path, monkeypatch
+    control_plane, monkeypatch
 ):
     """REQ-1921: a refresh on a us node of a view naming eu is refused before anything is claimed
     or written to us's state, with the reason as the view's error."""
     from provisa.core import process_region
 
-    model = _plain_db(tmp_path / "model.db", DEFINITIONS)
-    us = _plain_db(tmp_path / "us.db", MVT)
+    model = control_plane.org()
+    us = await _org_db(control_plane, "us")
     mv = _mv()
     mv.region = "eu"
     reg = MVRegistry()

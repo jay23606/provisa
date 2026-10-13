@@ -787,7 +787,12 @@ async def _native_tables_sqlite(
     row = result.fetchone()
     if not row or not row[0]:
         return None
-    names = connector_sqlite.table_names(row[0])
+    from provisa.core.org_files import resolve_path
+    from provisa.core.secrets import resolve_secrets
+
+    # REQ-1919: the store keeps the path as written; it is resolved here, at use (REQ-1997: a
+    # {files}/... path is read where it resolves).
+    names = connector_sqlite.table_names(resolve_path(resolve_secrets(row[0])))
     return [AvailableTableType(name=n, comment=None) for n in names]
 
 

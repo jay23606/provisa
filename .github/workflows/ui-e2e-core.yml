@@ -2,11 +2,9 @@ name: UI e2e (core lane)
 
 # 143 of the 145 Playwright tests run against the DuckDB (NativeBackend) backend and need no
 # container at all:
-#   - control plane on SQLite  — db.py::_init_schema_portable bootstraps from the dialect-neutral
-#     schema_org metadata instead of the PostgreSQL-only schema.sql, and OrgRouter gives
-#     file-per-org isolation where PG uses org_<id> schemas (capabilities.yaml presets already
-#     declare control_plane_store: sqlite, so this is the shipped embedded tier, not a test-only
-#     shortcut)
+#   - control plane on embedded PostgreSQL — one pgserver per backend in its data dir
+#     (provisa.core.control_plane_pg, the server the demo and native tiers run; REQ-2014), on a
+#     unix socket, stopped by global-teardown
 #   - cache on embedded fakeredis — no config sets cache.redis_url and no REDIS_URL is exported,
 #     so app.py resolves state.redis_url to None
 #   - federation on DuckDB — PROVISA_ENGINE is only set to trino on the second backend
@@ -129,7 +127,7 @@ jobs:
       ui: chromium
       ui-timeout: 12
       # CI: every webServer is started by the harness, never adopted from a stale process.
-      # PROVISA_E2E_LANE: the SQLite control plane, and no Trino webServer in the config.
+      # PROVISA_E2E_LANE: the embedded control plane, and no Trino webServer in the config.
       env: |
         CI=true
         PROVISA_E2E_LANE=core

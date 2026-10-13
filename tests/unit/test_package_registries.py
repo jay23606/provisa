@@ -11,7 +11,7 @@
 """The package registries an organisation's Node installs go through (REQ-1984): npm registries
 and Git hosts, entered once by the organisation's administrator, each field kept as entered and
 resolved at use in that organisation's vault, and opened by ``org_settings`` in that
-organisation alone. The control plane is a real SQLite file; every credential is made up."""
+organisation alone. The control plane is a real PostgreSQL database; every credential is made up."""
 
 # Requirements: REQ-1984
 from __future__ import annotations
@@ -23,7 +23,6 @@ from provisa.api.admin import package_registries_router as router
 from provisa.api.errors import ApiError
 from provisa.core import package_registries as registries
 from provisa.core import schema_admin, secrets_store
-from provisa.core.database import Database, create_engine_from_url
 from provisa.core.package_registries import PackageRegistryRefused
 
 pytestmark = pytest.mark.asyncio
@@ -40,25 +39,17 @@ class _Sealer:
 
 
 @pytest.fixture
-def plane(tmp_path, monkeypatch):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'plane.db'}")
-    with engine.begin() as conn:
-        schema_admin.metadata.create_all(
-            conn,
-            tables=[
-                schema_admin.orgs,
-                schema_admin.org_package_registries,
-                schema_admin.secrets_store,
-                schema_admin.deployment_encryption_key,
-            ],
-        )
+def plane(control_plane, monkeypatch):
+    with control_plane.engine().begin() as conn:
+        for org_id in ("acme", "globex"):  # org_package_registries' foreign key
+            conn.execute(sa.insert(schema_admin.orgs).values(id=org_id, name=org_id))
     monkeypatch.setattr(secrets_store, "_cipher", lambda *, mint: _Sealer())
 
     async def held(conn, *, mint):
         return None
 
     monkeypatch.setattr(secrets_store, "_hold_the_deployments_key", held)
-    return Database(engine, name="admin")
+    return control_plane.platform
 
 
 async def _npm(plane, org="acme", **changed):
@@ -281,8 +272,6 @@ class TestResolution:
         organisation's registry entry, with nothing registered for it."""
         from provisa.core import secret_references
 
-        with plane.engine.begin() as conn:  # the search reads every table of the plane
-            schema_admin.metadata.create_all(conn)
         await secrets_store.put(plane, "acme", "npm_acme", "x", owner_id=secrets_store.ORG_OWNER)
         kept = await _npm(plane, credential="${secret:npm_acme}")
         found = await secret_references.references(plane, "acme", "npm_acme", environments={})

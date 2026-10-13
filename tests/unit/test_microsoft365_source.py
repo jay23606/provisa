@@ -133,30 +133,22 @@ def test_the_person_is_offered_the_account_the_source_names():
 
 
 @pytest.fixture
-def signed_in(monkeypatch, tmp_path):
+def signed_in(monkeypatch, control_plane):
     """What `connect` reaches: the organisation's client, its vault, its state store (where
     the owner's approval is kept) and the exchange."""
     from contextlib import asynccontextmanager
 
     from provisa.api_source import oauth_grants, oauth_store
     from provisa.core import config_loader, config_location, request_context, secrets_store
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.schema_org import mail_sync_state as table
-    from provisa.core.schema_org import metadata
 
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'state.db'}")
-    with engine.begin() as conn:
-        metadata.create_all(conn, tables=[table])
     calls = SimpleNamespace(required=[], exchanged=[], resolved=[], bound=[])
-    calls.state = SimpleNamespace(admin_db=object(), tenant_db=Database(engine, name="state"))
+    calls.state = SimpleNamespace(admin_db=object(), tenant_db=control_plane.org())
     oauth_store._held.clear()
     monkeypatch.setattr(config_location, "config_path_str", lambda: "provisa.yaml")
     monkeypatch.setattr(
         config_loader,
         "load_control_plane",
-        lambda path: SimpleNamespace(
-            resolved_platform_url=lambda: f"sqlite+pysqlite:///{tmp_path / 'platform.db'}"
-        ),
+        lambda path: SimpleNamespace(resolved_platform_url=lambda: control_plane.url),
     )
 
     async def require(admin_db, org_id, platform_id):
@@ -189,7 +181,6 @@ def signed_in(monkeypatch, tmp_path):
     monkeypatch.setattr(request_context, "require_current_org", lambda: "acme")
     yield calls
     oauth_store._held.clear()
-    engine.dispose()
 
 
 async def _kept(state) -> str | None:

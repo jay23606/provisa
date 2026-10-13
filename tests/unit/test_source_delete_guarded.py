@@ -29,8 +29,7 @@ from sqlalchemy import func, insert, select
 
 import provisa.api.app as appmod
 from provisa.api.admin import schema_mutation
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.db import _init_schema_portable
+from provisa.core.database import Database
 from provisa.core.models import DERIVED_SOURCE_ID
 from provisa.core.repositories import source as source_repo
 from provisa.core.schema_org import (
@@ -45,11 +44,10 @@ from provisa.core.schema_org import (
 
 
 @pytest.fixture
-async def plane(monkeypatch) -> Database:
+async def plane(monkeypatch, control_plane) -> Database:
     """``crm`` has a registered table and a command bound to it; ``api`` has neither, and an API
     registration with an endpoint and a tag."""
-    db = Database(create_engine_from_url("sqlite+pysqlite:///:memory:"), name="source-delete-test")
-    await _init_schema_portable(db)
+    db = control_plane.org()
     async with db.acquire() as conn:
         await conn.execute_core(insert(domains).values(id="sales"))
         for source_id, kind in (("crm", "postgresql"), ("api", "openapi")):

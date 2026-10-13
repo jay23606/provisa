@@ -39,7 +39,9 @@ from provisa.core.schema_org import user_directory
 from provisa.core.schema_org import roles, user_role_assignments
 from tests.integration.test_auth_integration import _FirebaseLikeProvider
 
-pytestmark = [pytest.mark.integration]
+# The app serves acme as its own org, so a request acting in acme binds the runtime the boot
+# built rather than building one (this app is assembled from its routers; it has no boot).
+pytestmark = [pytest.mark.integration, pytest.mark.deployment_org("acme")]
 
 _PG_HOST = os.environ.get("PG_HOST", "localhost")
 _PG_PORT = os.environ.get("PG_PORT", "5432")

@@ -23,17 +23,15 @@ import pytest
 from sqlalchemy import insert, select
 
 from provisa.api.admin import schema_mutation
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.db import _init_schema_portable
+from provisa.core.database import Database
 from provisa.core.repositories import source as source_repo
 from provisa.core.schema_org import domains, registered_tables, sources
 
 
 @pytest.fixture
-async def plane(monkeypatch) -> Database:
+async def plane(monkeypatch, control_plane) -> Database:
     """Two sources, each with a table."""
-    db = Database(create_engine_from_url("sqlite+pysqlite:///:memory:"), name="source-rename")
-    await _init_schema_portable(db)
+    db = control_plane.org()
     async with db.acquire() as conn:
         await conn.execute_core(insert(domains).values(id="sales"))
         for source_id, host in (("crm", "crm.example.com"), ("erp", "erp.example.com")):

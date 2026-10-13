@@ -258,6 +258,83 @@ async def _relationship_alias_refusal(
     )
 
 
+async def _save_data_product(
+    info: StrawberryInfo, input: DataProductInput, *, creating: bool
+) -> MutationResult:  # REQ-1634
+    """A data product saved: a create makes a new one, refusing an id that exists; an update
+    changes one, refusing an id that does not. Either refusal names the id and writes nothing."""
+    # REQ-1634: creating/deleting a data product is catalog curation, gated on its own
+    # write right rather than ORG_SETTINGS — see Capability.DATA_PRODUCT_RW.
+    from provisa.api.admin.capabilities import require_capability, require_right_in_domains
+    from provisa.core.models import DataProduct as DataProductModel
+    from provisa.core.repositories import data_product as data_product_repo
+    from provisa.core.repositories import domain as domain_repo
+
+    require_capability(info, "data_product_rw")
+
+    pool = await _get_pool()
+    async with pool.acquire() as conn:
+        conn = cast("Connection", conn)
+        # REQ-1944: the product's domain, and the one it is moved out of when it exists.
+        stored = await data_product_repo.get(conn, input.id)
+        require_right_in_domains(
+            info,
+            "data_product_rw",
+            {input.domain_id} | ({stored["domain_id"]} if stored is not None else set()),
+        )
+        if creating and stored is not None:
+            return MutationResult(
+                success=False,
+                message=f"Data product {input.id!r} already exists",
+                code="schema.data_product_id_taken",
+                params={"data_product": input.id},
+            )
+        if not creating and stored is None:
+            return MutationResult(
+                success=False,
+                message=f"Data product {input.id!r} not found",
+                code="schema.data_product_not_found",
+                params={"data_product": input.id},
+            )
+        if await domain_repo.get(conn, input.domain_id) is None:
+            return MutationResult(
+                success=False,
+                message=f"Domain {input.domain_id!r} not found",
+                code="schema.domain_not_found",
+                params={"domain": input.domain_id},
+            )
+        model = DataProductModel(
+            id=input.id,
+            domain_id=input.domain_id,
+            name=input.name,
+            owner_role=input.owner_role or None,
+            team_role=input.team_role or None,
+            purpose=input.purpose,
+            limitations=input.limitations,
+            usage=input.usage,
+            version=input.version,
+            status=input.status,
+            sla=input.sla,
+            support=input.support,
+            # Absent or null is "no custom properties" (DataProductInput says why).
+            custom_properties=({} if input.custom_properties is None else input.custom_properties),
+        )
+        await data_product_repo.upsert(conn, model)
+    if creating:
+        return MutationResult(
+            success=True,
+            message=f"Data product {input.id!r} created",
+            code="schema.data_product_created",
+            params={"data_product": input.id},
+        )
+    return MutationResult(
+        success=True,
+        message=f"Data product {input.id!r} updated",
+        code="schema.data_product_updated",
+        params={"data_product": input.id},
+    )
+
+
 def _cardinality_problem(input: RelationshipInput) -> "MutationResult | None":
     from provisa.core.models import Cardinality
 
@@ -1379,6 +1456,19 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
 
         require_capability(info, "source_registration")
         from provisa.core.models import Source as SourceModel, SourceType as SourceTypeEnum
+        from provisa.core.repositories import source as _source_repo
+
+        # A create makes a new source: an existing id is refused by name before anything is
+        # staged, connected or written. Changing a source, and provisioning it again on another
+        # engine, is updateSource.
+        async with (await _get_pool()).acquire() as _taken_conn:
+            if await _source_repo.get(cast("Connection", _taken_conn), input.id) is not None:
+                return MutationResult(
+                    success=False,
+                    message=f"Source {input.id!r} already exists",
+                    code="schema.source_id_taken",
+                    params={"source": input.id},
+                )
 
         # REQ-1907: a ttl / ttl_probe signal needs a cache_ttl on the source or on each table
         # already registered under this id.
@@ -1543,15 +1633,9 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
         # REQ-1531: a source with no allowed list is open to every domain, so opening it to a
         # domain — or to all of them — needs the caller to reach that domain.
         from provisa.api.admin.capabilities import require_reach_of_added_domains
-        from provisa.core.repositories import source as _source_repo
 
-        async with pool.acquire() as _held_conn:
-            _held = await _source_repo.get(cast("Connection", _held_conn), input.id)
-        _was = None if _held is None else _held["allowed_domains"] or []
-        # The list the source will hold: the one given, or — when none is given — the one it
-        # already holds (``_upsert_source_with_domains`` writes only a list that names a domain).
         _named = [d for d in (input.allowed_domains or []) if d.strip()]
-        require_reach_of_added_domains(info, _was, _named or _was or [], empty_is_all=True)
+        require_reach_of_added_domains(info, None, _named, empty_is_all=True)
         await _upsert_source_with_domains(pool, model, input)
 
         _domains = [d for d in (input.allowed_domains or []) if d.strip()]
@@ -1604,33 +1688,12 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
 
         _fire_catalog_indexing(state, pool, input)
 
-        # REQ-1730: createSource is an upsert (REQ-1266's own doc on _upsert_source_with_domains) —
-        # replaying it against a DIFFERENT engine than the one active at original registration
-        # (reprovisioning a source under a newly-swapped-to engine) leaves that engine's own
-        # ctx/schema_build_cache never rebuilt, so any table ALREADY registered for this source
-        # (in the shared control plane, from its original registration) compiles against whatever
-        # catalog_name this source resolved to at the LAST rebuild — before this replay corrected
-        # state.source_catalogs[input.id] moments ago. update_table/register_table already rebuild
-        # on every call; create_source alone never did, because a brand-new source has no
-        # registered tables yet to rebuild for. An upserted one can.
         if input.type == "servicenow":  # REQ-1954: its APIs' OpenAPI source, kept beside it
             from provisa.api.admin._servicenow_companion import sync_companion
 
             async with pool.acquire() as _companion_conn:
                 await sync_companion(cast("Connection", _companion_conn), input.id)
         await _rebuild_schemas()
-        # Same gap update_table's own reconcile call (below, this file) already closed: a
-        # materialize-only table replayed onto a new engine here has an EXISTING registered_tables
-        # row (from its original registration) but no landed replica on THIS engine yet — nothing
-        # else creates it. Reproduced live: airport/firebird SCHEMA_NOT_FOUND on Trino after a
-        # swap replay, because reconcile_landed_tables() never ran for this engine's process
-        # against the just-reprovisioned source.
-        try:
-            await state.federation_engine.reconcile_landed_tables()
-        except Exception:
-            logging.getLogger(__name__).warning(
-                "Landed-table reconcile failed after create_source", exc_info=True
-            )
 
         if input.type == "data_profiler":  # REQ-1934: its schedule fires on the org's scheduler
             from provisa.api.admin.schema_mutation_ops import reschedule_org_triggers
@@ -1933,6 +1996,11 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                         database=input.database,
                         user=input.username,
                         password=resolve_secrets(password_ref),
+                        # The connection extras the standard arguments cannot carry (an Exasol
+                        # certificate pin, a warehouse's account/http_path), as create_source's
+                        # pool and the boot pool pass them: without them an edited source dialled
+                        # unpinned and its discovery failed (REQ-1731, REQ-986/987/988).
+                        extra={k: resolve_secrets(v) for k, v in model.federation_hints.items()},
                     )
             except Exception:
                 logging.getLogger(__name__).exception(
@@ -1954,6 +2022,23 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
         # (the remote database/tenant) is not a catalog name, the fixed-catalog exception, and the
         # adapter-fetched-under-Trino exception (REQ-1730).
         state.source_catalogs[input.id] = catalog_name_for_source(state, input.type, input.id)
+
+        # REQ-1730: the source is provisioned again on the engine bound now -- the one it was saved
+        # under, or another one swapped to since -- with the settings just saved.
+        async with bound_to_request_org():
+            await _synthesize_mapping_dsl_tables(pool, model)
+            await _cache_prometheus_label_columns(pool, state, model)
+            _register_source_on_engine(state, model, input)
+        # Its tables already registered compile against the catalog name just recorded, and a
+        # table whose rows the engine lands gets its replica on this engine (a swap leaves none:
+        # airport/firebird SCHEMA_NOT_FOUND on Trino, reproduced live).
+        await _rebuild_schemas()
+        try:
+            await state.federation_engine.reconcile_landed_tables()
+        except Exception:
+            logging.getLogger(__name__).warning(
+                "Landed-table reconcile failed after update_source", exc_info=True
+            )
 
         # Invalidate and re-index catalog cache (REQ-464)
         from provisa.discovery.catalog_cache import (
@@ -2085,6 +2170,14 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
             graphql_alias=input.graphql_alias or None,
         )
         async with pool.acquire() as conn:
+            # A create makes a new domain: an existing id is refused by name, nothing written.
+            if await domain_repo.get(cast("Connection", conn), input.id) is not None:
+                return MutationResult(
+                    success=False,
+                    message=f"Domain {input.id!r} already exists",
+                    code="schema.domain_id_taken",
+                    params={"domain": input.id},
+                )
             await domain_repo.upsert(cast("Connection", conn), model)
         return MutationResult(
             success=True,
@@ -2140,59 +2233,13 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
     async def create_data_product(
         self, info: StrawberryInfo, input: DataProductInput
     ) -> MutationResult:  # REQ-1634
-        # REQ-1634: creating/deleting a data product is catalog curation, gated on its own
-        # write right rather than ORG_SETTINGS — see Capability.DATA_PRODUCT_RW.
-        from provisa.api.admin.capabilities import require_capability
-        from provisa.core.models import DataProduct as DataProductModel
-        from provisa.core.repositories import data_product as data_product_repo
-        from provisa.core.repositories import domain as domain_repo
+        return await _save_data_product(info, input, creating=True)
 
-        from provisa.api.admin.capabilities import require_right_in_domains
-
-        require_capability(info, "data_product_rw")
-
-        pool = await _get_pool()
-        async with pool.acquire() as conn:
-            conn = cast("Connection", conn)
-            # REQ-1944: the product's domain, and the one it is moved out of when it exists.
-            stored = await data_product_repo.get(conn, input.id)
-            require_right_in_domains(
-                info,
-                "data_product_rw",
-                {input.domain_id} | ({stored["domain_id"]} if stored is not None else set()),
-            )
-            if await domain_repo.get(conn, input.domain_id) is None:
-                return MutationResult(
-                    success=False,
-                    message=f"Domain {input.domain_id!r} not found",
-                    code="schema.domain_not_found",
-                    params={"domain": input.domain_id},
-                )
-            model = DataProductModel(
-                id=input.id,
-                domain_id=input.domain_id,
-                name=input.name,
-                owner_role=input.owner_role or None,
-                team_role=input.team_role or None,
-                purpose=input.purpose,
-                limitations=input.limitations,
-                usage=input.usage,
-                version=input.version,
-                status=input.status,
-                sla=input.sla,
-                support=input.support,
-                # Absent or null is "no custom properties" (DataProductInput says why).
-                custom_properties=(
-                    {} if input.custom_properties is None else input.custom_properties
-                ),
-            )
-            await data_product_repo.upsert(conn, model)
-        return MutationResult(
-            success=True,
-            message=f"Data product {input.id!r} created",
-            code="schema.data_product_created",
-            params={"data_product": input.id},
-        )
+    @strawberry.mutation
+    async def update_data_product(
+        self, info: StrawberryInfo, input: DataProductInput
+    ) -> MutationResult:  # REQ-1634
+        return await _save_data_product(info, input, creating=False)
 
     @strawberry.mutation
     async def delete_data_product(

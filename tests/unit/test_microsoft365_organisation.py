@@ -1120,22 +1120,15 @@ def test_a_completed_read_settles_the_check_of_the_tables_it_fed(org_read, monke
 
 
 async def test_settling_sets_what_each_tables_poll_node_compares_its_check_with(
-    organisation, tmp_path
+    organisation, control_plane
 ):
     """The real connection's ``settle`` and ``keep``/``kept``, against the org's state store:
     the node of each table fed holds "unchanged", so the check's first answer after the read
     matches it (events.injector.check_node) and asks for no second read."""
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.schema_org import mail_sync_state, node_freshness_state
     from provisa.events import queue
     from provisa.events.nodes import source_node
 
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'state.db'}")
-    with engine.begin() as made:
-        node_freshness_state.metadata.create_all(
-            made, tables=[node_freshness_state, mail_sync_state]
-        )
-    state_db = Database(engine, name="state")
+    state_db = control_plane.org()
     await _put(
         organisation.plane,
         platform=SOURCE_TYPE,
@@ -1155,8 +1148,6 @@ async def test_settling_sets_what_each_tables_poll_node_compares_its_check_with(
         assert (
             await queue.get_node_state(conn, source_node("m365", loader.SCHEMA, "folders")) is None
         )
-    await state_db.close()
-    engine.dispose()
 
 
 def test_a_folder_the_mailbox_does_not_have_never_says_the_mailbox_cannot_be_read():

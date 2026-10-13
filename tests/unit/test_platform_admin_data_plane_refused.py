@@ -633,6 +633,21 @@ async def test_rest_create_refuses_a_role_with_no_domains(monkeypatch, parent):
     assert db.conn.writes == []
 
 
+async def test_rest_create_refuses_an_invalid_definition_for_what_it_is_on_an_existing_id(
+    monkeypatch,
+):
+    """An id that exists and a definition that is refused: the definition is what is said."""
+    from provisa.api.admin import roles_router
+
+    db = _Db(_role_rows())
+    monkeypatch.setattr(roles_router, "_pool", lambda _request: db)
+    body = roles_router.CreateRoleBody(id="analyst", capabilities=["usage"], domain_access=[])
+    with pytest.raises(ApiError) as err:
+        await roles_router.create_role(body, _request(*BOOTSTRAP))
+    assert (err.value.status_code, err.value.code) == (422, "roles.domain_required")
+    assert db.conn.writes == []
+
+
 async def test_rest_update_refuses_emptying_a_roles_domains(monkeypatch):
     from provisa.api.admin import roles_router
 

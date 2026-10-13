@@ -13,10 +13,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 import pytest
-from provisa.core.database import create_engine_from_url
 
-from provisa.core.database import Database
-from provisa.core.schema_org import event_status, events, node_freshness_state
 from provisa.events import queue, supervisor
 from provisa.events.handlers import make_mv_generate, make_source_land
 from provisa.events.processor import MVTableProcessor, SourceTableProcessor
@@ -26,18 +23,12 @@ _COLS = [("id", "bigint"), ("status", "text")]
 
 
 @asynccontextmanager
-async def _cp(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}")
-    with engine.begin() as c:
-        events.metadata.create_all(c, tables=[events, event_status, node_freshness_state])
-    try:
-        yield Database(engine, name="cp")
-    finally:
-        engine.dispose()
+async def _cp(control_plane):
+    yield control_plane.org()
 
 
 @pytest.mark.asyncio
-async def test_change_propagates_through_dag_in_one_drain(tmp_path):
+async def test_change_propagates_through_dag_in_one_drain(tmp_path, control_plane):
     store = f"sqlite+pysqlite:///{tmp_path / 'store.db'}"
     # lineage: mv.daily depends on s.orders  ->  dependents_of(s.orders) == [mv.daily]
     dep = supervisor.dependents_of({"mv.daily": {"s.orders"}})
@@ -80,7 +71,7 @@ async def test_change_propagates_through_dag_in_one_drain(tmp_path):
 
     from provisa.federation import store_writer
 
-    async with _cp(tmp_path) as cp:
+    async with _cp(control_plane) as cp:
         src._db = mv._db = cp
         # injector: s.orders changed → its landing work item (own acquire, committed + released)
         async with cp.acquire() as conn:
@@ -102,8 +93,8 @@ async def test_change_propagates_through_dag_in_one_drain(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_reap_reclaims_stale(tmp_path):
-    async with _cp(tmp_path) as cp, cp.acquire() as conn:
+async def test_reap_reclaims_stale(control_plane):
+    async with _cp(control_plane) as cp, cp.acquire() as conn:
         eid = await queue.post_event(conn, source_table="s.a", event_type="replace")
         await queue.fan_out(conn, eid, ["mv.a"])
         t0 = datetime(2026, 7, 8, 12, 0, 0, tzinfo=timezone.utc)
@@ -118,7 +109,7 @@ def test_dependents_of_rejects_cycle():
 
 
 @pytest.mark.asyncio
-async def test_three_level_cascade_one_recompute_per_node(tmp_path):
+async def test_three_level_cascade_one_recompute_per_node(tmp_path, control_plane):
     """REQ-965/966: a root change propagates s.orders → mv.a → mv.b in one drain, each node firing
     exactly once (replace emit), reaching quiescence."""
     store = f"sqlite+pysqlite:///{tmp_path / 'store.db'}"
@@ -173,7 +164,7 @@ async def test_three_level_cascade_one_recompute_per_node(tmp_path):
 
     from provisa.federation import store_writer
 
-    async with _cp(tmp_path) as cp:
+    async with _cp(control_plane) as cp:
         src = _src(cp)
         mv_a = _mv("mv.a", "mv_a", run_a)
         mv_b = _mv("mv.b", "mv_b", run_b)
@@ -197,7 +188,9 @@ async def test_three_level_cascade_one_recompute_per_node(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_debounced_intermediate_defers_then_ripples_once(tmp_path, monkeypatch):
+async def test_debounced_intermediate_defers_then_ripples_once(
+    tmp_path, monkeypatch, control_plane
+):
     """REQ-963+965: a debounced intermediate MV holds the cascade — its leaf does NOT fire until the
     debounce deadline passes, then the intermediate recomputes once and ripples once."""
     import provisa.events.processor as processor_mod
@@ -216,7 +209,7 @@ async def test_debounced_intermediate_defers_then_ripples_once(tmp_path, monkeyp
         calls["b"] += 1
         return [{"id": 20, "status": "b"}]
 
-    async with _cp(tmp_path) as cp:
+    async with _cp(control_plane) as cp:
         mv_a = MVTableProcessor(
             "mv.a",
             change_signal="ttl",

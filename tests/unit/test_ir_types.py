@@ -64,6 +64,12 @@ def test_aliases_canonicalize_to_one_ir_name():
     assert to_ir("timestamptz") == "timestamp"
 
 
+def test_a_registered_nvarchar_column_lands_as_text_with_no_platform_named():
+    """A SAP HANA (or SQL Server) source's column is registered as NVARCHAR; a landing reads the
+    stored type back with no platform, and refused the swap lane's replicas on it."""
+    assert to_ir("NVARCHAR(256)") == "text"
+
+
 def test_strips_qualifier_and_lowercases():
     assert to_ir("VARCHAR(255)") == "text"
     assert to_ir("Numeric(10, 2)") == "numeric"

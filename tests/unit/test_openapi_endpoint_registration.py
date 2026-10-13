@@ -78,20 +78,12 @@ def _table(max_pages: int) -> Table:
 
 
 @pytest.fixture
-async def control_plane(tmp_path):
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.db import init_schema
-
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'tenant.db'}")
-    db = Database(engine, name="org")
-    await init_schema(db, "", org_id="default")
+async def org_db(control_plane):
+    db = control_plane.org()
     async with db.acquire() as conn:
         await conn.execute_core(insert(domains).values(id="d"))
         await conn.execute_core(insert(sources).values(id="petstore", type="openapi"))
-    try:
-        yield db
-    finally:
-        engine.dispose()
+    return db
 
 
 def _state():
@@ -128,10 +120,10 @@ def _three_pages():
 
 @respx.mock
 async def test_an_admin_registered_table_behind_a_three_page_collection_returns_every_page(
-    control_plane,
+    org_db,
 ):
     state = _state()
-    await _register_in_the_admin(control_plane, state, _table(max_pages=10))
+    await _register_in_the_admin(org_db, state, _table(max_pages=10))
     route = _three_pages()
     endpoint = state.api_endpoints[("petstore", "listPets")]
     rows, cut = answer_rows(
@@ -142,11 +134,11 @@ async def test_an_admin_registered_table_behind_a_three_page_collection_returns_
 
 
 @respx.mock
-async def test_with_max_pages_two_the_answer_is_cut_and_says_so(control_plane):
+async def test_with_max_pages_two_the_answer_is_cut_and_says_so(org_db):
     from provisa.api_source.caller import answer_cut_warning
 
     state = _state()
-    await _register_in_the_admin(control_plane, state, _table(max_pages=2))
+    await _register_in_the_admin(org_db, state, _table(max_pages=2))
     _three_pages()
     endpoint = state.api_endpoints[("petstore", "listPets")]
     rows, cut = answer_rows(endpoint, await call_api(endpoint, {}, BASE))
@@ -157,13 +149,13 @@ async def test_with_max_pages_two_the_answer_is_cut_and_says_so(control_plane):
 
 
 @respx.mock
-async def test_a_replica_build_of_it_fails_by_name_at_max_pages(control_plane):
+async def test_a_replica_build_of_it_fails_by_name_at_max_pages(org_db):
     from provisa.api_source.replica_read import PageLimitReached
     from provisa.events.source_loader import make_openapi_loader
 
     state = _state()
     loader = make_openapi_loader(state)  # wired before the table exists
-    await _register_in_the_admin(control_plane, state, _table(max_pages=2))
+    await _register_in_the_admin(org_db, state, _table(max_pages=2))
     _three_pages()
     source = SimpleNamespace(id="petstore")
     table = SimpleNamespace(schema_name="openapi", table_name="listPets", columns=[])
@@ -175,7 +167,7 @@ async def test_a_replica_build_of_it_fails_by_name_at_max_pages(control_plane):
     assert failed.value.params["max_pages"] == 2
 
 
-async def test_the_config_and_the_admin_derive_the_identical_endpoint_row(control_plane):
+async def test_the_config_and_the_admin_derive_the_identical_endpoint_row(org_db):
     """One function: a table declared in the config and the same table registered in the admin
     are served from the same row."""
     from provisa.api.admin._openapi_table_registration import persist_openapi_endpoint
@@ -187,7 +179,7 @@ async def test_the_config_and_the_admin_derive_the_identical_endpoint_row(contro
         return {k: v for k, v in dict(row._mapping).items() if k not in ("id", "created_at")}
 
     table = _table(max_pages=2)
-    async with control_plane.acquire() as conn:
+    async with org_db.acquire() as conn:
         await table_repo.upsert(conn, table)
         src = SimpleNamespace(id="petstore", base_url=BASE, cache_ttl=None)
         await _handle_openapi_table(conn, table, src, SPEC)  # type: ignore[arg-type]
@@ -198,45 +190,45 @@ async def test_the_config_and_the_admin_derive_the_identical_endpoint_row(contro
         assert from_config["pagination"] == {"type": "offset", "page_size": 2, "max_pages": 2}
 
 
-async def test_a_table_with_no_paging_is_stored_as_null_and_loads_unpaged(control_plane):
+async def test_a_table_with_no_paging_is_stored_as_null_and_loads_unpaged(org_db):
     """REQ-318: NULL = not paged. A table registered with no paging must store SQL NULL, not the
     JSON value ``null`` — the endpoint loader reads the column raw and would otherwise build a
     paging from the text ``"null"`` and fail the whole schema build."""
     state = _state()
     table = _table(max_pages=2).model_copy(update={"pagination": None})
-    await _register_in_the_admin(control_plane, state, table)
+    await _register_in_the_admin(org_db, state, table)
     assert state.api_endpoints[("petstore", "listPets")].pagination is None
-    async with control_plane.acquire() as conn:
+    async with org_db.acquire() as conn:
         raw = await conn.fetch("SELECT pagination FROM api_endpoints")
         assert [r["pagination"] for r in raw] == [None]
         raw = await conn.fetch("SELECT pagination FROM registered_tables")
         assert [r["pagination"] for r in raw] == [None]
 
 
-async def test_a_table_with_no_operation_of_its_name_is_refused(control_plane):
+async def test_a_table_with_no_operation_of_its_name_is_refused(org_db):
     from provisa.api.admin._openapi_table_registration import persist_openapi_endpoint
 
     table = _table(max_pages=2).model_copy(update={"table_name": "listCats"})
-    async with control_plane.acquire() as conn:
+    async with org_db.acquire() as conn:
         refused = await persist_openapi_endpoint(_state(), conn, table)
     assert (refused.success, refused.code) == (False, "schema.openapi_no_operation")
 
 
-async def test_the_endpoint_goes_with_its_table(control_plane):
+async def test_the_endpoint_goes_with_its_table(org_db):
     """An endpoint is derived from a registration: deleting the table removes it, so nothing is
     left that could be read without a registered table."""
     from provisa.core.repositories import table as table_repo
 
     state = _state()
-    await _register_in_the_admin(control_plane, state, _table(max_pages=2))
-    async with control_plane.acquire() as conn:
+    await _register_in_the_admin(org_db, state, _table(max_pages=2))
+    async with org_db.acquire() as conn:
         table_id = (await conn.execute_core(select(registered_tables.c.id))).scalar_one()
         assert await table_repo.delete(conn, table_id) is True
         assert (await conn.execute_core(select(api_endpoints.c.id))).fetchall() == []
 
 
 async def test_the_sources_auth_is_stored_and_reaches_the_caller_and_a_refresh_keeps_it(
-    control_plane,
+    org_db,
 ):
     from provisa.api_source.loader import load_api_sources
     from provisa.api_source.openapi_endpoint import (
@@ -247,7 +239,7 @@ async def test_the_sources_auth_is_stored_and_reaches_the_caller_and_a_refresh_k
     from provisa.core.auth_models import ApiAuthApiKey
 
     auth = api_auth({"type": "api_key", "header_name": "X-Key", "api_key": "${secret:PETS_KEY}"})
-    async with control_plane.acquire() as conn:
+    async with org_db.acquire() as conn:
         await register_openapi_source(conn, "petstore", BASE)
         await store_openapi_auth(conn, "petstore", auth)
         await register_openapi_source(conn, "petstore", BASE + "/v2")  # a refresh: auth is kept
@@ -327,7 +319,7 @@ def test_the_stewards_paging_at_registration_is_checked_like_any_other():
 
 
 async def test_a_second_source_registering_a_table_of_the_same_name_keeps_the_firsts_endpoint(
-    control_plane,
+    org_db,
 ):
     """A table is named within its source. Two OpenAPI sources each registering ``listPets`` hold
     two endpoints; the second registration once took over the first source's row, which then
@@ -339,11 +331,11 @@ async def test_a_second_source_registering_a_table_of_the_same_name_keeps_the_fi
     from provisa.core.repositories import table as table_repo
 
     state = _state()
-    await _register_in_the_admin(control_plane, state, _table(max_pages=10))
+    await _register_in_the_admin(org_db, state, _table(max_pages=10))
     copy_base = "https://copy.test"
     state.openapi_specs["copy"] = {"spec": SPEC, "base_url": copy_base, "auth_config": None}
     copy_table = _table(max_pages=10).model_copy(update={"source_id": "copy", "domain_id": "e"})
-    async with control_plane.acquire() as conn:
+    async with org_db.acquire() as conn:
         await conn.execute_core(insert(domains).values(id="e"))
         await conn.execute_core(insert(sources).values(id="copy", type="openapi"))
         await register_openapi_source(conn, "copy", copy_base)
@@ -416,11 +408,11 @@ async def test_a_wrapped_list_is_offered_with_where_its_rows_are():
 
 
 @respx.mock
-async def test_a_wrapped_lists_rows_are_read_page_by_page_to_the_short_page(control_plane):
+async def test_a_wrapped_lists_rows_are_read_page_by_page_to_the_short_page(org_db):
     state = _wrapped_state()
     table = _table(max_pages=10)
     table.pagination = PaginationConfig(type="offset", page_size=2, rows_field="values")
-    await _register_in_the_admin(control_plane, state, table)
+    await _register_in_the_admin(org_db, state, table)
     route = _wrapped_pages()
     endpoint = state.api_endpoints[("petstore", "listPets")]
     assert endpoint.response_root == "values"
@@ -433,11 +425,11 @@ async def test_a_wrapped_lists_rows_are_read_page_by_page_to_the_short_page(cont
 
 
 @respx.mock
-async def test_a_wrapped_answer_that_is_not_paged_is_read_once(control_plane):
+async def test_a_wrapped_answer_that_is_not_paged_is_read_once(org_db):
     state = _wrapped_state()
     table = _table(max_pages=10)
     table.pagination = PaginationConfig(rows_field="values")
-    await _register_in_the_admin(control_plane, state, table)
+    await _register_in_the_admin(org_db, state, table)
     route = respx.get(f"{BASE}/pets").mock(
         return_value=httpx.Response(200, json={"total": 1, "values": [{"id": 9, "name": "z"}]})
     )
@@ -449,13 +441,13 @@ async def test_a_wrapped_answer_that_is_not_paged_is_read_once(control_plane):
     assert (cut, route.call_count) == (None, 1)
 
 
-async def test_a_row_location_the_response_does_not_have_is_refused_by_name(control_plane):
+async def test_a_row_location_the_response_does_not_have_is_refused_by_name(org_db):
     from provisa.api.admin._openapi_table_registration import persist_openapi_endpoint
     from provisa.core.repositories import table as table_repo
 
     table = _table(max_pages=10)
     table.pagination = PaginationConfig(rows_field="items")
-    async with control_plane.acquire() as conn:
+    async with org_db.acquire() as conn:
         await table_repo.upsert(conn, table)
         refused = await persist_openapi_endpoint(_wrapped_state(), conn, table)
     assert (refused.success, refused.code) == (False, "schema.openapi_no_rows_field")
@@ -495,12 +487,12 @@ def test_a_single_valued_enum_is_sent_its_default_or_not_at_all():
     assert default_params_from_spec(spec, "/pets") == {"sort": "open", "limit": 100}
 
 
-async def test_a_branded_source_loads_with_its_brands_headers_and_another_with_none(control_plane):
+async def test_a_branded_source_loads_with_its_brands_headers_and_another_with_none(org_db):
     from provisa.api_source.loader import load_api_sources
     from provisa.api_source.openapi_endpoint import register_openapi_source
     from provisa.openapi.brands import BRANDS
 
-    async with control_plane.acquire() as conn:
+    async with org_db.acquire() as conn:
         await conn.execute_core(
             insert(sources).values(id="pay", type="openapi", path="brand:stripe")
         )
@@ -587,7 +579,7 @@ def test_an_auth_stated_without_its_credential_is_refused():
 # --- an operation with an address of its own ---------------------------------------------------
 
 
-async def test_a_table_whose_operation_declares_its_own_server_is_called_there(control_plane):
+async def test_a_table_whose_operation_declares_its_own_server_is_called_there(org_db):
     from provisa.api_source.openapi_endpoint import (
         register_openapi_endpoint,
         register_openapi_source,
@@ -595,7 +587,7 @@ async def test_a_table_whose_operation_declares_its_own_server_is_called_there(c
 
     spec = {**SPEC, "paths": {"/pets": {"get": {**SPEC["paths"]["/pets"]["get"], "servers": [{"url": "https://files.pets.test/"}]}}}}  # fmt: skip
     table = _table(max_pages=3)
-    async with control_plane.acquire() as conn:
+    async with org_db.acquire() as conn:
         await register_openapi_source(conn, "petstore", BASE)
         await register_openapi_endpoint(conn, table, spec=spec, ttl=60)
         stored = (await conn.execute_core(select(api_endpoints.c.path))).scalar_one()

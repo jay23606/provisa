@@ -16,7 +16,7 @@ environment of the org the row sits, or among the org's own rows in the platform
 each one, and nothing is removed. The search reads stored text only: it resolves nothing and
 reads no secret's value.
 
-The scenarios run here on SQLite control planes, and unchanged on PostgreSQL in
+The scenarios run here on PostgreSQL control planes, and again through a served instance in
 ``tests/integration/test_secret_delete_guarded_pg.py``.
 """
 
@@ -32,12 +32,13 @@ import pytest
 from sqlalchemy import insert, select, update
 
 from provisa.core import schema_admin, schema_org, secret_references, secrets_store
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.db import _init_schema_portable
+from provisa.core.database import Database
+from provisa.core.db import init_schema
 from provisa.core.secrets import resolve_secrets
 from provisa.encryption.runtime import configure_encryption, reset_encryption
 from provisa.core.secrets_runtime import configure_secrets, reset_secrets
 from provisa.core.secrets_store import ORG_OWNER, SecretDeleteRefused
+from tests.pg_control_plane import SCHEMA_SQL
 
 ORG = "acme"
 OTHER = "globex"
@@ -72,21 +73,14 @@ def a_master_key(tmp_path, monkeypatch):
 
 
 @pytest.fixture
-async def planes(tmp_path) -> Planes:
-    admin_engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'platform.db'}")
-    with admin_engine.begin() as conn:
-        schema_admin.metadata.create_all(conn)
-    admin = Database(admin_engine, name="admin")
+async def planes(control_plane) -> Planes:
+    admin = control_plane.platform
     environments: dict[str, Database] = {}
     for env in ("prod", "dev"):
         # Each environment's plane is its model handle, guarded as the server's is (REQ-1922:
         # secrets_router._environment_planes passes ``runtime.model_db``).
-        plane = Database(
-            create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / f'{env}.db'}"),
-            name=env,
-            holds="model",
-        )
-        await _init_schema_portable(plane)
+        plane = control_plane.org(env, holds="model")
+        await init_schema(plane, SCHEMA_SQL, org_id=env)
         environments[env] = plane
     await seed_orgs(admin)
     return Planes(admin, environments)

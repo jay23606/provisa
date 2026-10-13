@@ -22,17 +22,9 @@ from __future__ import annotations
 
 import pytest
 
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.db import _init_schema_portable
 from provisa.core.models import BUILT_IN_SOURCE_IDS, Source, SourceType
 from provisa.core.repositories import source as source_repo
 from provisa.core.schema_org import sources
-
-
-async def _store() -> Database:
-    db = Database(create_engine_from_url("sqlite+pysqlite:///:memory:"), name="sources-test")
-    await _init_schema_portable(db)
-    return db
 
 
 def _source(source_id: str) -> Source:
@@ -55,21 +47,21 @@ async def _seed_built_ins(conn) -> None:
 
 
 class TestCountBillable:
-    async def test_the_built_in_rows_do_not_spend_the_allowance(self):
-        db = await _store()
+    async def test_the_built_in_rows_do_not_spend_the_allowance(self, control_plane):
+        db = control_plane.org()
         async with db.acquire() as conn:
             await _seed_built_ins(conn)
             assert await source_repo.count_billable(conn) == 0
 
-    async def test_registered_sources_are_counted(self):
-        db = await _store()
+    async def test_registered_sources_are_counted(self, control_plane):
+        db = control_plane.org()
         async with db.acquire() as conn:
             await _seed_built_ins(conn)
             await source_repo.upsert(conn, _source("warehouse"))
             await source_repo.upsert(conn, _source("crm"))
             assert await source_repo.count_billable(conn) == 2
 
-    async def test_the_built_in_set_is_what_the_seed_writes(self):
+    async def test_the_built_in_set_is_what_the_seed_writes(self, control_plane):
         # A source seeded into every org but missing from the set would silently bill the customer
         # for Provisa's own furniture, so the set is checked against the seeding code itself.
         import inspect

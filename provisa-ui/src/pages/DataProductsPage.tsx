@@ -15,8 +15,6 @@ import { Alert, Button, Group, Modal, Paper, Table, Text, Title } from "@mantine
 import { Plus } from "lucide-react";
 import {
   useDataProducts,
-  useCreateDataProduct,
-  useDeleteDataProduct,
   useDomains,
   useTables,
   useUpdateTable,
@@ -24,6 +22,11 @@ import {
   useRoles,
   useSources,
 } from "../hooks/useAdminQueries";
+import {
+  useCreateDataProduct,
+  useUpdateDataProduct,
+  useDeleteDataProduct,
+} from "../hooks/useDataProductMutations";
 import { buildTableUpdateInput } from "./tables/helpers";
 import type { DataProduct, RegisteredTable, Relationship } from "../types/admin";
 import { fetchActions, saveFunction, type TrackedFunction } from "../api/actions";
@@ -86,7 +89,9 @@ export function DataProductsPage() {
   const [functions, setFunctions] = useState<TrackedFunction[]>([]); // REQ-1634: member-command list + assignment
   const { roles } = useRoles();
   const roleOptions = roles.map((r) => r.id);
-  const { createDataProduct, loading: saving } = useCreateDataProduct();
+  const { createDataProduct, loading: creatingProduct } = useCreateDataProduct();
+  const { updateDataProduct, loading: updatingProduct } = useUpdateDataProduct();
+  const saving = creatingProduct || updatingProduct;
   const { deleteDataProduct, loading: deleting } = useDeleteDataProduct();
   const { updateTable } = useUpdateTable();
   // REQ-1634: New/Edit/Delete and the table picker require the write right; a
@@ -386,7 +391,9 @@ export function DataProductsPage() {
 
   const handleSave = async () => {
     setMsg("");
-    const result = await createDataProduct({
+    // A new product is created; an open one is updated (a create refuses an id that exists).
+    const save = editingId === null ? createDataProduct : updateDataProduct;
+    const result = await save({
       id: form.id.trim(),
       domainId: form.domainId.trim(),
       name: form.name.trim(),
@@ -408,7 +415,7 @@ export function DataProductsPage() {
     // REQ-1634: table -> product membership is owned by the table row; reconcile the
     // multi-select against current membership by upserting only the tables that changed.
     // form.id is known before save (user-typed on create, fixed on edit), so this applies
-    // in both modes once createDataProduct has confirmed the row exists.
+    // in both modes once the save has confirmed the row exists.
     const productId = form.id.trim();
     const selected = new Set(selectedTableIds);
     const changed = tables.filter(

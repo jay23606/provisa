@@ -307,6 +307,8 @@ def read_targets(names: list[str], shape: list[tuple[str, str]] | None) -> list[
     column (REQ-1965: what a JSON column reads as is its reader's to produce). One computed
     column IS typed: a numeric whose size the statement states with a CAST
     (``compiler.result_shape.StatedType``)."""
+    import pyarrow as pa
+
     from provisa.compiler.result_shape import RegisteredType, StatedType
     from provisa.core.catalog_types import column_arrow_type, is_json_type
     from provisa.core.numeric_type import numeric_arrow_type, numeric_size
@@ -321,6 +323,13 @@ def read_targets(names: list[str], shape: list[tuple[str, str]] | None) -> list[
             # The statement states a numeric's size (CAST(... AS numeric(p,s))): read exact, at
             # that size, on every path — the way to keep a computed decimal exact.
             targets.append(numeric_arrow_type(declared))
+        elif isinstance(declared, StatedType) and pa.types.is_floating(
+            stated := column_arrow_type(declared)
+        ):
+            # The statement states floating point -- as the read of a numeric the model records
+            # no size for does (CAST(... AS DOUBLE PRECISION)): it is that type with or without
+            # rows. Untyped, a read of no rows answered it as Arrow null.
+            targets.append(stated)
         else:
             targets.append(None)
     return targets

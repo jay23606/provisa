@@ -15,7 +15,12 @@ import { client } from "./apolloClient";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { DomainFilterProvider } from "./context/DomainFilterContext";
 import { StorageScopeGate } from "./components/StorageScopeGate";
-import { NamedDemoContext, NO_NAMED_DEMO, type NamedDemo } from "./context/NamedDemoContext";
+import {
+  NamedDemoContext,
+  NO_NAMED_DEMO,
+  namedDemoOf,
+  type NamedDemo,
+} from "./context/NamedDemoContext";
 import { SubnavExtraProvider } from "./context/SubnavExtraContext";
 import { NavBar } from "./components/NavBar";
 import { AdminRail } from "./components/AdminRail";
@@ -175,11 +180,7 @@ function App() {
     fetchSetupStatus()
       .then((status) => {
         const { needs_setup, demo_mode, auth_enabled, multitenancy } = status;
-        setNamedDemo({
-          name: status.named_demo,
-          exampleQueries: status.example_queries,
-          tour: status.demo_tour,
-        });
+        setNamedDemo(namedDemoOf(status));
         setNeedsSetup(needs_setup);
         setDemoMode(demo_mode);
         setAuthEnabled(auth_enabled);

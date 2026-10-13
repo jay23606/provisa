@@ -22,9 +22,8 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy import create_engine as sa_create_engine
 
-from provisa.core.database import Database, create_engine_from_url
+from provisa.core.database import Database
 from provisa.core.region_stores import ForeignRegion, HomeRegionUnavailable
-from provisa.core.schema_org import metadata, replica_state
 from provisa.federation import replica_state as replica_records
 from provisa.federation.query_residency import require_home_replica
 
@@ -33,11 +32,8 @@ _TABLE = SimpleNamespace(source_id="crm", schema_name="public", table_name="orde
 
 
 @pytest.fixture
-def eu_state(tmp_path) -> Database:
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'eu-state.db'}")
-    with engine.begin() as raw:
-        metadata.create_all(raw, tables=[replica_state])
-    return Database(engine, "org-state-eu", holds="state")
+def eu_state(control_plane) -> Database:
+    return control_plane.org(holds="state")
 
 
 def _state(eu: Database) -> SimpleNamespace:
@@ -83,9 +79,9 @@ async def test_a_read_is_refused_while_the_home_replica_is_not_built(eu_state):
     assert "is not built" in str(refused.value)
 
 
-async def test_a_read_is_refused_when_the_home_region_cannot_be_reached(tmp_path):
+async def test_a_read_is_refused_when_the_home_region_cannot_be_reached(control_plane):
     gone = Database(
-        sa_create_engine(f"sqlite:///{tmp_path / 'missing' / 'eu-state.db'}"),
+        sa_create_engine(control_plane.pg.url("no_such_eu_state")),
         "org-state-eu",
         holds="state",
     )

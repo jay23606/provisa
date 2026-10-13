@@ -23,12 +23,8 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from provisa.core import config_stamp
 from provisa.core import deployment_settings, limits, settings_registry
-from provisa.core.database import Database, create_engine_from_url
 from provisa.core.limits import REQUEST_TRANSPORTS, request_timeout_for, request_timeout_setting
-from provisa.core.schema_admin import deployment_settings as settings_table
-from provisa.core.schema_admin import metadata
 
 
 @pytest.fixture(autouse=True)
@@ -41,16 +37,10 @@ def _a_fresh_deployment(monkeypatch):
 
 
 @pytest.fixture
-def control_plane(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}")
-    with engine.begin() as conn:
-        metadata.create_all(conn, tables=[settings_table, metadata.tables["config_stamp"]])
-        # REQ-1914: the settings snapshot is loaded with the plane's `settings` stamp.
-        config_stamp.install(conn, config_stamp.PLATFORM_TABLES)
-    db = Database(engine, name="platform")
+def settings_plane(tmp_path, control_plane):
+    db = control_plane.platform
     deployment_settings.bind(db)
     yield db
-    engine.dispose()
 
 
 def test_the_transports():
@@ -118,16 +108,16 @@ def test_asking_for_a_transport_that_does_not_exist_is_refused():
         request_timeout_for("smtp")
 
 
-def test_a_stored_value_wins_and_clearing_it_returns_the_transport_to_what_shipped(control_plane):
+def test_a_stored_value_wins_and_clearing_it_returns_the_transport_to_what_shipped(settings_plane):
     settings_registry.store(
-        control_plane,
+        settings_plane,
         {"limits.request_timeouts": {"flight": 7200, "graphql": 10}},
         updated_by="op",
     )
     assert request_timeout_for("flight") == 7200.0
     assert request_timeout_for("graphql") == 10.0
     settings_registry.store(
-        control_plane, {"limits.request_timeouts": {"graphql": None}}, updated_by="op"
+        settings_plane, {"limits.request_timeouts": {"graphql": None}}, updated_by="op"
     )
     assert request_timeout_for("graphql") == 60.0
     assert request_timeout_for("flight") == 7200.0  # a partial store keeps the other keys
@@ -137,7 +127,7 @@ def test_a_stored_value_wins_and_clearing_it_returns_the_transport_to_what_shipp
 
 
 @pytest.fixture
-def client(control_plane, tmp_path, monkeypatch):
+def client(settings_plane, tmp_path, monkeypatch):
     import yaml
 
     from provisa.api.admin.settings_router import router
@@ -146,7 +136,7 @@ def client(control_plane, tmp_path, monkeypatch):
     cfg = tmp_path / "provisa.yaml"
     cfg.write_text(yaml.safe_dump({"sources": [], "domains": [], "tables": [], "roles": []}))
     monkeypatch.setenv("PROVISA_CONFIG", str(cfg))
-    monkeypatch.setattr(state, "admin_db", control_plane)
+    monkeypatch.setattr(state, "admin_db", settings_plane)
     app = FastAPI()
     app.include_router(router)
     return TestClient(app)

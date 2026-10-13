@@ -15,8 +15,6 @@ from types import SimpleNamespace
 
 import pytest
 
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.schema_org import metadata, replica_state as replica_state_table
 from provisa.events.boot import build_source_node_spec
 from provisa.events.handlers import make_source_build
 from provisa.federation import replica_state
@@ -29,12 +27,8 @@ STORE = "store-a"
 
 
 @pytest.fixture
-def db(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}")
-    with engine.begin() as conn:
-        metadata.create_all(conn, tables=[replica_state_table])
-    yield Database(engine, "test")
-    engine.dispose()
+def db(control_plane):
+    return control_plane.org()
 
 
 def _handle(db, kicks):

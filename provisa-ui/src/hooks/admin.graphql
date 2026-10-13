@@ -873,6 +873,12 @@ mutation CreateDataProduct($input: DataProductInput!) {
   }
 }
 
+mutation UpdateDataProduct($input: DataProductInput!) {
+  updateDataProduct(input: $input) {
+    ...MutationResult
+  }
+}
+
 mutation DeleteDataProduct($id: String!) {
   deleteDataProduct(id: $id) {
     ...MutationResult
