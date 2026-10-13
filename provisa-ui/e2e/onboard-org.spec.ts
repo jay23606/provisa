@@ -30,7 +30,14 @@ test("member-less user onboards a new org with demo data and is routed into the 
 
   await page.route("**/setup/status", (route) =>
     route.fulfill({
-      json: { needs_setup: false, demo_mode: false, auth_enabled: true, example_queries: [] },
+      json: {
+        needs_setup: false,
+        demo_mode: false,
+        auth_enabled: true,
+        example_queries: [],
+        named_demo: null,
+        demo_tour: [],
+      },
     }),
   );
   // Firebase config probe from index.html is absent under the stubbed harness.
@@ -93,7 +100,9 @@ test("member-less user onboards a new org with demo data and is routed into the 
   await page.waitForURL("**/query");
   await expect(page.getByTestId("onboard-org-page")).toHaveCount(0);
 
-  expect(createBody).toEqual(expect.objectContaining({ id: ORG_ID, name: "Carol Co", include_demo: true }));
+  expect(createBody).toEqual(
+    expect.objectContaining({ id: ORG_ID, name: "Carol Co", include_demo: true }),
+  );
   expect(await page.evaluate(() => localStorage.getItem("provisa_org"))).toBe(ORG_ID);
 });
 
@@ -106,7 +115,14 @@ test("member-less user joins an existing org with an invite code and is routed i
 
   await page.route("**/setup/status", (route) =>
     route.fulfill({
-      json: { needs_setup: false, demo_mode: false, auth_enabled: true, example_queries: [] },
+      json: {
+        needs_setup: false,
+        demo_mode: false,
+        auth_enabled: true,
+        example_queries: [],
+        named_demo: null,
+        demo_tour: [],
+      },
     }),
   );
   await page.route("**/firebase-config.js", (route) =>
