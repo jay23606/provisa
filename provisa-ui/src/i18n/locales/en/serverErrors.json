@@ -385,7 +385,9 @@
       "microsoft_365_invalid": "Microsoft 365 source {{source}}: {{error}}",
       "parameter_set_by_source": "A parameter of '{{table}}' keeps what its source says of it: how it reaches the source and whether the source requires it cannot be changed. A steward makes a parameter required with its required switch.",
       "logs_invalid": "Logs source {{source}}: {{error}}",
-      "logs_path_refused": "Logs source {{source}}: {{reason}}"
+      "logs_path_refused": "Logs source {{source}}: {{reason}}",
+      "file_path_leaves_org": "Source {{source}}: {{path}} leaves the organization's folder.",
+      "file_path_local_refused": "Source {{source}}: a server of many organizations reads no file on its own disk; upload the file, or name it as {files}/… or by a remote address."
     },
     "secrets": {
       "name_refused": "{{name}} is not a name inside this organization's secrets in {{service}}: a name is relative to the organization and cannot leave it",

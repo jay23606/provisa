@@ -385,7 +385,9 @@
       "microsoft_365_invalid": "Microsoft-365-Quelle {{source}}: {{error}}",
       "parameter_set_by_source": "Ein Parameter von '{{table}}' behält, was seine Quelle über ihn sagt: wie er die Quelle erreicht und ob die Quelle ihn verlangt, lässt sich nicht ändern. Ein Steward macht einen Parameter mit seinem Schalter „Erforderlich“ verpflichtend.",
       "logs_invalid": "Logs-Quelle {{source}}: {{error}}",
-      "logs_path_refused": "Logs-Quelle {{source}}: {{reason}}"
+      "logs_path_refused": "Logs-Quelle {{source}}: {{reason}}",
+      "file_path_leaves_org": "Quelle {{source}}: {{path}} verlässt den Ordner der Organisation.",
+      "file_path_local_refused": "Quelle {{source}}: Ein Server mit vielen Organisationen liest keine Datei auf seinem eigenen Datenträger; laden Sie die Datei hoch oder geben Sie sie als {files}/… oder über eine entfernte Adresse an."
     },
     "secrets": {
       "name_refused": "{{name}} ist kein Name innerhalb der Secrets dieser Organisation in {{service}}: Ein Name ist relativ zur Organisation und kann sie nicht verlassen",

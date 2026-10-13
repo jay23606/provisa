@@ -325,6 +325,49 @@ def google_workspace_refusal(input: SourceInput) -> Optional[MutationResult]:  #
     return None
 
 
+def file_source_path(input: SourceInput) -> Optional[MutationResult]:  # REQ-1997
+    """A file-based source's path as it is kept, or why it cannot be. The maintainer's ruling:
+    "all uploaded file paths must be relative to the org path (in saas in particular we don't
+    want to reveal the physical location of the file)". So a path inside the organization's
+    folder is kept written with its token ({files}/... or {org}/...) -- an absolute one, such as
+    an upload saved before, is rewritten so -- and a token path that leaves the folder is
+    refused by name; on a server of many organizations a path on the server's own disk is
+    refused unless it is written with a token. A remote location (https, s3, gs, az) stands."""
+    from provisa.core import org_files
+    from provisa.core.secrets_providers import many_organisations
+    from provisa.core.source_uploads import UPLOAD_TYPES
+    from provisa.federation.connector_duckdb import location_kind
+
+    if input.type not in UPLOAD_TYPES or not input.path or location_kind(input.path) is not None:
+        return None
+    try:
+        if org_files.is_org_path(input.path):
+            org_files.resolve_path(input.path)
+            return None
+        rewritten = org_files.token_path(input.path)
+    except org_files.OrgPathRefused as exc:
+        return MutationResult(
+            success=False,
+            message=f"Source {input.id!r}: {exc}",
+            code="schema.file_path_leaves_org",
+            params={"source": input.id, "path": input.path},
+        )
+    if org_files.is_org_path(rewritten):
+        input.path = rewritten
+        return None
+    if many_organisations():
+        return MutationResult(
+            success=False,
+            message=(
+                f"Source {input.id!r}: a server of many organizations reads no file on its own "
+                f"disk; upload the file, or name it as {{files}}/... or by a remote address"
+            ),
+            code="schema.file_path_local_refused",
+            params={"source": input.id},
+        )
+    return None
+
+
 def logs_refusal(input: SourceInput) -> Optional[MutationResult]:  # REQ-1996
     """Why a Logs source's settings cannot be a source, or None: for another source type, and
     for settings that can. Its glob must resolve inside the directories log files may be read

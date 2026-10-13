@@ -546,6 +546,9 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         path = getattr(source, "path", None)
         if source.type.value != "duckdb" or not path or location_kind(path) is not None:
             return
+        from provisa.core.org_files import resolve_path
+
+        path = resolve_path(path)  # the file a write opens, as the driver resolves it
 
         @contextmanager
         def paused() -> Iterator[None]:

@@ -32,6 +32,7 @@ has turned on encryption has its folder mounted encrypted instead
 from __future__ import annotations
 
 import asyncio
+import os
 import tempfile
 from pathlib import Path
 from collections.abc import Callable
@@ -169,3 +170,63 @@ def org_tmp(org_id: str | None = None) -> Path:
 def mkdtemp(prefix: str, org_id: str | None = None) -> str:
     """A new temporary directory in the org's temporary directory."""
     return tempfile.mkdtemp(prefix=prefix, dir=org_tmp(org_id))
+
+
+# --- paths written with the org's tokens (REQ-1997) ------------------------------------------
+#
+# The maintainer's ruling: "all uploaded file paths must be relative to the org path (in saas in
+# particular we don't want to reveal the physical location of the file)" -- "have some org-level
+# {} statements that resolve to org locations". A file source's path may begin with one of these
+# tokens; it is kept, shown and named in messages as written, and resolved where the file is read.
+
+#: A token and the place under the org's folder it stands for.
+PATH_TOKENS: dict[str, tuple[str, ...]] = {"{files}": ("files",), "{org}": ()}
+
+
+class OrgPathRefused(PermissionError):
+    """A path written with an org token that leaves the org's folder."""
+
+
+def _token_of(path: str) -> tuple[str, str] | None:
+    for token in PATH_TOKENS:
+        if path == token or path.startswith(token + "/"):
+            return token, path[len(token) :].lstrip("/")
+    return None
+
+
+def is_org_path(path: str | None) -> bool:
+    """Whether ``path`` is written with one of the org's tokens."""
+    return path is not None and _token_of(path) is not None
+
+
+def resolve_path(path: str, org_id: str | None = None) -> str:
+    """``path`` as the file it names: a path written with an org token is that place under the
+    org's folder (``{files}/a.csv`` -> ``<org folder>/files/a.csv``), refused by name when it
+    leaves the folder through ``..`` or a symlink; any other path is returned as it is."""
+    found = _token_of(path)
+    if found is None:
+        return path
+    token, rest = found
+    root = org_root(org_id)
+    target = (
+        root.joinpath(*PATH_TOKENS[token], rest) if rest else root.joinpath(*PATH_TOKENS[token])
+    )
+    real, real_root = os.path.realpath(target), os.path.realpath(root)
+    if real != real_root and not real.startswith(real_root + os.sep):
+        raise OrgPathRefused(f"{path} leaves the organization's folder")
+    return str(target)
+
+
+def token_path(path: str, org_id: str | None = None) -> str:
+    """``path`` as the org's tokens write it, when it is under the org's folder (the files area
+    as ``{files}/...``, anywhere else in the folder as ``{org}/...``); any other path as it is.
+    What a form, an answer or a message shows, so no physical location is revealed."""
+    root = os.path.realpath(org_root(org_id))
+    real = os.path.realpath(path)
+    for token, parts in sorted(PATH_TOKENS.items(), key=lambda kv: -len(kv[1])):
+        base = os.path.join(root, *parts) if parts else root
+        if real == base:
+            return token
+        if real.startswith(base + os.sep):
+            return token + "/" + os.path.relpath(real, base).replace(os.sep, "/")
+    return path

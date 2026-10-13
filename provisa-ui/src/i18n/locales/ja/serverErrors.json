@@ -385,7 +385,9 @@
       "microsoft_365_invalid": "Microsoft 365 ソース {{source}}: {{error}}",
       "parameter_set_by_source": "'{{table}}' のパラメーターは、ソースが示すとおりに保たれます。ソースへの渡し方と、ソースが必須としているかどうかは変更できません。スチュワードは「必須」スイッチでパラメーターを必須にします。",
       "logs_invalid": "Logs ソース {{source}}: {{error}}",
-      "logs_path_refused": "Logs ソース {{source}}: {{reason}}"
+      "logs_path_refused": "Logs ソース {{source}}: {{reason}}",
+      "file_path_leaves_org": "ソース {{source}}: {{path}} は組織のフォルダーの外を指しています。",
+      "file_path_local_refused": "ソース {{source}}: 多数の組織を抱えるサーバーは自身のディスク上のファイルを読み取りません。ファイルをアップロードするか、{files}/… またはリモートのアドレスで指定してください。"
     },
     "secrets": {
       "name_refused": "{{name}} は {{service}} 内のこの組織のシークレットに含まれる名前ではありません。名前は組織に対する相対指定であり、組織の外に出ることはできません",

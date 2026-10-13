@@ -461,10 +461,12 @@ def make_sqlite_loader() -> AdapterLoader:
         return {**details, "extension": "sqlite", "install_from_community": False}
 
     def _path(source: Any) -> str:
+        from provisa.core.org_files import resolve_path
+
         path = getattr(source, "path", None)
         if not path:
             raise ValueError(f"sqlite source {source.id!r} has no path")
-        return path
+        return resolve_path(path)  # REQ-1997: a {files}/... path is read where it resolves
 
     def _from(source: Any, table: Any, remote: dict | None) -> str:
         if remote is None:

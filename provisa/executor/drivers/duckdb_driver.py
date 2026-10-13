@@ -77,6 +77,7 @@ class DuckDBDriver(DirectDriver):  # REQ-027, REQ-068, REQ-1997
 
         self._gate = ReadersWriterGate()
         self._holder: int | None = None
+        self._shown = ":memory:"  # the database as the source names it, for messages
 
     def _open(self) -> None:
         database = self._database
@@ -119,14 +120,18 @@ class DuckDBDriver(DirectDriver):  # REQ-027, REQ-068, REQ-1997
         min_pool: int = 1,
         max_pool: int = 5,
     ) -> None:
-        # DuckDB: database is a file path or :memory:
-        self._database = database
+        # DuckDB: database is a file path or :memory:. A path written with the org's tokens
+        # ({files}/..., REQ-1997) is opened where it resolves; messages name it as written.
+        from provisa.core.org_files import resolve_path
+
+        self._shown = database
+        self._database = resolve_path(database) if _is_file(database) else database
         self._min_pool, self._max_pool = min_pool, max_pool
         self._open()
         if _is_file(database):
             from provisa.federation import file_locks
 
-            self._holder = file_locks.register(database, self._paused)
+            self._holder = file_locks.register(self._database, self._paused)
 
     def _require_pool(self) -> BlockingPool[Any]:
         if self._pool is None:
@@ -159,13 +164,13 @@ class DuckDBDriver(DirectDriver):  # REQ-027, REQ-068, REQ-1997
     def _write(self, sql: str, params: list | None) -> QueryResult:
         from provisa.federation import file_locks
 
-        file_locks.refuse_unprotected(self._database)
+        file_locks.refuse_unprotected(self._database, self._shown)
         with file_locks.exclusive(self._database):
             try:
                 conn = duckdb.connect(self._database)
             except duckdb.IOException as exc:
                 if file_locks.is_lock_conflict(exc):
-                    raise file_locks.FileLocked(self._database) from None
+                    raise file_locks.FileLocked(self._shown) from None
                 raise
             try:
                 with request_deadline.cancel_on_deadline(conn.interrupt):

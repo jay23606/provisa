@@ -385,7 +385,9 @@
       "microsoft_365_invalid": "Fonte do Microsoft 365 {{source}}: {{error}}",
       "parameter_set_by_source": "Um parâmetro de '{{table}}' mantém o que sua origem diz dele: não é possível mudar como ele chega à origem nem se a origem o exige. Um responsável torna um parâmetro obrigatório com o seu interruptor de obrigatório.",
       "logs_invalid": "Fonte Logs {{source}}: {{error}}",
-      "logs_path_refused": "Fonte Logs {{source}}: {{reason}}"
+      "logs_path_refused": "Fonte Logs {{source}}: {{reason}}",
+      "file_path_leaves_org": "Fonte {{source}}: {{path}} sai da pasta da organização.",
+      "file_path_local_refused": "Fonte {{source}}: um servidor de muitas organizações não lê arquivos do próprio disco; envie o arquivo ou indique-o como {files}/… ou por um endereço remoto."
     },
     "secrets": {
       "name_refused": "{{name}} não é um nome dentro dos segredos desta organização em {{service}}: um nome é relativo à organização e não pode sair dela",
