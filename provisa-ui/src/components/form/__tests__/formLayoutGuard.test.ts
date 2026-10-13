@@ -34,6 +34,7 @@ const NOT_A_FORM: Readonly<Record<string, string>> = {
   "components/RegionSelector.tsx": "the region switch in the page header",
   "pages/tables/DescriptionField.tsx": "one reusable control, placed by the form that uses it",
   "pages/tables/VectorModelCell.tsx": "one reusable control, placed by the form that uses it",
+  "pages/tables/NumericSizeInputs.tsx": "one reusable control, placed by the form that uses it",
   "components/GovernedTableViewer.tsx": "the filter above a data preview",
   "components/NavBar.tsx": "the do-not-ask-again tick of the sign-out dialog",
   "components/SourceTypePicker.tsx": "the search box of the source-type picker",
