@@ -495,7 +495,20 @@ async def test_without_an_engine_or_store_nothing_happens():
 async def test_a_burst_of_reads_of_one_stale_table_makes_one_request_and_one_build(
     wiring, plane, monkeypatch
 ):
-    """Single-flight per replica per process: every reader waits on the same record."""
+    """Single-flight per replica per process: every reader waits on the same record.
+
+    A burst is reads within one poll interval of the copy being read (``_joins``). The fixture
+    shrinks that interval to 10 ms for the wait loop, which a loaded host's lock hand-offs
+    between eight readers can outlast; here every copy the burst has read is as fresh as just
+    read, so the test is of the lock, not of the host's speed."""
+    from provisa.federation.replica_state_view import ReplicaStateView
+
+    real_age = ReplicaStateView.age
+    monkeypatch.setattr(
+        ReplicaStateView,
+        "age",
+        lambda self, org_id, key: None if real_age(self, org_id, key) is None else 0.0,
+    )
     requests: list = []
     real = replica_state.request_build
 
