@@ -250,7 +250,7 @@ def hot_candidates(
     (``hot_tier``: ``HotTableManager.managed_tables()``) is not judged either: a table lives in
     at most one tier, and the hot tier wins (REQ-241)."""
     from provisa.federation.replica_converge import builds_here, home_region, whole_copy
-    from provisa.federation.replica_routing import has_live_attach
+    from provisa.federation.replica_routing import has_live_attach, owns_replica
     from provisa.federation.role_ttl import missing_landing_ttl
 
     candidates: list[HotCandidate] = []
@@ -259,6 +259,11 @@ def hot_candidates(
     for reg in registered:
         source = sources.get(reg.source_id)
         if source is None:
+            continue
+        # A type that owns no replica (a profiler's results, a checker's scans, ingest, a
+        # live-only source) is read where it is written however busy it is: a build of it could
+        # never succeed, and was retried for ever (REQ-1443, REQ-1934).
+        if not owns_replica(source):
             continue
         threshold = threshold_of(source, reg, default_threshold)
         if threshold is None:

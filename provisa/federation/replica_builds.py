@@ -894,12 +894,15 @@ async def request_if_replicated(state: Any, table_id: int, source_id: str, reaso
     from provisa.federation import replica_state
     from provisa.federation.registry_view import registered_sources, registered_tables
     from provisa.federation.replica_converge import whole_copy
+    from provisa.federation.replica_routing import owns_replica
     from provisa.federation.strategy import engine_attaches
 
     engine = state.federation_engine
     source = {s.id: s for s in await registered_sources(state)}.get(source_id)
     if source is None:
         return False  # a built-in source (registry_view.registered_sources): never replicated
+    if not owns_replica(source):
+        return False  # read where it is written (NO_REPLICA_TYPES, live-only): never replicated
     table = {t.id: t for t in await registered_tables(state)}[table_id]
     served_from_replica = table.id in state.replica_routes.floored or not engine_attaches(
         engine, source.type.value

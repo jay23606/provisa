@@ -144,3 +144,24 @@ async def test_a_build_already_asked_for_is_joined_and_starts_no_pass(written, m
 
 def test_write_is_a_build_reason():
     assert replica_state.REASON_WRITE in replica_state.REASONS
+
+
+@pytest.mark.parametrize("stype", ["soda", "great_expectations", "data_profiler", "ingest"])
+async def test_a_source_that_owns_no_replica_is_never_rebuilt_on_a_write(
+    written, monkeypatch, stype
+):
+    """A source type read where it is written (NO_REPLICA_TYPES): the engine cannot attach it,
+    and still no build is asked for -- one could never succeed."""
+    asked, kicked = written
+
+    async def _sources(_state):
+        return [SimpleNamespace(id="shop", type=SimpleNamespace(value=stype))]
+
+    monkeypatch.setattr("provisa.federation.registry_view.registered_sources", _sources)
+    assert (
+        await replica_builds.request_if_replicated(
+            _state(attaches=False), 1, "shop", replica_state.REASON_WRITE
+        )
+        is False
+    )
+    assert asked == [] and kicked == []

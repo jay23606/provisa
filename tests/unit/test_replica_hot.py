@@ -364,3 +364,21 @@ def test_a_table_with_no_whole_copy_to_build_is_not_judged_and_the_reason_is_kep
     )
     assert [c.table_id for c in candidates] == [2]
     assert skipped == {("pg", "public", "pet_by_id"): NOT_WHOLE}
+
+
+@pytest.mark.parametrize("stype", ["soda", "great_expectations", "data_profiler", "qdrant"])
+def test_a_source_that_owns_no_replica_is_never_promoted_however_busy(monkeypatch, stype):
+    """REQ-1443, REQ-1934, REQ-2000: a checker's scans, a profiler's results and a live-only
+    source are read where they are written. The UI e2e lanes promoted the busy demo checker
+    tables (dq-checker, dq-soda), whose builds could never succeed and were retried for ever."""
+    # the engine reads it in place, as it reads a checker table: only the type decides
+    monkeypatch.setattr(
+        "provisa.federation.replica_routing.has_live_attach", lambda source, engine: True
+    )
+    source = SimpleNamespace(
+        id="dq", type=SimpleNamespace(value=stype), replicate=None, load_protected=None
+    )
+    candidates, skipped = hot_candidates(
+        [_reg(1, "quality", "dq", cache_ttl=60)], {"dq": source}, frozenset(), _ENGINE, _DEFAULT
+    )
+    assert candidates == [] and skipped == {}
