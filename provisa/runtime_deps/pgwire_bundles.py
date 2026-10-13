@@ -44,11 +44,11 @@ RELEASE_TAG = "engine-v0.106.3"
 #     bundle), which the connectors served from RELEASE_TAG today do not do.
 #   file: engine-v0.109.0 is the first release whose file adapter runs a declared HTML crawl
 #     (REQ-1960).
-#   servicenow: engine-v0.109.7 is the first release with a pgwire-servicenow bundle (REQ-1954).
+#   servicenow: engine-v0.110.0 is the first release with a pgwire-servicenow bundle (REQ-1954).
 CONNECTOR_RELEASE: dict[str, str] = {
     "salesforce": "engine-v0.108.0",
     "file": "engine-v0.109.0",
-    "servicenow": "engine-v0.109.7",
+    "servicenow": "engine-v0.110.0",
 }
 GITHUB_REPO = "kenstott/calcite"
 
