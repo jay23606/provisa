@@ -1171,6 +1171,12 @@ mutation CreateRole($input: RoleInput!) {
   }
 }
 
+mutation UpdateRole($input: RoleInput!) {
+  updateRole(input: $input) {
+    ...MutationResult
+  }
+}
+
 mutation DeleteRole($id: String!) {
   deleteRole(id: $id) {
     ...MutationResult

@@ -77,6 +77,7 @@ declare module "*.graphql" {
   export const UpsertRlsRule: DocumentNode;
   export const DeleteRlsRule: DocumentNode;
   export const CreateRole: DocumentNode;
+  export const UpdateRole: DocumentNode;
   export const DeleteRole: DocumentNode;
   export const RevokeRoleFromTable: DocumentNode;
   export const RevokeRoleFromObject: DocumentNode;
@@ -197,6 +198,7 @@ declare module "*.gql" {
   export const UpsertRlsRule: DocumentNode;
   export const DeleteRlsRule: DocumentNode;
   export const CreateRole: DocumentNode;
+  export const UpdateRole: DocumentNode;
   export const DeleteRole: DocumentNode;
   export const RevokeRoleFromTable: DocumentNode;
   export const RevokeRoleFromObject: DocumentNode;

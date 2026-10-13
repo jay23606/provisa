@@ -6170,5 +6170,7 @@
   "zh/serverErrors.json::serverErrors.schema.source_id_taken": "Source '{{source}}' already exists",
   "zh/serverErrors.json::serverErrors.roles.already_exists": "Role '{{role}}' already exists",
   "zh/serverErrors.json::serverErrors.users.username_taken": "User '{{username}}' already exists",
-  "zh/serverErrors.json::serverErrors.schema.domain_id_taken": "Domain '{{domain}}' already exists"
+  "zh/serverErrors.json::serverErrors.schema.domain_id_taken": "Domain '{{domain}}' already exists",
+  "zh/serverErrors.json::serverErrors.schema.role_id_taken": "Role '{{role}}' already exists",
+  "zh/serverErrors.json::serverErrors.schema.role_updated": "Role '{{role}}' updated"
 }

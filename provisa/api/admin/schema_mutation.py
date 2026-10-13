@@ -335,6 +335,138 @@ async def _save_data_product(
     )
 
 
+async def _save_role(
+    info: StrawberryInfo, input: RoleInput, *, creating: bool
+) -> MutationResult:  # REQ-042, REQ-059, REQ-060, REQ-215, REQ-1531
+    """A role saved: a create makes a new one, an update changes one that exists."""
+    # REQ-1531: a role carries both capabilities and domain_access (REQ-1530), so minting one is
+    # how a member would widen their own scope. It is the org_admin's act, gated by the right
+    # that administers members.
+    from provisa.api.admin.capabilities import require_capability
+    from provisa.core.models import Role as RoleModel
+
+    require_capability(info, "user_management")
+    from provisa.core.models import RoleRateLimit
+    from provisa.core.repositories import role as role_repo
+
+    pool = await _get_pool()
+    # REQ-1174: carry the per-role rate + query-complexity limits through to the model/DB.
+    rl = input.rate_limit
+    rate_limit = (
+        RoleRateLimit(
+            requests_per_second=rl.requests_per_second,
+            max_query_complexity=rl.max_query_complexity,
+            max_query_time_ms=rl.max_query_time_ms,
+        )
+        if rl is not None
+        else None
+    )
+    # REQ-1677: the parent must exist, be another role, and not close a cycle.
+    from provisa.security.inheritance import parent_map, parent_problem
+
+    parent_id = input.parent_role_id or None
+    async with pool.acquire() as conn:
+        existing = await role_repo.list_all(cast("Connection", conn))
+    problem = parent_problem(input.id, parent_id, parent_map(existing))
+    if problem is not None:
+        return MutationResult(
+            success=False,
+            message=problem,
+            code="schema.role_parent_invalid",
+            params={"role": input.id, "parent": parent_id, "reason": problem},
+        )
+    # REQ-042/REQ-1337: the same two refusals the REST surface makes — an unknown capability,
+    # and a platform right (the role's own or its parent chain's) defined by a caller who is
+    # not a platform administrator.
+    from provisa.api.admin._platform_guard import role_definition_problem
+    from provisa.security.inheritance import effective_capabilities, effective_domain_access
+
+    inherited = effective_capabilities(parent_id, existing) if parent_id is not None else []
+    inherited_domains = (
+        effective_domain_access(parent_id, existing) if parent_id is not None else []
+    )
+    definition_problem = role_definition_problem(
+        info.context["request"],
+        input.capabilities,
+        inherited,
+        role_id=input.id,
+        domain_access=input.domain_access,
+        inherited_domain_access=inherited_domains,
+    )
+    if definition_problem is not None:
+        return MutationResult(
+            success=False,
+            message=str(definition_problem.detail),
+            code=definition_problem.code,
+            params={"role": input.id, **definition_problem.params},
+        )
+    # REQ-1531: a role hands out reach; whoever defines it must hold every domain the
+    # definition adds to what the role reaches — listed or inherited.
+    from provisa.api.admin.capabilities import require_reach_of_added_domains
+
+    held = next((r for r in existing if r["id"] == input.id), None)
+    # A create makes a new role and an update changes one: an id held by another role, or one no
+    # role holds, is refused by name. A refused definition was refused above, for what it is.
+    if creating and held is not None:
+        return MutationResult(
+            success=False,
+            message=f"Role {input.id!r} already exists",
+            code="schema.role_id_taken",
+            params={"role": input.id},
+        )
+    if not creating and held is None:
+        return MutationResult(
+            success=False,
+            message=f"Role {input.id!r} not found",
+            code="schema.role_not_found",
+            params={"role": input.id},
+        )
+    if held is not None:
+        # REQ-1531: redefining a role is an act in every domain it reaches now, not only in
+        # the ones the change adds.
+        require_right_in_domains(
+            info, "user_management", effective_domain_access(input.id, existing)
+        )
+    require_reach_of_added_domains(
+        info,
+        None if held is None else effective_domain_access(input.id, existing),
+        [*input.domain_access, *inherited_domains],
+    )
+    model = RoleModel(
+        id=input.id,
+        capabilities=input.capabilities,
+        domain_access=input.domain_access,
+        rate_limit=rate_limit,
+        parent_role_id=parent_id,
+        residency_values=input.residency_values,  # REQ-1921
+        # REQ-1919: what the form does not carry is kept as the store holds it.
+        **({} if held is None else {name: held[name] for name in role_repo.KEPT_ON_FORM_EDIT}),
+    )
+    async with pool.acquire() as conn:
+        await role_repo.upsert(
+            cast("Connection", conn),
+            model,
+            org_id=_resolve_admin_context(info),
+        )
+    # A new role has no state.schemas[role_id]/state.contexts[role_id] until some rebuild
+    # runs; without this, the role is unusable until an unrelated mutation happens to trigger
+    # one, and any prepared-plan cache keyed on schema_version would never see this role exist.
+    await _rebuild_schemas()
+    if creating:
+        return MutationResult(
+            success=True,
+            message=f"Role {input.id!r} created",
+            code="schema.role_created",
+            params={"role": input.id},
+        )
+    return MutationResult(
+        success=True,
+        message=f"Role {input.id!r} updated",
+        code="schema.role_updated",
+        params={"role": input.id},
+    )
+
+
 def _cardinality_problem(input: RelationshipInput) -> "MutationResult | None":
     from provisa.core.models import Cardinality
 
@@ -2661,109 +2793,13 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
     async def create_role(
         self, info: StrawberryInfo, input: RoleInput
     ) -> MutationResult:  # REQ-042, REQ-059, REQ-060, REQ-215, REQ-1531
-        # REQ-1531: a role carries both capabilities and domain_access (REQ-1530), so minting one is
-        # how a member would widen their own scope. It is the org_admin's act, gated by the right
-        # that administers members.
-        from provisa.api.admin.capabilities import require_capability
-        from provisa.core.models import Role as RoleModel
+        return await _save_role(info, input, creating=True)
 
-        require_capability(info, "user_management")
-        from provisa.core.models import RoleRateLimit
-        from provisa.core.repositories import role as role_repo
-
-        pool = await _get_pool()
-        # REQ-1174: carry the per-role rate + query-complexity limits through to the model/DB.
-        rl = input.rate_limit
-        rate_limit = (
-            RoleRateLimit(
-                requests_per_second=rl.requests_per_second,
-                max_query_complexity=rl.max_query_complexity,
-                max_query_time_ms=rl.max_query_time_ms,
-            )
-            if rl is not None
-            else None
-        )
-        # REQ-1677: the parent must exist, be another role, and not close a cycle.
-        from provisa.security.inheritance import parent_map, parent_problem
-
-        parent_id = input.parent_role_id or None
-        async with pool.acquire() as conn:
-            existing = await role_repo.list_all(cast("Connection", conn))
-        problem = parent_problem(input.id, parent_id, parent_map(existing))
-        if problem is not None:
-            return MutationResult(
-                success=False,
-                message=problem,
-                code="schema.role_parent_invalid",
-                params={"role": input.id, "parent": parent_id, "reason": problem},
-            )
-        # REQ-042/REQ-1337: the same two refusals the REST surface makes — an unknown capability,
-        # and a platform right (the role's own or its parent chain's) defined by a caller who is
-        # not a platform administrator.
-        from provisa.api.admin._platform_guard import role_definition_problem
-        from provisa.security.inheritance import effective_capabilities, effective_domain_access
-
-        inherited = effective_capabilities(parent_id, existing) if parent_id is not None else []
-        inherited_domains = (
-            effective_domain_access(parent_id, existing) if parent_id is not None else []
-        )
-        definition_problem = role_definition_problem(
-            info.context["request"],
-            input.capabilities,
-            inherited,
-            role_id=input.id,
-            domain_access=input.domain_access,
-            inherited_domain_access=inherited_domains,
-        )
-        if definition_problem is not None:
-            return MutationResult(
-                success=False,
-                message=str(definition_problem.detail),
-                code=definition_problem.code,
-                params={"role": input.id, **definition_problem.params},
-            )
-        # REQ-1531: a role hands out reach; whoever defines it must hold every domain the
-        # definition adds to what the role reaches — listed or inherited.
-        from provisa.api.admin.capabilities import require_reach_of_added_domains
-
-        held = next((r for r in existing if r["id"] == input.id), None)
-        if held is not None:
-            # REQ-1531: redefining a role is an act in every domain it reaches now, not only in
-            # the ones the change adds.
-            require_right_in_domains(
-                info, "user_management", effective_domain_access(input.id, existing)
-            )
-        require_reach_of_added_domains(
-            info,
-            None if held is None else effective_domain_access(input.id, existing),
-            [*input.domain_access, *inherited_domains],
-        )
-        model = RoleModel(
-            id=input.id,
-            capabilities=input.capabilities,
-            domain_access=input.domain_access,
-            rate_limit=rate_limit,
-            parent_role_id=parent_id,
-            residency_values=input.residency_values,  # REQ-1921
-            # REQ-1919: what the form does not carry is kept as the store holds it.
-            **({} if held is None else {name: held[name] for name in role_repo.KEPT_ON_FORM_EDIT}),
-        )
-        async with pool.acquire() as conn:
-            await role_repo.upsert(
-                cast("Connection", conn),
-                model,
-                org_id=_resolve_admin_context(info),
-            )
-        # A new role has no state.schemas[role_id]/state.contexts[role_id] until some rebuild
-        # runs; without this, the role is unusable until an unrelated mutation happens to trigger
-        # one, and any prepared-plan cache keyed on schema_version would never see this role exist.
-        await _rebuild_schemas()
-        return MutationResult(
-            success=True,
-            message=f"Role {input.id!r} created",
-            code="schema.role_created",
-            params={"role": input.id},
-        )
+    @strawberry.mutation
+    async def update_role(
+        self, info: StrawberryInfo, input: RoleInput
+    ) -> MutationResult:  # REQ-042, REQ-059, REQ-060, REQ-215, REQ-1531
+        return await _save_role(info, input, creating=False)
 
     @strawberry.mutation
     async def register_table(

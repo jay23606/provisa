@@ -402,7 +402,9 @@
       "relationship_unknown_target": "A tabela de destino '{{table}}' não está registrada",
       "relationship_unknown_junction": "A tabela de junção '{{table}}' não está registrada",
       "source_id_taken": "A origem '{{source}}' já existe",
-      "domain_id_taken": "O domínio '{{domain}}' já existe"
+      "domain_id_taken": "O domínio '{{domain}}' já existe",
+      "role_id_taken": "A função '{{role}}' já existe",
+      "role_updated": "Função '{{role}}' atualizada"
     },
     "secrets": {
       "name_refused": "{{name}} não é um nome dentro dos segredos desta organização em {{service}}: um nome é relativo à organização e não pode sair dela",

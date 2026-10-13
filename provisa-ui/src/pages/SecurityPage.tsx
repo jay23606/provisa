@@ -126,17 +126,21 @@ export function SecurityRolesPage() {
         maxQueryTimeMs: _n(roleForm.maxTimeMs),
       };
       const hasLimit = Object.values(rateLimit).some((v) => v !== null);
-      const res = await upsertRole({
-        id: roleForm.id,
-        capabilities: roleForm.capabilities,
-        domainAccess: roleForm.domainAccess,
-        rateLimit: hasLimit ? rateLimit : null,
-        parentRoleId: roleForm.parentRoleId || null, // REQ-1677
-        // REQ-1921: the grant's values go with the right; without it the role lists none.
-        residencyValues: roleForm.capabilities.includes("data_residency")
-          ? roleForm.residencyValues
-          : [],
-      });
+      const res = await upsertRole(
+        {
+          id: roleForm.id,
+          capabilities: roleForm.capabilities,
+          domainAccess: roleForm.domainAccess,
+          rateLimit: hasLimit ? rateLimit : null,
+          parentRoleId: roleForm.parentRoleId || null, // REQ-1677
+          // REQ-1921: the grant's values go with the right; without it the role lists none.
+          residencyValues: roleForm.capabilities.includes("data_residency")
+            ? roleForm.residencyValues
+            : [],
+        },
+        // The new-role form creates; a role's own detail updates it.
+        showRoleForm,
+      );
       if (!res.success) {
         setError(serverMessage(res, res.message));
         return;

@@ -124,6 +124,7 @@ describe("SecurityRolesPage: the right-hand detail panel", () => {
     await waitFor(() => expect(screen.getByTestId("save-role-steward")).toBeTruthy());
     expect(upsertRoleSpy).toHaveBeenCalledWith(
       expect.objectContaining({ id: "steward", capabilities: [], domainAccess: ["sales"] }),
+      true, // a new role is created
     );
     expect(screen.getByTestId("roles-split-title")).toHaveTextContent("steward");
     expect(rowIn("roles-list", "steward").className).toContain("row-selected");
