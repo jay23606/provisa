@@ -255,7 +255,8 @@
       "cannot_modify_administrative": "לא ניתן לשנות תפקידי ניהול",
       "has_dependents": "{{count}} אובייקט(ים) עדיין מפנים אל התפקיד {{role}}; יש להסיר תחילה את ההפניות האלה",
       "not_found": "התפקיד לא נמצא",
-      "org_selection_required": "נדרשת בחירת ארגון"
+      "org_selection_required": "נדרשת בחירת ארגון",
+      "already_exists": "התפקיד '{{role}}' כבר קיים"
     },
     "schema": {
       "allowed_domains_updated": "הדומיינים המותרים עודכנו עבור המקור '{{source}}'",
@@ -466,7 +467,8 @@
       "no_active_org": "אין ארגון המקושר לבקשה זו. יש להתחבר תחילה לארגון.",
       "no_fields_to_update": "אין שדות לעדכון",
       "self_role_change": "משתמש אינו יכול לשנות את התפקיד של עצמו. פנו למנהל אחר.",
-      "user_not_found": "המשתמש לא נמצא"
+      "user_not_found": "המשתמש לא נמצא",
+      "username_taken": "המשתמש '{{username}}' כבר קיים"
     },
     "cypher": {
       "command_call_refused": "{{reason}}"

@@ -255,7 +255,8 @@
       "cannot_modify_administrative": "Não é possível modificar funções administrativas",
       "has_dependents": "O papel {{role}} ainda é referenciado por {{count}} objeto(s); remova primeiro essas referências",
       "not_found": "Função não encontrada",
-      "org_selection_required": "Seleção de organização necessária"
+      "org_selection_required": "Seleção de organização necessária",
+      "already_exists": "A função '{{role}}' já existe"
     },
     "schema": {
       "allowed_domains_updated": "Domínios permitidos atualizados para a fonte '{{source}}'",
@@ -466,7 +467,8 @@
       "no_active_org": "Nenhuma organização está vinculada a esta solicitação. Entre primeiro em uma organização.",
       "no_fields_to_update": "Nenhum campo para atualizar",
       "self_role_change": "Um usuário não pode alterar a própria função. Peça a outro administrador.",
-      "user_not_found": "Usuário não encontrado"
+      "user_not_found": "Usuário não encontrado",
+      "username_taken": "O usuário '{{username}}' já existe"
     },
     "cypher": {
       "command_call_refused": "{{reason}}"

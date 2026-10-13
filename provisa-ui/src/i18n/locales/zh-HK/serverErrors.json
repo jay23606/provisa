@@ -255,7 +255,8 @@
       "cannot_modify_administrative": "無法修改管理角色",
       "has_dependents": "仍有 {{count}} 個物件引用角色 {{role}}；請先移除這些引用",
       "not_found": "找不到角色",
-      "org_selection_required": "需要選取組織"
+      "org_selection_required": "需要選取組織",
+      "already_exists": "角色 '{{role}}' 已存在"
     },
     "schema": {
       "allowed_domains_updated": "已更新數據來源「{{source}}」的允許領域",
@@ -466,7 +467,8 @@
       "no_active_org": "此請求未綁定任何機構。請先登入某個機構。",
       "no_fields_to_update": "沒有可更新的欄位",
       "self_role_change": "使用者不可更改自己的角色。請要求另一位管理員處理。",
-      "user_not_found": "找不到使用者"
+      "user_not_found": "找不到使用者",
+      "username_taken": "用戶 '{{username}}' 已存在"
     },
     "cypher": {
       "command_call_refused": "{{reason}}"

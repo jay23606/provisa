@@ -255,7 +255,8 @@
       "cannot_modify_administrative": "Impossibile modificare i ruoli amministrativi",
       "has_dependents": "Il ruolo {{role}} è ancora referenziato da {{count}} oggetto/i; rimuovere prima tali riferimenti",
       "not_found": "Ruolo non trovato",
-      "org_selection_required": "Selezione dell'organizzazione richiesta"
+      "org_selection_required": "Selezione dell'organizzazione richiesta",
+      "already_exists": "Il ruolo '{{role}}' esiste già"
     },
     "schema": {
       "allowed_domains_updated": "Domini consentiti aggiornati per l'origine '{{source}}'",
@@ -466,7 +467,8 @@
       "no_active_org": "Nessuna organizzazione è associata a questa richiesta. Accedi prima a un'organizzazione.",
       "no_fields_to_update": "Nessun campo da aggiornare",
       "self_role_change": "Un utente non può modificare il proprio ruolo. Chiedere a un altro amministratore.",
-      "user_not_found": "Utente non trovato"
+      "user_not_found": "Utente non trovato",
+      "username_taken": "L'utente '{{username}}' esiste già"
     },
     "cypher": {
       "command_call_refused": "{{reason}}"

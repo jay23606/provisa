@@ -255,7 +255,8 @@
       "cannot_modify_administrative": "Cannot modify administrative roles",
       "has_dependents": "Role {{role}} is still referred to by {{count}} object(s); remove those references first",
       "not_found": "Role not found",
-      "org_selection_required": "Org selection required"
+      "org_selection_required": "Org selection required",
+      "already_exists": "Role '{{role}}' already exists"
     },
     "schema": {
       "allowed_domains_updated": "Allowed domains updated for source '{{source}}'",
@@ -466,7 +467,8 @@
       "no_active_org": "No organization is bound to this request. Sign in to an organization first.",
       "no_fields_to_update": "No fields to update",
       "self_role_change": "A user cannot change their own role. Ask another administrator.",
-      "user_not_found": "User not found"
+      "user_not_found": "User not found",
+      "username_taken": "User '{{username}}' already exists"
     },
     "cypher": {
       "command_call_refused": "{{reason}}"

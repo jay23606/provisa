@@ -6168,5 +6168,7 @@
   "it/serverErrors.json::serverErrors.schema.relationship_unknown_source": "Source table '{{table}}' is not registered",
   "it/serverErrors.json::serverErrors.schema.relationship_unknown_target": "Target table '{{table}}' is not registered",
   "it/serverErrors.json::serverErrors.schema.relationship_unknown_junction": "Junction table '{{table}}' is not registered",
-  "it/serverErrors.json::serverErrors.schema.source_id_taken": "Source '{{source}}' already exists"
+  "it/serverErrors.json::serverErrors.schema.source_id_taken": "Source '{{source}}' already exists",
+  "it/serverErrors.json::serverErrors.roles.already_exists": "Role '{{role}}' already exists",
+  "it/serverErrors.json::serverErrors.users.username_taken": "User '{{username}}' already exists"
 }

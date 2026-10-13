@@ -255,7 +255,8 @@
       "cannot_modify_administrative": "管理ロールは変更できません",
       "has_dependents": "ロール {{role}} はまだ {{count}} 個のオブジェクトから参照されています。先にそれらの参照を削除してください",
       "not_found": "ロールが見つかりません",
-      "org_selection_required": "組織の選択が必要です"
+      "org_selection_required": "組織の選択が必要です",
+      "already_exists": "ロール '{{role}}' はすでに存在します"
     },
     "schema": {
       "allowed_domains_updated": "ソース「{{source}}」の許可ドメインを更新しました",
@@ -466,7 +467,8 @@
       "no_active_org": "このリクエストに組織が関連付けられていません。先に組織にサインインしてください。",
       "no_fields_to_update": "更新するフィールドがありません",
       "self_role_change": "ユーザーは自分自身のロールを変更できません。別の管理者に依頼してください。",
-      "user_not_found": "ユーザーが見つかりません"
+      "user_not_found": "ユーザーが見つかりません",
+      "username_taken": "ユーザー '{{username}}' はすでに存在します"
     },
     "cypher": {
       "command_call_refused": "{{reason}}"

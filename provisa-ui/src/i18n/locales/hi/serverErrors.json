@@ -255,7 +255,8 @@
       "cannot_modify_administrative": "प्रशासनिक भूमिकाएँ संशोधित नहीं की जा सकतीं",
       "has_dependents": "भूमिका {{role}} को अब भी {{count}} ऑब्जेक्ट संदर्भित करते हैं; पहले उन संदर्भों को हटाएँ",
       "not_found": "भूमिका नहीं मिली",
-      "org_selection_required": "संगठन चयन आवश्यक है"
+      "org_selection_required": "संगठन चयन आवश्यक है",
+      "already_exists": "भूमिका '{{role}}' पहले से मौजूद है"
     },
     "schema": {
       "allowed_domains_updated": "स्रोत '{{source}}' के लिए अनुमत डोमेन अपडेट किए गए",
@@ -466,7 +467,8 @@
       "no_active_org": "इस अनुरोध से कोई संगठन जुड़ा नहीं है। पहले किसी संगठन में साइन इन करें।",
       "no_fields_to_update": "अपडेट करने के लिए कोई फ़ील्ड नहीं",
       "self_role_change": "उपयोगकर्ता अपनी स्वयं की भूमिका नहीं बदल सकता। किसी अन्य प्रशासक से कहें।",
-      "user_not_found": "उपयोगकर्ता नहीं मिला"
+      "user_not_found": "उपयोगकर्ता नहीं मिला",
+      "username_taken": "उपयोगकर्ता '{{username}}' पहले से मौजूद है"
     },
     "cypher": {
       "command_call_refused": "{{reason}}"

@@ -146,6 +146,13 @@ async def create_role(body: CreateRoleBody, request: Request):  # REQ-042, REQ-0
     org_id = _active_org(request)
     pool = _pool(request)
     async with pool.acquire() as conn:
+        # A create makes a new role: an existing id is refused by name, before anything is written.
+        if (
+            await conn.execute_core(select(roles.c.id).where(roles.c.id == body.id))
+        ).fetchone() is not None:
+            raise ApiError(
+                409, "roles.already_exists", f"Role {body.id!r} already exists", role=body.id
+            )
         await _check_parent(conn, body.id, body.parent_role_id)  # REQ-1677
         await _check_definition(
             conn, request, body.id, body.capabilities, body.domain_access, body.parent_role_id
