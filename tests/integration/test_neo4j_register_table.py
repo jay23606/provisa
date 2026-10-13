@@ -97,6 +97,11 @@ async def admin_client(monkeypatch):
                 "/admin/graphql",
                 json={"query": f'mutation {{ deleteSource(id: "{_SOURCE_ID}") {{ success }} }}'},
             )
+            # The domain each test creates goes with the rest: a create refuses an id that exists.
+            await c.post(
+                "/admin/graphql",
+                json={"query": f'mutation {{ deleteDomain(id: "{_DOMAIN}") {{ success }} }}'},
+            )
 
 
 async def _gql(client: AsyncClient, query: str) -> dict:
