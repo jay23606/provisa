@@ -81423,6 +81423,27 @@
   description: 'The documentation has a sizing guide for a customer, and the steps to run the sizing tool that produces it. The tool measures the customer''s own deployment under the customer''s own workload and writes a sizing and tuning guide from those measurements. The guide is for a customer: nothing about how Provisa itself is benchmarked goes in it.'
   use_case: An operator sizes a deployment for their own workload from measurements of that deployment, not from a generic table.
   notes: 'Maintainer 2026-10-12: "the sizing guide and the how to run the sizing tool should be in docs"; "The guide is for a customer". Built as docs/sizing.md with demo/named/perf/bench/sizing.py and sizing_guide.py on feat/bench-sizing-guide and feat/bench-3-device, queued for alpha.482.'
+- id: REQ-2006
+  status: in-progress
+  since: 2026-10
+  group: 11. Platform, Infrastructure & Delivery
+  category: Demo Provisioning
+  feature: product-tour-and-demos-sandbox
+  priority: SHOULD
+  type: behavioral
+  description: 'provisa.dev has a live demos page with one card for each published named demo: its title, description and screenshot, and an "Open live demo" button. The button opens a cloud.provisa.dev sandbox of that demo that needs no signup, with the demo''s example queries and the product tour. A named demo says whether it is published, and what its card shows, in demo/named/<name>/demo.yaml (title, description, screenshot, published: true or false); the site build generates the page from those files, as it generates the source picker, and CI fails when the page is out of step with them. Every published demo is lightweight, and its data is seeded ahead of time: never at a visitor''s request, and never by a live traffic generator. Opening the page warms the cloud coordinator in the background through the front door''s wake-on-hit, so that a visitor''s click rarely meets the waking page.'
+  use_case: 'A visitor to provisa.dev picks a scenario close to their own (a web shop''s logs, say) and is querying it in Provisa a few seconds later, without an account.'
+  scenario: 'Given demo/named/weblogs/demo.yaml says published: true
+
+    When the site is built
+
+    Then the live demos page has a weblogs card whose button opens the weblogs sandbox, and a demo marked published: false has no card
+
+    '
+  notes: 'Maintainer 2026-10-13, through the lead: design approved; "every published demo is lightweight, and its data is pre-seeded ahead of time, never seeded at visitor time and never by a live generator". The cloud side (a sandbox template per demo and its seeded data) is ci-fix''s; the page, demo.yaml and the generator are gmail''s.'
+  code:
+  - scripts/gen-site-demos.mjs
+  - site/demos.html
 - id: REQ-1998
   status: proposed
   since: 2026-10

@@ -1,0 +1,16 @@
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+#
+# The perf demo on provisa.dev's live demos page (REQ-2006): not published. A published demo is
+# lightweight and seeded ahead of time; this one is a multi-gigabyte benchmark.
+title: Cross-engine benchmark
+description: >-
+  Orders and customers across PostgreSQL, ClickHouse, MongoDB and Neo4j, sharing one key domain,
+  for load and federation benchmarks.
+published: false
