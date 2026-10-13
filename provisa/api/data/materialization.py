@@ -21,7 +21,9 @@ from __future__ import annotations
 import json
 import logging
 import secrets
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from typing import Any
 
 from provisa.cache.values_cte import InlineRows
@@ -141,8 +143,48 @@ def _pipeline_tables(state, table_ids: Iterable[int]) -> dict[str, dict]:
     }
 
 
+#: REQ-1986: the scratch tables landed for the statement being planned -- rows of a table with a
+#: TTL of 0 too many to inline -- each (CacheLocation, table name), dropped when it ends
+#: (``pgwire._pipeline._execute_plan_in_org``). Open while the statement is routed.
+_STATEMENT_SCRATCH: ContextVar[list | None] = ContextVar("statement_scratch", default=None)
+
+
+@contextmanager
+def statement_scratch() -> Iterator[list]:
+    """Collect the scratch tables landed while one statement is planned (see
+    :data:`_STATEMENT_SCRATCH`). A nested statement's go to the one that holds it."""
+    held = _STATEMENT_SCRATCH.get()
+    if held is not None:
+        yield held
+        return
+    scratch: list = []
+    token = _STATEMENT_SCRATCH.set(scratch)
+    try:
+        yield scratch
+    finally:
+        _STATEMENT_SCRATCH.reset(token)
+
+
+def landing_ttl(table: dict, state) -> int:  # REQ-1986
+    """The seconds a table's landed rows are kept: its own TTL, else its source's, else the
+    response cache's default -- the first one set. A TTL of 0 is set: the rows are never kept."""
+    for ttl in (
+        table.get("cache_ttl"),
+        getattr(state, "source_cache", {}).get(table["source_id"], {}).get("cache_ttl"),
+        state.response_cache_default_ttl,
+    ):
+        if ttl is not None:
+            return int(ttl)
+    raise ValueError(f"table {table['table_name']!r}: no TTL is set, nor any default")
+
+
 async def _mat_pipeline_table(
-    tn: str, table: dict, state, cache_rewrites: dict, nf_args: dict | None
+    tn: str,
+    table: dict,
+    state,
+    cache_rewrites: dict,
+    values_cte_entries: dict,
+    nf_args: dict | None,
 ) -> None:
     """Run a pipeline table with the statement's arguments and land its rows for the engine,
     kept under those arguments for the table's TTL (REQ-1980): two argument sets are two
@@ -160,12 +202,15 @@ async def _mat_pipeline_table(
         table,
         state,
         cache_rewrites,
+        values_cte_entries,
         cache_arguments(table, nf_args),
         lambda: read(state, table, nf_args),
     )
 
 
-async def mat_live_part(tn: str, part, state, cache_rewrites: dict) -> None:
+async def mat_live_part(
+    tn: str, part, state, cache_rewrites: dict, values_cte_entries: dict
+) -> None:
     """REQ-2000: a live-only table's part of an engine-answered statement
     (``federation.live_only``), read live from its source and landed for the engine under the
     part's text, as a pipeline table's rows are under its arguments."""
@@ -176,16 +221,29 @@ async def mat_live_part(tn: str, part, state, cache_rewrites: dict) -> None:
         part.table,
         state,
         cache_rewrites,
+        values_cte_entries,
         {"part": part.sql},
         lambda: read(state, part),
     )
 
 
 async def _land_per_statement(
-    tn: str, table: dict, state, cache_rewrites: dict, key: dict, answer
+    tn: str,
+    table: dict,
+    state,
+    cache_rewrites: dict,
+    values_cte_entries: dict,
+    key: dict,
+    answer,
 ) -> None:
-    """Land the rows ``answer()`` reads for one statement's read of ``table``, kept under ``key``
-    for the table's TTL, and point the statement's ``tn`` at them."""
+    """Hand the engine the rows ``answer()`` reads for one statement's read of ``table``.
+
+    With a TTL above 0 they are landed, kept under ``key`` for the TTL and reused by the next
+    statement that asks the same: the reuse pays for the write. With a TTL of 0 the read is live
+    for this statement alone (REQ-1986): rows up to the large-result threshold are inlined into
+    it as a VALUES CTE, with no write on any engine -- on a warehouse engine a table write costs
+    seconds -- and more are landed in a scratch table dropped when the statement ends, never
+    kept or reused."""
     from provisa.api_source.engine_cache import (
         analyze_cache_table,
         cache_location,
@@ -200,7 +258,11 @@ async def _land_per_statement(
 
     source_id = table["source_id"]
     engine = state.federation_engine
+    ttl = landing_ttl(table, state)
     cache_loc = cache_location(source_id, resolved_cache_catalog(engine), org_cache_schema(state))
+    if ttl == 0:
+        await _answer_live(tn, state, cache_loc, cache_rewrites, values_cte_entries, answer)
+        return
     cache_tbl = cache_table_name(source_id, f"pipeline:{tn}", key)
     if table_known_live(cache_loc, cache_tbl):
         cache_rewrites[tn] = (cache_loc, cache_tbl)
@@ -212,14 +274,48 @@ async def _land_per_statement(
         schema=cache_loc.schema, table=cache_tbl, columns=answer.columns, rows=answer.rows
     )
     await analyze_cache_table(engine, cache_loc, cache_tbl)
-    ttl = (
-        table.get("cache_ttl")
-        or getattr(state, "source_cache", {}).get(source_id, {}).get("cache_ttl")
-        or state.response_cache_default_ttl
-    )
     schedule_drop(engine, cache_loc, cache_tbl, ttl, RedirectConfig.from_env())
     cache_rewrites[tn] = (cache_loc, cache_tbl)
     log.warning("[MAT] pipeline %s: %d rows → %s", tn, len(answer.rows), cache_tbl)
+
+
+async def _answer_live(
+    tn: str, state, cache_loc, cache_rewrites: dict, values_cte_entries: dict, answer
+) -> None:
+    """A TTL-0 read (REQ-1986): inlined when its rows are within the large-result threshold
+    (``redirect.threshold``), else landed in a scratch table of this statement alone."""
+    from provisa.api_source.engine_cache import ensure_cache_schema
+    from provisa.executor.redirect import RedirectConfig
+
+    read = await answer()
+    if len(read.rows) <= RedirectConfig.from_env().threshold:
+        values_cte_entries[tn] = InlineRows(read.rows, [name for name, _ in read.columns])
+        log.warning("[MAT] live %s: %d rows inline", tn, len(read.rows))
+        return
+    scratch = _STATEMENT_SCRATCH.get()
+    if scratch is None:
+        raise RuntimeError(f"{tn!r}: a scratch table is landed only while a statement is planned")
+    engine = state.federation_engine
+    scratch_tbl = f"scratch__{secrets.token_hex(12)}"
+    with engine.isolated_sync() as _c:
+        ensure_cache_schema(_c, cache_loc)
+    await engine.land_source_table(
+        schema=cache_loc.schema, table=scratch_tbl, columns=read.columns, rows=read.rows
+    )
+    scratch.append((cache_loc, scratch_tbl))
+    cache_rewrites[tn] = (cache_loc, scratch_tbl)
+    log.warning("[MAT] live %s: %d rows → scratch %s", tn, len(read.rows), scratch_tbl)
+
+
+async def drop_scratch(scratch, state) -> None:  # REQ-1986
+    """Drop the scratch tables a statement landed, now that it has ended."""
+    from provisa.api_source.engine_cache import drop_cache_table
+    from provisa.executor.redirect import RedirectConfig
+
+    for cache_loc, table in scratch:
+        await drop_cache_table(
+            state.federation_engine, cache_loc, table, 0, RedirectConfig.from_env()
+        )
 
 
 def _parameter_tables(state, table_ids: Iterable[int]) -> dict[str, list]:
@@ -827,10 +923,15 @@ async def _mat_api_ep_table(
     # named as the fetch names it, with the endpoint's default parameters under the arguments.
     by_keys = read_by_parent_keys(ep, args, ctx)
     cache_tbl = cache_table_name(source_id, tn, {} if by_keys else {**ep.default_params, **args})
-    ttl = (
-        getattr(state, "source_cache", {}).get(source_id, {}).get("cache_ttl")
-        or getattr(state, "response_cache_default_ttl", None)
-        or ep.ttl
+    # The first one set: a TTL of 0 is set, and keeps nothing (REQ-1986).
+    ttl = next(
+        t
+        for t in (
+            getattr(state, "source_cache", {}).get(source_id, {}).get("cache_ttl"),
+            getattr(state, "response_cache_default_ttl", None),
+            ep.ttl,
+        )
+        if t is not None
     )
     from provisa.compiler.naming import apply_sql_name
 
@@ -1092,7 +1193,9 @@ async def _materialize_api_to_engine_cache(
         # engine connector runs a pipeline.
         pipeline_table = pipelines.get(_sql_name(tn))
         if pipeline_table is not None:
-            await _mat_pipeline_table(tn, pipeline_table, state, cache_rewrites, nf_args)
+            await _mat_pipeline_table(
+                tn, pipeline_table, state, cache_rewrites, values_cte_entries, nf_args
+            )
             continue
         # Hot cache: inline rows as VALUES CTE — avoids cross-catalog JOIN entirely
         entry = hot.entries.get(tn)

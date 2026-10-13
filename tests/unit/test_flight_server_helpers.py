@@ -207,6 +207,7 @@ class TestFlightSqlDispatchHopCount:
             materialize=None,  # as _Plan: no delivery asked for (REQ-1194)
             embedded=None,  # as _Plan: no embed() (REQ-2002)
             two_step=None,  # as _Plan: written whole (REQ-2001)
+            scratch=(),  # as _Plan: no scratch tables (REQ-1986)
             row_limit=None,  # as _Plan: no row limit bounds this read
             route=Route.DIRECT,
             source_id="src1",
@@ -255,6 +256,7 @@ class TestFlightSqlDispatchHopCount:
             materialize=None,  # as _Plan: no delivery asked for (REQ-1194)
             embedded=None,  # as _Plan: no embed() (REQ-2002)
             two_step=None,  # as _Plan: written whole (REQ-2001)
+            scratch=(),  # as _Plan: no scratch tables (REQ-1986)
             route=Route.ENGINE,
             physical_sql="SELECT 1",
             sources=["src1"],

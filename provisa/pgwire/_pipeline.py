@@ -201,6 +201,9 @@ class _Plan:
     # REQ-2001 (GitHub issue 253): an INSERT ... SELECT written in two steps (_TwoStepInsert): its
     # governed SELECT read as any read, then its rows written through the target's write route.
     two_step: Any = field(default=None)
+    # REQ-1986: the scratch tables landed for this statement alone -- a TTL-0 table's rows too
+    # many to inline -- each (CacheLocation, table name), dropped when it ends.
+    scratch: tuple = field(default=())
     # REQ-2002: the statement's embed() calls as governance resolved them (embed_fn.Folded): the
     # select-list columns whose texts are embedded once the rows are read, and the models used,
     # which its audit record names. None: the statement calls no embed().
@@ -484,12 +487,15 @@ async def _optimize_and_route(
     if decision.route == Route.ENGINE and not is_mutation:
         # REQ-2000: a live-only table the engine reads is read live for this statement -- its
         # part of it -- and handed to the engine; it has no replica.
-        _live = await _read_live_parts(exec_sql, governed_sql, ctx, state, table_ids)
+        _live, _live_inline = await _read_live_parts(exec_sql, governed_sql, ctx, state, table_ids)
+        for _tn, _entry in _live_inline.items():
+            exec_sql = build_values_cte_sql(exec_sql, _tn, _entry)
         if _live:
             exec_sql = rewrite_all_from_cache(exec_sql, _live)
             _rewrites.update(_live)
+        if _live or _live_inline:
             optimized = True
-            opt_labels.extend(f"read live: {_tn}" for _tn in sorted(_live))
+            opt_labels.extend(f"read live: {_tn}" for _tn in sorted({*_live, *_live_inline}))
     if _rewrites and decision.route != Route.ENGINE:
         # A cache rewrite points the SQL at a materialized table living in the engine's
         # attached mat_store catalog — no native pool or API caller can see it, so the
@@ -509,9 +515,10 @@ async def _optimize_and_route(
 
 async def _read_live_parts(
     exec_sql: str, governed_sql: str, ctx, state, table_ids: tuple[int, ...]
-) -> dict:
-    """The cache rewrites of the live-only tables an engine-answered statement reads, each read
-    live for it (``federation.live_only``), by the name the statement gives it."""
+) -> tuple[dict, dict]:
+    """The live-only tables an engine-answered statement reads, each read live for it
+    (``federation.live_only``), by the name the statement gives it: the cache rewrites of those
+    landed, and the rows of those inlined (a TTL of 0, REQ-1986)."""
     from provisa.api.data.materialization import mat_live_part
     from provisa.compiler.naming import apply_sql_name
     from provisa.compiler.nf_extractor import find_api_table_names
@@ -519,16 +526,17 @@ async def _read_live_parts(
 
     tables = live_only_tables(state, table_ids)
     if not tables:
-        return {}
+        return {}, {}
     from provisa.compiler.sql_rewrite import rewrite_semantic_to_physical
 
     physical = rewrite_semantic_to_physical(governed_sql, ctx)
     named = {apply_sql_name(tn): tn for tn in find_api_table_names(exec_sql)}
     rewrites: dict = {}
+    inline: dict = {}
     for table in tables:
         tn = named[apply_sql_name(table["table_name"])]
-        await mat_live_part(tn, cut(physical, table), state, rewrites)
-    return rewrites
+        await mat_live_part(tn, cut(physical, table), state, rewrites, inline)
+    return rewrites, inline
 
 
 def _similarity_needs_engine(governed_sql: str, decision: Any, state: Any) -> bool:  # REQ-423
@@ -1599,7 +1607,11 @@ async def govern_statement(
 async def _route_bounded(governed: "_Governed", **how: Any) -> _Plan:
     """:func:`route_governed`, the plan carrying the row limit the statement was bounded at
     (REQ-1949). An EXPLAIN of the statement is no read of its rows and carries none."""
-    plan = await route_governed(governed, **how)
+    from provisa.api.data.materialization import statement_scratch
+
+    with statement_scratch() as scratch:
+        plan = await route_governed(governed, **how)
+    plan.scratch = tuple(scratch)
     if how.get("explain") is None:
         plan.row_limit = governed.gov_ctx.row_limit
     plan.embedded = governed.memo.get("embed")  # REQ-2002
@@ -2795,7 +2807,14 @@ def statement_budget(surface: str) -> float:
 async def _execute_plan_bound(plan: _Plan, state: Any) -> QueryResult:
     """``_execute_plan`` once the request deadline is settled: the org's secrets, the terminal,
     then what the statement does to a temporary table of its session with the rows (REQ-615)."""
-    result = await _execute_plan_with_secrets(plan, state)
+    try:
+        result = await _execute_plan_with_secrets(plan, state)
+    finally:
+        if plan.scratch:
+            from provisa.api.data.materialization import drop_scratch
+
+            # REQ-1986: a TTL-0 table's scratch rows are this statement's alone.
+            await drop_scratch(plan.scratch, state)
     if plan.embedded is not None and plan.embedded.rows and plan.two_step is None:
         from provisa.vector.embed_fn import embed_rows
 
@@ -2884,6 +2903,8 @@ def streams_from_terminal(plan: _Plan) -> bool:  # REQ-2002
     read, in :func:`_execute_plan`, which such a plan is run through."""
     if plan.two_step is not None:
         return False  # REQ-2001: its rows are read, then written, by the pipeline terminal
+    if plan.scratch:
+        return False  # REQ-1986: its scratch tables are dropped when the terminal is done
     return plan.embedded is None or not plan.embedded.rows
 
 
@@ -4028,31 +4049,35 @@ async def _govern_and_route_compiled_planned(  # REQ-262, REQ-263, REQ-265, REQ-
                 as_of=as_of,
             )
 
-    plan = await _route_compiled(
-        sql,
-        role_id,
-        state,
-        ctx=state.contexts[role_id],
-        gov_ctx=gov_ctx,
-        governed_sql=governed_sql,
-        compiled_tree=_compiled_tree,
-        table_ids=_table_ids,
-        audit=_audit,
-        cache_hint=cache_hint,
-        exec_params=exec_params,
-        api_args=api_args,
-        deliver=deliver,
-        buffered=buffered,
-        memo=_memo,
-        cache_params=_cache_params,
-        cache_missed=_cache_missed,
-        pk_bounds=_pk_bounds_now,
-        as_of=as_of,
-        steward_hint=steward_hint,
-        session_props=session_props,
-        api_compiled=api_compiled,
-        extra_selections=extra_selections,
-    )
+    from provisa.api.data.materialization import statement_scratch
+
+    with statement_scratch() as _scratch:
+        plan = await _route_compiled(
+            sql,
+            role_id,
+            state,
+            ctx=state.contexts[role_id],
+            gov_ctx=gov_ctx,
+            governed_sql=governed_sql,
+            compiled_tree=_compiled_tree,
+            table_ids=_table_ids,
+            audit=_audit,
+            cache_hint=cache_hint,
+            exec_params=exec_params,
+            api_args=api_args,
+            deliver=deliver,
+            buffered=buffered,
+            memo=_memo,
+            cache_params=_cache_params,
+            cache_missed=_cache_missed,
+            pk_bounds=_pk_bounds_now,
+            as_of=as_of,
+            steward_hint=steward_hint,
+            session_props=session_props,
+            api_compiled=api_compiled,
+            extra_selections=extra_selections,
+        )
+    plan.scratch = tuple(_scratch)
     plan.row_limit = gov_ctx.row_limit  # REQ-1949
     return plan
 
