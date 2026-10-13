@@ -233,7 +233,7 @@ views:
   description: Each request the shop served, slowest first, with how many statements it ran and how
     long they took; its statements are its request_sql
   sql: >-
-    SELECT a.request_id, a.method, a.path, a.status, a.request_time * 1000 AS page_ms,
+    SELECT a.request_id, a.method, a.path, a.status AS page_status, a.request_time * 1000 AS page_ms,
       COUNT(r.request_id) AS statements, CAST(SUM(r.duration_ms) AS DECIMAL(12, 3)) AS sql_ms, MAX(r.duration_ms) AS slowest_sql_ms
     FROM "shop"."access_log" AS a
     LEFT JOIN "shop"."view_request_sql" AS r ON r.request_id = a.request_id
@@ -242,7 +242,7 @@ views:
   - {name: request_id, data_type: varchar, description: The request, visible_to: [org_admin, analyst]}
   - {name: method, data_type: varchar, description: The HTTP method, visible_to: [org_admin, analyst]}
   - {name: path, data_type: varchar, description: The path requested, visible_to: [org_admin, analyst]}
-  - {name: status, data_type: integer, description: The HTTP status returned, visible_to: [org_admin, analyst]}
+  - {name: page_status, data_type: integer, description: The HTTP status the page was answered with, visible_to: [org_admin, analyst]}
   - {name: page_ms, data_type: double, description: Milliseconds nginx took to answer, visible_to: [org_admin, analyst]}
   - {name: statements, data_type: bigint, description: Statements the request ran, visible_to: [org_admin, analyst]}
   - {name: sql_ms, data_type: decimal, description: Milliseconds its statements ran in all, visible_to: [org_admin, analyst]}
@@ -254,7 +254,7 @@ views:
   enable_group_by: true
   description: Requests whose statement failed in the database, with the error and the statement
   sql: >-
-    SELECT a.request_id, a.method, a.path, a.status, a.customer_id, a."time" AS requested_at,
+    SELECT a.request_id, a.method, a.path, a.status AS page_status, a.customer_id, a."time" AS requested_at,
       e.state_code, e.message AS error, SPLIT_PART(e.statement, ' /*', 1) AS statement
     FROM "shop"."db_log" AS e
     JOIN "shop"."access_log" AS a
@@ -264,7 +264,7 @@ views:
   - {name: request_id, data_type: varchar, description: The request, visible_to: [org_admin, analyst]}
   - {name: method, data_type: varchar, description: The HTTP method, visible_to: [org_admin, analyst]}
   - {name: path, data_type: varchar, description: The path requested, visible_to: [org_admin, analyst]}
-  - {name: status, data_type: integer, description: The HTTP status returned, visible_to: [org_admin, analyst]}
+  - {name: page_status, data_type: integer, description: The HTTP status the page was answered with, visible_to: [org_admin, analyst]}
   - {name: customer_id, data_type: integer, description: The signed-in customer, visible_to: [org_admin, analyst]}
   - {name: requested_at, data_type: timestamp, description: When the request was served, visible_to: [org_admin, analyst]}
   - {name: state_code, data_type: varchar, description: The error's SQLSTATE, visible_to: [org_admin, analyst]}
@@ -277,7 +277,7 @@ views:
   enable_group_by: true
   description: Customers who were served a server error, with how many and their orders so far
   sql: >-
-    SELECT c.id AS customer_id, c.name, c.city, COUNT(*) AS server_errors, MAX(a."time") AS last_error_at,
+    SELECT c.id AS customer_id, c.name AS customer_name, c.city, COUNT(*) AS server_errors, MAX(a."time") AS last_error_at,
       MAX(o.orders) AS orders
     FROM "shop"."customers" AS c
     JOIN "shop"."access_log" AS a ON a.customer_id = c.id
@@ -287,7 +287,7 @@ views:
     GROUP BY c.id, c.name, c.city
   columns:
   - {name: customer_id, data_type: integer, description: The customer, visible_to: [org_admin, analyst]}
-  - {name: name, data_type: varchar, description: The customer's name, visible_to: [org_admin, analyst]}
+  - {name: customer_name, data_type: varchar, description: The customer's name, visible_to: [org_admin, analyst]}
   - {name: city, data_type: varchar, description: Where the customer lives, visible_to: [org_admin, analyst]}
   - {name: server_errors, data_type: bigint, description: Server errors the customer was served, visible_to: [org_admin, analyst]}
   - {name: last_error_at, data_type: timestamp, description: When the last one was, visible_to: [org_admin, analyst]}
@@ -299,7 +299,7 @@ views:
   enable_group_by: true
   description: Products customers looked at that no order has ever included
   sql: >-
-    SELECT p.id AS product_id, p.name, p.category, p.price, v.views
+    SELECT p.id AS product_id, p.name AS product_name, p.category AS product_category, p.price AS product_price, v.views
     FROM "shop"."products" AS p
     JOIN (SELECT product_id, COUNT(*) AS views FROM "shop"."access_log"
           WHERE product_id IS NOT NULL AND status = 200 GROUP BY product_id) AS v
@@ -309,9 +309,9 @@ views:
     WHERE b.product_id IS NULL
   columns:
   - {name: product_id, data_type: integer, description: The product, visible_to: [org_admin, analyst]}
-  - {name: name, data_type: varchar, description: The product's name, visible_to: [org_admin, analyst]}
-  - {name: category, data_type: varchar, description: The product's category, visible_to: [org_admin, analyst]}
-  - {name: price, data_type: decimal, description: The price in USD, visible_to: [org_admin, analyst]}
+  - {name: product_name, data_type: varchar, description: The product's name, visible_to: [org_admin, analyst]}
+  - {name: product_category, data_type: varchar, description: The product's category, visible_to: [org_admin, analyst]}
+  - {name: product_price, data_type: decimal, description: The price in USD, visible_to: [org_admin, analyst]}
   - {name: views, data_type: bigint, description: Times its page was viewed, visible_to: [org_admin, analyst]}
 - id: slow_statements_by_table
   domain_id: shop
@@ -510,6 +510,13 @@ glossary_terms:
   definition: How long, in milliseconds, the shop took to answer a page request, as nginx measured it.
   domains:
   - shop
+- name: page status
+  definition: The HTTP status code a page request was answered with.
+  domains:
+  - shop
+  edges:
+  - to: web request
+    rel_type: PART_OF
 - name: parse error
   definition: Why a log record, or a value in it, could not be read; empty when it was read.
   domains:
@@ -642,30 +649,6 @@ glossary_terms:
   edges:
   - to: web request
     rel_type: PART_OF
-- name: view customers with 5xx name
-  definition: The name of a customer who was served a server error.
-  domains:
-  - shop
-- name: view requests with db error status
-  definition: The HTTP status returned to a request that failed in the database.
-  domains:
-  - shop
-- name: view slowest page status
-  definition: The HTTP status returned to a request, as the slowest pages view lists it.
-  domains:
-  - shop
-- name: view viewed not bought category
-  definition: The category of a product that was viewed but never bought.
-  domains:
-  - shop
-- name: view viewed not bought name
-  definition: The name of a product that was viewed but never bought.
-  domains:
-  - shop
-- name: view viewed not bought price
-  definition: The price of a product that was viewed but never bought.
-  domains:
-  - shop
 - name: views
   definition: How many times a product's page was viewed.
   domains:

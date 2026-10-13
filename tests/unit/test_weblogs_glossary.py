@@ -86,7 +86,23 @@ async def test_the_derived_terms_are_approved_but_four_left_proposed(loaded):
     derived = {name for name, t in terms.items() if not t.is_abstract}
     assert PROPOSED <= derived
     assert {name for name in derived if terms[name].id not in live} == PROPOSED
-    assert len(derived) == 77  # every column's business name, as the load derives it
+    assert len(derived) == 72  # every column's business name, as the load derives it
+
+
+async def test_the_views_name_their_columns_so_they_derive_the_shops_own_terms(loaded):
+    """A view column named after a generic word (name, status, price) qualified its term with
+    the view's name ("view viewed not bought name"); named in the view's SQL (product_name, ...)
+    it derives the term the base table's column does, or a plain one of its own."""
+    terms, live, _domains, _edges = loaded
+    assert not [name for name in terms if name.startswith("view ")]
+    for name in (
+        "page status",
+        "customer name",
+        "product name",
+        "product category",
+        "product price",
+    ):
+        assert terms[name].id in live, name
 
 
 async def test_the_ontology_is_abstract_live_and_in_the_shop_domain(loaded):

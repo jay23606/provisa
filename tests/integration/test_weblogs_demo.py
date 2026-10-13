@@ -203,10 +203,10 @@ def test_the_slowest_pages_are_the_report_and_the_ranked_search(server):
 def test_each_server_error_is_a_request_whose_statement_failed(stack, server):
     rows = query(
         server,
-        'SELECT path, status, state_code, statement FROM "shop"."view_requests_with_db_errors"',
+        'SELECT path, page_status, state_code, statement FROM "shop"."view_requests_with_db_errors"',
     )
     assert len(rows) == stack.sent()[500]
-    assert {r["status"] for r in rows} == {500}
+    assert {r["page_status"] for r in rows} == {500}
     # The page whose column is gone, and an order beyond the stock or for no such customer.
     assert {r["state_code"] for r in rows} <= {"42703", "23514", "23503"}
     assert "42703" in {r["state_code"] for r in rows}
