@@ -24,6 +24,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from provisa.api.admin import environments_router as er
+from provisa.api.errors import ApiError
 from provisa.core import env_ci, env_repo, org_files
 from provisa.core.env_ci import RepoIntegration
 
@@ -45,14 +46,16 @@ def client(monkeypatch):
         org_files.folder(org_id).mkdir(parents=True, exist_ok=True)
         readied.append(org_id)
 
-    async def _member(request, org_id, *rights):
+    async def _member_rights(request, org_id, *rights):
+        if org_id == "refused_org":
+            raise ApiError(403, "environments.capability_required", "no", org=org_id)
         return "uid-member"
 
     async def _read_integration(admin_db, org_id):
         return RepoIntegration()
 
     monkeypatch.setattr("provisa.api.app.ensure_org_runtime", _ensure_org_runtime)
-    monkeypatch.setattr(er, "_member", _member)
+    monkeypatch.setattr(er, "_member_rights", _member_rights)
     monkeypatch.setattr(er, "_admin_pool", lambda: "admin-db")
     monkeypatch.setattr(env_ci, "read_integration", _read_integration)
     app = FastAPI()
@@ -68,6 +71,10 @@ def test_an_orgs_environments_are_read_once_the_org_is_ready_on_this_node(client
     assert resp.json()["remote_configured"] is False
 
 
-def test_every_environments_route_readies_the_org_first():
-    """The dependency is the router's, so no route reaches the repository before it."""
-    assert any(d.dependency is er._org_ready_on_this_node for d in er.router.dependencies)
+def test_a_refused_caller_has_the_node_build_nothing(client):
+    """The org is readied after the guard: a caller refused by it never has the node build the
+    runtime of an org it may not act in."""
+    http, readied = client
+    resp = http.get("/admin/orgs/refused_org/environments/-/repo-integration/sync")
+    assert resp.status_code == 403
+    assert readied == []

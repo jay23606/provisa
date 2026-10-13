@@ -31,7 +31,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Request
 from pydantic import BaseModel
 from sqlalchemy import func, select
 
@@ -82,17 +82,14 @@ async def _org_ready_on_this_node(org_id: str) -> None:
     its folder (REQ-1992) -- the folder that holds the environments' repository (env_repo). A node
     that serves a request naming an org it has not built yet (another org than the one the
     request is bound to, or the first request after a restart) would otherwise find the folder not
-    ready and answer 500 (OrgFolderUnavailable)."""
+    ready and answer 500 (OrgFolderUnavailable). Asked by each guard below once the caller is
+    authorized, so a refused caller never has the node build anything."""
     from provisa.api.app import ensure_org_runtime
 
     await ensure_org_runtime(org_id)
 
 
-router = APIRouter(
-    prefix="/admin/orgs/{org_id}/environments",
-    tags=["admin"],
-    dependencies=[Depends(_org_ready_on_this_node)],
-)
+router = APIRouter(prefix="/admin/orgs/{org_id}/environments", tags=["admin"])
 
 
 def _state():
@@ -132,6 +129,7 @@ async def _guard(request: Request, org_id: str) -> str | None:
     from provisa.api.admin.invites_router import _require_org_admin
 
     await _require_org_admin(request, org_id)
+    await _org_ready_on_this_node(org_id)
     return _caller_user_id(request)
 
 
@@ -168,6 +166,14 @@ async def _reads_parent(request: Request, org_id: str, parent: str) -> None:
 
 
 async def _member(request: Request, org_id: str, *rights: str) -> str | None:
+    """A member of the org holding at least one of ``rights`` (``_member_rights``), with the org
+    then ready on this node."""
+    user_id = await _member_rights(request, org_id, *rights)
+    await _org_ready_on_this_node(org_id)
+    return user_id
+
+
+async def _member_rights(request: Request, org_id: str, *rights: str) -> str | None:
     """A member of the org holding at least one of ``rights`` (REQ-1528, REQ-1573).
 
     CREATING an environment is REQ-1528's whole privilege-expansion path: a member holding no
@@ -277,6 +283,7 @@ async def _guard_within(request: Request, org_id: str, name: str) -> str | None:
     await _confined(request, org_id, name)
     user_id = _caller_user_id(request)
     if user_id is not None and await owns_environment(_admin_pool(), org_id, name, user_id):
+        await _org_ready_on_this_node(org_id)
         return user_id
     return await _guard(request, org_id)
 
