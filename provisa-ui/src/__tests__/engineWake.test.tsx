@@ -112,6 +112,30 @@ describe("REQ-1516 engine wake visibility", () => {
     expect(screen.getByTestId("engine-waking-banner")).toBeInTheDocument();
   });
 
+  it("asks again only once its last poll has answered", async () => {
+    // A slow server answers the poll slowly too: one poll at a time, never a growing queue of them.
+    const probe = deferred<Response>();
+    const probes = vi.fn();
+    window.fetch = vi.fn((input: RequestInfo | URL) => {
+      if (String(input).includes("/data/engine/state")) {
+        probes();
+        return probe.promise;
+      }
+      return new Promise<Response>(() => {});
+    }) as unknown as typeof fetch;
+    installAuthFetch();
+
+    void window.fetch("/data/graphql");
+    await advance(20_000); // past the threshold, then five poll intervals
+    expect(probes).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      probe.resolve(new Response(JSON.stringify({ state: "ready" }), { status: 200 }));
+    });
+    await advance(3_000);
+    expect(probes).toHaveBeenCalledTimes(2);
+  });
+
   it("a shard resting at zero is the same notice as one coming up", async () => {
     slowRequestAgainst("stopped");
 

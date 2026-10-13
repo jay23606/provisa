@@ -41,6 +41,8 @@ let waking = false;
 let inFlight = 0;
 let busySince: number | null = null;
 let pollTimer: number | null = null;
+/** A poll is out and has not answered: the next tick skips rather than queue another behind it. */
+let polling = false;
 let tickTimer: number | null = null;
 const listeners = new Set<Listener>();
 
@@ -68,6 +70,10 @@ export function isEngineProbePath(url: string): boolean {
 }
 
 function poll(): void {
+  // On a slow server a poll answers slowly too; asking again every interval while it is out would
+  // add a request to the very queue whose wait it is reporting on.
+  if (polling) return;
+  polling = true;
   fetch(STATE_PATH, { cache: "no-store" })
     .then((res) => (res.ok ? res.json() : null))
     .then((body) => {
@@ -76,6 +82,9 @@ function poll(): void {
     })
     .catch(() => {
       /* An unreachable server is serverReachability's notice, not this one. */
+    })
+    .finally(() => {
+      polling = false;
     });
 }
 
@@ -161,5 +170,6 @@ export function resetEngineWake(): void {
   wakingSince = null;
   inFlight = 0;
   busySince = null;
+  polling = false;
   listeners.clear();
 }

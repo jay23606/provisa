@@ -484,7 +484,7 @@ def test_health_and_admin_stay_reachable_when_every_request_thread_is_busy(front
     seen: dict[str, str] = {}
 
     async def app(scope, receive, send):
-        if scope["path"].startswith("/data/"):
+        if scope["path"] == "/data/graphql":  # the data request that holds the one thread
             release.wait(10)
         seen[scope["path"]] = threading.current_thread().name
         await _echo(scope, receive, send)
@@ -505,6 +505,7 @@ def test_health_and_admin_stay_reachable_when_every_request_thread_is_busy(front
             "/ready",
             "/live",
             "/setup/status",
+            "/data/engine/state",
             "/admin/graphql",
             "/admin/settings",
         ):
