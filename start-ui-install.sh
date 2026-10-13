@@ -275,6 +275,17 @@ fi
 if [ -n "$DEMO_NAME" ]; then
   _NAMED_DIR="$SCRIPT_DIR/demo/named/$DEMO_NAME"
   _NAMED_FRAGMENT="$_NAMED_DIR/fragment.yaml"
+  # The demo's directory, for its config and compose file to name paths under (a Logs source's
+  # glob must be a full path). A demo with a logs/ directory writes its containers' logs there for
+  # its Logs sources (REQ-1996) to read, so logs/ is added to the directories they may read; a
+  # pristine start empties it, keeping what the demo ships (its .gitignore files).
+  export PROVISA_NAMED_DEMO_DIR="$_NAMED_DIR"
+  if [ -d "$_NAMED_DIR/logs" ]; then
+    export PROVISA_LOGS_ALLOWED_ROOTS="${PROVISA_LOGS_ALLOWED_ROOTS:+$PROVISA_LOGS_ALLOWED_ROOTS,}$_NAMED_DIR/logs"
+    if [ "$KEEP_DATA" = false ]; then
+      find "$_NAMED_DIR/logs" -type f ! -name .gitignore -delete
+    fi
+  fi
   if [ -f "$_NAMED_DIR/docker-compose.yml" ]; then
     # A pristine start is the default, as it is for the control plane below: the stack's containers
     # and volumes are removed and its bind-mounted ./data directory (databases and the seeder's

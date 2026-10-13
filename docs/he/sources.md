@@ -300,7 +300,7 @@ sources:
 
 בטופס המקורות, מקור Logs מופיע בשם "Log files" תחת File. הכפתור **Preview** מציג את הקבצים שה-glob תופס, את העמודות שהפורמט נותן ואת 20 השורות הראשונות מהקובץ החדש ביותר, עוד לפני שמשהו נשמר. [tool-verified: `provisa-ui/src/pages/sources/constants.ts`; `provisa-ui/src/pages/sources/LogsFields.tsx`; `provisa/api/admin/logs_router.py` `PREVIEW_ROWS`]
 
-**ה-glob.** הוא חייב להיות נתיב מלא; `~` מורחב, ונתיב יחסי נדחה ("name the files by their full path"). ההתאמה נעשית באמצעות `glob` של Python במצב לא רקורסיבי, ולכן `**` מתנהג כמו `*` ותופס בתוך רמת ספרייה אחת. נלקחים רק קבצים רגילים, לפי סדר שמות. קובץ ריק מדולג עד שיש בו בתים. [tool-verified: `provisa/logs/roots.py` `checked_glob`; `provisa/logs/files.py` `matched`, `identify`]
+**ה-glob.** הוא חייב להיות נתיב מלא; `~` מורחב, ונתיב יחסי נדחה ("name the files by their full path"). ההתאמה נעשית באמצעות `glob` של Python במצב לא רקורסיבי, ולכן `**` מתנהג כמו `*` ותופס בתוך רמת ספרייה אחת. נלקחים רק קבצים רגילים, לפי סדר שמות. קובץ ריק מדולג עד שיש בו בתים. [tool-verified: `provisa/logs/roots.py` `checked_glob`; `provisa/logs/files.py` `matched`, `identify`] ה-glob יכול לציין משתנה סביבה, כמו ב-`${env:LOG_DIR}/*.log`. המקור שומר את ההפניה כפי שנכתבה ומפענח אותה בכל קריאה של הקבצים; משתנה שלא הוגדר נדחה בשמו. [tool-verified: `provisa/logs/settings.py` `parse`; `tests/unit/test_logs_source.py` `test_a_glob_naming_a_variable_reads_where_it_points`]
 
 **העמודות של כל שורה.** הן באות לפני עמודות הפורמט:
 

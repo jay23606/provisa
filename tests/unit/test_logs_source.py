@@ -152,6 +152,29 @@ def test_the_settings_name_a_glob_and_a_format():
         parse({"glob": "/var/log/x", "format": "jsonl", "colour": "red"})
 
 
+def test_a_glob_naming_a_variable_reads_where_it_points(root, monkeypatch):
+    """REQ-1919: a source's mapping keeps the reference as written (a config's
+    ``${env:LOG_DIR}/*.log``); the glob is resolved where the settings are read, so the files read
+    are the ones the variable names, inside the allowed root like any other."""
+    monkeypatch.setenv("WEBLOGS_TEST_LOG_DIR", str(root))
+    _write(root / "system.log", LINES)
+    settings = parse({"glob": "${env:WEBLOGS_TEST_LOG_DIR}/system.log*", "format": "rfc3164"})
+    assert settings.glob == f"{root}/system.log*"
+    rows, _, _ = _read_all(checked_glob(settings.glob), {})
+    assert [r[RAW] for r in rows] == LINES
+
+
+def test_a_glob_naming_an_unset_variable_is_refused_naming_it(monkeypatch):
+    monkeypatch.delenv("WEBLOGS_TEST_UNSET", raising=False)
+    with pytest.raises(InvalidLogsSource, match="WEBLOGS_TEST_UNSET"):
+        parse({"glob": "${env:WEBLOGS_TEST_UNSET}/app.log", "format": "jsonl"})
+
+
+def test_a_pattern_is_read_as_written_not_as_a_reference():
+    pattern = r"(?P<a>\$\{x:y\}.*)"
+    assert parse({"glob": "/var/log/x", "format": "regex", "pattern": pattern}).pattern == pattern
+
+
 # --- a file across its rotations ------------------------------------------------------------------
 
 

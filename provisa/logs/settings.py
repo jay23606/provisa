@@ -4,13 +4,16 @@
 # This source code is licensed under the Business Source License 1.1
 """A Logs source's settings, as its mapping holds them (REQ-1996): the glob of the files it
 reads, the format their records are in, and for a regular-expression format its pattern and
-the pattern a record's first line matches."""
+the pattern a record's first line matches. The glob may hold a reference (``${env:LOG_DIR}/*.log``):
+the mapping keeps it as written, and it is resolved here, where the settings are read (REQ-1919).
+A pattern is a regular expression, read as written."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
 
+from provisa.core.secrets import resolve_secrets
 from provisa.logparse import Format, format_for
 
 
@@ -43,6 +46,11 @@ def parse(mapping: dict[str, Any]) -> LogsSettings:
     if unknown:
         raise InvalidLogsSource(f"a Logs source has no setting {', '.join(unknown)}")
     glob = _text(mapping, "glob")
+    if glob is not None:
+        try:
+            glob = resolve_secrets(glob)
+        except (KeyError, ValueError) as exc:
+            raise InvalidLogsSource(f"glob {glob}: {exc}") from exc
     if glob is None:
         raise InvalidLogsSource(
             "name the files to read: a path or a glob, such as /var/log/system.log*"

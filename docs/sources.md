@@ -299,7 +299,7 @@ The mapping takes four keys and refuses any other by name: `glob` and `format` (
 
 In the Sources form, a Logs source is "Log files" under File. The **Preview** button shows the files the glob matches, the columns the format gives, and the first 20 rows from the newest file, before anything is saved. [tool-verified: `provisa-ui/src/pages/sources/constants.ts`; `provisa-ui/src/pages/sources/LogsFields.tsx`; `provisa/api/admin/logs_router.py` `PREVIEW_ROWS`]
 
-**The glob.** It must be a full path; `~` is expanded, and a relative path is refused ("name the files by their full path"). It is matched with Python's `glob` in non-recursive mode, so `**` behaves like `*` and matches within one directory level. Only regular files are taken, in name order. An empty file is skipped until it has bytes. [tool-verified: `provisa/logs/roots.py` `checked_glob`; `provisa/logs/files.py` `matched`, `identify`]
+**The glob.** It must be a full path; `~` is expanded, and a relative path is refused ("name the files by their full path"). It is matched with Python's `glob` in non-recursive mode, so `**` behaves like `*` and matches within one directory level. Only regular files are taken, in name order. An empty file is skipped until it has bytes. [tool-verified: `provisa/logs/roots.py` `checked_glob`; `provisa/logs/files.py` `matched`, `identify`] The glob may name an environment variable, as in `${env:LOG_DIR}/*.log`. The source keeps the reference as written and resolves it each time the files are read; a variable that is not set is refused by name. [tool-verified: `provisa/logs/settings.py` `parse`; `tests/unit/test_logs_source.py` `test_a_glob_naming_a_variable_reads_where_it_points`]
 
 **Every row's own columns.** These come before the format's columns:
 
