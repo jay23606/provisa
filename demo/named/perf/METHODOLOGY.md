@@ -8,11 +8,13 @@ The optimistic benchmark measures Provisa's own ceiling per transport: one row, 
 
 | Device | Runs | Nothing else |
 |---|---|---|
-| 1, server | Provisa: its worker processes, every listener (HTTP, pgwire, Flight, Bolt, gRPC), its in-process engine; `server_cpu_agent.py` | No database, no collector, no load generator |
+| 1, server | Provisa: its worker processes, every listener (HTTP, pgwire, Flight, Bolt, gRPC); `server_cpu_agent.py` | No database, no engine, no collector, no load generator |
 | 2, client | `run_benchmark.py --optimistic` (the load generator) | No Provisa, no source |
-| 3, backends | The Postgres source (`orders`), the control-plane Postgres, Redis (the shared response cache), the OTel collector and the OTel-to-table processing (otlp2parquet, otlp2sql); the host agent for container CPU | No Provisa, no load generator |
+| 3, backends | The Postgres source (`orders`), the federation engine (Postgres, its own container), the control-plane Postgres, Redis (the shared response cache), the OTel collector and the OTel-to-table processing (otlp2parquet, otlp2sql); the host agent for container CPU | No Provisa, no load generator |
 
 Redis is on device 3: a server Provisa reaches over the network, as in production.
+
+The federation engine is Postgres (`PROVISA_ENGINE=pg`), the standard setup. It runs on device 3 in its own container, apart from the source's Postgres, so its CPU is reported on its own. A request that reaches the engine (a knob run's federated read) shows its engine time there; the optimistic request does not reach it.
 
 All three are in one zone. A compact placement policy keeps the round trip stable between runs.
 
@@ -22,8 +24,8 @@ A `terraform/perf` module creates the three instances from variables (machine ty
 
 Per device, after provisioning:
 
-- **Device 3:** `docker compose -f demo/named/perf/docker-compose.yml up -d postgresql redis seeder` plus the control-plane Postgres and the collector services (to be added to that compose file, as `profiles` so the single-host run is unchanged). Wait for `seeder` to exit 0.
-- **Device 1:** the repository at the commit under test. `orchestrate.sh` gains a `serve` mode that starts Provisa only, with the source, Redis, control-plane and collector addresses pointing at device 3. `config.yaml` already reads the source hosts from `PROVISA_BENCH_*_HOST`. Then `server_cpu_agent.py --pid <provisa> --listen <device-1 private address>:9555`.
+- **Device 3:** `docker compose -f demo/named/perf/docker-compose.yml up -d postgresql redis seeder` plus the engine Postgres, the control-plane Postgres and the collector services (to be added to that compose file, as `profiles` so the single-host run is unchanged). Wait for `seeder` to exit 0.
+- **Device 1:** the repository at the commit under test. `orchestrate.sh` gains a `serve` mode that starts Provisa only, with the source, engine, Redis, control-plane and collector addresses pointing at device 3. Its engine defaults to `pg`; a knob run states its engine per run. `config.yaml` already reads the source hosts from `PROVISA_BENCH_*_HOST`. Then `server_cpu_agent.py --pid <provisa> --listen <device-1 private address>:9555`.
 - **Device 2:** the repository at the same commit, and a contract whose endpoints name device 1's private address. The contract already takes a host and port per transport.
 
 ## Reported per device
@@ -39,7 +41,7 @@ CPU per step, each from its own device:
 
 - device 1: Provisa's CPU per request (`server_cpu_agent.py`), and its CPU in cores;
 - device 2: the load generator's CPU in cores and `client_limited`. A client-limited step is a measurement of the client and is never published;
-- device 3: the CPU of each container (Postgres, control-plane Postgres, Redis, collector, otlp2parquet or otlp2sql), so a backend bottleneck shows.
+- device 3: the CPU of each container (the source's Postgres, the engine's Postgres, the control-plane Postgres, Redis, collector, otlp2parquet or otlp2sql), so a backend bottleneck shows.
 
 ## Telemetry off and on
 
@@ -72,8 +74,8 @@ The language and transport pairs are those already published: SQL over pgwire (c
 
 ## Harness changes this needs
 
-1. `orchestrate.sh serve`: Provisa only, backend addresses from the environment, telemetry from `PROVISA_BENCH_TELEMETRY`, no no-op collector.
-2. Compose profiles on device 3 for the control-plane Postgres, the collector and otlp2parquet/otlp2sql.
+1. `orchestrate.sh serve`: Provisa only, engine `pg` by default, backend addresses from the environment, telemetry from `PROVISA_BENCH_TELEMETRY`, no no-op collector.
+2. Compose profiles on device 3 for the engine Postgres, the control-plane Postgres, the collector and otlp2parquet/otlp2sql.
 3. The host agent grows from `server_cpu_agent.py`. It stays read-only and needs an explicit `--listen`. It adds machine facts, container CPU (on device 3) and a round-trip probe to a named host and port.
 4. `run_benchmark.py`: a `--source-cpu-url` (device 3's agent) beside `--server-cpu-url`, a timed warm-up step, repetitions with off and on alternating, and the per-device block in the report.
 5. `terraform/perf`.
