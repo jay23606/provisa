@@ -55,6 +55,9 @@ PORTS = {
     "neo4j_http": 27974,
 }
 API_PORT = 8001
+# Every listener the contract reaches on device 1 (setups/three-device.yaml). Bolt does not
+# start unless its port is set (server.bolt_port defaults to 0); on one host a .env sets it.
+BOLT_PORT = 17687
 
 
 def run_config(base_text: str, *, telemetry: str, collector_url: str | None) -> str:
@@ -97,6 +100,7 @@ def server_env(
         "PROVISA_WORKERS": str(workers),
         "PROVISA_LAUNCH_ID": str(uuid.uuid4()),
         "PROVISA_PGWIRE_PORT": "5439",
+        "PROVISA_BOLT_PORT": str(BOLT_PORT),
         "PG_HOST": h,
         "PG_PORT": str(PORTS["control_plane"]),
         "PG_DATABASE": "provisa",

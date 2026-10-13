@@ -345,3 +345,65 @@ def test_a_contract_may_state_a_warm_up() -> None:
         ).load.warmup_s
         == 0
     )
+
+
+def test_the_three_device_contract_reaches_device_1_by_its_private_address() -> None:
+    import setup_contract as sc
+
+    raw = yaml.safe_load((BENCH / "setups" / "three-device.yaml").read_text())
+    setup = sc.setup_from_dict(
+        raw,
+        environ={
+            "PROVISA_HTTP_BASE_URL": "http://10.90.0.2:8001",
+            "PROVISA_BENCH_SERVER_HOST": "10.90.0.2",
+        },
+        known_transports=list(ol.TRANSPORTS),
+    )
+    e = setup.endpoints
+    assert {e.pgwire.host, e.bolt.host, e.flight.host, e.grpc.host} == {"10.90.0.2"}
+    assert (setup.load.warmup_s, setup.load.window_s) == (60, 30)
+
+
+def test_a_host_from_an_unset_variable_is_refused_naming_it() -> None:
+    import setup_contract as sc
+
+    raw = yaml.safe_load((BENCH / "setups" / "three-device.yaml").read_text())
+    with pytest.raises(
+        contract_model.SetupError,
+        match="deployment.endpoints.pgwire.host: environment variable PROVISA_BENCH_SERVER_HOST",
+    ):
+        sc.setup_from_dict(
+            raw,
+            environ={"PROVISA_HTTP_BASE_URL": "http://10.90.0.2:8001"},
+            known_transports=list(ol.TRANSPORTS),
+        )
+
+
+def test_device_1_starts_every_listener_the_contract_reaches() -> None:
+    env = _env()
+    assert (env["PROVISA_PGWIRE_PORT"], env["PROVISA_BOLT_PORT"]) == ("5439", "17687")
+
+
+def test_the_driver_dry_run_runs_nothing_and_says_what_it_would() -> None:
+    import os
+    import subprocess
+
+    out = subprocess.run(
+        ["bash", str(BENCH / "three_device_run.sh"), "--reps", "1", "--dry-run"],
+        env={
+            **os.environ,
+            "PERF_ZONE": "us-east1-b",
+            "PERF_REPO": "/opt/provisa",
+            "PERF_SERVER_IP": "10.90.0.2",
+            "PERF_BACKENDS_IP": "10.90.0.4",
+            "PATH": "/usr/bin:/bin",  # no gcloud: a dry run never calls it
+        },
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    assert "[provisa-perf-backends]" in out and "[provisa-perf-server]" in out
+    assert "orchestrate.sh serve --telemetry off --engine pg" in out
+    assert out.index("--telemetry off") < out.index("--telemetry on")
+    assert "--setup setups/three-device.yaml" in out
+    assert "PROVISA_BENCH_SERVER_HOST=10.90.0.2" in out
