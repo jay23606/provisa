@@ -18,7 +18,9 @@ from provisa.api.admin import _table_ops, schema_query
 from provisa.api.admin.types import AvailableColumnType
 from provisa.core.models import Column
 
-_INPUT = SimpleNamespace(source_id="orders-pg", schema_name="public", table_name="orders")
+_INPUT = SimpleNamespace(
+    source_id="orders-pg", schema_name="public", table_name="orders", query_template=None
+)
 
 
 class _Pool:
@@ -173,4 +175,24 @@ async def test_an_embedding_column_stays_the_native_array_a_similarity_search_re
         None,
         0,
     )
+    assert asked == []
+
+
+async def test_a_table_its_query_produces_is_not_listed_from_the_source(monkeypatch):
+    """A neo4j table's columns are what its Cypher returns, typed by the preview: registering it
+    asked the source for a listing a query-API source has no driver or engine attach for, and
+    registerTable failed "cannot list the columns of source 'neo4j_ui_it'"."""
+    asked = _source(monkeypatch, [], stored={})
+    neo4j = SimpleNamespace(
+        source_id="neo4j_ui_it",
+        schema_name="neo4j",
+        table_name="adopters",
+        query_template="MATCH (a:Adopter) RETURN a.id AS adopter_id, a.name AS name",
+    )
+    columns = [
+        Column(name="adopter_id", data_type="integer", visible_to=[]),
+        Column(name="name", data_type="text", visible_to=[]),
+    ]
+
+    assert await _table_ops._settle_nested_columns(_Pool(), neo4j, columns) is None
     assert asked == []

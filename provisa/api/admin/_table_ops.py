@@ -509,9 +509,16 @@ async def _settle_nested_columns(pool, input, columns) -> "MutationResult | None
 
     The source is asked only about a column this table does not already store with the type now
     given: a column kept as it was registered was settled then, and keeps its attributes (the
-    repository's rule), so editing a table does not depend on its source being reachable."""
+    repository's rule), so editing a table does not depend on its source being reachable.
+
+    A table a query produces (a query-API source's: neo4j, SPARQL, ...) has the columns its query
+    returns, typed by its preview, which refuses a column that is not a scalar (REQ-1670/REQ-1683):
+    the source has no listing of them to settle against."""
     from provisa.api.admin.types import MutationResult
     from provisa.core.repositories.table import stored_column_types
+
+    if input.query_template:
+        return None
 
     async with pool.acquire() as conn:
         stored = await stored_column_types(
