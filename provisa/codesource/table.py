@@ -169,3 +169,50 @@ async def read(state: Any, table: dict, given: dict | None) -> Any:  # the app s
 
     rows = await asyncio.to_thread(_run)
     return PipelineRead(rows=rows, columns=[(c.name, to_ir(c.data_type)) for c in outputs])
+
+
+async def whole_rows(state: Any, source: Any, table: Any) -> list[dict]:  # the app state;
+    # a registered Source; a registered table (its model or the registry's view of it)
+    """A code table with no parameters read whole, as a replica reads it: its function called
+    with no arguments. A table with parameters is a function of its arguments and has no whole
+    table."""
+    from provisa.codesource.source import context_for, prepare
+    from provisa.mongodb.pipeline_rows import OutputColumn, project
+
+    name = _get(table, "table_name")
+    columns = list(_get(table, "columns") or [])
+    if any(_get(c, "native_filter_type") for c in columns):
+        raise CodeTableRefused(
+            name, "it is read under the arguments of each statement: it has no whole table"
+        )
+    prepared = await prepare(source.id, source.type.value, source.mapping, await context_for(state))
+    function = export_of(table)
+    if not any(e.name == function and e.kind == "table" for e in prepared.manifest.exports):
+        raise CodeTableRefused(name, f"its source's code has no @table function {function!r}")
+    outputs = [
+        OutputColumn(
+            _get(c, "column_name") or _get(c, "name"), _get(c, "data_type"), _get(c, "path")
+        )
+        for c in columns
+    ]
+    worker = prepared.worker()
+
+    def _run() -> list[dict]:
+        return [
+            project(name, row, outputs)
+            for batch in worker.rows(function, "table", [], [])
+            for row in batch
+        ]
+
+    return await asyncio.to_thread(_run)
+
+
+def make_code_loader() -> Any:  # an AdapterLoader (events/source_loader.py)
+    """The whole-table load of a code table with no parameters (a replica's read)."""
+
+    async def _load(source: Any, table: Any) -> list[dict]:
+        from provisa.api.app import state
+
+        return await whole_rows(state, source, table)
+
+    return _load
