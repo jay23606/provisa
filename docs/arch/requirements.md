@@ -23195,3 +23195,15 @@ A named demo has its own tour, the story of the demo told with its own data, for
 **Code:** —
 
 **Tests:** —
+
+### REQ-2013 · UI {#REQ-2013}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+Each tour declares its prerequisites, what its steps show of the org beyond the rights its pages need: the sources, the registered tables and whether a data product exists. The product tour and the Deep Dives built on the standard demo's objects declare them (its pet store, its quality checker's results, the inquiries lineage, its data products); a named demo's own track needs the sources its steps show. When the Deep Dives menu opens and when the tour button picks a tour, the check runs against what the current org has, and a tour whose prerequisites are unmet is left out: it is not in the menu, its start (the menu's "Start at the Beginning" for the product tour) is not offered, and the tour button does not start it. Nothing watches for prerequisites coming back. A step whose target still never appears (anything the check misses) is shown as stuck after the anchor wait, with Retry, Skip and Exit over the step it left, never as the earlier step's card answering nothing. A step that opens its own starting state with a sequence of clicks takes each next click only once the one before it has opened what it opens.
+
+**Use case:** A maintainer runs the weblogs demo and opens the Deep Dives menu: the deep dives that need the standard demo's pet store and quality checker are not listed, so none can be started to wait on a row the demo does not have.
+
+**Code:** —
+
+**Tests:** —
