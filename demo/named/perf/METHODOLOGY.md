@@ -33,12 +33,11 @@ All three are in one zone, under one compact placement policy, so the round trip
 
 The results are copied back and reported by `three_device.py report`.
 
-Before the first run, by hand (terraform gives each device only its operating system):
+Each device sets itself up at every boot (`terraform/perf/startup.sh.tftpl`): Docker and the compose plugin, the repository at the `commit` variable in `repo_dir`, `uv sync`, and the idle shutdown (power off after 30 idle minutes, `vm_idle_shutdown.sh`). Device 3 also brings up its data stack and runs the first seed (20 million orders, which takes a while; later boots find the data seeded). `three_device_run.sh` holds every device up for the length of a run.
 
-- the project's quota: three 32-vCPU devices need 96 vCPUs, and the all-regions CPU quota must allow them;
-- `operator_ssh_cidrs`: the operator's own address;
-- on each device: Docker with the compose plugin, the repository cloned at the commit under test to the same path (`PERF_REPO`), and its virtual environment (`uv sync`);
-- device 3's first `docker compose up seeder` seeds 20 million orders, which takes a while; later runs find the data seeded.
+The devices are Spot by default (`provisioning_model = "SPOT"`) while the harness is made to work; the final measured run sets `provisioning_model = "ON_DEMAND"`. A reclaimed Spot device stops, keeping its disk.
+
+Before the first apply: the project's quota must allow three 32-vCPU devices (96 vCPUs, all regions), and `operator_ssh_cidrs` names the operator's own address (required, no default).
 
 `three_device_run.sh --dry-run` prints every command it would run on each device, and runs none.
 

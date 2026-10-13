@@ -66,13 +66,23 @@ BACKEND_CONTAINERS=(perf-engine-postgresql-1 perf-control-plane-1 perf-redis-1
 _containers=""
 for c in "${BACKEND_CONTAINERS[@]}"; do _containers+=" --backend-container $c"; done
 
+# Each device powers off after 30 idle minutes (vm_idle_shutdown.sh). Device 3 only serves its
+# containers during a run, which the idle check does not count, so every device is held up for
+# the run and released after it, also when the run fails.
+HOLD=/var/lib/provisa-idle/hold
+for d in "$BACKENDS" "$SERVER" "$CLIENT"; do on "$d" "sudo touch $HOLD"; done
+release() { for d in "$BACKENDS" "$SERVER" "$CLIENT"; do on "$d" "sudo rm -f $HOLD"; done; }
+trap release EXIT
+
 echo "=== device 3: backends ==="
 _profiles="--profile three-device"
 [ "$ENGINE" = trino ] && _profiles+=" --profile three-device-trino"
+# The startup script brought the stack up and seeded it; this is a no-op then, and adds Trino
+# when a run names it. Docker and the agent's docker stats need root.
 on "$BACKENDS" "cd $PERF_REPO/demo/named/perf && export PROVISA_BENCH_BIND=$PERF_BACKENDS_IP \
-  && docker compose $_profiles up -d --build \
-  && docker compose up seeder \
-  && (pgrep -f host_agent.py >/dev/null || nohup setsid $PY $BENCH/host_agent.py \
+  && sudo -E docker compose $_profiles up -d --build \
+  && sudo -E docker compose up seeder \
+  && (pgrep -f host_agent.py >/dev/null || sudo nohup setsid $PY $BENCH/host_agent.py \
       --listen $PERF_BACKENDS_IP:$AGENT_PORT --fact device=backends > ~/host-agent.log 2>&1 < /dev/null &)"
 
 run_one() {  # run_one <rep> <telemetry>

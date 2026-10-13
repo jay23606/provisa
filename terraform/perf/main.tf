@@ -107,5 +107,20 @@ resource "google_compute_instance" "device" {
     # A compact placement policy needs instances that stop for host maintenance.
     on_host_maintenance = "TERMINATE"
     automatic_restart   = false
+    provisioning_model  = var.provisioning_model
+    preemptible         = var.provisioning_model == "SPOT"
+    # A reclaimed Spot device stops (its disk and seeded data kept), as an idle one powers off.
+    instance_termination_action = var.provisioning_model == "SPOT" ? "STOP" : null
+  }
+
+  # Run at every boot: Docker, the repository at var.commit, uv sync, the idle shutdown, and on
+  # the backends device the data stack and its first seed (startup.sh.tftpl).
+  metadata = {
+    startup-script = templatefile("${path.module}/startup.sh.tftpl", {
+      device   = each.key
+      commit   = var.commit
+      repo_url = var.repo_url
+      repo_dir = var.repo_dir
+    })
   }
 }

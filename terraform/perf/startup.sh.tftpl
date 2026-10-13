@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+#
+# The three-device benchmark's device setup (demo/named/perf/METHODOLOGY.md), run by GCE as root at
+# every boot, so a stopped device that is started again is set up the same way. Every step is
+# idempotent: Docker and the compose plugin, the repository at ${commit} in ${repo_dir}, its virtual
+# environment (uv sync), the idle shutdown (vm_idle_shutdown.sh: power off after 30 idle minutes),
+# and on the backends device the data stack and its first seed. The hold file keeps the device up
+# while this runs (a first seed takes a while).
+set -euo pipefail
+exec > >(logger -t provisa-perf-startup) 2>&1
+
+DEVICE="${device}"
+REPO_DIR="${repo_dir}"
+HOLD_DIR=/var/lib/provisa-idle
+mkdir -p "$HOLD_DIR"
+touch "$HOLD_DIR/hold"
+trap 'rm -f "$HOLD_DIR/hold"' EXIT
+
+export DEBIAN_FRONTEND=noninteractive
+if ! command -v docker >/dev/null || ! docker compose version >/dev/null 2>&1; then
+  apt-get update -q
+  apt-get install -y -q docker.io docker-compose-v2 git curl
+fi
+systemctl enable --now docker
+
+# uv, the version the repository was last checked with (pinned: an unpinned installer is a
+# different tool on every boot)
+if ! [ -x /usr/local/bin/uv ]; then
+  curl -LsSf https://astral.sh/uv/0.11.19/install.sh | env UV_INSTALL_DIR=/usr/local/bin INSTALLER_NO_MODIFY_PATH=1 sh
+fi
+
+if ! [ -d "$REPO_DIR/.git" ]; then
+  git clone "${repo_url}" "$REPO_DIR"
+fi
+git -C "$REPO_DIR" fetch --quiet origin
+git -C "$REPO_DIR" checkout --quiet --detach "${commit}"
+(cd "$REPO_DIR" && UV_PYTHON_INSTALL_DIR=/opt/uv-python /usr/local/bin/uv sync --frozen --extra dev)
+# The operator's commands run as their own login over SSH: they read the repository and write
+# results under it.
+chmod -R a+rwX "$REPO_DIR"
+
+"$REPO_DIR/demo/named/perf/bench/vm_idle_shutdown.sh" install
+
+if [ "$DEVICE" = backends ]; then
+  PRIVATE_IP="$(curl -sf -H 'Metadata-Flavor: Google' \
+    http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/ip)"
+  cd "$REPO_DIR/demo/named/perf"
+  export PROVISA_BENCH_BIND="$PRIVATE_IP"
+  # the data stack and its first seed; the seeder is a no-op once seeded (a marker on the data dir)
+  docker compose --profile three-device up -d --build
+  docker compose up seeder
+fi

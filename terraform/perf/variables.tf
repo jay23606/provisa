@@ -72,4 +72,37 @@ variable "subnet_cidr" {
 variable "operator_ssh_cidrs" {
   description = "Addresses the operator connects over SSH from. Nothing else reaches the devices from outside."
   type        = list(string)
+  validation {
+    condition     = length(var.operator_ssh_cidrs) > 0
+    error_message = "Name at least one address the operator connects from."
+  }
+}
+
+# The maintainer's bench rule: Spot while the harness is being made to work, on-demand only for
+# the final measured run, chosen explicitly.
+variable "provisioning_model" {
+  description = "SPOT (default) or ON_DEMAND (the final measured run)."
+  type        = string
+  default     = "SPOT"
+  validation {
+    condition     = contains(["SPOT", "ON_DEMAND"], var.provisioning_model)
+    error_message = "provisioning_model is SPOT or ON_DEMAND."
+  }
+}
+
+variable "commit" {
+  description = "The commit under test: every device checks the repository out at it."
+  type        = string
+}
+
+variable "repo_url" {
+  description = "The repository the devices clone."
+  type        = string
+  default     = "https://github.com/kenstott/provisa.git"
+}
+
+variable "repo_dir" {
+  description = "Where every device keeps the repository (PERF_REPO for three_device_run.sh)."
+  type        = string
+  default     = "/opt/provisa"
 }
