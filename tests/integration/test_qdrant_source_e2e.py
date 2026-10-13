@@ -345,11 +345,12 @@ def test_the_filter_is_applied_by_qdrant_before_its_nearest_points_are_chosen(se
     rows = _rows(
         _sql(
             server,
-            "SELECT id FROM docs_search WHERE _nf_q = '[1, 0, 0, 0]' AND _nf_lang = 'en' "
+            "SELECT id FROM docs_search WHERE _nf_q = '[1, 0.2, 0, 0]' AND _nf_lang = 'en' "
             "AND _nf_k = 2 ORDER BY score DESC",
         )
     )
     # Document 2 is the second nearest overall but German: the two nearest English ones answer.
+    # (with [1, 0, 0, 0] documents 3 and 4 tie at 0 and either is a correct answer).
     assert [r["id"] for r in rows] == [1, 3]
 
 
