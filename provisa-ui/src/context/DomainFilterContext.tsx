@@ -37,6 +37,33 @@ export function mergeCheckedDomains(
   return restored;
 }
 
+// Restore the persisted checked set, but default any domain that has appeared since the last visit
+// (e.g. a just-created view's domain, or the domain of a demo started since) to CHECKED -- otherwise
+// a new domain, absent from the saved whitelist, would stay invisible forever. A domain the user
+// explicitly unchecked is in the known set but not the checked set, so it stays unchecked. Both sets
+// are saved as restored: saving only the known set made a new domain "known but not checked" on the
+// next load, so it read as unchecked by the user and its tables vanished from every list.
+export function restoreCheckedDomains(available: string[]): Set<string> {
+  try {
+    const savedChecked = localStorage.getItem(CHECKED_DOMAINS_KEY);
+    const savedKnown = localStorage.getItem(KNOWN_DOMAINS_KEY);
+    const merged = mergeCheckedDomains(
+      available,
+      savedChecked ? JSON.parse(savedChecked) : null,
+      savedKnown ? JSON.parse(savedKnown) : null,
+    );
+    if (merged) {
+      localStorage.setItem(KNOWN_DOMAINS_KEY, JSON.stringify(available));
+      localStorage.setItem(CHECKED_DOMAINS_KEY, JSON.stringify([...merged]));
+      return merged;
+    }
+  } catch {
+    // ignore
+  }
+  localStorage.setItem(KNOWN_DOMAINS_KEY, JSON.stringify(available));
+  return new Set(available);
+}
+
 const DomainFilterContext = createContext<DomainFilterContextValue>({
   domains: [],
   setDomains: () => {},
@@ -61,30 +88,6 @@ export function DomainFilterProvider({ children }: { children: React.ReactNode }
       .catch(() => {});
   }, []);
 
-  // Restore the persisted checked set, but default any domain that has appeared since the last
-  // visit (e.g. a just-created view's domain) to CHECKED — otherwise a new domain, absent from the
-  // saved whitelist, would stay invisible forever. A domain the user explicitly unchecked is in the
-  // known set but not the checked set, so it correctly stays unchecked.
-  function restoreChecked(available: string[]): Set<string> {
-    try {
-      const savedChecked = localStorage.getItem(CHECKED_DOMAINS_KEY);
-      const savedKnown = localStorage.getItem(KNOWN_DOMAINS_KEY);
-      const merged = mergeCheckedDomains(
-        available,
-        savedChecked ? JSON.parse(savedChecked) : null,
-        savedKnown ? JSON.parse(savedKnown) : null,
-      );
-      if (merged) {
-        localStorage.setItem(KNOWN_DOMAINS_KEY, JSON.stringify(available));
-        return merged;
-      }
-    } catch {
-      // ignore
-    }
-    localStorage.setItem(KNOWN_DOMAINS_KEY, JSON.stringify(available));
-    return new Set(available);
-  }
-
   // REQ-1319: the filter spans EVERY active role, not `selectedRoles[0]`. Under "Role: All" the
   // user is acting as the union of their roles, and `capabilities` upstream is already that union —
   // but this effect read one arbitrary role, so a user holding analyst (pet-store, shelter) plus
@@ -104,7 +107,7 @@ export function DomainFilterProvider({ children }: { children: React.ReactNode }
         .then((ids: string[]) => {
           if (ids.length > 0) {
             setDomains(ids);
-            setCheckedDomains(restoreChecked(ids));
+            setCheckedDomains(restoreCheckedDomains(ids));
           }
         })
         .catch(() => {});
@@ -114,7 +117,7 @@ export function DomainFilterProvider({ children }: { children: React.ReactNode }
         /* eslint-disable-next-line react-hooks/set-state-in-effect --
            reset domain filter state in sync with an external input (the active role set) */
         setDomains(ds);
-        setCheckedDomains(restoreChecked(ds));
+        setCheckedDomains(restoreCheckedDomains(ds));
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by the role SET (the joined ids), not the array identity, so the fetch does not re-run on every render
