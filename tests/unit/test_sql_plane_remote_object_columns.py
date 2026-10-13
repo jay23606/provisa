@@ -26,7 +26,7 @@ from provisa.compiler.sql_gen import CompilationContext
 from provisa.compiler.stage2 import _expand_star, build_governance_context
 from provisa.graphql_remote.relation_columns import table_columns_outside_relation
 from provisa.pgwire.catalog_populate import _build_catalog_index
-from provisa.pgwire.result_shape import derive_result_shape
+from provisa.compiler.result_shape import derive_result_shape
 from tests.unit.test_profiler_remote_object_columns import (
     _SOURCES,
     PETS,
