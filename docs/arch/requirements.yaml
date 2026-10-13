@@ -53651,7 +53651,8 @@
   - tests/unit/test_data_steward_domain_scope.py
   - tests/unit/test_env_authority.py
 - id: REQ-1531
-  status: in-progress
+  status: complete
+  since: 2026-10
   target: 2026-Q4
   group: 13. Multi-Tenancy & Organizations
   category: Environments
@@ -53722,10 +53723,11 @@
   - REQ-1317
   - REQ-1528
   - REQ-1530
-  notes: 'Maintainer 2026-10-07: changing or deleting a role requires reaching every domain the role already covers (REQ-1944 audit found a sales-only manager could redefine a finance role''s rights). Roadmap audit 2026-10-13: partly built. 2026-10-13: assigning or removing a tag is gated on its target''s domains (domain_guard.tag_target_domains). Missing: saving a metric is not gated on the domains its expression reads; deleting one is.'
+  notes: 'Maintainer 2026-10-07: changing or deleting a role requires reaching every domain the role already covers (REQ-1944 audit found a sales-only manager could redefine a finance role''s rights). Roadmap audit 2026-10-13: partly built. 2026-10-13: assigning or removing a tag is gated on its target''s domains (domain_guard.tag_target_domains), and saving a metric on the domains its new expression reads and those of the definition it replaces (domain_guard.expression_domains).'
   tests:
   - tests/unit/test_admin_deletes_need_the_domain.py
   - tests/unit/test_admin_tag_needs_the_domain.py
+  - tests/unit/test_admin_metric_needs_the_domain.py
   - tests/unit/test_domain_guard.py
 - id: REQ-1532
   status: complete

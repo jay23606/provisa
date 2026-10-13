@@ -2731,9 +2731,23 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
             )
         except ValueError as e:  # pydantic name validation (snake_case)
             return MutationResult(success=False, message=str(e))
+        from provisa.api.admin.domain_guard import (
+            expression_domains,
+            metric_domains,
+            require_domains,
+        )
+
         pool = await _get_pool()
         try:
             async with pool.acquire() as conn:
+                # REQ-1531: a metric is an object of every domain its expression reads. Saving one
+                # needs the domains the NEW expression reads, and those of the definition it
+                # replaces -- replacing it is an act on that one too.
+                reads = await expression_domains(
+                    cast("Connection", conn), input.name, input.expression
+                )
+                replaced = await metric_domains(cast("Connection", conn), input.name)
+                require_domains(info, reads | (replaced or set()))
                 await metric_repo.upsert(cast("Connection", conn), model)
                 # REQ-1318: every registered view whose view_metrics spec references this
                 # metric regenerates its stored view_sql against the UPDATED definition.

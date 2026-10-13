@@ -93,15 +93,22 @@ async def metric_domains(conn: "Connection", name: str) -> set[str] | None:
     metric. A metric has no domain of its own — its expression names semantic tables
     (``SUM(orders.amount)``) and it is an object of each domain those tables sit in (REQ-1531).
     A name the model does not register contributes none, as in :func:`view_read_domains`."""
-    from provisa.compiler.metric_expand import metric_reference_tables
     from provisa.core.repositories import metric as metric_repo
-    from provisa.core.repositories import table as table_repo
 
     row = await metric_repo.get(conn, name)
     if row is None:
         return None
+    return await expression_domains(conn, name, row["expression"])
+
+
+async def expression_domains(conn: "Connection", name: str, expression: str) -> set[str]:
+    """The domains of the tables a metric EXPRESSION reads -- the question :func:`metric_domains`
+    asks of a stored metric, asked of an expression that is about to be saved (REQ-1531)."""
+    from provisa.compiler.metric_expand import metric_reference_tables
+    from provisa.core.repositories import table as table_repo
+
     domains: set[str] = set()
-    for table_name in metric_reference_tables(name, row["expression"]):
+    for table_name in metric_reference_tables(name, expression):
         table = await table_repo.find_by_table_name(conn, table_name)
         if table is not None:
             domains.add(table["domain_id"])
