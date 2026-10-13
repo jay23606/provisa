@@ -113,6 +113,9 @@ _ALIASES: dict[str, str] = {
     "int8": "bigint",
     "varchar": "text",
     "character varying": "text",
+    # SAP HANA's (and SQL Server's) Unicode varchar, as a registered column of such a source
+    # stores it and a landing reads it back with no platform to name (REQ-1730 swap lane).
+    "nvarchar": "text",
     "char": "text",
     "character": "text",
     "string": "text",

@@ -1933,6 +1933,11 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                         database=input.database,
                         user=input.username,
                         password=resolve_secrets(password_ref),
+                        # The connection extras the standard arguments cannot carry (an Exasol
+                        # certificate pin, a warehouse's account/http_path), as create_source's
+                        # pool and the boot pool pass them: without them an edited source dialled
+                        # unpinned and its discovery failed (REQ-1731, REQ-986/987/988).
+                        extra={k: resolve_secrets(v) for k, v in model.federation_hints.items()},
                     )
             except Exception:
                 logging.getLogger(__name__).exception(
