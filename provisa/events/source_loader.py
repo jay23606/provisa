@@ -488,11 +488,14 @@ def make_sqlite_loader() -> AdapterLoader:
 
     def _path(source: Any) -> str:
         from provisa.core.org_files import resolve_path
+        from provisa.core.secrets import resolve_secrets
 
         path = getattr(source, "path", None)
         if not path:
             raise ValueError(f"sqlite source {source.id!r} has no path")
-        return resolve_path(path)  # REQ-1997: a {files}/... path is read where it resolves
+        # REQ-1919: the store keeps the path as written (``${env:PROVISA_DEMO_DIR}/x.sqlite``);
+        # it is resolved here, at use. REQ-1997: a {files}/... path is read where it resolves.
+        return resolve_path(resolve_secrets(path))
 
     def _from(source: Any, table: Any, remote: dict | None) -> str:
         if remote is None:

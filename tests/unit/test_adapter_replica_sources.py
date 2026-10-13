@@ -56,6 +56,26 @@ async def test_sqlite_is_read_from_its_cursor_in_bounded_batches(tmp_path):
     assert got[0][0] == {"id": 0, "name": "n0"}
 
 
+async def test_sqlite_path_kept_as_written_is_resolved_where_it_is_read(tmp_path, monkeypatch):
+    """REQ-1919: a config's source is stored as written, so its path is still
+    ``${env:PROVISA_DEMO_DIR:-./demo/files}/inquiries.sqlite``; opened as that text, every replica
+    build of the e2e lanes' sqlite sources failed "unable to open database file"."""
+    path = tmp_path / "inquiries.sqlite"
+    con = sqlite3.connect(path)
+    con.execute("CREATE TABLE t (id INTEGER, name TEXT)")
+    con.execute("INSERT INTO t VALUES (1, 'a')")
+    con.commit()
+    con.close()
+    monkeypatch.setenv("PROVISA_DEMO_DIR", str(tmp_path))
+    source = SimpleNamespace(
+        id="lite", path="${env:PROVISA_DEMO_DIR:-./demo/files}/inquiries.sqlite"
+    )
+    reader = sl.make_sqlite_loader().replica_source(
+        source, _table(), [("id", "bigint"), ("name", "text")]
+    )
+    assert await _batches(reader, 10) == [[{"id": 1, "name": "a"}]]
+
+
 async def test_cassandra_pages_at_the_batch_bound(monkeypatch):
     from provisa.cassandra import fetch as cf
 
