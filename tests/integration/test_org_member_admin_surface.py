@@ -86,8 +86,10 @@ async def org_plane(monkeypatch):
         sql = fh.read()
     await init_schema(tenant_db, sql, org_id=_ORG_ID)
 
-    # A registered table, as the demo seed would leave it.
+    # A registered table in a domain of its own, as the demo seed would leave them (schema.sql
+    # seeds no demo domain).
     async with tenant_db.acquire() as conn:
+        await conn.execute_core(insert(domains_t).values(id="shelter", description=""))
         await conn.execute_core(
             insert(sources_t).values(id="sales-pg", type="postgres", dialect="postgresql")
         )
