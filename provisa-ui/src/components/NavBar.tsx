@@ -115,7 +115,7 @@ export function NavBar() {
   }
 
   async function proceedWithLogout() {
-    // REQ-1630: delete the Firebase Auth account before it signs itself out — the modal says the
+    // REQ-1931: delete the Firebase Auth account before it signs itself out — the modal says the
     // account is deleted on logout, so this must happen first, while the caller can still
     // authenticate the request. Environment/schema cleanup happens separately, server-side, via
     // cascade delete on TTL expiry.

@@ -101,7 +101,7 @@ _SEEDED_ROLE_CAPS: dict[str, list[str]] = {
 
 # alice administers acme; bob is an ordinary member of it; pat is the platform administrator,
 # whose platform_admin assignment lives in the root (default-org) schema. viv is a member of the
-# sandbox org only (REQ-1630 happy path); dana is a member of sandbox AND acme (REQ-1630 refusal
+# sandbox org only (REQ-1931 happy path); dana is a member of sandbox AND acme (REQ-1931 refusal
 # path — a real account must never be reachable through the sandbox-only deletion endpoint).
 _TOKENS = {
     "tok-alice": "alice",
@@ -878,7 +878,7 @@ def test_a_tenant_admins_delete_of_the_last_org_admin_is_refused(planes):
 
 def test_sandbox_account_deletion_deletes_membership_and_firebase_user(
     planes, monkeypatch
-):  # REQ-1630
+):  # REQ-1931
     """A sandbox-only visitor's exit deletes their membership, profile, tenant role, and the
     Firebase identity itself — the deletion the exit modal claims actually happens."""
     with planes.sync.begin() as conn:
@@ -924,7 +924,7 @@ def test_sandbox_account_deletion_deletes_membership_and_firebase_user(
 
 def test_sandbox_account_deletion_refused_for_non_sandbox_only_member(
     planes, monkeypatch
-):  # REQ-1630
+):  # REQ-1931
     """A visitor who also belongs to a real org must never be reachable through the sandbox-only
     deletion endpoint — a scoping bug here would delete a paying customer's identity."""
     deleted_uids: list[str] = []
@@ -945,7 +945,7 @@ def test_sandbox_account_deletion_refused_for_non_sandbox_only_member(
     )
 
 
-def test_sandbox_account_deletion_requires_authentication(planes, monkeypatch):  # REQ-1630
+def test_sandbox_account_deletion_requires_authentication(planes, monkeypatch):  # REQ-1931
     deleted_uids: list[str] = []
     monkeypatch.setattr(
         "provisa.auth.providers.firebase.delete_user", lambda uid: deleted_uids.append(uid)
