@@ -14,7 +14,7 @@
 // SQL with a JSON object, reaches the remote unchanged, and the remote's refusal comes back as
 // the remote stated it. A write cannot be composed into a larger statement.
 
-import { test, expect, BACKEND_URL } from "./coverage";
+import { test, expect, BACKEND_URL, PETSTORE_BASE_URL } from "./coverage";
 import type { APIRequestContext } from "playwright/test";
 
 const ADMIN = { "Content-Type": "application/json", "x-provisa-role": "org_admin" };
@@ -48,15 +48,6 @@ async function register(request: APIRequestContext, name: string, operation: str
     },
   });
   expect(res.ok(), await res.text()).toBeTruthy();
-}
-
-async function petstoreBase(request: APIRequestContext): Promise<string> {
-  const data = await adminGql(request, "{ sources { id path } }");
-  const path = (data.sources as { id: string; path: string }[]).find(
-    (s) => s.id === "petstore-api",
-  )?.path;
-  expect(path, "petstore-api has no path").toBeTruthy();
-  return (path as string).replace(/\/openapi\.json$/, "");
 }
 
 test.afterAll(async ({ request }) => {
@@ -122,8 +113,7 @@ test("REQ-1924: a registered operation is called with a JSON object and reaches 
   expect(answer.data[fields[0]]).toEqual([order]);
 
   // The write reached the remote: the petstore now holds the order, note included.
-  const base = await petstoreBase(request);
-  const held = await request.get(`${base}/store/order/${ORDER_ID}`);
+  const held = await request.get(`${PETSTORE_BASE_URL}/store/order/${ORDER_ID}`);
   expect(await held.json()).toEqual(order);
 
   // SQL: each argument is a JSON literal; the path parameter fills the path.
@@ -132,7 +122,7 @@ test("REQ-1924: a registered operation is called with a JSON object and reaches 
     data: { sql: `SELECT * FROM ${CANCEL}('${ORDER_ID}')` },
   });
   expect(sql.ok(), await sql.text()).toBeTruthy();
-  const gone = await request.get(`${base}/store/order/${ORDER_ID}`);
+  const gone = await request.get(`${PETSTORE_BASE_URL}/store/order/${ORDER_ID}`);
   expect(gone.status()).toBe(404);
 });
 
