@@ -34,7 +34,7 @@ from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Header, Query, Request
 from fastapi.responses import JSONResponse, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 if TYPE_CHECKING:
     from provisa.cypher.label_map import CypherLabelMap  # noqa: F401
@@ -172,9 +172,6 @@ def _exec_error(status: int, exc: Exception, sql: str) -> JSONResponse:
 class CypherRequest(BaseModel):  # REQ-345
     query: str
     params: dict[str, Any] = {}
-    # REQ-392: the graph explorer's cap on the distinct nodes it draws, held to the row limit;
-    # applied to a read that returns nodes, relationships or paths, ignored for one of rows only.
-    max_nodes: int | None = Field(default=None, ge=1)
 
 
 async def _execute_multi_call(
@@ -589,18 +586,11 @@ async def cypher_query(  # REQ-345, REQ-346, REQ-347, REQ-349, REQ-350, REQ-351,
         kept.record(translation)
 
     semantic_sql, graph_vars = translation.semantic_sql, translation.graph_vars
-    from provisa.api.rest.cypher_drawing import bounded, first_nodes, graph_columns
-    from provisa.core.limits import default_row_limit
+    from provisa.api.rest.cypher_drawing import graph_columns
 
     # A read that returns nodes, relationships or paths is drawn: answered inline, never delivered
-    # to a file, bounded by the row limit, and cut at max nodes -- distinct nodes, not rows (the
-    # same node recurs across rows). One that returns rows only is answered as on every surface.
+    # to a file -- the redirect threshold is a rule for rows. The row limits apply as to any read.
     drawn = graph_columns(graph_vars)
-    row_limit = default_row_limit()
-    max_nodes = min(body.max_nodes or row_limit, row_limit) if drawn else None
-    if drawn:
-        # The rows up to the limit and the one after, which says whether there are more.
-        semantic_sql = bounded(semantic_sql, row_limit + 1)
     try:
         resolved_params = translation.bind(body.params)
     except CypherParamError as exc:
@@ -662,12 +652,6 @@ async def cypher_query(  # REQ-345, REQ-346, REQ-347, REQ-349, REQ-350, REQ-351,
             content={"type": "cypher", "columns": [], "rows": [], "redirect": _executed.redirect}
         )
     rows = _dict_rows(_executed)
-    # REQ-1949: the row limit cut the answer -- the row after it came back, or governance's own
-    # limit, the smaller, cut it first.
-    cut = bool(drawn) and (
-        len(rows) > row_limit or any(w.code == "statement.rows_cut" for w in plan.warnings)
-    )
-    rows = rows[:row_limit] if drawn else rows
     physical_sql = plan.physical_sql or plan.exec_sql or ""
 
     # Assemble & serialize
@@ -675,9 +659,6 @@ async def cypher_query(  # REQ-345, REQ-346, REQ-347, REQ-349, REQ-350, REQ-351,
     if isinstance(_ser_result, Response):
         return _ser_result
     columns, serializable_rows = _ser_result
-    if max_nodes is not None:
-        serializable_rows, over = first_nodes(serializable_rows, max_nodes)
-        cut = cut or over
 
     # Register nodes and relationships, replacing composite string IDs with stable integers
     from provisa.cypher.assembler import register_node_ids, register_rel_ids
@@ -688,8 +669,6 @@ async def cypher_query(  # REQ-345, REQ-346, REQ-347, REQ-349, REQ-350, REQ-351,
     content = _build_stats_content(columns, serializable_rows, physical_sql, stats_enabled, _t0)
     content["type"] = "cypher"
     content["graph_columns"] = drawn
-    if cut:
-        content["truncated"] = True
     # REQ-536: HIT (with the entry's age) when the rows came from the response cache, else MISS.
     return JSONResponse(content=content, headers=build_cache_headers(_executed.cache_entry))
 
@@ -727,13 +706,8 @@ async def graph_schema(request: Request) -> JSONResponse:  # REQ-392, REQ-398
             if phys_col in col_type_map
         }
 
-    from provisa.core.limits import default_row_limit
-
     return JSONResponse(
         content={
-            # The most nodes the explorer may ask to draw (its max-nodes setting's ceiling): the
-            # row limit, which bounds a drawn read.
-            "node_cap": default_row_limit(),
             "node_labels": [
                 {
                     "label": n.label,

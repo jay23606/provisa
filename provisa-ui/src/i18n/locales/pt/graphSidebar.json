@@ -29,6 +29,6 @@
     "resizeSidebar": "Redimensionar barra lateral",
     "tabSettings": "Configurações de exibição",
     "maxNodes": "Máx. de nós",
-    "maxNodesHint": "Nós desenhados por consulta, até {{ceiling}}"
+    "maxNodesHint": "Máximo de nós que uma consulta desenha"
   }
 }

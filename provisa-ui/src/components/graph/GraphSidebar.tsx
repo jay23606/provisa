@@ -63,7 +63,6 @@ interface SidebarProps {
   totalRelCount?: number | null;
   labelCounts?: Record<string, number>;
   maxNodes: number;
-  nodeCap: number | null;
   onMaxNodesChange: (n: number) => void;
 }
 
@@ -122,7 +121,6 @@ export function Sidebar({
   totalRelCount = null,
   labelCounts = {},
   maxNodes,
-  nodeCap,
   onMaxNodesChange,
 }: SidebarProps) {
   const { t } = useTranslation();
@@ -801,11 +799,7 @@ export function Sidebar({
         )}
 
         {section === "settings" && (
-          <GraphViewSettings
-            maxNodes={maxNodes}
-            nodeCap={nodeCap}
-            onMaxNodesChange={onMaxNodesChange}
-          />
+          <GraphViewSettings maxNodes={maxNodes} onMaxNodesChange={onMaxNodesChange} />
         )}
 
         {section === "favorites" && (

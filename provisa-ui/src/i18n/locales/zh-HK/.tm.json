@@ -1505,7 +1505,7 @@
   "zh-HK/graphSidebar.json::graphSidebar.tabHistory": "History",
   "zh-HK/graphSidebar.json::graphSidebar.tabSettings": "View settings",
   "zh-HK/graphSidebar.json::graphSidebar.maxNodes": "Max nodes",
-  "zh-HK/graphSidebar.json::graphSidebar.maxNodesHint": "Nodes drawn per query, up to {{ceiling}}",
+  "zh-HK/graphSidebar.json::graphSidebar.maxNodesHint": "The most nodes a query draws",
   "zh-HK/graphStatsPanel.json::graphStatsPanel.average": "Average",
   "zh-HK/graphStatsPanel.json::graphStatsPanel.avgPathLength": "Avg path length",
   "zh-HK/graphStatsPanel.json::graphStatsPanel.cache": "cache",

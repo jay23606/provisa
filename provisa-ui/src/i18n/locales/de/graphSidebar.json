@@ -29,6 +29,6 @@
     "resizeSidebar": "Seitenleiste anpassen",
     "tabSettings": "Ansichtseinstellungen",
     "maxNodes": "Max. Knoten",
-    "maxNodesHint": "Pro Abfrage gezeichnete Knoten, bis zu {{ceiling}}"
+    "maxNodesHint": "Höchstzahl der Knoten, die eine Abfrage zeichnet"
   }
 }

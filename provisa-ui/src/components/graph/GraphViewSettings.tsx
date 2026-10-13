@@ -16,29 +16,22 @@ import { FormField, FormLayout } from "../form/FormLayout";
 
 interface GraphViewSettingsProps {
   maxNodes: number;
-  /** The server's drawing ceiling; null until graph-schema has said it. */
-  nodeCap: number | null;
   onMaxNodesChange: (n: number) => void;
 }
 
-export function GraphViewSettings({ maxNodes, nodeCap, onMaxNodesChange }: GraphViewSettingsProps) {
+export function GraphViewSettings({ maxNodes, onMaxNodesChange }: GraphViewSettingsProps) {
   const { t } = useTranslation();
   return (
     <div className="graph-schema-section">
       <div className="graph-schema-heading">{t("graphSidebar.tabSettings")}</div>
       <FormLayout>
-        <FormField
-          size="short"
-          hint={nodeCap === null ? undefined : t("graphSidebar.maxNodesHint", { ceiling: nodeCap })}
-        >
+        <FormField size="short" hint={t("graphSidebar.maxNodesHint")}>
           <NumberInput
             className="graph-view-setting"
             size="xs"
             label={t("graphSidebar.maxNodes")}
-            value={nodeCap === null ? maxNodes : Math.min(maxNodes, nodeCap)}
+            value={maxNodes}
             min={1}
-            max={nodeCap ?? undefined}
-            clampBehavior="strict"
             allowDecimal={false}
             allowNegative={false}
             onChange={(v) => {

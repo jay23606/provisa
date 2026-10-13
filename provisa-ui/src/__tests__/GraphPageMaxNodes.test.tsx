@@ -8,10 +8,10 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
-// The graph explorer draws the first "max nodes" rows of a result that returns nodes and says so
-// over the canvas. Max nodes is the viewer's setting in the side rail, saved per scope, held to the
-// server's ceiling (graph-schema's node_cap); every query asks for it. A result that returns rows
-// only (no graph columns) is not drawn, whatever its values look like.
+// The graph explorer draws a node result's rows, in order, up to "max nodes" distinct nodes, and
+// says so over the canvas when the rows hold more. Max nodes is the viewer's setting in the side
+// rail: uncapped, 300 by default, saved per scope and restored on a reload and on a return to the
+// scope. A result that returns rows only (no graph columns) is not drawn, whatever its values.
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -19,7 +19,7 @@ import { MantineProvider } from "@mantine/core";
 import { MemoryRouter, useNavigate } from "react-router-dom";
 import type { ReactNode } from "react";
 import type { FrameData } from "../components/graph/graph-model";
-import { getStored, setStored } from "../lib/browserStorage";
+import { bindStorageScope, getStored, setStored, storageScope } from "../lib/browserStorage";
 import { MAX_NODES_KEY } from "../components/graph/graph-drawing";
 import "../i18n";
 
@@ -74,20 +74,14 @@ function Run({ query }: { query: string }) {
   );
 }
 
-let cypherBodies: { max_nodes?: number }[] = [];
-
 function serve(answer: Record<string, unknown>) {
-  cypherBodies = [];
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (url: string, init?: RequestInit) => {
+    vi.fn(async (url: string) => {
       let body: unknown = {};
-      if (String(url).includes("/data/cypher")) {
-        cypherBodies.push(JSON.parse(String(init?.body)));
-        body = answer;
-      } else if (String(url).includes("/data/graph-schema")) {
-        body = { node_cap: 500, node_labels: [], relationship_types: [] };
-      }
+      if (String(url).includes("/data/cypher")) body = answer;
+      else if (String(url).includes("/data/graph-schema"))
+        body = { node_labels: [], relationship_types: [] };
       return new Response(JSON.stringify(body), {
         status: 200,
         headers: { "content-type": "application/json" },
@@ -114,25 +108,37 @@ async function done(query: string): Promise<FrameData> {
   return framesSeen.filter((f) => f.status === "done" && f.query === query).at(-1)!;
 }
 
+function renderPageOnly() {
+  return render(
+    <MantineProvider>
+      <MemoryRouter initialEntries={["/graph"]}>
+        <GraphPage />
+      </MemoryRouter>
+    </MantineProvider>,
+  );
+}
+
+const maxNodesField = () => screen.getByTestId("graph-max-nodes") as HTMLInputElement;
+
 describe("GraphPage — max nodes", () => {
   beforeEach(() => {
     localStorage.clear();
     framesSeen.length = 0;
   });
 
-  it("draws the first max-nodes rows of a node result and says so over the canvas", async () => {
+  it("draws the rows up to max nodes distinct nodes and says so over the canvas", async () => {
+    setStored(MAX_NODES_KEY, "2");
     serve({
       type: "cypher",
       columns: ["c"],
-      rows: [{ c: NODE(1) }, { c: NODE(2) }],
+      rows: [{ c: NODE(1) }, { c: NODE(1) }, { c: NODE(2) }, { c: NODE(3) }],
       graph_columns: { c: "node" },
-      truncated: true,
     });
     const query = "MATCH (c:Customers) RETURN c";
     renderPage(query);
     act(() => screen.getByText("run").click());
     const frame = await done(query);
-    expect(frame.nodes.size).toBe(2);
+    expect([...frame.nodes.keys()]).toEqual(["Customers:1", "Customers:2"]);
     expect(frame.truncated).toBe(true);
     const note = await screen.findByTestId("graph-cut-note");
     expect(note.textContent).toBe(
@@ -141,29 +147,52 @@ describe("GraphPage — max nodes", () => {
     expect(screen.getByTestId("canvas").contains(note)).toBe(true);
   });
 
-  it("asks for the viewer's setting, saved per scope", async () => {
-    setStored(MAX_NODES_KEY, "250");
-    serve({ type: "cypher", columns: [], rows: [], graph_columns: {} });
-    const query = "MATCH (c:Customers) RETURN c";
+  it("draws every row whose nodes number at most max nodes, with no note", async () => {
+    // 1,160 rows over 300 distinct nodes, under the default of 300.
+    serve({
+      type: "cypher",
+      columns: ["c"],
+      rows: Array.from({ length: 1160 }, (_, i) => ({ c: NODE((i % 300) + 1) })),
+      graph_columns: { c: "node" },
+    });
+    const query = "MATCH (c:Customers)-[]-() RETURN c";
     renderPage(query);
     act(() => screen.getByText("run").click());
-    await done(query);
-    expect(cypherBodies.at(-1)?.max_nodes).toBe(250);
+    const frame = await done(query);
+    expect(frame.nodes.size).toBe(300);
+    expect(frame.truncated).toBe(false);
   });
 
-  it("changes the setting from the side rail, held to the server's ceiling", async () => {
+  it("is uncapped, 300 by default, and restored on a reload and on a return to its scope", async () => {
+    const scope = storageScope();
     serve({ type: "cypher", columns: [], rows: [], graph_columns: {} });
-    renderPage("RETURN 1");
+    const first = renderPageOnly();
     fireEvent.click(screen.getByTestId("graph-sidebar-tab-settings"));
-    // The default, 1,000, is above the ceiling the server said (500): the rail shows the ceiling.
-    // The field is drawn again once the ceiling is known (its hint appears), so it is read anew.
-    const input = () => screen.getByTestId("graph-max-nodes") as HTMLInputElement;
-    await waitFor(() => expect(input().value).toBe("500"));
-    expect(screen.getByText("Nodes drawn per query, up to 500")).toBeTruthy();
-    fireEvent.change(input(), { target: { value: "120" } });
-    await waitFor(() => expect(getStored(MAX_NODES_KEY)).toBe("120"));
-    act(() => screen.getByText("run").click());
-    await waitFor(() => expect(cypherBodies.at(-1)?.max_nodes).toBe(120));
+    await waitFor(() => expect(maxNodesField().value).toBe("300"));
+    expect(screen.getByText("The most nodes a query draws")).toBeTruthy();
+    fireEvent.change(maxNodesField(), { target: { value: "250000" } });
+    await waitFor(() => expect(getStored(MAX_NODES_KEY)).toBe("250000"));
+    first.unmount();
+
+    // A reload: the page mounts again and reads it back.
+    const reloaded = renderPageOnly();
+    fireEvent.click(screen.getByTestId("graph-sidebar-tab-settings"));
+    await waitFor(() => expect(maxNodesField().value).toBe("250000"));
+    reloaded.unmount();
+
+    // Another demo (scope) has its own setting, and this one's is there on the way back.
+    try {
+      bindStorageScope({ controlPlaneId: "cp-other-demo", orgId: "default" });
+      const other = renderPageOnly();
+      fireEvent.click(screen.getByTestId("graph-sidebar-tab-settings"));
+      await waitFor(() => expect(maxNodesField().value).toBe("300"));
+      other.unmount();
+    } finally {
+      bindStorageScope(scope);
+    }
+    renderPageOnly();
+    fireEvent.click(screen.getByTestId("graph-sidebar-tab-settings"));
+    await waitFor(() => expect(maxNodesField().value).toBe("250000"));
   });
 
   it("draws nothing of a rows-only result, however its values look", async () => {

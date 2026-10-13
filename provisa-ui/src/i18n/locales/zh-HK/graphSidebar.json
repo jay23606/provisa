@@ -29,6 +29,6 @@
     "resizeSidebar": "調整側邊欄大小",
     "tabSettings": "檢視設定",
     "maxNodes": "最大節點數",
-    "maxNodesHint": "每次查詢繪製的節點數，最多 {{ceiling}}"
+    "maxNodesHint": "一次查詢最多繪製的節點數"
   }
 }
