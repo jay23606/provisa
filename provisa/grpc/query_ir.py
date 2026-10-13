@@ -475,8 +475,15 @@ def _agg_fields_selection(
     want_cols = set(columns) if columns else None
     if want_cols is not None:
         cols = [(c, t) for c, t in cols if c in want_cols]
-    numeric = [c for c, t in cols if _is_numeric(t)]
-    comparable = [c for c, t in cols if _is_comparable(t)]
+
+    # An aggregate's fields carry the row type's GraphQL names; the proto's are physical, so each
+    # is selected under its physical name as the alias (REQ-196).
+    def _field(phys: str) -> str:
+        gql = ctx.physical_to_gql[(table_id, phys)]
+        return phys if gql == phys else f"{phys}: {gql}"
+
+    numeric = [_field(c) for c, t in cols if _is_numeric(t)]
+    comparable = [_field(c) for c, t in cols if _is_comparable(t)]
     want = set(funcs) if funcs else None
     parts = []
     if want is None or "count" in want:
@@ -670,6 +677,9 @@ def grpc_table_to_group_by_graphql_text(
     include: list[str] | None = None,
     filter_msg: Any | None = None,
     columns: list[str] | None = None,
+    order_by: list[Any] | None = None,
+    limit: int | None = None,
+    offset: int | None = None,
 ) -> str | None:
     """GraphQL query text for ``Query{Type}GroupBy`` (REQ-1359): targets the same
     ``{field}_group_by(by: [...])`` root field JSON:API/REST synthesize.
@@ -686,7 +696,9 @@ def grpc_table_to_group_by_graphql_text(
     dot-path list; see ``_include_node_fields``. ``filter_msg`` (REQ-1860) is the request's
     ``{Type}Filter`` sub-message; its explicitly-set fields become a ``where: { col: { eq: v } }``
     argument, mirroring JSON:API/REST's own equality filters. The filter is checked exactly as
-    ``Query{Type}``'s is (``_checked_filter``; raises :class:`FilterError`)."""
+    ``Query{Type}``'s is (``_checked_filter``; raises :class:`FilterError`). ``order_by``
+    (REQ-2007) is the request's ``{Type}GroupByOrder`` entries, in order; with ``limit`` and
+    ``offset`` they make a top N (raises :class:`GroupByOrderError` on an entry it cannot read)."""
     meta = _find_table_meta(ctx, type_name)
     if meta is None:
         return None
@@ -701,5 +713,50 @@ def grpc_table_to_group_by_graphql_text(
         node_fields = _include_node_fields(ctx, meta, include or [])
         nodes_part = f" nodes {{ {' '.join(node_fields)} }}"
     where_part = _filter_graphql_where(filter_fields)
-    gb_args = ", ".join(a for a in (f"by: {by_arg}", where_part) if a)
+    order_part = _group_by_order_arg(ctx, meta.table_id, order_by or [])
+    page = [f"limit: {int(limit)}" if limit else "", f"offset: {int(offset)}" if offset else ""]
+    gb_args = ", ".join(a for a in (f"by: {by_arg}", where_part, order_part, *page) if a)
     return f"{{ {gb_field}({gb_args}) {{ groupKey aggregate {agg_selection}{nodes_part} }} }}"
+
+
+class GroupByOrderError(ValueError):  # REQ-2007
+    """A ``{Type}GroupByOrder`` entry that names no function, no column of the table, or no
+    direction."""
+
+
+_ORDER_FUNCS = ("count", "sum", "avg", "stddev", "variance", "min", "max", "group_key")
+_ORDER_DIRECTIONS = (
+    "asc",
+    "desc",
+    "asc_nulls_first",
+    "asc_nulls_last",
+    "desc_nulls_first",
+    "desc_nulls_last",
+)
+
+
+def _group_by_order_arg(ctx: Any, table_id: int, order_by: list[Any]) -> str:
+    """The ``order_by: [...]`` argument for a group-by's order entries (REQ-2007): each entry is
+    ``{func, column, direction}`` with ``column`` the physical name, written as GraphQL's
+    ``{aggregate: {func: {column: dir}}}``, ``{aggregate: {count: dir}}`` or
+    ``{groupKey: {column: dir}}`` under the column's GraphQL name."""
+    entries: list[str] = []
+    for item in order_by:
+        func, column, direction = item.func, item.column, item.direction
+        if func not in _ORDER_FUNCS:
+            raise GroupByOrderError(f"order_by func {func!r} is not one of {list(_ORDER_FUNCS)}")
+        if direction not in _ORDER_DIRECTIONS:
+            raise GroupByOrderError(
+                f"order_by direction {direction!r} is not one of {list(_ORDER_DIRECTIONS)}"
+            )
+        if func == "count":
+            entries.append(f"{{aggregate: {{count: {direction}}}}}")
+            continue
+        gql = ctx.physical_to_gql.get((table_id, column))
+        if gql is None:
+            raise GroupByOrderError(f"order_by column {column!r} is not a column of this table")
+        if func == "group_key":
+            entries.append(f"{{groupKey: {{{gql}: {direction}}}}}")
+        else:
+            entries.append(f"{{aggregate: {{{func}: {{{gql}: {direction}}}}}}}")
+    return f"order_by: [{', '.join(entries)}]" if entries else ""

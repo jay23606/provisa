@@ -450,12 +450,16 @@ def _get_agg_fields_type(root_field: Any) -> GraphQLObjectType | None:  # REQ-13
 
 
 def _build_agg_selection(
-    agg_fields_type: GraphQLObjectType, funcs_filter: list[str] | None
+    agg_fields_type: GraphQLObjectType,
+    funcs_filter: list[str] | None,
+    gql_to_physical: dict[str, str],
 ) -> str:  # REQ-1359
     """Build the GraphQL sub-selection for an ``aggregate { ... }`` block.
 
     ``funcs_filter`` of None selects every function the schema exposes for this table;
     otherwise only the named functions (already validated against the schema by the caller).
+    A column's aggregate field carries its GraphQL name; JSON:API names it physically
+    (REQ-1417), so each is selected under its physical name as the alias.
     """
     parts = []
     for name, f in agg_fields_type.fields.items():
@@ -463,7 +467,11 @@ def _build_agg_selection(
             continue
         ftype = _unwrap_type(f.type)
         if isinstance(ftype, GraphQLObjectType):
-            parts.append(f"{name} {{ {' '.join(ftype.fields.keys())} }}")
+            cols = [
+                c if gql_to_physical.get(c, c) == c else f"{gql_to_physical[c]}: {c}"
+                for c in ftype.fields
+            ]
+            parts.append(f"{name} {{ {' '.join(cols)} }}")
         else:
             parts.append(name)
     return " ".join(parts) if parts else "count"
@@ -500,8 +508,10 @@ def _build_group_by_graphql_query(  # REQ-1359
         args_parts.append(f"offset: {offset}")
     args_parts.extend(variables.arguments)
     if sort:
-        ob_parts = [f"{o['field']}: {o['dir']}" for o in sort]
-        args_parts.append("order_by: {" + ", ".join(ob_parts) + "}")
+        # REQ-2007: a group-by is ordered by its group keys (the caller has checked each sort
+        # field is one).
+        ob_parts = [f"{{groupKey: {{{o['field']}: {o['dir']}}}}}" for o in sort]
+        args_parts.append("order_by: [" + ", ".join(ob_parts) + "]")
     args_str = f"({', '.join(args_parts)})"
     nodes_part = f" nodes {{ {node_selection} }}" if node_selection else ""
     return variables.operation(
@@ -788,7 +798,7 @@ def create_jsonapi_router(state: Any) -> APIRouter:  # REQ-256, REQ-257, REQ-266
                             f"Unknown aggregate function {fn!r}",
                             source_parameter="aggregate",
                         )
-            agg_selection = _build_agg_selection(agg_fields_type, funcs_filter)
+            agg_selection = _build_agg_selection(agg_fields_type, funcs_filter, gql_to_physical)
             agg_variables = _variables(schema, target_field, filters, params)
             if not isinstance(agg_variables, RequestVariables):
                 return agg_variables
@@ -813,6 +823,17 @@ def create_jsonapi_router(state: Any) -> APIRouter:  # REQ-256, REQ-257, REQ-266
                             400, "Invalid Include", bad_include, source_parameter="include"
                         )
 
+                keys = {apply_gql_name(c) for c in group_cols}
+                for o in sort:
+                    if o["field"] not in keys:
+                        # REQ-2007: a group-by is sorted by its group keys only.
+                        return _jsonapi_error_response(
+                            400,
+                            "Invalid Sort",
+                            f"sort field {gql_to_physical.get(o['field'], o['field'])!r} is not "
+                            "one of the groupBy columns",
+                            source_parameter="sort",
+                        )
                 gql_query = _build_group_by_graphql_query(
                     target_field,
                     group_cols,

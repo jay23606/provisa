@@ -326,6 +326,27 @@ describe("TagsTab", () => {
     confirmSpy.mockRestore();
   });
 
+  it("names the row filter that keeps a tag from being deleted", async () => {
+    // REQ-1384: a tag that carries a row filter is refused deletion, and the refusal lists it.
+    mockTags = [USER_TAG];
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    deleteSpy.mockResolvedValueOnce({
+      success: false,
+      message: "Tag 'finance' is still referred to by: row_filter analyst on tag finance",
+      code: "schema.tag_has_dependents",
+      params: {
+        tag: "finance",
+        dependents: [
+          { kind: "row_filter", id: 4, name: "analyst on tag finance", via: ["rls_rules.tag_id"] },
+        ],
+      },
+    } as never);
+    render(<TagsTab />);
+    fireEvent.click(screen.getByTestId("tags-delete-finance"));
+    const listed = await screen.findByTestId("dependents-row_filter");
+    expect(listed).toHaveTextContent("analyst on tag finance");
+  });
+
   it("does not delete when the confirm is dismissed", async () => {
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
     render(<TagsTab />);

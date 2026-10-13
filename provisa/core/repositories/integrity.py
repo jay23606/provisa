@@ -306,6 +306,9 @@ REFERENCES: tuple[Reference, ...] = (
     _part("tag_param_values", "tag_id", "tag"),
     # A tag takes its assignments with it.
     _part("tag_assignments", "base_tag_id", "tag"),
+    # REQ-1384: a row filter on the tag blocks it. Removing the filter with the tag would widen
+    # what the filter's role reads; the operator removes the filter first, and says so.
+    _dep("rls_rules", "tag_id", "tag", "row_filter", "id"),
     # --- to a remote source registration, and runtime rows -------------------------------------
     _part("api_endpoints", "source_id", "api_source"),
     _part("kafka_topics", "source_id", "kafka_source"),
@@ -413,12 +416,16 @@ async def _name_of(conn: "Connection", ref: ObjectRef) -> str:
         found = await row("user_role_assignments", "id", "user_id", "role_id")
         return f"{found[0]} holds {found[1]}" if found else str(ref.id)
     if ref.kind == "row_filter":
-        found = await row("rls_rules", "id", "role_id", "table_id", "domain_id", "action_name")
+        found = await row(
+            "rls_rules", "id", "role_id", "table_id", "domain_id", "action_name", "tag_id"
+        )
         if found is None:
             return str(ref.id)
-        role_id, table_id, domain_id, action_name = found
+        role_id, table_id, domain_id, action_name, tag_id = found
         if table_id is not None:
             on = await _name_of(conn, ObjectRef("table", table_id))
+        elif tag_id is not None:  # REQ-1384
+            on = f"tag {tag_id}"
         else:
             on = domain_id or action_name or ""
         return f"{role_id} on {on}"

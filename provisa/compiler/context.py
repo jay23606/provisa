@@ -182,6 +182,7 @@ def _register_table_in_ctx(
         if sql_name != phys and sql_name != gql:
             ctx.exposed_to_physical[(t.table_id, sql_name)] = phys
         ctx.physical_to_sql[(t.table_id, phys)] = sql_name
+        ctx.physical_to_gql[(t.table_id, phys)] = gql
         if col_path:
             ctx.column_paths[(t.table_id, gql)] = col_path
         object_fields = col.get("object_fields")

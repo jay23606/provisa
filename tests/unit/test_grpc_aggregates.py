@@ -39,6 +39,17 @@ from provisa.grpc.query_ir import (
 from provisa.grpc.server import ProvisaServicer
 
 
+def _agg_ctx(**kw):
+    """A compiler context stand-in. Under the snake convention a column's GraphQL name, which its
+    aggregate fields carry, is its physical name."""
+    kw["physical_to_gql"] = {
+        (table_id, column): column
+        for table_id, columns in kw["aggregate_columns"].items()
+        for column, _type in columns
+    }
+    return SimpleNamespace(**kw)
+
+
 def _make_si(enable_aggregates: bool = False, enable_group_by: bool = False):
     """Minimal single-table SchemaInput, modeled on tests/unit/test_proto_gen.py's `_make_si`,
     using the pet_store `inquiries` table shape (config/provisa-install.yaml) as the reference
@@ -182,7 +193,7 @@ class TestQueryIRAggregateText:
             schema_name="public",
             table_name="inquiries",
         )
-        return SimpleNamespace(
+        return _agg_ctx(
             tables={"inquiries": meta},
             aggregate_columns={
                 1: [
@@ -272,7 +283,7 @@ class TestQueryIRAggregateText:
             target=users,
             cardinality="one-to-many",
         )
-        return SimpleNamespace(
+        return _agg_ctx(
             tables={"inquiries": inquiries, "users": users},
             aggregate_columns={
                 1: [
@@ -379,7 +390,7 @@ class TestQueryIRAggregateText:
             schema_name="public",
             table_name="inquiries",
         )
-        ctx = SimpleNamespace(
+        ctx = _agg_ctx(
             tables={"ps__inquiries": meta},
             aggregate_columns={1: [("amount", "decimal(10,2)")]},
         )

@@ -318,6 +318,14 @@ async def project(conn: "Connection", schema: str) -> dict[str, dict[str, Any]]:
         tree[kind_path(KIND_DIRS["tags"], row["id"])] = entity(
             "tags",
             row,
+            # REQ-1384: a row filter on the tag is written in the tag's file, the way a
+            # domain's and a table's are written in theirs.
+            row_policies=Child(
+                "role_id",
+                "tag_id",
+                [r for r in rls if r["tag_id"] == row["id"]],
+                table="rls_rules",
+            ),
             values=Child(
                 "value",
                 "tag_id",

@@ -24,7 +24,7 @@
     "colId": "ID",
     "colCapabilities": "能力",
     "colDomainAccess": "域访问权限",
-    "colTableOrDomain": "表 / 域",
+    "colTableOrDomain": "适用对象",
     "colRole": "角色",
     "colFilter": "筛选条件",
     "none": "无",
@@ -47,7 +47,7 @@
     "noRulesMatchFilter": "没有符合当前筛选条件的规则。",
     "purposeTitle": "RLS 规则的作用",
     "purposeBody": "行级安全规则是一条绑定到某个角色和某个作用域的 SQL 谓词。服务器在执行前把它以 AND 拼进查询——读和写都一样，无论请求从哪个接口进来——因此该角色只能看到规则允许的行，也无法通过换一个客户端来绕开。",
-    "purposeAdd": "规则可以限定到单张表，也可以限定到整个域从而覆盖其中所有表；两者同时适用时，该表以表级规则为准。规则针对的是角色而不是某个人，所以要改变某人能看到什么，就改变他持有的角色。",
+    "purposeAdd": "规则可以限定到单张表，也可以限定到整个域从而覆盖其中所有表；两者同时适用时，该表以表级规则为准。针对标签的规则覆盖带有该标签的每一张表（包括以后打上标签的表），并叠加在表自身的规则之上：标签只会收窄角色能读取的内容。规则针对的是角色而不是某个人，所以要改变某人能看到什么，就改变他持有的角色。",
     "purposeAria": "关于 RLS 规则",
     "rolePurposeTitle": "角色的用途",
     "rolePurposeBody": "角色是其他所有权限所针对的单位。它的能力决定它可以执行哪些操作，域访问决定它究竟能触及模型的哪些部分。行级规则以及各接口上的访问检查针对的都是角色而非个人——因此要改变某人能看到、能做什么，就改变他所持有的角色。",
@@ -74,6 +74,12 @@
     "maxQueryComplexityHint": "一条语句的关系、连接、列和嵌套查询，适用于所有接口。组织的限制仍然适用。",
     "maxQueryTimeMs": "最大查询时间 (ms)",
     "unlimited": "无限制",
-    "ruleId": "规则 ID"
+    "ruleId": "规则 ID",
+    "applyToTag": "标签（带有该标签的每张表）",
+    "tag": "标签",
+    "tagPrefix": "标签：",
+    "labelTag": "标签：",
+    "tagTableCount_one": "用于 {{count}} 张表",
+    "tagTableCount_other": "用于 {{count}} 张表"
   }
 }

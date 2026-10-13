@@ -2304,7 +2304,7 @@ Auto-generated aggregate queries following Hasura v2 pattern. Every table gets a
 
 **Code:** `provisa/compiler/sql_gen.py`, `provisa/mv/`
 
-**Tests:** `tests/unit/test_sql_gen_aggregate.py`, `tests/integration/test_compiler_integration.py`
+**Tests:** `tests/unit/test_aggregate_field_names.py`, `tests/unit/test_sql_gen_aggregate.py`, `tests/integration/test_compiler_integration.py`
 
 ### REQ-197 · Aggregates {#REQ-197}
 
@@ -2316,7 +2316,7 @@ Per-role aggregate gating via `allow_aggregations` (matching v2) or per-table `a
 
 **Code:** `provisa/compiler/sql_gen.py`, `provisa/mv/`
 
-**Tests:** `tests/unit/test_sql_gen_aggregate.py`, `tests/integration/test_compiler_integration.py`
+**Tests:** `tests/unit/test_aggregate_field_names.py`, `tests/unit/test_sql_gen_aggregate.py`, `tests/integration/test_compiler_integration.py`
 
 ### REQ-198 · Aggregates {#REQ-198}
 
@@ -14270,15 +14270,15 @@ Both IdP-sourced and local attributes resolve into the same `user.*` namespace c
 
 ### REQ-1384 · Data Governance {#REQ-1384}
 
-**Status:** ✓ accepted · **Priority:** MUST · **Type:** structural
+**Status:** ✅ complete · **Priority:** MUST · **Type:** structural
 
 Tag-scoped RLS rules (follow-on to [REQ-1373](#REQ-1373)..1379 and existing table/domain-scoped RLS [REQ-040](#REQ-040)/041/402): an RLS rule may attach to a tag; at compile time it resolves to all tables carrying that tag and its predicate is AND-ed with any table- and domain-scoped predicates (most-restrictive-wins, no precedence tiers; multiple matching tags each contribute AND-ed predicates). Tagging an object may only expand restriction reach, never loosen access. Additionally, since the metadata catalog is part of the queryable model, RLS filter expressions may reference tag-assignment metadata directly (e.g. EXISTS subquery) as the fully general path.
 
 **Use case:** Write a predicate once, attach it to a tag, and every table a steward tags picks it up now and in the future — the tag-based-policy pattern inside Provisa's one SQL pipeline.
 
-**Code:** —
+**Code:** `provisa/security/row_filters.py`, `provisa/core/repositories/rls.py`, `provisa/core/repositories/tag.py`, `provisa/core/repositories/integrity.py`, `provisa/api/admin/schema_mutation.py`, `provisa/core/env_project.py`, `provisa/core/env_deploy.py`, `provisa/api/metadata_export/governance.py`, `provisa-ui/src/pages/security/SecurityRlsPage.tsx`
 
-**Tests:** —
+**Tests:** `tests/unit/test_tag_row_filters.py`, `tests/unit/test_tag_row_filter_model_store.py`, `tests/unit/test_metadata_export_governance.py`, `tests/integration/test_tag_row_filter_every_transport.py`, `provisa-ui/src/pages/__tests__/SecurityPage.tagRule.test.tsx`
 
 ## 11. Platform, Infrastructure & Delivery
 
@@ -16010,7 +16010,7 @@ A DEVELOPER IS ALWAYS LIMITED BY DOMAIN MEMBERSHIP. The role says what kind of a
 
 ### REQ-1531 · Environments {#REQ-1531}
 
-**Status:** ⚙ in-progress · **Priority:** SHOULD · **Type:** behavioral
+**Status:** ✅ complete · **Priority:** SHOULD · **Type:** behavioral
 
 EVERY MUTATION THAT NAMES A DOMAIN MUST BE GATED ON IT, AND EVERY MUTATION THAT OUGHT TO NAME ONE MUST NAME ONE. [REQ-1530](#REQ-1530) makes a role's domain_access the limit on what a member may change; a limit is only real where it is checked, and today the check runs in two places. ``require_capability(info, cap, domain_id=...)`` already exists and already answers correctly -- registering a table and updating a table pass it -- so this is about the ops that never call it and the ops that have no domain to pass. WHAT IS ALREADY GATED: register_table on the non-view path, and update_table. WHAT NAMES A DOMAIN AND IS NOT GATED: delete_table (no capability check at all), upsert_rls_rule and delete_rls_rule (no check at all, and domain_id is already in the input -- a domain-level RLS rule IS the governance of somebody else's domain), upsert_metric and delete_metric (gated on table_registration with no domain; a metric's domain is the domain of the table it measures), tracked_functions and tracked_webhooks (both carry domain_id), and tag assignment (the domain is the assignment target's). WHAT HAS NO DOMAIN OF ITS OWN AND NEEDS ONE DERIVED: a VIEW. Registering a view carries the domain it is registered into, which gates one half; the other half is the SQL, because free-hand view_sql names its tables directly. Without a second check a developer on sales writes a view selecting from a finance table and registers it into sales, and the finance data arrives inside a domain finance does not own. Both halves are required: the domain being registered into must be one of theirs, and every table the view reads must be one they may read. The dependency parse that the materialized-view relationship gate already performs yields exactly that table set. Creating a FACT or a DIMENSION is the same shape -- both are registrations over existing tables, so both are permitted only over tables within the caller's domains, and the dimension links a fact creates are relationships subject to the rule below. RELATIONSHIPS ARE OWNED BY DIRECTION. A relationship row is source_table_id -> target_table_id with its alias unique on the source, so the edge hangs off the SOURCE table and the source table's domain owns it. The target is referenced rather than changed, and traversing to it is reading -- the target's own RLS and masking still apply at query time -- so creating an edge requires the source's domain and does not require the target's. What a cross-domain edge does do is make another team's table reachable from your part of the graph, which its owner should see: such an edge lands needs_review, a column relationships already carries. WHAT A DEVELOPER MUST NOT DO AT ANY DOMAIN, because these are escalation rather than scope: create_role and delete_role (a role carries domain_access, so minting a role with ``*`` is minting yourself out of the limit -- neither has any check today), create_domain and delete_domain (creating a domain is not an act inside one, and deleting one CASCADEs the registered_tables and rls_rules that belong to it -- neither has any check today), and update_source_allowed_domains (widening a source's allowed list reaches into a domain through the back door). Source registration itself needs no new rule: a developer does not hold source_registration ([REQ-1528](#REQ-1528)). TWO PROPERTIES OF THE GATE ITSELF. It lives in the GraphQL resolver layer, so a guard added there is a guard on one surface -- config loading, the environments router and any REST admin router writing these tables go around it, and the check belongs low enough that they cannot. And it returns early for an anonymous identity and when the org is in single-domain mode, both correct, both meaning the whole scheme is inert until an org actually uses domains. FINALLY, AN OUT-OF-DOMAIN EDIT SHOULD QUEUE RATHER THAN ERROR: the queue-a-creation-request path already exists for the missing-capability case, and [REQ-1530](#REQ-1530) already routes such a request to the domain's owners, so the developer's work becomes a proposal instead of a refusal. (Amended 2026-08-21, WHAT THE BUILD SETTLED:) The domain half of the gate is now a function of its own, ``capabilities.require_domain(info, domain_id)``, because an act can be permitted by more than one right — registering a view is allowed to a holder of create_view OR query_development — while the question of which domains it may touch has a single answer regardless of which right carried the caller in; ``require_capability``'s domain argument now calls it, [SUPERSEDED by [REQ-1327](#REQ-1327), 2026-10-03 -- platform_admin holds zero data capabilities, so there is no platform bypass: require_domain has two exemptions (provisa/api/admin/capabilities.py:145-148) and tests/unit/test_domain_guard.py:94-98 asserts the platform administrator is scoped like anyone else. Kept here for history; do not implement against it.] so the three exemptions (dev/no-auth, the platform bypass, single-domain mode) are written once [END SUPERSEDED BLOCK]. The scope it reads is ``rights.domain_access_for_claims``, the companion of capabilities_for_claims, which resolves claims to ``roles.domain_access`` and never to the claim's ``:domain`` suffix — the previous implementation read the suffix, which contradicted [REQ-1530](#REQ-1530). ``*`` is interpreted in one place only, ``env_authority.domains_within``. THE CAPABILITY EACH UNGATED MUTATION NOW NAMES: create_domain and delete_domain take org_settings (the org's domain vocabulary is the org_admin's; a member scoped to sales must not answer their own scoping by minting a domain, and there is no domain to be a member of yet, so membership does not apply); create_role and delete_role take user_management (a role carries both capabilities and domain_access, so minting one is how a member would widen their own scope); upsert_rls_rule and delete_rls_rule take masking_config plus the domain the rule lands in — named directly for a domain-level rule, looked up from the table for a table-level one; delete_table takes table_registration plus the domain that holds the table, looked up from the id; update_source_allowed_domains takes source_registration and is NOT gated by membership in the domains being listed, because widening the list is granting reach rather than exercising it. A fact and a dim need no gate of their own: both lower to register_table, which is gated. THE VIEW'S TWO HALVES are both applied at the free-hand path in register_table — the domain registered into, and every table the SQL reads, resolved through ``domain_guard.view_read_domains``; CTE names are excluded because a CTE is defined in the statement rather than read from the model, and unparseable SQL raises rather than returning an empty set. THE RELATIONSHIP asks about the SOURCE table's domain, and when the target lives in another domain the row is written with ``needs_review`` re-asserted AFTER the upsert — rel_repo's upsert clears that flag on conflict because [REQ-020](#REQ-020) treats a save as an explicit re-review, and a cross-domain edge is not the source steward's to clear. Both the view and the relationship queue a creation request on an out-of-domain edit rather than raising, matching what a missing right already does; the mutations that delete or administer raise. (Amended 2026-10-07, A ROLE'S DOMAINS ARE ALL ACTED IN:) Redefining a role, removing a domain from it, or deleting it is an act in every domain the role reaches before and after the change, so it needs user_management reaching every one of them; a manager reaching only sales cannot change, narrow or delete a role that reaches finance. Removing a domain is no longer exempt.
 
@@ -16018,7 +16018,7 @@ EVERY MUTATION THAT NAMES A DOMAIN MUST BE GATED ON IT, AND EVERY MUTATION THAT 
 
 **Code:** `provisa/api/admin/capabilities.py`, `provisa/api/admin/schema_mutation.py`, `provisa/api/admin/schema_mutation_ops.py`, `provisa/core/env_authority.py`, `provisa/api/admin/domain_guard.py`
 
-**Tests:** `tests/unit/test_admin_deletes_need_the_domain.py`, `tests/unit/test_domain_guard.py`
+**Tests:** `tests/unit/test_admin_deletes_need_the_domain.py`, `tests/unit/test_admin_tag_needs_the_domain.py`, `tests/unit/test_admin_metric_needs_the_domain.py`, `tests/unit/test_domain_guard.py`
 
 ### REQ-1532 · Environments {#REQ-1532}
 
@@ -23131,6 +23131,20 @@ A table Provisa reads itself for each statement (a parameterized or native-query
 **Code:** `provisa/api/data/materialization.py`, `provisa/pgwire/_pipeline.py`
 
 **Tests:** `tests/unit/test_landing_ttl.py`
+
+## 5. Query Languages, Compilation & Operations
+
+### REQ-2007 · Aggregate & Group-by Queries {#REQ-2007}
+
+**Status:** ✅ complete · **Priority:** SHOULD · **Type:** behavioral
+
+A group-by is ordered by its keys and its aggregates. The <Type>GroupBy field's order_by is a list of <Type>GroupByOrderBy entries, applied in order, that mirror the result and having: {aggregate: {count: dir}}, {aggregate: {sum|avg|stddev|variance|min|max: {<field>: dir}}} with each column under the field name the row type gives it, and {groupKey: {<key>: dir}}. groupKey offers every column the by argument can name; a key the statement does not group by is refused when it is compiled, naming it. The compiler emits ORDER BY <AGG>(<column>) or the key, before LIMIT and OFFSET, so a limit returns the top N groups. A group-by is not ordered by the table's plain columns, and the <Type>Aggregate root, which returns no rows, takes no order_by. gRPC carries the order: {Type}GroupByRequest.order_by is a list of {func, column, direction} entries (func count, sum, avg, stddev, variance, min, max or group_key; column the physical name), with limit and offset applied; the HTTP gRPC proxy takes the same body. REST's and JSON:API's group-by sort orders by group keys, and a sort on any other field is refused (400).
+
+**Use case:** A modeler asks for the ten slowest pages by average query time and gets exactly those ten groups, computed by the source, not a whole grouping sorted in the client.
+
+**Code:** `provisa/compiler/aggregate_gen.py`, `provisa/compiler/aggregates.py`, `provisa/compiler/schema_gen.py`, `provisa/grpc/proto_gen.py`, `provisa/grpc/query_ir.py`, `provisa/grpc/server.py`, `provisa/api/data/endpoint_grpc_proxy.py`, `provisa/api/rest/generator.py`, `provisa/api/jsonapi/generator.py`
+
+**Tests:** `tests/unit/test_aggregate_field_names.py`, `tests/unit/test_rest_aggregates.py`, `tests/unit/test_jsonapi_aggregates.py`, `tests/unit/test_jsonapi_physical_naming.py`
 
 ## 10. UI & Admin Surfaces
 

@@ -46,16 +46,20 @@ async def upsert(  # REQ-041, REQ-402, REQ-686, REQ-1919
 ) -> None:
     """Upsert an RLS rule. Resolves table_id from table name for table-level rules."""
     model_change.name(
-        "upsert", "row filter", f"{rule.role_id} on {rule.table_id or rule.domain_id}"
+        "upsert",
+        "row filter",
+        f"{rule.role_id} on {rule.table_id or rule.domain_id or rule.action_name or rule.tag_id}",
     )  # REQ-1524
     filter_enc = _encrypt_filter(rule.filter)
     if rule.action_name:  # REQ-1679
         scope = {"action_name": rule.action_name}
+    elif rule.tag_id:  # REQ-1384
+        scope = {"tag_id": rule.tag_id}
     elif rule.domain_id:
         scope = {"domain_id": rule.domain_id}
     else:
         if not rule.table_id:
-            raise ValueError("Either table_id or domain_id must be provided")
+            raise ValueError("One of table_id, domain_id, action_name or tag_id must be provided")
         tbl = await table_repo.find_by_table_name(conn, rule.table_id)
         if tbl is None:
             raise ValueError(f"Table not registered: {rule.table_id}")
@@ -88,6 +92,21 @@ async def list_for_role(
     return [_decrypt_row(r) for r in result.fetchall()]
 
 
+async def tags_with_filters(conn: "Connection") -> set[str]:  # REQ-1384
+    """The ids of the tags that carry a row filter. No predicate is decrypted to answer."""
+    result = await conn.execute_core(
+        select(rls_rules.c.tag_id).where(rls_rules.c.tag_id.is_not(None))
+    )
+    return {r[0] for r in result.fetchall()}
+
+
+async def list_for_tag(conn: "Connection", tag_id: str) -> list[dict]:  # REQ-1384
+    result = await conn.execute_core(
+        select(rls_rules).where(rls_rules.c.tag_id == tag_id).order_by(rls_rules.c.id)
+    )
+    return [_decrypt_row(r) for r in result.fetchall()]
+
+
 async def list_all(conn: "Connection") -> list[dict]:  # REQ-041, REQ-402
     result = await conn.execute_core(select(rls_rules).order_by(rls_rules.c.id))
     return [_decrypt_row(r) for r in result.fetchall()]
@@ -99,9 +118,16 @@ async def delete(  # REQ-041, REQ-402
     table_id: int | None = None,
     domain_id: str | None = None,
     action_name: str | None = None,
+    tag_id: str | None = None,
 ) -> bool:
-    model_change.name("delete", "row filter", f"{role_id} on {table_id or domain_id}")  # REQ-1524
-    if action_name:  # REQ-1679
+    model_change.name(  # REQ-1524
+        "delete", "row filter", f"{role_id} on {table_id or domain_id or action_name or tag_id}"
+    )
+    if tag_id:  # REQ-1384
+        stmt = _delete(rls_rules).where(
+            rls_rules.c.tag_id == tag_id, rls_rules.c.role_id == role_id
+        )
+    elif action_name:  # REQ-1679
         stmt = _delete(rls_rules).where(
             rls_rules.c.action_name == action_name, rls_rules.c.role_id == role_id
         )

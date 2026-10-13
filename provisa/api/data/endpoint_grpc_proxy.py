@@ -28,12 +28,15 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
+from types import SimpleNamespace
+
 from provisa.api.json_response import OrjsonResponse
 from provisa.api.acting_role import acting_role, named_role
 from provisa.api.errors import ApiError
 from provisa.grpc.query_ir import (
     AGG_FUNCS,
     FilterError,
+    GroupByOrderError,
     ParameterError,
     ReadMaskError,
     grpc_table_to_aggregate_graphql_text,
@@ -315,7 +318,20 @@ async def grpc_proxy(type_name: str, request: Request):  # REQ-045, REQ-266
                     include_nodes=include_nodes,
                     include=include,
                     filter_msg=_filter_object(body),
+                    # REQ-2007: the native request's order_by entries, limit and offset.
+                    order_by=[
+                        SimpleNamespace(
+                            func=o.get("func", ""),
+                            column=o.get("column", ""),
+                            direction=o.get("direction", ""),
+                        )
+                        for o in body.get("order_by") or []
+                    ],
+                    limit=body.get("limit"),
+                    offset=body.get("offset"),
                 )
+            except GroupByOrderError as exc:
+                raise ApiError(400, "data.invalid_order_by", str(exc), error=str(exc)) from exc
             except FilterError as exc:
                 raise ApiError(
                     400,

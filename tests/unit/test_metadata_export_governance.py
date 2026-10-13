@@ -31,6 +31,7 @@ from provisa.core.models import (
     Source,
     SourceType,
     Table,
+    TagAssignment,
 )
 
 MASK_PATTERN = r"(\d{3})-(\d{2})-(\d{4})"
@@ -174,6 +175,25 @@ def test_domain_scoped_rls_rule_tags_every_table_in_the_domain():
     assert all(t.rule_id == "rls:provisa://acme/sales:analyst" for t in tags)
 
 
+def test_tag_scoped_rls_rule_tags_every_table_carrying_the_tag():
+    # REQ-1384: the rule's scope is the tag; a column-level assignment does not tag its table.
+    readable = [Column(name="id", data_type="int", visible_to=["analyst", "admin"])]
+    config = _config(
+        tables=[_table("orders", readable), _table("regions", readable), _table("staff", readable)],
+        rls=[RLSRule(tag_id="regional", role_id="analyst", filter=RLS_FILTER)],
+    )
+    config.tag_assignments = [
+        TagAssignment(tag_id="regional", object_type="table", table_ref="wh.public.orders"),
+        TagAssignment(tag_id="regional:emea", object_type="table", table_ref="wh.public.regions"),
+        TagAssignment(
+            tag_id="regional", object_type="column", table_ref="wh.public.staff", column_name="id"
+        ),
+    ]
+    tags = _tags(config, GovernanceSignal.RLS_RESTRICTED)
+    assert {t.asset.fqn() for t in tags} == {"wh.public.orders", "wh.public.regions"}
+    assert all(t.rule_id == "rls:provisa://acme/tags/regional:analyst" for t in tags)
+
+
 def test_rls_rule_naming_an_unknown_table_is_refused():
     config = _config(
         tables=[
@@ -192,7 +212,7 @@ def test_rls_rule_with_no_scope_is_refused():
         ],
         rls=[RLSRule(role_id="analyst", filter=RLS_FILTER)],
     )
-    with pytest.raises(ValueError, match="neither a table nor a domain"):
+    with pytest.raises(ValueError, match="neither a table, a domain nor a tag"):
         build_governance_tags(config, "acme")
 
 

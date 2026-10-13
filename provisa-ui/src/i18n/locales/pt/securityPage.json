@@ -24,7 +24,7 @@
     "colId": "ID",
     "colCapabilities": "Recursos",
     "colDomainAccess": "Acesso a domínios",
-    "colTableOrDomain": "Tabela / domínio",
+    "colTableOrDomain": "Aplica-se a",
     "colRole": "Função",
     "colFilter": "Filtro",
     "none": "nenhum",
@@ -47,7 +47,7 @@
     "noRulesMatchFilter": "Nenhuma regra corresponde ao filtro atual.",
     "purposeTitle": "Para que servem as regras RLS",
     "purposeBody": "Uma regra de segurança ao nível da linha é um predicado SQL ligado a um papel e a um âmbito. O servidor junta-o à consulta com AND antes da execução — em leituras e em escritas, venha o pedido da superfície que vier — pelo que um papel vê apenas as linhas que a sua regra permite e não lhe escapa escolhendo outro cliente.",
-    "purposeAdd": "Aplique uma regra a uma única tabela, ou a um domínio inteiro para cobrir todas as suas tabelas; se ambas se aplicarem, para essa tabela vence a regra da tabela. Uma regra é escrita contra um papel e não contra uma pessoa, pelo que o que alguém vê muda-se mudando o papel que detém.",
+    "purposeAdd": "Aplique uma regra a uma única tabela, ou a um domínio inteiro para cobrir todas as suas tabelas; se ambas se aplicarem, para essa tabela vence a regra da tabela. Uma regra sobre uma tag cobre todas as tabelas que a têm, agora e no futuro, e soma-se à regra própria da tabela: uma tag só pode restringir o que um papel lê. Uma regra é escrita contra um papel e não contra uma pessoa, pelo que o que alguém vê muda-se mudando o papel que detém.",
     "purposeAria": "Sobre as regras RLS",
     "rolePurposeTitle": "Para que servem os papéis",
     "rolePurposeBody": "O papel é a unidade contra a qual qualquer outra permissão é escrita. As suas capacidades decidem que operações pode executar e o seu acesso a domínios decide que partes do modelo chega sequer a alcançar. As regras de linha, e as verificações de acesso de cada superfície, nomeiam um papel e não uma pessoa: o que alguém vê e faz muda-se mudando o papel que detém.",
@@ -74,6 +74,12 @@
     "maxQueryComplexityHint": "Relações, junções, colunas e consultas aninhadas de uma instrução, em cada interface. O limite da organização continua a aplicar-se.",
     "maxQueryTimeMs": "Tempo máximo de consulta (ms)",
     "unlimited": "ilimitado",
-    "ruleId": "ID da regra"
+    "ruleId": "ID da regra",
+    "applyToTag": "Tag (todas as tabelas que a têm)",
+    "tag": "Tag",
+    "tagPrefix": "tag:",
+    "labelTag": "Tag:",
+    "tagTableCount_one": "em {{count}} tabela",
+    "tagTableCount_other": "em {{count}} tabelas"
   }
 }

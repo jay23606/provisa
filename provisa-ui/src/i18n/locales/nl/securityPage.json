@@ -24,7 +24,7 @@
     "colId": "ID",
     "colCapabilities": "Mogelijkheden",
     "colDomainAccess": "Domeintoegang",
-    "colTableOrDomain": "Tabel/domein",
+    "colTableOrDomain": "Geldt voor",
     "colRole": "Rol",
     "colFilter": "Filter",
     "none": "geen",
@@ -47,7 +47,7 @@
     "noRulesMatchFilter": "Geen regels komen overeen met het huidige filter.",
     "purposeTitle": "Waar RLS-regels voor zijn",
     "purposeBody": "Een row-level-securityregel is een SQL-predicaat dat aan één rol en één bereik is gebonden. De server voegt het met AND aan de query toe vóór uitvoering — bij lezen én schrijven, via welke surface het verzoek ook binnenkomt — zodat een rol alleen de rijen ziet die zijn regel toestaat en daar niet onderuit komt door een andere client te kiezen.",
-    "purposeAdd": "Richt een regel op één tabel, of op een heel domein zodat ze alle tabellen daarin dekt; gelden beide, dan wint voor die tabel de tabelregel. Een regel geldt een rol en niet een persoon: wat iemand ziet verander je door de rol te veranderen die hij heeft.",
+    "purposeAdd": "Richt een regel op één tabel, of op een heel domein zodat ze alle tabellen daarin dekt; gelden beide, dan wint voor die tabel de tabelregel. Een regel op een tag dekt elke tabel die de tag draagt, nu en later, en komt bij de eigen regel van de tabel: een tag kan alleen beperken wat een rol leest. Een regel geldt een rol en niet een persoon: wat iemand ziet verander je door de rol te veranderen die hij heeft.",
     "purposeAria": "Over RLS-regels",
     "rolePurposeTitle": "Waar rollen voor zijn",
     "rolePurposeBody": "De rol is de eenheid waartegen elke andere rechten worden geschreven. De capabilities bepalen welke operaties ze mag uitvoeren, de domeintoegang bepaalt welke delen van het model ze überhaupt bereikt. Rijregels, en de toegangscontroles op elke surface, benoemen een rol en niet een persoon: wat iemand kan zien en doen verander je door de rol te veranderen die hij heeft.",
@@ -74,6 +74,12 @@
     "maxQueryComplexityHint": "Relaties, joins, kolommen en geneste queries van één statement, op elke interface. De limiet van de organisatie blijft gelden.",
     "maxQueryTimeMs": "Maximale querytijd (ms)",
     "unlimited": "onbeperkt",
-    "ruleId": "Regel-ID"
+    "ruleId": "Regel-ID",
+    "applyToTag": "Tag (elke tabel die de tag draagt)",
+    "tag": "Tag",
+    "tagPrefix": "tag:",
+    "labelTag": "Tag:",
+    "tagTableCount_one": "op {{count}} tabel",
+    "tagTableCount_other": "op {{count}} tabellen"
   }
 }

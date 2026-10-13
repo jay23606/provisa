@@ -488,6 +488,30 @@ async def request_carried_out(req: dict) -> None:
         await _rebuild_schemas()
 
 
+async def _require_tag_target_domains(
+    info: StrawberryInfo, conn: "Connection", model
+) -> "MutationResult | None":  # REQ-1531
+    """Gate a tag assignment on its target's domains. A target that is not there is the caller's
+    not-found, answered as one; a domain the caller does not reach raises."""
+    from provisa.api.admin.domain_guard import (
+        DomainLookupError,
+        require_domains,
+        tag_target_domains,
+    )
+
+    try:
+        domains = await tag_target_domains(conn, model)
+    except DomainLookupError as missing:
+        return MutationResult(
+            success=False,
+            message=f"The object this tag assignment names does not exist: {missing}",
+            code="schema.tag_target_not_found",
+            params={"objectType": model.object_type},
+        )
+    require_domains(info, domains)
+    return None
+
+
 def _assignment_target_problem(model) -> "MutationResult | None":  # REQ-1377
     """Reject an assignment whose typed target fields don't match its object_type."""
     from provisa.core.models import TAG_OBJECT_TYPES
@@ -2258,7 +2282,20 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                 require_right_in_domains(info, SENSITIVE_DATA, {ALL_DOMAINS})
             else:
                 require_capability(info, "table_registration")
-            deleted = await tag_repo.delete(cast("Connection", conn), id)
+            try:
+                deleted = await tag_repo.delete(cast("Connection", conn), id)
+            except tag_repo.TagDeleteRefused as refused:
+                # REQ-1384: a tag that carries a row filter is not deleted; the filter is named
+                # and nothing is removed.
+                return MutationResult(
+                    success=False,
+                    message=str(refused),
+                    code="schema.tag_has_dependents",
+                    params={
+                        "tag": id,
+                        "dependents": [d.as_dict() for d in refused.dependents],
+                    },
+                )
         if not deleted:
             return MutationResult(
                 success=False,
@@ -2310,6 +2347,9 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                 )
         pool = await _get_pool()
         async with pool.acquire() as conn:
+            refused = await _require_tag_target_domains(info, cast("Connection", conn), model)
+            if refused is not None:
+                return refused
             tag_row = await tag_repo.get(cast("Connection", conn), input.tag_id)
             if tag_row is None:
                 return MutationResult(
@@ -2318,6 +2358,17 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                     code="schema.tag_not_found",
                     params={"tag": input.tag_id},
                 )
+            if model.object_type == "table" and model.table_id is not None:  # REQ-1384
+                misfit = await _tag_filter_problem(
+                    cast("Connection", conn), model.tag_id, model.table_id
+                )
+                if misfit is not None:
+                    return MutationResult(
+                        success=False,
+                        message=f"Tag {input.tag_id!r} cannot go on this table: {misfit}",
+                        code="schema.tag_filter_misfit",
+                        params={"tag": input.tag_id, "reason": misfit},
+                    )
             await _require_tag_assignment_right(
                 info, cast("Connection", conn), tag_row, input.object_type, input.table_id
             )
@@ -2325,6 +2376,8 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
             if refused is not None:
                 return refused
         await _refresh_config_tags()
+        if model.object_type == "table":
+            await _rebuild_if_tag_filtered(model.tag_id)
         return MutationResult(
             success=True,
             message=f"Tag {input.tag_id!r} assigned",
@@ -2354,6 +2407,9 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
             return problem
         pool = await _get_pool()
         async with pool.acquire() as conn:
+            refused = await _require_tag_target_domains(info, cast("Connection", conn), model)
+            if refused is not None:
+                return refused
             tag_row = await tag_repo.get(cast("Connection", conn), input.tag_id)
             if tag_row is None:
                 require_capability(info, "table_registration")
@@ -2373,6 +2429,8 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                 params={"tag": input.tag_id, "objectKey": model.object_key()},
             )
         await _refresh_config_tags()
+        if model.object_type == "table":
+            await _rebuild_if_tag_filtered(model.tag_id)
         return MutationResult(
             success=True,
             message=f"Tag {input.tag_id!r} unassigned",
@@ -2673,9 +2731,23 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
             )
         except ValueError as e:  # pydantic name validation (snake_case)
             return MutationResult(success=False, message=str(e))
+        from provisa.api.admin.domain_guard import (
+            expression_domains,
+            metric_domains,
+            require_domains,
+        )
+
         pool = await _get_pool()
         try:
             async with pool.acquire() as conn:
+                # REQ-1531: a metric is an object of every domain its expression reads. Saving one
+                # needs the domains the NEW expression reads, and those of the definition it
+                # replaces -- replacing it is an act on that one too.
+                reads = await expression_domains(
+                    cast("Connection", conn), input.name, input.expression
+                )
+                replaced = await metric_domains(cast("Connection", conn), input.name)
+                require_domains(info, reads | (replaced or set()))
                 await metric_repo.upsert(cast("Connection", conn), model)
                 # REQ-1318: every registered view whose view_metrics spec references this
                 # metric regenerates its stored view_sql against the UPDATED definition.
@@ -3292,6 +3364,8 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
             )
         if input.action_name:  # REQ-1679: the target is a tracked function or webhook
             return await _upsert_action_rls_rule(info, input)
+        if input.tag_id:  # REQ-1384: the target is every table carrying a tag
+            return await _upsert_tag_rls_rule(info, input)
         if input.domain_id:
             require_right_in_domains(info, "masking_config", {input.domain_id})
         elif input.table_id:
@@ -3362,14 +3436,24 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
         table_id: Optional[int] = None,
         domain_id: Optional[str] = None,
         action_name: Optional[str] = None,
-    ) -> MutationResult:  # REQ-1531, REQ-1679
+        tag_id: Optional[str] = None,
+    ) -> MutationResult:  # REQ-1531, REQ-1679, REQ-1384
         from provisa.api.admin.capabilities import require_capability
         from provisa.api.admin.domain_guard import table_domain
 
         require_capability(info, "masking_config")  # REQ-1531: see upsert_rls_rule
         pool = await _get_pool()
         async with pool.acquire() as conn:
-            if action_name:  # REQ-1679: gated on the action's domain
+            if tag_id:  # REQ-1384: gated on the domain of every table the tag is on
+                require_right_in_domains(
+                    info,
+                    "masking_config",
+                    {
+                        t["domain_id"]
+                        for t in await _tables_carrying(cast("Connection", conn), tag_id)
+                    },
+                )
+            elif action_name:  # REQ-1679: gated on the action's domain
                 from provisa.api.app import state
 
                 action = state.tracked_functions.get(action_name) or (
@@ -3389,6 +3473,7 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                 table_id=table_id,
                 domain_id=domain_id,
                 action_name=action_name,
+                tag_id=tag_id,
             )
         if deleted:
             # See upsert_rls_rule's matching rebuild — a deleted rule must stop being enforced
@@ -4815,6 +4900,132 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
         """Promote a virtual Provisa view to a real database view on its underlying native source."""
         require_capability(info, "table_registration")
         return await _ops.deploy_view_to_db(info, table_id)
+
+
+async def _tables_carrying(conn: "Connection", tag_id: str) -> list[dict]:  # REQ-1384
+    """The registered-table rows (with ``columns``) that carry ``tag_id`` as a table-level tag,
+    whatever parameter value it was assigned with."""
+    from provisa.core.models import base_tag_id
+    from provisa.core.repositories import table as table_repo
+    from provisa.core.repositories import tag as tag_repo
+    from provisa.security.row_filters import tagged_table_ids
+
+    carrying = tagged_table_ids(await tag_repo.list_assignments(conn)).get(
+        base_tag_id(tag_id), set()
+    )
+    return [t for t in await table_repo.list_all(conn) if t["id"] in carrying]
+
+
+async def _tag_filter_problem(  # REQ-1384, REQ-1676
+    conn: "Connection", tag_id: str, table_id: int
+) -> str | None:
+    """Why ``table_id`` cannot take ``tag_id``, or None when it can: each row filter the tag
+    carries is resolved against the table, the same check a rule gets at save, so a tag is
+    never put on a table its filter cannot be applied to."""
+    from provisa.compiler.rls_validate import validate_rls_predicate
+    from provisa.core.models import base_tag_id
+    from provisa.core.repositories import table as table_repo
+
+    filters = await rls_repo.list_for_tag(conn, base_tag_id(tag_id))
+    if not filters:
+        return None
+    registry = await table_repo.list_all(conn)
+    targets = [t for t in registry if t["id"] == table_id]
+    for rule in filters:
+        problem = validate_rls_predicate(rule["filter_expr"], targets, registry)
+        if problem is not None:
+            return f"the tag's row filter for role {rule['role_id']!r} does not fit: {problem}"
+    return None
+
+
+async def _upsert_tag_rls_rule(
+    info: StrawberryInfo, input: RLSRuleInput
+) -> MutationResult:  # REQ-1384, REQ-1531, REQ-1676
+    """A row filter on a tag: it applies to every table carrying the tag, AND-ed with the
+    table's own (or its domain's) rule. Only a user tag that applies to tables takes one — a
+    system or derived tag has no registry row for the rule to belong to."""
+    from provisa.compiler.rls_validate import validate_rls_predicate
+    from provisa.core.models import DERIVED_TAG_IDS, SYSTEM_TAG_IDS, base_tag_id
+    from provisa.core.models import RLSRule as RLSRuleModel
+    from provisa.core.repositories import table as table_repo
+    from provisa.core.repositories import tag as tag_repo
+
+    tag_id = input.tag_id or ""
+    if input.table_id or input.domain_id:
+        return MutationResult(
+            success=False,
+            message="An RLS rule targets exactly one of a table, a domain, an action or a tag",
+            code="schema.rls_rule_invalid",
+            params={"reason": "more than one target"},
+        )
+    if tag_id != base_tag_id(tag_id) or tag_id in SYSTEM_TAG_IDS + DERIVED_TAG_IDS:
+        return MutationResult(
+            success=False,
+            message=(
+                f"Tag {tag_id!r} cannot carry a row filter: only a user tag, named without a "
+                "parameter value, takes one"
+            ),
+            code="schema.rls_rule_tag_not_user",
+            params={"tag": tag_id},
+        )
+    pool = await _get_pool()
+    async with pool.acquire() as conn:
+        tag_row = await tag_repo.get(cast("Connection", conn), tag_id)
+        if tag_row is None:
+            return MutationResult(
+                success=False,
+                message=f"Tag {tag_id!r} not found",
+                code="schema.tag_not_found",
+                params={"tag": tag_id},
+            )
+        if "table" not in list(tag_row["applies_to"] or []):
+            return MutationResult(
+                success=False,
+                message=f"Tag {tag_id!r} does not apply to tables, so it cannot carry a row filter",
+                code="schema.rls_rule_tag_not_table",
+                params={"tag": tag_id},
+            )
+        targets = await _tables_carrying(cast("Connection", conn), tag_id)
+        # REQ-1531: the rule lands in the domain of every table the tag is on.
+        require_right_in_domains(info, "masking_config", {t["domain_id"] for t in targets})
+        if targets:
+            registry = await table_repo.list_all(cast("Connection", conn))
+            problem = validate_rls_predicate(input.filter_expr, targets, registry)
+        else:
+            # No table carries the tag yet, so there is nothing to resolve a column against;
+            # the predicate is checked for shape now and against each table as it is tagged
+            # (_tag_filter_problem).
+            problem = validate_rls_predicate(input.filter_expr, [], [])
+        if problem is not None:
+            return MutationResult(
+                success=False,
+                message=problem,
+                code="schema.rls_rule_invalid",
+                params={"reason": problem},
+            )
+        await rls_repo.upsert(
+            cast("Connection", conn),
+            RLSRuleModel(tag_id=tag_id, role_id=input.role_id, filter=input.filter_expr),
+        )
+    await _rebuild_schemas()
+    return MutationResult(
+        success=True,
+        message=f"RLS rule for tag {tag_id!r} / role {input.role_id!r} saved",
+        code="schema.rls_rule_saved_tag",
+        params={"tag": tag_id, "role": input.role_id},
+    )
+
+
+async def _rebuild_if_tag_filtered(tag_id: str) -> None:  # REQ-1384
+    """A tag that carries a row filter decides which rows its tables' readers see, so putting
+    it on a table or taking it off rebuilds the role contexts; any other tag is annotation."""
+    from provisa.core.models import base_tag_id
+
+    pool = await _get_pool()
+    async with pool.acquire() as conn:
+        filtered = await rls_repo.tags_with_filters(cast("Connection", conn))
+    if base_tag_id(tag_id) in filtered:
+        await _rebuild_schemas()
 
 
 async def _upsert_action_rls_rule(

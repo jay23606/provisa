@@ -24,7 +24,7 @@
     "colId": "ID",
     "colCapabilities": "Capabilities",
     "colDomainAccess": "Domain Access",
-    "colTableOrDomain": "Table / Domain",
+    "colTableOrDomain": "Applies to",
     "colRole": "Role",
     "colFilter": "Filter",
     "none": "none",
@@ -47,7 +47,7 @@
     "noRulesMatchFilter": "No rules match the current filter.",
     "purposeTitle": "What RLS rules are for",
     "purposeBody": "A row-level security rule is a SQL predicate bound to one role and one scope. The server ANDs it into the query before execution — on reads and on writes, whichever surface the request arrives on — so a role sees only the rows its rule permits and cannot opt out by picking a different client.",
-    "purposeAdd": "Scope a rule to a single table, or to a whole domain so it covers every table in it; where both apply, the table rule wins for that table. A rule is written against a role rather than a person, so what someone can see is changed by changing the role they hold.",
+    "purposeAdd": "Scope a rule to a single table, or to a whole domain so it covers every table in it; where both apply, the table rule wins for that table. A rule on a tag covers every table carrying the tag, now and later, and is added to the table's own rule: a tag can only narrow what a role reads. A rule is written against a role rather than a person, so what someone can see is changed by changing the role they hold.",
     "purposeAria": "About RLS rules",
     "rolePurposeTitle": "What roles are for",
     "rolePurposeBody": "A role is the unit every other permission is written against. Its capabilities decide which operations it may run, and its domain access decides which parts of the model it can reach at all. Row-level rules, and the access checks on every surface, name a role rather than a person — so what someone can see and do is changed by changing the role they hold.",
@@ -74,6 +74,12 @@
     "maxQueryComplexityHint": "Relations, joins, columns and nested queries of one statement, on every interface. The org limit still applies.",
     "maxQueryTimeMs": "Max query time (ms)",
     "unlimited": "unlimited",
-    "ruleId": "Rule ID"
+    "ruleId": "Rule ID",
+    "applyToTag": "Tag (every table carrying it)",
+    "tag": "Tag",
+    "tagPrefix": "tag:",
+    "labelTag": "Tag:",
+    "tagTableCount_one": "on {{count}} table",
+    "tagTableCount_other": "on {{count}} tables"
   }
 }

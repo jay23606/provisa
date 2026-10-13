@@ -481,9 +481,15 @@ CREATE TABLE IF NOT EXISTS rls_rules (
     filter_expr BYTEA NOT NULL,  -- REQ-686: encrypted at rest via EncryptionService
     -- REQ-1679: a rule may target a tracked function or webhook by name instead of a table.
     action_name TEXT,
+    -- REQ-1384: a rule may target a user tag; it then applies to every table carrying the tag.
+    -- The reference to tags(id) is declared after that table, below.
+    tag_id      TEXT,
     UNIQUE (table_id, role_id),
-    UNIQUE (action_name, role_id)
+    UNIQUE (action_name, role_id),
+    CONSTRAINT rls_rules_tag_role_key UNIQUE (tag_id, role_id)
 );
+
+ALTER TABLE rls_rules ADD COLUMN IF NOT EXISTS tag_id TEXT;  -- REQ-1384
 
 -- Migration: add domain_id and make table_id nullable for domain-level RLS rules
 DO $$ BEGIN
@@ -516,6 +522,14 @@ CREATE TABLE IF NOT EXISTS tags (
     -- REQ-1943: the Sensitive data option: a column carrying this tag is a sensitive column.
     sensitive      BOOLEAN NOT NULL DEFAULT FALSE
 );
+
+-- REQ-1384: a row filter on a tag refers to the tag. No ON DELETE action: a tag that carries a
+-- filter is refused deletion (repositories.integrity), never taken with its filter.
+DO $$ BEGIN
+    ALTER TABLE rls_rules ADD CONSTRAINT rls_rules_tag_id_fkey
+        FOREIGN KEY (tag_id) REFERENCES tags(id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- REQ-1467: the permitted parameter values for a parameterized tag. Its own table rather than a
 -- column on `tags` because the tag that motivates it — `entity` — is a system tag, and system

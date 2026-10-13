@@ -310,7 +310,26 @@ class TestBuildGroupByGraphqlQuery:
         )
         assert "limit: 5" in q
         assert "offset: 10" in q
-        assert "order_by: {region: asc}" in q
+        assert "order_by: [{groupKey: {region: asc}}]" in q
+
+    def test_ordering_by_a_field_that_is_not_a_group_key_is_refused(self):  # REQ-2007
+        from fastapi import HTTPException
+
+        schema, ctx = _build_schema_and_ctx()
+        with pytest.raises(HTTPException) as refused:
+            _build_group_by_graphql_query(
+                schema,
+                "orders",
+                ["region"],
+                ["count"],
+                NO_VARIABLES,
+                [{"field": "amount", "dir": "asc"}],
+                None,
+                None,
+                None,
+            )
+        assert refused.value.status_code == 400
+        assert "'amount' is not one of the groupBy columns" in str(refused.value.detail)
 
     def test_query_parses_against_schema(self):
         schema, ctx = _build_schema_and_ctx()

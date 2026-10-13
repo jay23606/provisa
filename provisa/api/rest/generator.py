@@ -426,8 +426,16 @@ def _build_group_by_graphql_query(
     args_parts = [f"by: [{', '.join(apply_gql_name(c) for c in by_cols)}]"]
     args_parts.extend(variables.arguments)
     if order_by:
-        ob_parts = [f"{o['field']}: {o['dir']}" for o in order_by]
-        args_parts.append("order_by: {" + ", ".join(ob_parts) + "}")
+        # REQ-2007: a group-by is ordered by its group keys; a sort on any other field is refused.
+        keys = {apply_gql_name(c) for c in by_cols}
+        for o in order_by:
+            if o["field"] not in keys:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"orderBy field {o['field']!r} is not one of the groupBy columns",
+                )
+        ob_parts = [f"{{groupKey: {{{o['field']}: {o['dir']}}}}}" for o in order_by]
+        args_parts.append("order_by: [" + ", ".join(ob_parts) + "]")
     if limit is not None:
         args_parts.append(f"limit: {limit}")
     if offset:

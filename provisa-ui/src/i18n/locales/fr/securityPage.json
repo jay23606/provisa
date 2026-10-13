@@ -24,7 +24,7 @@
     "colId": "ID",
     "colCapabilities": "Capacités",
     "colDomainAccess": "Accès aux domaines",
-    "colTableOrDomain": "Table / domaine",
+    "colTableOrDomain": "S'applique à",
     "colRole": "Rôle",
     "colFilter": "Filtre",
     "none": "aucun",
@@ -47,7 +47,7 @@
     "noRulesMatchFilter": "Aucune règle ne correspond au filtre actuel.",
     "purposeTitle": "À quoi servent les règles RLS",
     "purposeBody": "Une règle de sécurité au niveau des lignes est un prédicat SQL lié à un rôle et à une portée. Le serveur l'ajoute à la requête par un AND avant l'exécution — en lecture comme en écriture, quelle que soit la surface d'où vient la demande — si bien qu'un rôle ne voit que les lignes autorisées par sa règle et ne peut pas s'y soustraire en changeant de client.",
-    "purposeAdd": "Portez une règle sur une seule table, ou sur un domaine entier pour couvrir toutes ses tables ; si les deux s'appliquent, la règle de table l'emporte pour cette table. Une règle vise un rôle et non une personne : ce que quelqu'un voit se change en changeant le rôle qu'il détient.",
+    "purposeAdd": "Portez une règle sur une seule table, ou sur un domaine entier pour couvrir toutes ses tables ; si les deux s'appliquent, la règle de table l'emporte pour cette table. Une règle portée sur un tag couvre toutes les tables qui le portent, aujourd'hui et à l'avenir, et s'ajoute à la règle propre de la table : un tag ne peut que restreindre ce qu'un rôle lit. Une règle vise un rôle et non une personne : ce que quelqu'un voit se change en changeant le rôle qu'il détient.",
     "purposeAria": "À propos des règles RLS",
     "rolePurposeTitle": "À quoi servent les rôles",
     "rolePurposeBody": "Le rôle est l'unité contre laquelle toute autre autorisation est écrite. Ses capacités déterminent les opérations qu'il peut exécuter, et son accès aux domaines détermine les parties du modèle qu'il atteint. Les règles de ligne, comme les contrôles d'accès de chaque surface, visent un rôle et non une personne : ce que quelqu'un peut voir et faire se change en changeant le rôle qu'il détient.",
@@ -74,6 +74,12 @@
     "maxQueryComplexityHint": "Relations, jointures, colonnes et requêtes imbriquées d'une instruction, sur chaque interface. La limite de l'organisation s'applique toujours.",
     "maxQueryTimeMs": "Durée maximale de requête (ms)",
     "unlimited": "illimité",
-    "ruleId": "ID de la règle"
+    "ruleId": "ID de la règle",
+    "applyToTag": "Tag (toutes les tables qui le portent)",
+    "tag": "Tag",
+    "tagPrefix": "tag :",
+    "labelTag": "Tag :",
+    "tagTableCount_one": "sur {{count}} table",
+    "tagTableCount_other": "sur {{count}} tables"
   }
 }

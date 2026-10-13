@@ -160,6 +160,9 @@ class CompilationContext:
     exposed_to_physical: dict[tuple[int, str], str] = field(default_factory=dict)
     # (table_id, physical_column_name) → sql_exposed_name (alias direct, or apply_sql_name(phys))
     physical_to_sql: dict[tuple[int, str], str] = field(default_factory=dict)
+    # (table_id, physical_column_name) → the GraphQL field name the row type gives it (alias, or
+    # the naming convention applied): the name an aggregate's result fields use too.
+    physical_to_gql: dict[tuple[int, str], str] = field(default_factory=dict)
     # table_id → set of column names that require native API params (_nf_ prefix)
     native_filter_columns: dict[int, dict[str, str]] = field(default_factory=dict)
     # table_id → {virtual_col_name → literal_value}
