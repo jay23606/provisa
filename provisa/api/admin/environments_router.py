@@ -31,7 +31,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Literal
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 from sqlalchemy import func, select
 
@@ -76,7 +76,23 @@ from provisa.api.admin._platform_guard import require_platform_settings
 
 log = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/admin/orgs/{org_id}/environments", tags=["admin"])
+
+async def _org_ready_on_this_node(org_id: str) -> None:
+    """The org served on this node before its environments are: its runtime built, which readies
+    its folder (REQ-1992) -- the folder that holds the environments' repository (env_repo). A node
+    that serves a request naming an org it has not built yet (another org than the one the
+    request is bound to, or the first request after a restart) would otherwise find the folder not
+    ready and answer 500 (OrgFolderUnavailable)."""
+    from provisa.api.app import ensure_org_runtime
+
+    await ensure_org_runtime(org_id)
+
+
+router = APIRouter(
+    prefix="/admin/orgs/{org_id}/environments",
+    tags=["admin"],
+    dependencies=[Depends(_org_ready_on_this_node)],
+)
 
 
 def _state():
