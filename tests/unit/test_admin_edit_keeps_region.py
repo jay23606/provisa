@@ -17,7 +17,8 @@ for a table, moving where its data lives (built in every region again)."""
 from __future__ import annotations
 
 from contextlib import ExitStack
-from unittest.mock import MagicMock, patch
+import contextlib
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from sqlalchemy import select, update
@@ -85,9 +86,19 @@ async def test_an_admin_edit_of_a_source_keeps_its_region(tmp_path):
     async with _db(tmp_path, source_signal="ttl", source_ttl=60) as db:
         await _in_region_eu(db)
         m, p = _mutation(db)
+
+        @contextlib.asynccontextmanager
+        async def _no_vault():
+            yield
+
         with (
             p,
             patch("provisa.api.admin.capabilities.require_capability", return_value=None),
+            # The save provisions the source on the engine and rebuilds the schemas: this
+            # stand-in has neither engine nor vault, and what is checked is the stored region.
+            patch("provisa.core.secrets_store.bound_to_request_org", _no_vault),
+            patch("provisa.api.admin.schema_mutation._register_source_on_engine"),
+            patch("provisa.api.admin.schema_mutation._rebuild_schemas", new=AsyncMock()),
         ):
             result = await m.update_source(
                 MagicMock(), _source_input(change_signal="ttl", cache_ttl=60)

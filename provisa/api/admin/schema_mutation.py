@@ -1379,6 +1379,19 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
 
         require_capability(info, "source_registration")
         from provisa.core.models import Source as SourceModel, SourceType as SourceTypeEnum
+        from provisa.core.repositories import source as _source_repo
+
+        # A create makes a new source: an existing id is refused by name before anything is
+        # staged, connected or written. Changing a source, and provisioning it again on another
+        # engine, is updateSource.
+        async with (await _get_pool()).acquire() as _taken_conn:
+            if await _source_repo.get(cast("Connection", _taken_conn), input.id) is not None:
+                return MutationResult(
+                    success=False,
+                    message=f"Source {input.id!r} already exists",
+                    code="schema.source_id_taken",
+                    params={"source": input.id},
+                )
 
         # REQ-1907: a ttl / ttl_probe signal needs a cache_ttl on the source or on each table
         # already registered under this id.
@@ -1543,15 +1556,9 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
         # REQ-1531: a source with no allowed list is open to every domain, so opening it to a
         # domain — or to all of them — needs the caller to reach that domain.
         from provisa.api.admin.capabilities import require_reach_of_added_domains
-        from provisa.core.repositories import source as _source_repo
 
-        async with pool.acquire() as _held_conn:
-            _held = await _source_repo.get(cast("Connection", _held_conn), input.id)
-        _was = None if _held is None else _held["allowed_domains"] or []
-        # The list the source will hold: the one given, or — when none is given — the one it
-        # already holds (``_upsert_source_with_domains`` writes only a list that names a domain).
         _named = [d for d in (input.allowed_domains or []) if d.strip()]
-        require_reach_of_added_domains(info, _was, _named or _was or [], empty_is_all=True)
+        require_reach_of_added_domains(info, None, _named, empty_is_all=True)
         await _upsert_source_with_domains(pool, model, input)
 
         _domains = [d for d in (input.allowed_domains or []) if d.strip()]
@@ -1604,33 +1611,12 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
 
         _fire_catalog_indexing(state, pool, input)
 
-        # REQ-1730: createSource is an upsert (REQ-1266's own doc on _upsert_source_with_domains) —
-        # replaying it against a DIFFERENT engine than the one active at original registration
-        # (reprovisioning a source under a newly-swapped-to engine) leaves that engine's own
-        # ctx/schema_build_cache never rebuilt, so any table ALREADY registered for this source
-        # (in the shared control plane, from its original registration) compiles against whatever
-        # catalog_name this source resolved to at the LAST rebuild — before this replay corrected
-        # state.source_catalogs[input.id] moments ago. update_table/register_table already rebuild
-        # on every call; create_source alone never did, because a brand-new source has no
-        # registered tables yet to rebuild for. An upserted one can.
         if input.type == "servicenow":  # REQ-1954: its APIs' OpenAPI source, kept beside it
             from provisa.api.admin._servicenow_companion import sync_companion
 
             async with pool.acquire() as _companion_conn:
                 await sync_companion(cast("Connection", _companion_conn), input.id)
         await _rebuild_schemas()
-        # Same gap update_table's own reconcile call (below, this file) already closed: a
-        # materialize-only table replayed onto a new engine here has an EXISTING registered_tables
-        # row (from its original registration) but no landed replica on THIS engine yet — nothing
-        # else creates it. Reproduced live: airport/firebird SCHEMA_NOT_FOUND on Trino after a
-        # swap replay, because reconcile_landed_tables() never ran for this engine's process
-        # against the just-reprovisioned source.
-        try:
-            await state.federation_engine.reconcile_landed_tables()
-        except Exception:
-            logging.getLogger(__name__).warning(
-                "Landed-table reconcile failed after create_source", exc_info=True
-            )
 
         if input.type == "data_profiler":  # REQ-1934: its schedule fires on the org's scheduler
             from provisa.api.admin.schema_mutation_ops import reschedule_org_triggers
@@ -1959,6 +1945,23 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
         # (the remote database/tenant) is not a catalog name, the fixed-catalog exception, and the
         # adapter-fetched-under-Trino exception (REQ-1730).
         state.source_catalogs[input.id] = catalog_name_for_source(state, input.type, input.id)
+
+        # REQ-1730: the source is provisioned again on the engine bound now -- the one it was saved
+        # under, or another one swapped to since -- with the settings just saved.
+        async with bound_to_request_org():
+            await _synthesize_mapping_dsl_tables(pool, model)
+            await _cache_prometheus_label_columns(pool, state, model)
+            _register_source_on_engine(state, model, input)
+        # Its tables already registered compile against the catalog name just recorded, and a
+        # table whose rows the engine lands gets its replica on this engine (a swap leaves none:
+        # airport/firebird SCHEMA_NOT_FOUND on Trino, reproduced live).
+        await _rebuild_schemas()
+        try:
+            await state.federation_engine.reconcile_landed_tables()
+        except Exception:
+            logging.getLogger(__name__).warning(
+                "Landed-table reconcile failed after update_source", exc_info=True
+            )
 
         # Invalidate and re-index catalog cache (REQ-464)
         from provisa.discovery.catalog_cache import (
