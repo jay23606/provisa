@@ -948,9 +948,12 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         from provisa.compiler.sql_literals import sql_literal
         from provisa.federation.materialize_broker import EngineAttachedStore
 
-        token = url.query.get("motherduck_token")
-        if not token:
+        from provisa.core.secrets import resolve_secrets
+
+        written = url.query.get("motherduck_token")
+        if not written:
             raise RuntimeError("the MotherDuck materialize store URL names no motherduck_token")
+        token = resolve_secrets(written)  # a ${env:..}/${secret:..} reference, resolved at use
         if not url.database:
             raise RuntimeError("the MotherDuck materialize store URL names no database")
         if "motherduck" not in self._ext_loaded:

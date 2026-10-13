@@ -81563,13 +81563,30 @@
   - REQ-1997
   notes: 'Maintainer 2026-10-12, through the lead: "does duckdb datasource support motherduck + local file?", then "yes" to adding md: attach on the DuckDB engine and a hybrid option. The lead''s ruling: hybrid needs no new source setting, the shared engine connection does it; writes stay on the engine route, as the Postgres connector has them; the note on data moving into the MotherDuck account goes in the docs and here. Measured live with duckdb 1.5.5 against the maintainer''s account (2026-10-12): the motherduck extension installs from the core repository; SET motherduck_token takes the token as a bound parameter (the documented md:db?motherduck_token= form was ignored); with no token the extension begins an interactive single sign-on and waits a minute; motherduck_token is per DuckDB instance; a local DuckDB file attached read-only and the MotherDuck workspace on one connection ran a join as one statement, its plan showing dual-execution operators.'
 - id: REQ-1999
-  status: proposed
+  status: complete
   since: 2026-10
   group: 6. Execution, Routing, Caching & Performance
   category: Federation Engines
   feature: federation-and-routing-engines
   priority: SHOULD
   type: behavioral
+  code:
+  - provisa/federation/engine.py
+  - provisa/core/engine_kinds.py
+  - provisa/federation/duckdb_runtime.py
+  - provisa/federation/duckdb_backend.py
+  - provisa/federation/materialize_broker.py
+  - provisa/api/admin/secret_redaction.py
+  tests:
+  - tests/unit/test_motherduck_engine.py
+  - tests/unit/test_motherduck_duckdb_engine.py
+  - tests/unit/test_federation_engine.py
+  - tests/unit/test_vector_replica_index.py
+  - tests/integration/test_motherduck_engine_store_e2e.py
+  integration_test: required
+  integration_test_reason: 'The store is a real MotherDuck database: a replica landed through the engine connection and read there in place is verifiable only against the account (tests/integration/test_motherduck_engine_store_e2e.py, in a scratch database created and dropped for the run).'
+  e2e: true
+  e2e_reason: 'Landing a replica in MotherDuck and reading it back, from the engine and from another connection to the account, needs the live service.'
   description: 'MotherDuck is a federation engine, the production counterpart of the embedded DuckDB engine: an organization that chooses it has its replicas kept in a database of its own MotherDuck account and its governed SQL run there, in the same DuckDB dialect it runs in on the embedded engine, so what was built and checked on local DuckDB in development runs unchanged in production. Every node of the deployment reads the same replicas from MotherDuck, so replicas need no shared file mount; the coordinator builds and refreshes them (REQ-1916). The engine signs in with the organization''s MotherDuck token, resolved with the standard resolution and given to the connection as a bound value that no log, trace or error carries. Choosing it commits the organization to three things, said where it is chosen: every replica of every source is stored in its MotherDuck account (data residency); its engine is signed in to one MotherDuck account; and a source the engine can read only from the node (a database on a private network) is still read there, MotherDuck''s dual execution moving its rows to MotherDuck for the parts it runs.'
   use_case: 'A team develops against the embedded DuckDB engine on a laptop and runs production on MotherDuck: the same model and the same SQL, its replicas shared by every node of the production deployment.'
   scenario: 'Given an organization whose engine is MotherDuck

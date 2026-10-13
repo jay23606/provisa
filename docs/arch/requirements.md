@@ -23108,15 +23108,15 @@ A MotherDuck database is reached in place on the DuckDB engine as well as on the
 
 ### REQ-1999 · Federation Engines {#REQ-1999}
 
-**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+**Status:** ✅ complete · **Priority:** SHOULD · **Type:** behavioral
 
 MotherDuck is a federation engine, the production counterpart of the embedded DuckDB engine: an organization that chooses it has its replicas kept in a database of its own MotherDuck account and its governed SQL run there, in the same DuckDB dialect it runs in on the embedded engine, so what was built and checked on local DuckDB in development runs unchanged in production. Every node of the deployment reads the same replicas from MotherDuck, so replicas need no shared file mount; the coordinator builds and refreshes them ([REQ-1916](#REQ-1916)). The engine signs in with the organization's MotherDuck token, resolved with the standard resolution and given to the connection as a bound value that no log, trace or error carries. Choosing it commits the organization to three things, said where it is chosen: every replica of every source is stored in its MotherDuck account (data residency); its engine is signed in to one MotherDuck account; and a source the engine can read only from the node (a database on a private network) is still read there, MotherDuck's dual execution moving its rows to MotherDuck for the parts it runs.
 
 **Use case:** A team develops against the embedded DuckDB engine on a laptop and runs production on MotherDuck: the same model and the same SQL, its replicas shared by every node of the production deployment.
 
-**Code:** —
+**Code:** `provisa/federation/engine.py`, `provisa/core/engine_kinds.py`, `provisa/federation/duckdb_runtime.py`, `provisa/federation/duckdb_backend.py`, `provisa/federation/materialize_broker.py`, `provisa/api/admin/secret_redaction.py`
 
-**Tests:** —
+**Tests:** `tests/unit/test_motherduck_engine.py`, `tests/unit/test_motherduck_duckdb_engine.py`, `tests/unit/test_federation_engine.py`, `tests/unit/test_vector_replica_index.py`, `tests/integration/test_motherduck_engine_store_e2e.py`
 
 ## 3. Source Registration & Data Modeling
 

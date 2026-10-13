@@ -118,6 +118,20 @@ def test_a_source_of_another_account_is_refused_on_a_motherduck_store_engine(run
     runtime._sign_in_motherduck(SimpleNamespace(id="md1", password="tok-a"))  # noqa: SLF001
 
 
+def test_a_token_reference_in_the_store_url_is_resolved_at_use(monkeypatch):
+    monkeypatch.setattr(runtime_mod, "install_and_load", lambda *_a, **_kw: None)
+    monkeypatch.setenv("IT_MD_TOKEN", "tok-from-env")
+    made = DuckDBFederationRuntime(
+        materialize_dsn="motherduck:///shop?motherduck_token=${env:IT_MD_TOKEN}"
+    )
+    setattr(made, "_con", _Recording())
+    made.ensure_materialize_attached()
+    assert made._con.statements[0] == (  # noqa: SLF001
+        "SET GLOBAL motherduck_token = ?",
+        ["tok-from-env"],
+    )
+
+
 @pytest.mark.parametrize(
     ("dsn", "missing"),
     [("motherduck:///shop", "motherduck_token"), ("motherduck:///?motherduck_token=t", "database")],
