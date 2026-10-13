@@ -1021,29 +1021,32 @@ class PgDuckdbMotherDuckConnector(Connector):  # REQ-1868
         )
 
     def details(self, source: Source) -> dict:
+        """What pg_motherduck.attach needs: the database, the token, and the options of the
+        engine's MotherDuck server should this source be the one that creates it. pg_duckdb's
+        sync worker creates the tables (issue 254): there is no foreign schema to import."""
         if not source.password:
             raise ValueError(
                 f"Source {source.id!r}: 'password' (MotherDuck token) is required for the "
                 "motherduck connector"
             )
-        server = engine_attach_name("fdw", attach_catalog(source))
-        option_pairs = {
-            "default_database": source.federation_hints.get("default_database"),
-            "tables_owner_role": source.federation_hints.get("tables_owner_role"),
-            "background_catalog_refresh_inactivity_timeout": source.federation_hints.get(
-                "background_catalog_refresh_inactivity_timeout"
-            ),
+        if not source.database:
+            raise ValueError(f"Source {source.id!r}: name the MotherDuck database to attach")
+        hints = source.federation_hints
+        options = {
+            k: hints[k]
+            for k in (
+                "default_database",
+                "tables_owner_role",
+                "background_catalog_refresh_inactivity_timeout",
+            )
+            if hints.get(k)
         }
-        options = ", ".join(f"{k} '{v}'" for k, v in option_pairs.items() if v)
-        options_clause = f" OPTIONS ({options})" if options else ""
         return {
-            "attach_ddl": [
-                f"CREATE SERVER IF NOT EXISTS \"{server}\" TYPE 'motherduck' "
-                f"FOREIGN DATA WRAPPER duckdb{options_clause}",
-                f'CREATE USER MAPPING IF NOT EXISTS FOR CURRENT_USER SERVER "{server}" '
-                f"OPTIONS (token '{source.password}')",
-            ],
-            "server": server,
+            "motherduck": {
+                "database": source.database,
+                "token": source.password,
+                "server_options": options,
+            }
         }
 
 

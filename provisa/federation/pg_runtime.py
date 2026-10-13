@@ -334,7 +334,19 @@ class PgFederationRuntime:  # REQ-825, REQ-840, REQ-904
         if "scan" in details:  # pg_duckdb reader (read_csv / read_parquet / iceberg_scan) — #244
             self._create_live_view(cur, source, self._scan_relation(details["scan"], source))
             return
-        if "attach_ddl" in details:  # postgres_fdw / sqlite_fdw — import a foreign schema
+        if "motherduck" in details:  # pg_duckdb's MotherDuck sync (issue 254)
+            from provisa.federation import pg_motherduck
+
+            budget = request_deadline.remaining()
+            remote = pg_motherduck.attach(
+                cur,
+                details["motherduck"],
+                source.id,
+                source.schema_name,
+                source.table_name,
+                _POOL_WAIT_S if budget is None else min(_POOL_WAIT_S, budget),
+            )
+        elif "attach_ddl" in details:  # postgres_fdw / sqlite_fdw — import a foreign schema
             remote = f'"{details["local_schema"]}"."{source.table_name}"'
             # A connector that can import ONE table (postgres_fdw) is attached per table: the
             # foreign tables outlive this process, and a replica build imports one on its own

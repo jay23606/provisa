@@ -70,23 +70,21 @@ def test_motherduck_capability_full_pushdown_and_writable():
 # ---- attach DDL: CREATE SERVER + USER MAPPING (REQ-1868) --------------------
 
 
-def test_attach_ddl_provisions_server_and_user_mapping_with_token():
-    details = PgDuckdbMotherDuckConnector().details(_src("mdsrc", password="secrettoken"))
-    ddl = details["attach_ddl"]
-    assert ddl[0] == (
-        """CREATE SERVER IF NOT EXISTS "fdw_mdsrc" TYPE 'motherduck' FOREIGN DATA WRAPPER duckdb"""
+def test_details_name_the_database_token_and_the_servers_options():
+    details = PgDuckdbMotherDuckConnector().details(
+        _src("mdsrc", password="secrettoken", database="sample_data")
     )
-    assert ddl[1] == (
-        'CREATE USER MAPPING IF NOT EXISTS FOR CURRENT_USER SERVER "fdw_mdsrc" '
-        "OPTIONS (token 'secrettoken')"
-    )
-    assert details["server"] == "fdw_mdsrc"
+    # pg_duckdb's sync creates the tables: nothing is imported, so no foreign-schema DDL
+    assert details == {
+        "motherduck": {"database": "sample_data", "token": "secrettoken", "server_options": {}}
+    }
 
 
-def test_attach_ddl_includes_options_clause_when_federation_hints_set():
+def test_server_options_come_from_federation_hints_when_set():
     details = PgDuckdbMotherDuckConnector().details(
         _src(
             "mdsrc2",
+            database="analytics",
             federation_hints={
                 "default_database": "analytics",
                 "tables_owner_role": "app_role",
@@ -94,22 +92,21 @@ def test_attach_ddl_includes_options_clause_when_federation_hints_set():
             },
         )
     )
-    server_ddl = details["attach_ddl"][0]
-    assert "OPTIONS (" in server_ddl
-    assert "default_database 'analytics'" in server_ddl
-    assert "tables_owner_role 'app_role'" in server_ddl
-    assert "background_catalog_refresh_inactivity_timeout '10m'" in server_ddl
+    assert details["motherduck"]["server_options"] == {
+        "default_database": "analytics",
+        "tables_owner_role": "app_role",
+        "background_catalog_refresh_inactivity_timeout": "10m",
+    }
 
 
-def test_attach_ddl_omits_options_clause_when_no_hints_set():
-    details = PgDuckdbMotherDuckConnector().details(_src("mdsrc3"))
-    server_ddl = details["attach_ddl"][0]
-    assert "OPTIONS" not in server_ddl
+def test_details_raise_when_the_database_is_not_named():
+    with pytest.raises(ValueError, match="name the MotherDuck database"):
+        PgDuckdbMotherDuckConnector().details(_src("mdsrc5"))
 
 
 def test_details_raises_when_token_missing():
     with pytest.raises(ValueError, match="password.*MotherDuck token"):
-        PgDuckdbMotherDuckConnector().details(_src("mdsrc4", password=""))
+        PgDuckdbMotherDuckConnector().details(_src("mdsrc4", password="", database="d"))
 
 
 # ---- functional-truth probe (REQ-904/1868) ----------------------------------
