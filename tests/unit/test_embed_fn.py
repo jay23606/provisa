@@ -273,3 +273,36 @@ async def test_the_audit_record_names_the_models_used():
     plan = SimpleNamespace(limit_outcome=None, embedded=Folded("SELECT 1", audit=used))
     resolved = _enforced_with_limit_outcome({"row_cap": 10}, plan)  # type: ignore[arg-type]
     assert resolved() == {"row_cap": 10, "embed": used}
+
+
+async def test_the_audit_row_names_the_models_without_a_row_limit(monkeypatch):
+    """REQ-2002: every statement that embedded says so, not only one whose row limit fired."""
+    from provisa.audit.pipeline import PendingAudit
+    from provisa.pgwire import _pipeline
+    from provisa.transpiler.router import Route
+    from provisa.vector.embed_fn import Folded
+
+    used = ({"id": "mini", "provider": "openai", "dimensions": 3, "version": "v"},)
+    written: list = []
+
+    async def write_audit(audit, *_a, **_k):
+        written.append(audit)
+
+    monkeypatch.setattr("provisa.audit.pipeline.write_audit", write_audit)
+    monkeypatch.setattr("provisa.observability.request_facts.observe_plan", lambda *_a, **_k: None)
+    plan = _pipeline._Plan(route=Route.DIRECT, sql="SELECT 1", source_id="pg", dialect="postgres")
+    plan.audit = PendingAudit(
+        user_id="u",
+        surface="sql",
+        role_id="analyst",
+        query_text="SELECT 1",
+        table_ids=[],
+        started=0.0,
+        model_stamp=1,
+        enforced={"row_cap": None},
+    )
+    plan.embedded = Folded("SELECT 1", audit=used)
+    await _pipeline.finalize_audit(plan, 200, SimpleNamespace())
+    (audit,) = written
+    enforced = audit.enforced() if callable(audit.enforced) else audit.enforced
+    assert enforced["embed"] == used

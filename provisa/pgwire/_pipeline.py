@@ -2299,8 +2299,9 @@ class _AuditedDrain:
         if record is not None:
             from provisa.audit.pipeline import complete_audit_record
 
-            if self._plan.limit_outcome is not None:
+            if self._plan.limit_outcome is not None or self._plan.embedded is not None:
                 # REQ-1949: settled by the drain inside this one (_CutCheckedDrain) just now.
+                # REQ-2002: the models the statement embedded with.
                 record = dataclasses.replace(
                     record, enforced=_enforced_with_limit_outcome(record.enforced, self._plan)
                 )
@@ -2494,8 +2495,9 @@ async def finalize_audit(
         ),
     }
     _audit = plan.audit
-    if _audit is not None and plan.limit_outcome is not None:
+    if _audit is not None and (plan.limit_outcome is not None or plan.embedded is not None):
         # REQ-1949: the row says what the row limit did to the answer the caller was given.
+        # REQ-2002: and which models the statement embedded with.
         _audit = dataclasses.replace(
             _audit, enforced=_enforced_with_limit_outcome(_audit.enforced, plan)
         )
