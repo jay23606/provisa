@@ -733,6 +733,18 @@ async def get_by_name(
     return result_dict
 
 
+class AmbiguousTableName(ValueError):
+    """A virtual table name that more than one registered table answers to."""
+
+    def __init__(self, name: str, sources: list[str]) -> None:
+        self.name = name
+        self.sources = sources
+        super().__init__(
+            f"Ambiguous table name {name!r}: found in sources {sources}. "
+            f"Use source-qualified lookup instead."
+        )
+
+
 async def find_by_table_name(
     conn: "Connection", table_name: str
 ) -> dict | None:  # REQ-014, REQ-155
@@ -750,11 +762,7 @@ async def find_by_table_name(
     if not rows:
         return None
     if len(rows) > 1:
-        sources = [r._mapping["source_id"] for r in rows]
-        raise ValueError(
-            f"Ambiguous table name {table_name!r}: found in sources {sources}. "
-            f"Use source-qualified lookup instead."
-        )
+        raise AmbiguousTableName(table_name, [r._mapping["source_id"] for r in rows])
     return dict(rows[0]._mapping)
 
 

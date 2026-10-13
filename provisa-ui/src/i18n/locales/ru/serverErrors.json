@@ -394,7 +394,12 @@
       "logs_invalid": "Источник Logs {{source}}: {{error}}",
       "logs_path_refused": "Источник Logs {{source}}: {{reason}}",
       "file_path_leaves_org": "Источник {{source}}: {{path}} выходит за пределы папки организации.",
-      "file_path_local_refused": "Источник {{source}}: сервер многих организаций не читает файлы со своего диска; загрузите файл или укажите его как {files}/… или удалённым адресом."
+      "file_path_local_refused": "Источник {{source}}: сервер многих организаций не читает файлы со своего диска; загрузите файл или укажите его как {files}/… или удалённым адресом.",
+      "relationship_alias_taken": "Псевдоним '{{alias}}' уже является псевдонимом связи '{{relationship}}' из '{{table}}'",
+      "relationship_ambiguous_table": "Имя таблицы '{{table}}' ({{end}}) обозначает таблицу более чем в одном источнике ({{sources}})",
+      "relationship_unknown_source": "Исходная таблица '{{table}}' не зарегистрирована",
+      "relationship_unknown_target": "Целевая таблица '{{table}}' не зарегистрирована",
+      "relationship_unknown_junction": "Связующая таблица '{{table}}' не зарегистрирована"
     },
     "secrets": {
       "name_refused": "{{name}} не является именем в пределах секретов этой организации в {{service}}: имя задаётся относительно организации и не может выходить за её пределы",

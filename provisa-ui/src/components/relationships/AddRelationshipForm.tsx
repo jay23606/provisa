@@ -12,7 +12,7 @@ import { useTranslation } from "react-i18next";
 import { Select, Text, TextInput } from "@mantine/core";
 import type { RegisteredTable } from "../../types/admin";
 import type { TrackedFunction } from "../../api/actions";
-import type { RelForm } from "./relationship-types";
+import { tableRef, type RelForm } from "./relationship-types";
 import { FormField, FormFooter, FormIdentifiers, FormLayout } from "../form/FormLayout";
 
 interface AddRelationshipFormProps {
@@ -44,12 +44,12 @@ export function AddRelationshipForm({
 }: AddRelationshipFormProps) {
   const { t } = useTranslation();
 
-  const tableOptions = tables.map((tbl) => ({ value: tbl.tableName, label: tbl.tableName }));
+  const tableOptions = tables.map((tbl) => ({ value: tableRef(tbl), label: tableRef(tbl) }));
   const sourceColumnOptions = (
-    tables.find((tbl) => tbl.tableName === form.sourceTableId)?.columns ?? []
+    tables.find((tbl) => tableRef(tbl) === form.sourceTableId)?.columns ?? []
   ).map((c) => ({ value: c.columnName, label: c.columnName }));
   const targetColumnOptions = (
-    tables.find((tbl) => tbl.tableName === form.targetTableId)?.columns ?? []
+    tables.find((tbl) => tableRef(tbl) === form.targetTableId)?.columns ?? []
   ).map((c) => ({ value: c.columnName, label: c.columnName }));
   const functionOptions = functions.map((f) => ({ value: f.name, label: f.name }));
 

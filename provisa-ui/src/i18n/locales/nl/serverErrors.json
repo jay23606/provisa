@@ -394,7 +394,12 @@
       "logs_invalid": "Logs-bron {{source}}: {{error}}",
       "logs_path_refused": "Logs-bron {{source}}: {{reason}}",
       "file_path_leaves_org": "Bron {{source}}: {{path}} gaat buiten de map van de organisatie.",
-      "file_path_local_refused": "Bron {{source}}: een server met veel organisaties leest geen bestand van zijn eigen schijf; upload het bestand of geef het op als {files}/… of met een extern adres."
+      "file_path_local_refused": "Bron {{source}}: een server met veel organisaties leest geen bestand van zijn eigen schijf; upload het bestand of geef het op als {files}/… of met een extern adres.",
+      "relationship_alias_taken": "De alias '{{alias}}' is al de alias van relatie '{{relationship}}' vanuit '{{table}}'",
+      "relationship_ambiguous_table": "De tabelnaam '{{table}}' ({{end}}) wijst een tabel aan in meer dan één bron ({{sources}})",
+      "relationship_unknown_source": "Brontabel '{{table}}' is niet geregistreerd",
+      "relationship_unknown_target": "Doeltabel '{{table}}' is niet geregistreerd",
+      "relationship_unknown_junction": "Koppeltabel '{{table}}' is niet geregistreerd"
     },
     "secrets": {
       "name_refused": "{{name}} is geen naam binnen de secrets van deze organisatie in {{service}}: een naam is relatief ten opzichte van de organisatie en kan deze niet verlaten",

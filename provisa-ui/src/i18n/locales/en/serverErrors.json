@@ -394,7 +394,12 @@
       "logs_invalid": "Logs source {{source}}: {{error}}",
       "logs_path_refused": "Logs source {{source}}: {{reason}}",
       "file_path_leaves_org": "Source {{source}}: {{path}} leaves the organization's folder.",
-      "file_path_local_refused": "Source {{source}}: a server of many organizations reads no file on its own disk; upload the file, or name it as {files}/… or by a remote address."
+      "file_path_local_refused": "Source {{source}}: a server of many organizations reads no file on its own disk; upload the file, or name it as {files}/… or by a remote address.",
+      "relationship_alias_taken": "Alias '{{alias}}' is already the alias of relationship '{{relationship}}' from '{{table}}'",
+      "relationship_ambiguous_table": "The {{end}} table name '{{table}}' names a table in more than one source ({{sources}})",
+      "relationship_unknown_source": "Source table '{{table}}' is not registered",
+      "relationship_unknown_target": "Target table '{{table}}' is not registered",
+      "relationship_unknown_junction": "Junction table '{{table}}' is not registered"
     },
     "secrets": {
       "name_refused": "{{name}} is not a name inside this organization's secrets in {{service}}: a name is relative to the organization and cannot leave it",

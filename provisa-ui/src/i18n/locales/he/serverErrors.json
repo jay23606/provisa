@@ -394,7 +394,12 @@
       "logs_invalid": "מקור Logs {{source}}: {{error}}",
       "logs_path_refused": "מקור Logs {{source}}: {{reason}}",
       "file_path_leaves_org": "מקור {{source}}: {{path}} יוצא מתיקיית הארגון.",
-      "file_path_local_refused": "מקור {{source}}: שרת של ארגונים רבים אינו קורא קבצים מהדיסק שלו; העלו את הקובץ, או ציינו אותו כ-{files}/… או בכתובת מרוחקת."
+      "file_path_local_refused": "מקור {{source}}: שרת של ארגונים רבים אינו קורא קבצים מהדיסק שלו; העלו את הקובץ, או ציינו אותו כ-{files}/… או בכתובת מרוחקת.",
+      "relationship_alias_taken": "הכינוי '{{alias}}' כבר משמש ככינוי של הקשר '{{relationship}}' מ-'{{table}}'",
+      "relationship_ambiguous_table": "שם הטבלה '{{table}}' ({{end}}) מציין טבלה ביותר ממקור אחד ({{sources}})",
+      "relationship_unknown_source": "טבלת המקור '{{table}}' אינה רשומה",
+      "relationship_unknown_target": "טבלת היעד '{{table}}' אינה רשומה",
+      "relationship_unknown_junction": "טבלת הקישור '{{table}}' אינה רשומה"
     },
     "secrets": {
       "name_refused": "{{name}} אינו שם בתוך הסודות של הארגון הזה ב-{{service}}: שם הוא יחסי לארגון ואינו יכול לצאת ממנו",

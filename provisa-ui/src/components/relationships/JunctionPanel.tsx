@@ -12,7 +12,7 @@ import { useTranslation } from "react-i18next";
 import { Checkbox, MultiSelect, Paper, Select, Stack, TextInput } from "@mantine/core";
 import { keyList } from "../../naming";
 import type { RegisteredTable } from "../../types/admin";
-import type { RelForm } from "./relationship-types";
+import { tableRef, type RelForm } from "./relationship-types";
 import { FormChecks, FormField, FormLayout } from "../form/FormLayout";
 
 interface JunctionPanelProps {
@@ -34,9 +34,9 @@ interface JunctionPanelProps {
 export function JunctionPanel({ form, setForm, tables, testIdPrefix }: JunctionPanelProps) {
   const { t } = useTranslation();
 
-  const tableOptions = tables.map((tbl) => ({ value: tbl.tableName, label: tbl.tableName }));
+  const tableOptions = tables.map((tbl) => ({ value: tableRef(tbl), label: tableRef(tbl) }));
   const viaColumnOptions = (
-    tables.find((tbl) => tbl.tableName === form.viaTable)?.columns ?? []
+    tables.find((tbl) => tableRef(tbl) === form.viaTable)?.columns ?? []
   ).map((c) => ({ value: c.columnName, label: c.columnName }));
 
   const checked = Boolean(form.viaTable) || form.junctionDeclared;
