@@ -744,6 +744,12 @@
         "label": "Grootste geüploade bestand",
         "help": "Het grootste bestand dat een SQLite-, DuckDB-, CSV- of Parquet-bron via upload in het bronformulier kan krijgen; een groter bestand wordt geweigerd met vermelding van deze limiet. Een groter bestand leest u beter waar het staat, uit een objectopslag."
       }
+    },
+    "polly": {
+      "model_prices": {
+        "label": "Modelprijzen van Polly",
+        "help": "Eén regel per model: de id, daarna USD per miljoen tokens voor invoer, uitvoer, cache-lezen en cache-schrijven. Het gebruik van Polly wordt ermee berekend."
+      }
     }
   }
 }

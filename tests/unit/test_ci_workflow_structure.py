@@ -153,6 +153,8 @@ _LEAF_CHECK = "ci-leaf-check.yml"
 # pass by name instead of inheriting every one.
 _OWN_STEPS = {
     "integration-suite-lanes.yml": {"cluster", "warehouse", "salesforce", "athena", "servicenow"},
+    # REQ-2012: carries the paid model keys of its own, as the live-account jobs do.
+    "polly-bakeoff.yml": {"bakeoff"},
 }
 
 

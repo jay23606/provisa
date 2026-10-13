@@ -137,9 +137,23 @@ def _pairs(values: dict[str, Any]) -> None:
         raise Refused(conflict.field, conflict.reason, other=conflict.other) from None
 
 
+def _prices(values: dict[str, Any]) -> None:
+    """Polly's price table (REQ-2012): every entry must read as a model and its four prices, or
+    the turn that reports its cost would fail on it."""
+    if values.get("polly.model_prices") is None:
+        return
+    from provisa.api.mcp.polly_usage import PriceTableError, parse_prices
+
+    try:
+        parse_prices(settings_registry.prospective("polly.model_prices", values))
+    except PriceTableError as err:
+        raise Refused("polly.model_prices", "price_entry_invalid", entry=str(err)) from None
+
+
 def check(values: dict[str, Any]) -> None:
     """Raise :class:`Refused` for the first saved value that cannot work with the rest."""
     _superuser(values)
+    _prices(values)
     _ports(values)
     _tls(values)
     _redis(values)

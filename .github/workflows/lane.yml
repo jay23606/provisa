@@ -8,7 +8,8 @@
 # uploaded whatever the outcome -- so a lane cannot be missing a piece of setup another has.
 # What only one lane does before or after its command is a script under scripts/ci/lanes/.
 #
-# Not called by: the suite's cluster, warehouse, salesforce, athena and servicenow jobs (ordinary jobs built from the
+# Not called by: the suite's cluster, warehouse, salesforce, athena and servicenow jobs and the Polly
+# bake-off (polly-bakeoff.yml) (ordinary jobs built from the
 # same composite actions: each carries credentials or cluster tooling of its own, and this
 # workflow declares only the few secrets below rather than inheriting every one), and the NixOS
 # lanes (their command runs inside a guest VM the runner's setup does not reach).

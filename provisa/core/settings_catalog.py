@@ -1096,6 +1096,30 @@ DECLARED: list[Setting] = [
         env="PROVISA_MCP_CHAT_MODEL",
         nullable=True,
     ),
+    Setting(
+        key="polly.model_prices",
+        card="mcp",
+        type="list",
+        effect="live",  # read when a Polly turn reports its usage (REQ-2012)
+        req="REQ-2012",
+        env="PROVISA_POLLY_MODEL_PRICES",
+        # One entry a model: "<model id> <input> <output> <cache read> <cache write>", USD per
+        # million tokens, the model id as Polly's vendor names it. From the vendors' published
+        # prices, 2026-10-13 (OpenRouter's catalog, which matches Anthropic's own list).
+        default=(
+            "claude-haiku-5-5 0.1 0.5 0.01 0.125",
+            "claude-sonnet-5-5 2.0 10.0 0.1 2.5",
+            "claude-opus-5-5 4.0 20.0 0.2 5.0",
+            "anthropic/claude-haiku-5.5 0.1 0.5 0.01 0.125",
+            "anthropic/claude-sonnet-5.5 2.0 10.0 0.1 2.5",
+            "anthropic/claude-opus-5.5 4.0 20.0 0.2 5.0",
+            "google/gemini-3.8-flash 0.75 3.75 0.075 0.0417",
+            "openai/gpt-5.4-mini 0.75 4.5 0.075 0.75",
+            "moonshotai/kimi-k3 0.73 10.0 0.55 0.73",
+            "deepseek/deepseek-v4.1-flash 0.0441 0.63 0.0054 0.0441",
+            "qwen/qwen3.8-flash 0.15 0.47 0.016 0.15",
+        ),
+    ),
 ]
 
 # The telemetry pipeline's settings are declared beside this module to keep each file readable.

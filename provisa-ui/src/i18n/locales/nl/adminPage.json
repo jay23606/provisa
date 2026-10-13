@@ -118,6 +118,7 @@
         "file_not_found": "Dat bestand is niet gevonden op de server.",
         "invalid_tls_pair": "Certificaat en privésleutel moeten samen worden ingesteld ({{other}}).",
         "redis_tls_required": "Redis moet TLS gebruiken zolang TLS vereist is.",
+        "price_entry_invalid": "Elke regel is een model-id en vier prijzen per miljoen tokens: invoer, uitvoer, cache-lezen, cache-schrijven ({{entry}}).",
         "retry_max_below_interval": "De langste wachttijd mag niet kleiner zijn dan het herhalingsinterval ({{other}}).",
         "cannot_decrypt": "Een opgeslagen waarde kon niet worden ontsleuteld met de huidige sleutel."
       },

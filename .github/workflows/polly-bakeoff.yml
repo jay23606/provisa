@@ -1,0 +1,115 @@
+name: Polly bake-off
+
+# REQ-2012: what a free-form Polly question costs, per model, on the weblogs demo. Asks paid models
+# real questions, so it runs only when dispatched. tests/integration/test_polly_bakeoff_e2e.py
+# brings the demo up on an isolated instance, asks each model the same ten questions with known
+# answers, and reports accuracy, cost per question (median, p90), questions per $0.25 and
+# latency. The report is the job's artifact.
+
+on:
+  workflow_dispatch:
+    inputs:
+      models:
+        description: "Models to compare, comma-separated, as the gateway names them"
+        required: true
+        default: "anthropic/claude-haiku-5.5,google/gemini-3.8-flash,openai/gpt-5.4-mini,moonshotai/kimi-k3,deepseek/deepseek-v4.1-flash,qwen/qwen3.8-flash"
+      via:
+        description: "Gateway: openrouter (OPENROUTER_API_KEY) or anthropic (ANTHROPIC_API_KEY)"
+        required: true
+        default: "openrouter"
+        type: choice
+        options: [openrouter, anthropic]
+      ref:
+        description: "Commit or branch to run (default: the dispatched one)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  bakeoff:
+    name: polly bake-off (${{ inputs.via }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      POLLY_BAKEOFF_MODELS: ${{ inputs.models }}
+      POLLY_BAKEOFF_VIA: ${{ inputs.via }}
+      POLLY_BAKEOFF_REPORT: results/polly-bakeoff/report.json
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - name: Set up Python
+        uses: ./.github/actions/setup-python
+        with:
+          cache: "true"
+          client: "true"
+
+      - name: Restore Trino plugins
+        id: trino-plugins
+        uses: ./.github/actions/trino-plugins
+        with:
+          phase: restore
+
+      # A missing key fails the run by name rather than surfacing as a skipped test.
+      - name: Credentials present
+        run: |
+          key=OPENROUTER_API_KEY
+          [ "$POLLY_BAKEOFF_VIA" = "anthropic" ] && key=ANTHROPIC_API_KEY
+          if [ -z "${!key}" ]; then
+            echo "::error::polly bake-off cannot run; repo secret not set: $key"
+            exit 1
+          fi
+
+      - name: Stack slots on this runner
+        run: bash scripts/ci/lanes/suite-prepare.sh
+
+      - name: Run the bake-off
+        run: |
+          mkdir -p results/polly-bakeoff
+          uv run python scripts/ci/run_lane.py polly_bakeoff \
+            --junitxml results/polly-bakeoff/junit.xml
+
+      - name: Cache Trino plugins
+        if: always()
+        uses: ./.github/actions/trino-plugins
+        with:
+          phase: save
+          cache-hit: ${{ steps.trino-plugins.outputs.cache-hit }}
+
+      - name: Report
+        if: always()
+        run: |
+          if [ -f "$POLLY_BAKEOFF_REPORT" ]; then
+            python3 - <<'PY'
+          import json, os
+          report = json.load(open(os.environ["POLLY_BAKEOFF_REPORT"]))
+          lines = [
+              f"### Polly bake-off via {report['via']}, {report['questions']} questions, "
+              f"budget ${report['budget_usd']}",
+              "",
+              "| model | right | errors | median $ | p90 $ | questions / $0.25 (median, p90) "
+              "| 5 at p90 $ | latency s | cached input |",
+              "|---|---|---|---|---|---|---|---|---|",
+          ]
+          for m in report["models"]:
+              lines.append(
+                  f"| {m['model']} | {m['accuracy']} | {m['errors']} | {m['median_cost_usd']} "
+                  f"| {m['p90_cost_usd']} | {m['questions_per_budget_at_median']}, "
+                  f"{m['questions_per_budget_at_p90']} | {m['five_questions_at_p90_usd']} "
+                  f"| {m['median_latency_s']} | {m['cached_input_share']} |"
+              )
+          open(os.environ["GITHUB_STEP_SUMMARY"], "a").write("\n".join(lines) + "\n")
+          PY
+          fi
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: polly-bakeoff
+          path: results/
+          if-no-files-found: error

@@ -41,7 +41,7 @@ import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
-from provisa.api.mcp import model_tool_specs
+from provisa.api.mcp import model_tool_specs, polly_usage
 from provisa.api.mcp import tools as mcp_tools
 from provisa.api.mcp.sql_quoting import quote_identifiers
 
@@ -1184,6 +1184,44 @@ def _split_tool_calls(calls: list[dict]) -> tuple[list[dict], list[dict]]:
     return client_calls, server_calls
 
 
+_EPHEMERAL = {"type": "ephemeral"}
+
+
+def _cached_tools() -> list[Any]:
+    """REQ-2012: the tool definitions, Anthropic's hosted tools first, with a prompt-cache
+    breakpoint on the last. The definitions are the same on every call, so every call after the
+    first reads them from the cache instead of paying for them again."""
+    tools = [*_WEB_TOOLS, *_TOOLS, *_CLIENT_TOOLS]
+    return [*tools[:-1], {**tools[-1], "cache_control": _EPHEMERAL}]
+
+
+def _cached_system(system: str) -> list[Any]:
+    """REQ-2012: the system prompt as one cached block, read from the cache after the first call."""
+    return [{"type": "text", "text": system, "cache_control": _EPHEMERAL}]
+
+
+def _with_cache_breakpoint(convo: list[Any]) -> list[Any]:
+    """REQ-2012: ``convo`` with a prompt-cache breakpoint on its last block, so a tool round trip
+    (and the next turn) reads everything before it from the cache. A copy: ``convo`` itself, which
+    goes back to the browser, is left as it is."""
+    if not convo:
+        return convo
+    last = convo[-1]
+    role = last["role"] if isinstance(last, dict) else last.role
+    content = last["content"] if isinstance(last, dict) else last.content
+    if isinstance(content, str):
+        blocks: list[Any] = [{"type": "text", "text": content}]
+    else:
+        blocks = [
+            b if isinstance(b, dict) else b.model_dump(exclude=getattr(b, "__api_exclude__", None))
+            for b in content
+        ]
+    if not blocks:
+        return convo
+    blocks = [*blocks[:-1], {**blocks[-1], "cache_control": _EPHEMERAL}]
+    return [*convo[:-1], {"role": role, "content": blocks}]
+
+
 async def _run_chat_anthropic(
     state: Any,
     role: str,
@@ -1206,6 +1244,8 @@ async def _run_chat_anthropic(
     # `convo` — otherwise the model resumes having "forgotten" every tool call it made earlier
     # in this same turn and repeats them, forever, each time it reaches the client tool again.
     prior_messages: list[Any] = []
+    # REQ-2012: the turn's token usage, summed over every call, tool round trips included.
+    usage = polly_usage.Usage()
 
     for _ in range(max_iterations):
         # REQ-1838: adaptive thinking's budget shares the max_tokens cap — 8192 let a heavily-
@@ -1222,10 +1262,10 @@ async def _run_chat_anthropic(
         async with client.messages.stream(
             model=model,
             max_tokens=32000,
-            system=system,
-            tools=_TOOLS + _CLIENT_TOOLS + _WEB_TOOLS,
+            system=_cached_system(system),
+            tools=_cached_tools(),
             thinking={"type": "adaptive"},
-            messages=convo,
+            messages=_with_cache_breakpoint(convo),
         ) as stream:
             # REQ-1839: yield text AND hosted-tool badges in true chronological order by walking
             # the raw event stream, not just `.text_stream` in isolation — a response with a
@@ -1282,6 +1322,7 @@ async def _run_chat_anthropic(
                     "response instead of losing this round's content"
                 )
             resp = await stream.get_final_message()
+            usage = usage + polly_usage.from_anthropic(resp.usage)
             if live_walk_failed:
                 # Recover whatever text the live walk didn't get to send — the full generation
                 # already completed regardless of this loop's own bug, so it's still available via
@@ -1379,6 +1420,7 @@ async def _run_chat_anthropic(
                 # this round's own assistant_content/server_tool_results.
                 "prior_messages": prior_messages,
             }
+            yield polly_usage.usage_event(model, usage)
             yield {"type": "done"}
             return
 
@@ -1398,6 +1440,7 @@ async def _run_chat_anthropic(
         )
         prior_messages.append({"role": "user", "content": tool_results})
 
+    yield polly_usage.usage_event(model, usage)
     yield {"type": "done"}
 
 
@@ -1517,16 +1560,36 @@ async def _run_chat_aisuite(
     provider_key, model_name = model_id.split(":", 1)
     provider = ProviderFactory.create_provider(provider_key, provider_configs.get(provider_key, {}))
     openai_tools = [_to_openai_tool(t) for t in _TOOLS + _CLIENT_TOOLS]
-    system_message = {"role": "system", "content": _system_prompt(current_route)}
+    system_text = _system_prompt(current_route)
+    # REQ-2012: an Anthropic model behind an OpenAI-wire gateway (OpenRouter) caches only where a
+    # block says so; a breakpoint on the system prompt caches it and the tool definitions ahead of
+    # it. Other vendors cache a repeated prefix by themselves.
+    system_message = {
+        "role": "system",
+        "content": (
+            _cached_system(system_text) if model_name.startswith("anthropic/") else system_text
+        ),
+    }
+    base_url = str((provider_configs.get(provider_key) or {}).get("base_url") or "")
+    # REQ-2012: OpenRouter reports what it billed for a call when asked to.
+    extra: dict[str, Any] = (
+        {"extra_body": {"usage": {"include": True}}} if "openrouter.ai" in base_url else {}
+    )
     prior_messages: list[Any] = []  # REQ-1850, same reasoning as the Anthropic loop above
+    usage = polly_usage.Usage()
+    billed: float | None = None
 
     for _ in range(max_iterations):
         oa_messages = [system_message, *_wire_convo_to_openai_messages(convo)]
         # aisuite providers are synchronous (no async client) — off the event loop, same reasoning
         # as every other sync-SDK call in this codebase (e.g. provisa/llm/client.py).
         resp = await asyncio.to_thread(
-            provider.chat_completions_create, model_name, oa_messages, tools=openai_tools
+            provider.chat_completions_create, model_name, oa_messages, tools=openai_tools, **extra
         )
+        usage = usage + polly_usage.from_openai(resp.usage)
+        call_cost = getattr(resp.usage, "cost", None)
+        if call_cost is not None:
+            billed = (billed or 0.0) + float(call_cost)
         message = resp.choices[0].message
         if message.content:
             yield {"type": "text", "text": message.content}
@@ -1582,6 +1645,7 @@ async def _run_chat_aisuite(
                 "pending": prepared_calls,
                 "prior_messages": prior_messages,
             }
+            yield polly_usage.usage_event(model_name, usage, billed)
             yield {"type": "done"}
             return
 
@@ -1590,6 +1654,7 @@ async def _run_chat_aisuite(
         prior_messages.append({"role": "assistant", "content": wire_blocks})
         prior_messages.append({"role": "user", "content": tool_results})
 
+    yield polly_usage.usage_event(model_name, usage, billed)
     yield {"type": "done"}
 
 

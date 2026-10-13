@@ -65,6 +65,27 @@ class _FakeStream:
         return self._response
 
 
+def _with_usage(response):
+    """A response as the SDK returns it: every one reports its token usage (REQ-2012)."""
+    if not hasattr(response, "usage"):
+        response.usage = SimpleNamespace(
+            input_tokens=10,
+            output_tokens=5,
+            cache_read_input_tokens=0,
+            cache_creation_input_tokens=0,
+        )
+    return response
+
+
+def _with_openai_usage(response):
+    """An OpenAI-shaped response as aisuite returns it, with its token usage (REQ-2012)."""
+    if not hasattr(response, "usage"):
+        response.usage = SimpleNamespace(
+            prompt_tokens=10, completion_tokens=5, prompt_tokens_details=None
+        )
+    return response
+
+
 class _FakeMessages:
     def __init__(self, responses):
         self._responses = list(responses)
@@ -76,7 +97,7 @@ class _FakeMessages:
 
     def stream(self, **kwargs):
         self.calls.append(kwargs)
-        return _FakeStream(self._responses.pop(0))
+        return _FakeStream(_with_usage(self._responses.pop(0)))
 
 
 class _FakeClient:
@@ -110,7 +131,7 @@ class _FakeAisuiteProvider:
 
     def chat_completions_create(self, model_name, messages, **kwargs):
         self.calls.append({"model": model_name, "messages": messages, **kwargs})
-        return self._responses.pop(0)
+        return _with_openai_usage(self._responses.pop(0))
 
 
 def _install_fake_aisuite(monkeypatch, responses):
@@ -185,7 +206,7 @@ class TestChatLoop:
             )
         ]
         types = [e["type"] for e in events]
-        assert types == ["tool_use", "tool_result", "text", "done"]
+        assert types == ["tool_use", "tool_result", "text", "usage", "done"]
         assert events[0]["name"] == "search_catalog"
         assert events[1]["is_error"] is False
         assert "email column" in events[2]["text"]
@@ -257,7 +278,7 @@ class TestChatLoop:
             )
         ]
         types = [e["type"] for e in events]
-        assert types == ["tool_use", "tool_result", "text", "done"]
+        assert types == ["tool_use", "tool_result", "text", "usage", "done"]
         assert events[1]["is_error"] is False
         # Ran under the pinned role, with the model's proposed source/reason passed through.
         assert seen["role"] == "analyst"
@@ -280,7 +301,7 @@ class TestChatLoop:
             )
         ]
         types = [e["type"] for e in events]
-        assert types == ["tool_use", "awaiting_client_tools", "done"]
+        assert types == ["tool_use", "awaiting_client_tools", "usage", "done"]
         assert events[0]["client"] is True
         pending = events[1]["pending"]
         assert pending == [{"id": "c1", "name": "navigate", "input": {"route": "/sources"}}]
@@ -346,7 +367,14 @@ class TestChatLoop:
         ]
         types = [e["type"] for e in events]
         # The server tool ran and reported its result BEFORE the pause.
-        assert types == ["tool_use", "tool_result", "tool_use", "awaiting_client_tools", "done"]
+        assert types == [
+            "tool_use",
+            "tool_result",
+            "tool_use",
+            "awaiting_client_tools",
+            "usage",
+            "done",
+        ]
         awaiting = next(e for e in events if e["type"] == "awaiting_client_tools")
         assert len(awaiting["server_tool_results"]) == 1
         assert awaiting["server_tool_results"][0]["tool_use_id"] == "s1"
@@ -631,7 +659,7 @@ class TestWebTools:  # REQ-1796
             )
         ]
         types = [e["type"] for e in events]
-        assert types == ["tool_use", "tool_result", "text", "done"]
+        assert types == ["tool_use", "tool_result", "text", "usage", "done"]
         assert events[0]["name"] == "web_search"
         assert events[1]["name"] == "web_search"
         assert events[1]["is_error"] is False
@@ -679,7 +707,7 @@ class TestSubscriptionSources:  # REQ-1798
             )
         ]
         types = [e["type"] for e in events]
-        assert types == ["tool_use", "tool_result", "text", "done"]
+        assert types == ["tool_use", "tool_result", "text", "usage", "done"]
         assert events[1]["is_error"] is False
         assert seen == {"role": "analyst", "query": "inflation"}
 
@@ -718,7 +746,7 @@ class TestSubscriptionSources:  # REQ-1798
             )
         ]
         types = [e["type"] for e in events]
-        assert types == ["tool_use", "tool_result", "text", "done"]
+        assert types == ["tool_use", "tool_result", "text", "usage", "done"]
         assert events[1]["is_error"] is False
         assert seen == {"role": "analyst", "query": "inflation"}
 
@@ -761,7 +789,7 @@ class TestDirectCreate:  # REQ-1799
                 request=sentinel_request,
             )
         ]
-        assert [e["type"] for e in events] == ["tool_use", "tool_result", "text", "done"]
+        assert [e["type"] for e in events] == ["tool_use", "tool_result", "text", "usage", "done"]
         assert seen["request"] is sentinel_request
 
     async def test_create_source_now_dispatches_with_the_request(self, monkeypatch):
@@ -799,7 +827,7 @@ class TestDirectCreate:  # REQ-1799
                 request=sentinel_request,
             )
         ]
-        assert [e["type"] for e in events] == ["tool_use", "tool_result", "text", "done"]
+        assert [e["type"] for e in events] == ["tool_use", "tool_result", "text", "usage", "done"]
         assert events[1]["is_error"] is False
         assert seen["request"] is sentinel_request
         assert seen["role"] == "analyst"
@@ -895,7 +923,7 @@ class TestCurrentRoute:  # REQ-1800
             pass
 
         system = holder["client"].messages.calls[0]["system"]
-        assert "/admin/sources" in system
+        assert "/admin/sources" in system[0]["text"]
 
 
 class TestModelResolution:
