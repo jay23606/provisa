@@ -11844,7 +11844,7 @@ HTTP-addressable local materialization. Extend the existing local_dir file:// ma
 
 **Code:** `provisa/executor/local_results.py`, `provisa/api/data/redirect_file.py`, `provisa/executor/redirect.py`
 
-**Tests:** —
+**Tests:** `tests/unit/test_local_result_sink.py`, `tests/integration/test_local_result_sink_e2e.py`
 
 ### REQ-1192 · Large Result Redirect & CTAS {#REQ-1192}
 
@@ -11856,7 +11856,7 @@ Per-username access scoping on served redirect files. Only the user who owns (cr
 
 **Code:** `provisa/executor/local_results.py`, `provisa/api/data/redirect_file.py`
 
-**Tests:** —
+**Tests:** `tests/unit/test_local_result_sink.py`, `tests/integration/test_local_result_sink_e2e.py`
 
 ### REQ-1193 · Large Result Redirect & CTAS {#REQ-1193}
 
@@ -11868,7 +11868,7 @@ Age-based reaping of local redirect files. Locally-materialized files are reaped
 
 **Code:** `provisa/executor/local_results.py`
 
-**Tests:** —
+**Tests:** `tests/unit/test_local_result_sink.py`
 
 ### REQ-1194 · Large Result Redirect & CTAS {#REQ-1194}
 
@@ -23075,6 +23075,18 @@ The documentation has a sizing guide for a customer, and the steps to run the si
 **Use case:** An operator sizes a deployment for their own workload from measurements of that deployment, not from a generic table.
 
 **Code:** —
+
+**Tests:** —
+
+### REQ-2006 · Demo Provisioning {#REQ-2006}
+
+**Status:** ⚙ in-progress · **Priority:** SHOULD · **Type:** behavioral
+
+provisa.dev has a live demos page with one card for each published named demo: its title, description and screenshot, and an "Open live demo" button. The button opens a cloud.provisa.dev sandbox of that demo that needs no signup, with the demo's example queries and the product tour. A named demo says whether it is published, and what its card shows, in demo/named/<name>/demo.yaml (title, description, screenshot, published: true or false); the site build generates the page from those files, as it generates the source picker, and CI fails when the page is out of step with them. Every published demo is lightweight, and its data is seeded ahead of time: never at a visitor's request, and never by a live traffic generator. Opening the page warms the cloud coordinator in the background through the front door's wake-on-hit, so that a visitor's click rarely meets the waking page.
+
+**Use case:** A visitor to provisa.dev picks a scenario close to their own (a web shop's logs, say) and is querying it in Provisa a few seconds later, without an account.
+
+**Code:** `scripts/gen-site-demos.mjs`, `site/demos.html`
 
 **Tests:** —
 

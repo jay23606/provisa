@@ -37221,6 +37221,9 @@
   - provisa/executor/local_results.py
   - provisa/api/data/redirect_file.py
   - provisa/executor/redirect.py
+  tests:
+  - tests/unit/test_local_result_sink.py
+  - tests/integration/test_local_result_sink_e2e.py
   target: 2026-Q3
   scenario: 'Given redirect is on and no object store is configured
 
@@ -37249,6 +37252,9 @@
   code:
   - provisa/executor/local_results.py
   - provisa/api/data/redirect_file.py
+  tests:
+  - tests/unit/test_local_result_sink.py
+  - tests/integration/test_local_result_sink_e2e.py
   target: 2026-Q3
   scenario: 'Given a redirect file materialized by user A
 
@@ -37272,6 +37278,8 @@
     on long-running embedded or on-premise deployments.
   code:
   - provisa/executor/local_results.py
+  tests:
+  - tests/unit/test_local_result_sink.py
   target: 2026-Q3
   scenario: 'Given a locally-materialized redirect file created at time T
 
@@ -37340,6 +37348,10 @@
   - provisa/federation/pg_backend.py
   - provisa/federation/pg_runtime.py
   - provisa/federation/result_sink.py
+  tests:
+  - tests/unit/test_materialize_route.py
+  - tests/unit/test_local_result_sink.py
+  - tests/integration/test_local_result_sink_e2e.py
   target: 2026-Q3
   scenario: 'Given PROVISA_REDIRECT_ENDPOINT is configured
 
