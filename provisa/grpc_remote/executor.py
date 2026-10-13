@@ -95,13 +95,15 @@ def _build_request(pb2, input_message_name: str, args: dict):
 
 def open_channel(server_address: str, tls: bool) -> grpc.aio.Channel:
     """Open a gRPC channel to a remote service, secure or insecure."""
-    from provisa.security.sandbox_egress import require_allowed_address
+    from provisa.security.sandbox_egress import pinned_address
 
-    require_allowed_address(server_address)  # REQ-2006
+    # REQ-2006: a sandbox org's channel dials the address its check resolved, its name kept for TLS.
+    target, name = pinned_address(server_address)
     if tls:
         credentials = grpc.ssl_channel_credentials()
-        return grpc.aio.secure_channel(server_address, credentials)
-    return grpc.aio.insecure_channel(server_address)
+        options = [("grpc.ssl_target_name_override", name)] if target != server_address else []
+        return grpc.aio.secure_channel(target, credentials, options=options)
+    return grpc.aio.insecure_channel(target)
 
 
 def channel_for(reg: dict) -> grpc.aio.Channel:  # REQ-327, REQ-1882

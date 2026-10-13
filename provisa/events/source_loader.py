@@ -25,6 +25,8 @@ lands nothing for that node and logs; it never fabricates an empty snapshot).
 
 from __future__ import annotations
 
+from provisa.security.sandbox_egress import pinned_source
+
 import asyncio
 from collections.abc import AsyncIterator, Callable
 from contextlib import aclosing
@@ -194,6 +196,9 @@ class SourceRowLoader:
         self._keyed_arrow_loaders = keyed_arrow_loaders or {}
 
     async def load(self, source: Any, table: Any) -> list[dict]:
+        # REQ-2006: a sandbox org's source is read at the address its check resolved, by every
+        # reader below (an adapter's own client, a scratch attach, the engine).
+        source = pinned_source(source)
         # REQ-861: a file source may carry a producer command that refreshes the file IN PLACE.
         # The loader is invoked only after the REQ-860 gate reports stale (plan.prep is built from
         # sources needing a residency refresh), so this IS the on-stale point — run the producer
@@ -233,6 +238,9 @@ class SourceRowLoader:
 
         A type with no engine-scannable table and no adapter raises
         :class:`UnsupportedSourceFetch`."""
+        # REQ-2006: a sandbox org's source is read at the address its check resolved, by every
+        # reader below (an adapter's own client, a scratch attach, the engine).
+        source = pinned_source(source)
         import sqlglot.expressions as exp
 
         from provisa.compiler.naming import source_to_catalog
@@ -307,6 +315,9 @@ class SourceRowLoader:
         own keyed loader takes no predicate, and its rows are judged after the fetch instead
         (``region_rows.admit_rows``, the guard every fetch passes through either way).
         """
+        # REQ-2006: a sandbox org's source is read at the address its check resolved, by every
+        # reader below (an adapter's own client, a scratch attach, the engine).
+        source = pinned_source(source)
         if not keys:
             return []
         stype = _source_type(source)
@@ -347,6 +358,9 @@ class SourceRowLoader:
         """``load_keys`` as a ``pyarrow.Table``. A type with a registered ``keyed_arrow_loaders``
         entry fetches columnar end to end (REQ-1865: millions of keyed rows never become Python
         objects); every other type is ``load_keys``'s rows, converted."""
+        # REQ-2006: a sandbox org's source is read at the address its check resolved, by every
+        # reader below (an adapter's own client, a scratch attach, the engine).
+        source = pinned_source(source)
         import pyarrow as pa
 
         arrow_loader = self._keyed_arrow_loaders.get(_source_type(source))

@@ -460,9 +460,9 @@ def _fetch_oauth2_token(oauth) -> str:  # REQ-320
     if oauth.scope:
         data["scope"] = oauth.scope
 
-    # REQ-2006: the token endpoint is the source's to name; a sandbox org's must be public.
-    sandbox_egress.require_allowed_url(oauth.token_url)
-    resp = _httpx.post(oauth.token_url, data=data, timeout=10)
+    # REQ-2006: the token endpoint is the source's to name; a sandbox org's is checked and pinned.
+    with _httpx.Client(timeout=10, event_hooks=sandbox_egress.http_sync_event_hooks()) as client:
+        resp = client.post(oauth.token_url, data=data)
     resp.raise_for_status()
     body = resp.json()
     token = body["access_token"]
@@ -693,8 +693,8 @@ async def _call_grpc(  # REQ-322, REQ-325
     import grpc
     from google.protobuf import json_format, descriptor_pool, descriptor_pb2
 
-    sandbox_egress.require_allowed_address(host_port)  # REQ-2006
-    channel = grpc.insecure_channel(host_port)
+    target, _name = sandbox_egress.pinned_address(host_port)  # REQ-2006
+    channel = grpc.insecure_channel(target)
     # gRPC dynamic invocation requires proto descriptors at runtime.
     # This is a simplified implementation; production would use grpc_reflection.
     path_parts = endpoint.path.strip("/").split("/")

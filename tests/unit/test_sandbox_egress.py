@@ -116,10 +116,11 @@ def test_a_redirect_to_a_private_address_is_refused_before_it_is_sent(in_sandbox
     assert sent == ["http://8.8.8.8/start"]
 
 
-def test_a_grpc_target_is_checked(in_sandbox):
+def test_a_grpc_target_is_checked_and_pinned(in_sandbox, monkeypatch):
     with pytest.raises(egress.PrivateDestinationRefused):
-        egress.require_allowed_address("10.0.0.2:50051")
-    egress.require_allowed_address("8.8.8.8:443")
+        egress.pinned_address("10.0.0.2:50051")
+    monkeypatch.setattr(egress, "resolve", lambda host, port=None: ["93.184.216.34"])
+    assert egress.pinned_address("rpc.example.com:443") == ("93.184.216.34:443", "rpc.example.com")
 
 
 def test_the_direct_pool_refuses_before_it_connects(in_sandbox):
@@ -127,3 +128,156 @@ def test_the_direct_pool_refuses_before_it_connects(in_sandbox):
 
     with pytest.raises(egress.PrivateDestinationRefused):
         asyncio.run(SourcePool().add("probe", "postgresql", "127.0.0.1", 5432, "x", "u", "p"))
+
+
+# --- pinning: the address checked is the address connected to ----------------------------------
+
+_PUBLIC = "93.184.216.34"
+
+
+@pytest.fixture
+def public_names(monkeypatch):
+    """Names resolve to one public address, except ``rebind.example.com``: loopback."""
+
+    def resolve(host, port=None):
+        if host in ("rebind.example.com",):
+            return ["127.0.0.1"]
+        try:
+            import ipaddress
+
+            return [str(ipaddress.ip_address(host))]
+        except ValueError:
+            return [_PUBLIC]
+
+    monkeypatch.setattr(egress, "resolve", resolve)
+
+
+def _source(source_type: str, port: int, **extra):
+    from provisa.core.models import Source
+
+    return Source(
+        id="probe",
+        type=source_type,
+        host="db.example.com",
+        port=port,
+        database="d",
+        username="u",
+        password="x",
+        **extra,
+    )
+
+
+@pytest.mark.parametrize(
+    ("source_type", "port", "extra", "pinned"),
+    [
+        ("postgresql", 5432, {}, f"host={_PUBLIC} port=5432"),
+        ("sqlserver", 1433, {}, f"Server={_PUBLIC},1433"),
+        ("firebird", 3050, {"path": "db.fdb"}, f"@{_PUBLIC}:3050/db.fdb"),
+    ],
+)
+def test_each_pinnable_duckdb_connector_attaches_the_checked_address(
+    in_sandbox, public_names, source_type, port, extra, pinned
+):
+    from provisa.federation.engine import build_engine
+
+    attach = build_engine("duckdb").resolve(_source(source_type, port, **extra)).details["attach"]
+    assert pinned in attach and "db.example.com" not in attach
+
+
+def test_an_ordinary_orgs_source_is_attached_by_its_name(public_names):
+    from provisa.federation.engine import build_engine
+
+    attach = build_engine("duckdb").resolve(_source("postgresql", 5432)).details["attach"]
+    assert "host=db.example.com" in attach
+
+
+def test_the_demos_own_source_is_attached_by_its_name(in_sandbox, public_names):
+    from provisa.core.models import Source
+    from provisa.federation.engine import build_engine
+
+    demo = Source(id="shop", type="postgresql", host="weblogs-db", port=5432, database="shop")
+    assert "host=weblogs-db" in build_engine("duckdb").resolve(demo).details["attach"]
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"type": "csv", "path": "https://data.example.com/x.csv"},
+        {"type": "clickhouse", "host": "ch.example.com", "port": 8123},
+        {"type": "mongodb", "host": "mongodb://db.example.com:27017/?x=1"},
+        {"type": "salesforce", "host": "acme.my.salesforce.com", "port": 443},
+    ],
+)
+def test_a_destination_that_cannot_be_pinned_is_refused_by_name(in_sandbox, public_names, fields):
+    source_type = fields.pop("type")
+    with pytest.raises((egress.UnpinnableDestinationRefused, egress.PrivateDestinationRefused)):
+        egress.require_connectable(fields, source_type)
+
+
+def test_an_http_request_and_each_redirect_go_to_the_checked_address(in_sandbox, public_names):
+    seen: list[tuple[str, str, str | None]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(
+            (request.url.host, request.headers["host"], request.extensions.get("sni_hostname"))
+        )
+        if request.url.path == "/start":
+            return httpx.Response(302, headers={"location": "http://next.example.com/end"})
+        return httpx.Response(200)
+
+    async def fetch() -> None:
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(handler),
+            follow_redirects=True,
+            event_hooks=egress.http_event_hooks(),
+        ) as client:
+            await client.get("http://api.example.com/start")
+
+    asyncio.run(fetch())
+    assert seen == [
+        (_PUBLIC, "api.example.com", "api.example.com"),
+        (_PUBLIC, "next.example.com", "next.example.com"),
+    ]
+
+
+def test_a_redirect_to_a_name_that_now_resolves_privately_is_refused(in_sandbox, public_names):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(302, headers={"location": "http://rebind.example.com/"})
+
+    async def fetch() -> None:
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(handler),
+            follow_redirects=True,
+            event_hooks=egress.http_event_hooks(),
+        ) as client:
+            await client.get("http://api.example.com/")
+
+    with pytest.raises(egress.PrivateDestinationRefused):
+        asyncio.run(fetch())
+
+
+def test_the_direct_pool_connects_to_the_checked_address(in_sandbox, public_names, monkeypatch):
+    from provisa.executor import pool as pool_mod
+
+    dialled: list[str] = []
+
+    class _Driver:
+        def bind_source(self, _sid):
+            pass
+
+        def configure(self, _extra):
+            pass
+
+        async def connect(self, host, *_args):
+            dialled.append(host)
+
+    monkeypatch.setattr(pool_mod, "create_driver", lambda *_a, **_k: _Driver())
+
+    async def _no_vector(*_a):
+        return None
+
+    monkeypatch.setattr("provisa.vector.capability.detect_vector_capability", _no_vector)
+    asyncio.run(
+        pool_mod.SourcePool().add("probe", "postgresql", "db.example.com", 5432, "d", "u", "p")
+    )
+    assert dialled == [_PUBLIC]

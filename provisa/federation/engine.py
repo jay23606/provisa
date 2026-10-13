@@ -509,11 +509,12 @@ class FederationEngine:  # REQ-840
 
     def resolve(self, source: Source) -> CatalogEntry:
         """Expose a source by its connector's mechanism, or reject it as unreachable."""
-        from provisa.security.sandbox_egress import require_registered_source_allowed
+        from provisa.security.sandbox_egress import pinned_source
 
         # REQ-2006: every engine attach of a source passes here, so a sandbox org's source is
-        # checked where the engine is about to connect to it.
-        require_registered_source_allowed(source)
+        # checked where the engine is about to connect to it, and connected to at the address the
+        # check resolved -- the engine never resolves its name again.
+        source = pinned_source(source)  # type: ignore[assignment]
         return self.connector_for_source(source).catalog_entry(source)
 
     def federate(self, source: Source, *, replicated: bool = False):

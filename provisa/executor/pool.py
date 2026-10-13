@@ -77,9 +77,10 @@ class SourcePool:  # REQ-052, REQ-053
             if host:
                 # REQ-2006: checked at the connection itself, whatever the row said when saved --
                 # the name may resolve elsewhere by now.
-                from provisa.security.sandbox_egress import require_allowed
+                from provisa.security.sandbox_egress import pin, require_allowed
 
                 require_allowed(host, connect_port)
+                host = pin(host, connect_port)  # connected to at the address checked
             await driver.connect(host, connect_port, database, user, password, min_size, max_size)
             from provisa.vector.capability import detect_vector_capability
 

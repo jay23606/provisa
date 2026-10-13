@@ -213,17 +213,16 @@ def source_fields(source: object) -> dict:
 
 def http_event_hooks(org_id: str | None = None) -> dict:
     """httpx event hooks that check each request a sandbox org's source makes -- every redirect
-    is a request of its own -- before it is sent. Empty for any other org."""
+    is a request of its own -- and send it to the address checked (:func:`_pin_request`). Empty
+    for any other org."""
     org = _org(org_id)
     if not confined(org):
         return {}
 
-    def _check(request: object) -> None:
-        url = request.url  # type: ignore[attr-defined]
-        require_allowed(url.host, url.port, org)
+    assert org is not None
 
     async def _acheck(request: object) -> None:
-        _check(request)
+        _pin_request(request, org)
 
     return {"request": [_acheck]}
 
@@ -234,9 +233,10 @@ def http_sync_event_hooks(org_id: str | None = None) -> dict:
     if not confined(org):
         return {}
 
+    assert org is not None
+
     def _check(request: object) -> None:
-        url = request.url  # type: ignore[attr-defined]
-        require_allowed(url.host, url.port, org)
+        _pin_request(request, org)
 
     return {"request": [_check]}
 
@@ -252,24 +252,107 @@ def checked_get(url: str, *, timeout: float) -> "httpx.Response":
         return client.get(url)
 
 
-def require_allowed_address(server_address: str) -> None:
-    """:func:`require_allowed` for a ``host:port`` address (a gRPC target)."""
+def pinned_address(server_address: str, org_id: str | None = None) -> tuple[str, str]:
+    """A ``host:port`` target (a gRPC channel's) as a sandbox org dials it: ``(target, name)``,
+    the target carrying the checked address and the name kept for TLS. Any other org's is
+    itself."""
     host, _, port = server_address.rpartition(":")
     if not host:
         host, port = server_address, ""
-    require_allowed(host.strip("[]"), int(port) if port.isdigit() else None)
+    name = host.strip("[]")
+    address = pin(name, int(port) if port.isdigit() else None, org_id)
+    if address == name:
+        return server_address, name
+    literal = f"[{address}]" if ":" in address else address
+    return (f"{literal}:{port}" if port else literal), name
 
 
-def require_allowed_url(url: str) -> None:
-    """:func:`require_allowed` for the host of ``url``."""
-    parts = urlsplit(url)
-    if parts.hostname:
-        require_allowed(parts.hostname, parts.port)
+# --- pinning: the address checked is the address connected to ----------------------------------
+#
+# A name checked and then resolved again by whoever connects could resolve elsewhere by then (DNS
+# rebinding). For a sandbox org, every connection is therefore made to the address the check
+# resolved: a source's host is replaced by that address before its connection is built, an HTTP
+# request is sent to that address with its own name kept for the Host header and for TLS (each
+# redirect hop the same), and a gRPC channel dials it with its name kept for TLS. A source whose
+# connection reads its address from somewhere that cannot be pinned -- a URL handed to the engine's
+# own readers, a service the engine reaches through a child process -- is refused, by name, unless
+# its demo declares the destination.
+
+#: Source types whose connection, on every engine, takes its network address from ``host`` alone.
+#: (ClickHouse is not one: the DuckDB engine reaches it over HTTP, whose redirects it follows
+#: itself.)
+PINNABLE_TYPES = frozenset({"postgresql", "mysql", "mariadb", "sqlserver", "oracle", "firebird"})
 
 
-def require_registered_source_allowed(source: object, org_id: str | None = None) -> None:
-    """:func:`require_source_allowed` for a registered source, read only for a sandbox org."""
+class UnpinnableDestinationRefused(PermissionError):
+    """A sandbox's source would be reached by a connection that resolves its own address."""
+
+    code = "sources.unpinnable_destination"
+
+    def __init__(self, source_type: str, host: str) -> None:
+        super().__init__(
+            f"A sandbox's {source_type} source cannot be held to the address it was checked "
+            f"at, so it may not reach {host!r}"
+        )
+        self.params = {"type": source_type, "host": host}
+
+
+def _declared(org: str, host: str, port: int | None) -> bool:
+    return (host.lower(), port) in _demo_destinations.get(org, frozenset())
+
+
+def pin(host: str, port: int | None, org_id: str | None = None) -> str:
+    """The address to connect to for ``host``: for a sandbox org, a checked address it resolves
+    to (its demo's own destinations are connected to by name); for any other org, ``host``."""
     org = _org(org_id)
     if not confined(org):
+        return host
+    assert org is not None
+    if _declared(org, host, port):
+        return host
+    return require_public_destination(host, port)[0]
+
+
+def require_connectable(fields: dict, source_type: str, org_id: str | None = None) -> str | None:
+    """Refuse, by name, a sandbox org's source that names a destination its demo does not declare
+    and that is not public, or one that cannot be held to the address it is checked at; the
+    checked address its host is to be connected at, when there is one to pin. None for any other
+    org's source, and for one whose destinations are all its demo's own."""
+    org = _org(org_id)
+    if not confined(org):
+        return None
+    assert org is not None
+    require_source_allowed(fields, org)
+    undeclared = [d for d in destinations(fields) if not _declared(org, *d)]
+    if not undeclared:
+        return None
+    host_only = destinations({"host": fields.get("host"), "port": fields.get("port")})
+    if source_type not in PINNABLE_TYPES or undeclared != host_only:
+        raise UnpinnableDestinationRefused(source_type, undeclared[0][0])
+    host, port = host_only[0]
+    return pin(host, port, org)
+
+
+def pinned_source(source: object, org_id: str | None = None) -> object:
+    """``source`` as a sandbox org connects to it: its host replaced by its checked address
+    (:func:`require_connectable`). Any other org's source is itself."""
+    org = _org(org_id)
+    if not confined(org):
+        return source
+    source_type = str(getattr(source.type, "value", source.type))  # type: ignore[attr-defined]
+    address = require_connectable(source_fields(source), source_type, org)
+    if address is None:
+        return source
+    return source.model_copy(update={"host": address})  # type: ignore[attr-defined]
+
+
+def _pin_request(request: object, org: str) -> None:
+    """Send ``request`` to its host's checked address, keeping the name for Host and TLS."""
+    url = request.url  # type: ignore[attr-defined]
+    host, port = url.host, url.port
+    address = pin(host, port, org)
+    if address == host:
         return
-    require_source_allowed(source_fields(source), org)
+    request.headers["Host"] = url.netloc.decode("ascii")  # type: ignore[attr-defined]
+    request.extensions["sni_hostname"] = host  # type: ignore[attr-defined]
+    request.url = url.copy_with(host=address)  # type: ignore[attr-defined]

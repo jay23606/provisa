@@ -533,7 +533,11 @@ def sandbox_destination_refusal(input: SourceInput) -> "MutationResult | None":
     declare and that is not public (provisa.security.sandbox_egress), or None."""
     import json
 
-    from provisa.security.sandbox_egress import PrivateDestinationRefused, require_source_allowed
+    from provisa.security.sandbox_egress import (
+        PrivateDestinationRefused,
+        UnpinnableDestinationRefused,
+        require_connectable,
+    )
 
     fields = {
         "host": input.host,
@@ -545,8 +549,8 @@ def sandbox_destination_refusal(input: SourceInput) -> "MutationResult | None":
         ),
     }
     try:
-        require_source_allowed(fields)
-    except PrivateDestinationRefused as refused:
+        require_connectable(fields, input.type)
+    except (PrivateDestinationRefused, UnpinnableDestinationRefused) as refused:
         return MutationResult(
             success=False,
             message=f"Source {input.id!r}: {refused}",
