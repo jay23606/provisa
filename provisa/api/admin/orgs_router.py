@@ -333,6 +333,17 @@ def _validate_new_org_id(org_id: str) -> None:  # REQ-1309
             org=org_id,
             reserved=", ".join(sorted(_RESERVED_ORG_IDS)),
         )
+    from provisa.api.sandbox_tier import SANDBOX_PREFIX, is_sandbox_tier_org
+
+    if is_sandbox_tier_org(org_id):
+        # REQ-2006: the prefix names the sandbox tier's orgs, which only that tier creates.
+        raise ApiError(
+            400,
+            "orgs.org_id_sandbox_prefix",
+            f"Org id {org_id!r} begins {SANDBOX_PREFIX!r}, which is reserved for demo sandboxes.",
+            org=org_id,
+            prefix=SANDBOX_PREFIX,
+        )
 
 
 class AddMemberBody(BaseModel):

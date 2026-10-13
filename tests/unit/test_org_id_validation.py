@@ -63,3 +63,11 @@ def test_rejects_reserved_ids(org_id):
 def test_cap_is_a_backstop_not_a_tier():
     # REQ-1311. Asserted so the number cannot drift into a product limit without a deliberate edit.
     assert _MAX_ORGS_PER_USER == 100
+
+
+@pytest.mark.parametrize("org_id", ["sbx", "sbx1a2b3c4d5e6f", "sbxtplweblogs", "sbxanything"])
+def test_rejects_the_sandbox_prefix(org_id):
+    """REQ-2006: an id beginning ``sbx`` names the sandbox tier's orgs, which only it creates."""
+    with pytest.raises(HTTPException) as exc:
+        _validate_new_org_id(org_id)
+    assert exc.value.status_code == 400

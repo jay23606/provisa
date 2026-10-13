@@ -1942,9 +1942,14 @@ async def _build_org_runtime(
     default org itself, startup builds the runtime directly through the shims; calling this again
     for the default org is a safe rebuild.
     """
+    from provisa.api.sandbox_tier import require_this_tier
     from provisa.api.startup_seed import _seed_built_in_sources, _resolve_pk_from_sources
     from provisa.core.config_loader import load_control_plane
     from provisa.core.region_stores import open_org_stores
+
+    # REQ-2006: a demo sandbox's runtime opens its DuckDB file, so it is built by the sandbox tier
+    # alone, and an ordinary org's never by the sandbox tier.
+    require_this_tier(org_id)
     from provisa.core.db import apply_tenancy_role_grants, init_schema
     from provisa.audit.query_log import init_audit_schema
 
@@ -2031,7 +2036,22 @@ async def _build_org_runtime(
         from provisa.core import org_files
 
         await org_files.prepare(org_id, state.admin_db, _stop_org_servers)
-        if external_engine is not None or engine_url is not None:
+        from provisa.api.sandbox_tier import is_sandbox_tier_org
+
+        if is_sandbox_tier_org(org_id):
+            # REQ-2006: every demo sandbox and demo template runs on an in-process DuckDB of its
+            # own, pinned to the file in its folder (REQ-1992), whatever engine the deployment's
+            # orgs run on: the isolated-org seam (native_backend._attach_registered) lets an org
+            # that owns its runtime run a native kind. This process is the only one that opens
+            # the file (sandbox_tier.require_this_tier, above).
+            from provisa.federation.engine import build_engine, embedded_store_dsn
+            from provisa.federation.runtime import EngineRuntime
+
+            rt.isolated_engine = True
+            rt.federation_engine = EngineRuntime(build_engine("duckdb"), state)
+            rt.federation_engine.engine.pin_materialize_store(embedded_store_dsn(org_id))
+            rt.federation_engine.bind_terminal()
+        elif external_engine is not None or engine_url is not None:
             # REQ-1412: the org runs its OWN coordinator. Same dedicated-EngineRuntime shape as an
             # isolated org — what changes is where the terminal points, which terminal_conn_kwargs
             # reads back off the runtime (state.active_engine_endpoint) instead of resolving the
