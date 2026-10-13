@@ -194,6 +194,14 @@ if [ -f "$SCRIPT_DIR/.env" ]; then
   . "$SCRIPT_DIR/.env"
   set +a
 fi
+# A demo runs native and starts no object store, so it names no result redirect: whatever .env
+# or the shell set for the development stack's (PROVISA_REDIRECT_*) is not set for a demo, and a
+# large result is returned inline.
+if [ "$DEMO" = true ]; then
+  for _redirect_var in $(compgen -e | grep '^PROVISA_REDIRECT_' || true); do
+    unset "$_redirect_var"
+  done
+fi
 
 export PROVISA_API_PORT="${PROVISA_API_PORT:-8001}"
 # REQ-1494: the platform fake key directory, written by this uvicorn and mounted into Trino.

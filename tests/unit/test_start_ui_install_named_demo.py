@@ -136,3 +136,36 @@ def test_perf_is_a_whole_config_with_its_own_and_the_standard_demos_sources() ->
     assert not (perf / "fragment.yaml").exists()
     ids = {src["id"] for src in yaml.safe_load((perf / "config.yaml").read_text())["sources"]}
     assert {"bench-postgresql", "bench-neo4j", "pet-store-sqlite"} <= ids
+
+
+def _env_after_dotenv(tmp_path: Path, demo: bool) -> dict[str, str]:
+    """Run only the step that loads .env (and what follows it before the first export) with a
+    .env that sets the development stack's result redirect; the environment it leaves."""
+    (tmp_path / ".env").write_text(
+        "PROVISA_REDIRECT_ENABLED=true\n"
+        "PROVISA_REDIRECT_ENDPOINT=http://localhost:9000\n"
+        "PROVISA_REDIRECT_FORMAT=csv\n"
+        "PROVISA_OTHER=kept\n"
+    )
+    start = TEXT.index("# Load .env if present")
+    end = TEXT.index('export PROVISA_API_PORT="${PROVISA_API_PORT:-8001}"')
+    program = (
+        "set -euo pipefail\n"
+        f"SCRIPT_DIR={tmp_path}\nDEMO={'true' if demo else 'false'}\n" + TEXT[start:end] + "\nenv\n"
+    )
+    done = subprocess.run(["bash", "-c", program], capture_output=True, text=True, check=True)
+    return dict(line.split("=", 1) for line in done.stdout.splitlines() if "=" in line)
+
+
+def test_a_demo_names_no_result_redirect_whatever_env_sets(tmp_path: Path) -> None:
+    """A demo starts no object store: a PROVISA_REDIRECT_* from .env would send a large result
+    to one that is not there (data.redirect_upload_failed). It is not set for a demo."""
+    env = _env_after_dotenv(tmp_path, demo=True)
+    assert not [k for k in env if k.startswith("PROVISA_REDIRECT_")]
+    assert env["PROVISA_OTHER"] == "kept"
+
+
+def test_the_development_stack_keeps_its_result_redirect(tmp_path: Path) -> None:
+    env = _env_after_dotenv(tmp_path, demo=False)
+    assert env["PROVISA_REDIRECT_ENABLED"] == "true"
+    assert env["PROVISA_REDIRECT_ENDPOINT"] == "http://localhost:9000"
