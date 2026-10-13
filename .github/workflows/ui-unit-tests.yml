@@ -42,6 +42,11 @@ jobs:
       - name: Unit tests
         run: npx vitest run
 
+      # REQ-2006: provisa.dev's live demos page is generated from demo/named/*/demo.yaml; a demo
+      # published, changed or withdrawn without regenerating the page fails here.
+      - name: Live demos page in step with its demos
+        run: node ../scripts/gen-site-demos.mjs --check
+
       # render_graph's renderer (REQ-1990): its own package, tested by node --test against its
       # built bundle -- each layout on each theme, as the MCP server runs it.
       - name: Graph renderer -- type check, build, test
