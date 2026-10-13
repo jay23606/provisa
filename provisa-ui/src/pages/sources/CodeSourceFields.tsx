@@ -73,7 +73,7 @@ export function CodeSourceFields({ type, fields, setFields }: Props) {
             />
           </FormField>
         )}
-        <FormField size="medium" hint={t("codeSourceFields.originHint")}>
+        <FormField size="medium" help={t("codeSourceFields.originHint")}>
           <Select
             label={t("codeSourceFields.origin")}
             data={[
@@ -113,7 +113,7 @@ export function CodeSourceFields({ type, fields, setFields }: Props) {
           </FormField>
           <FormField
             size="medium"
-            hint={t("codeSourceFields.lockfileHint", { names: LOCKFILES[type].join(", ") })}
+            help={t("codeSourceFields.lockfileHint", { names: LOCKFILES[type].join(", ") })}
           >
             <FileInput
               clearable
@@ -189,7 +189,7 @@ export function CodeSourceFields({ type, fields, setFields }: Props) {
 
       {python && (
         <FieldGroup>
-          <FormField size="medium" hint={t("codeSourceFields.entryHint")}>
+          <FormField size="medium" help={t("codeSourceFields.entryHint")}>
             <TextInput
               label={t("codeSourceFields.entry")}
               placeholder="rates"
