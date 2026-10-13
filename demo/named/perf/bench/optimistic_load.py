@@ -40,8 +40,8 @@ import resource
 import sys
 import threading
 import time
-from collections.abc import Iterator
-from dataclasses import dataclass
+from collections.abc import Iterator, Mapping
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -108,6 +108,11 @@ class Endpoints:
     # What the deployment's auth requires (credential.py; the secret is read from the environment
     # variable the contract names); None when the contract says credentials mode none.
     credential: credential_module.Credential | None
+    # The three-device benchmark: the backends device's host_agent ``/docker-stats`` URL (None:
+    # the containers are sampled on this host), and the containers there whose CPU each step
+    # reports beside the sources' (the engine, control plane, Redis, collector).
+    docker_stats_url: str | None = None
+    backend_containers: tuple[str, ...] = ()
 
 
 # --------------------------------------------------------------------------------------------
@@ -760,7 +765,7 @@ def run_step(
         return {"concurrency": concurrency, "error": failures[0]}
     server_cpu0 = _server_cpu_seconds(server_pid)
     monitored = {sid: s.container for sid, s in ep.setup.sources.items() if s.container}
-    sampler = measurements.DockerStatsSampler(monitored) if monitored else None
+    sampler = _sampler(ep, monitored) if monitored or ep.backend_containers else None
     if sampler is not None:
         sampler.start()
     go.set()
@@ -793,7 +798,19 @@ def run_step(
         step["server_cpu_ms_per_request"] = round((server_cpu1 - server_cpu0) / attempts * 1000, 3)
         step["server_cpu_cores"] = round((server_cpu1 - server_cpu0) / window_s, 2)
     if sampler is not None:
-        step.update(with_source_cpu(sampler.result(), summary, window_s, attempts))
+        sampled = sampler.result()
+        sources = measurements.SampleResult(
+            cores={k: v for k, v in sampled.cores.items() if k in monitored},
+            samples=sampled.samples,
+            error=sampled.error,
+        )
+        if monitored:
+            step.update(with_source_cpu(sources, summary, window_s, attempts))
+        if ep.backend_containers:
+            step["backend_cpu_cores"] = {
+                c: sampled.cores[_BACKEND + c] for c in ep.backend_containers
+            }
+            step["backend_cpu_error"] = sampled.error
     if ep.setup.load.mode == "open_loop":
         assert ep.setup.load.rate_per_s is not None
         step.update(
@@ -805,6 +822,20 @@ def run_step(
             )
         )
     return step
+
+
+_BACKEND = "container:"  # a backend container's key among the sampled ones, apart from sources
+
+
+def _sampler(ep: Endpoints, sources: Mapping[str, str]) -> measurements.DockerStatsSampler:
+    """One sampler for the sources' containers and the backend containers, read on this host or
+    from the backends device's agent."""
+    containers = {**sources, **{_BACKEND + c: c for c in ep.backend_containers}}
+    if ep.docker_stats_url is None:
+        return measurements.DockerStatsSampler(containers)
+    return measurements.DockerStatsSampler(
+        containers, run=measurements.remote_docker_stats(ep.docker_stats_url)
+    )
 
 
 def with_source_cpu(
@@ -861,6 +892,12 @@ def run_transport(
     except Exception as exc:  # noqa: BLE001 - an unreachable transport is reported, not fatal
         report["error"] = _brief(exc)
         return report
+    if ep.setup.load.warmup_s:
+        warm = run_step(transport, ep, max(steps), ep.setup.load.warmup_s, max_processes, None)
+        # discarded: only what shows the warm-up ran clean is kept
+        report["warmup"] = {
+            k: warm.get(k) for k in ("concurrency", "window_s", "req_per_s", "errors", "error")
+        }
     report["steps"] = []
     for c in steps:
         baseline = audit.baseline() if audit is not None else 0
@@ -966,7 +1003,7 @@ def run_all(
         )
     if ep.setup.load.idle_window_s:
         monitored = {sid: s.container for sid, s in ep.setup.sources.items() if s.container}
-        sampler = measurements.DockerStatsSampler(monitored)
+        sampler = _sampler(ep, monitored)
 
         def server_cpu() -> float:
             cpu = _server_cpu_seconds(server_pid)
@@ -979,6 +1016,9 @@ def run_all(
             sampler=sampler,
             sleep=lambda seconds: measurements.sample_during(sampler, seconds),
         )
+        idle["backend_cpu_cores"] = {
+            c: idle["source_cpu_cores"].pop(_BACKEND + c) for c in ep.backend_containers
+        }
         (output_dir / "idle.json").write_text(json.dumps(idle, indent=2))
         print(
             f"idle CPU over {idle['window_s']}s: server {idle['server_cpu_cores']} cores",
@@ -1047,6 +1087,26 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
         default=None,
         help="URL of server_cpu_agent.py running on the server's host (http://HOST:PORT/): reports "
         "server CPU per request when the load generator runs on another host.",
+    )
+    parser.add_argument(
+        "--source-cpu-url",
+        default=None,
+        help="The backends device's host_agent.py /docker-stats URL: the source containers' CPU "
+        "(and --backend-container's) are sampled there, not on this host.",
+    )
+    parser.add_argument(
+        "--backend-container",
+        action="append",
+        default=[],
+        help="A container whose CPU every step reports beside the sources' (the engine, control "
+        "plane, Redis, collector); repeatable.",
+    )
+    parser.add_argument(
+        "--device",
+        action="append",
+        default=[],
+        help="NAME=URL of a benchmark device's host_agent.py (server=..., backends=...); "
+        "repeatable. Each device's facts and round trips are written to devices.json.",
     )
 
 
@@ -1130,6 +1190,33 @@ def _refuse_contract_owned_flags(argv: list[str]) -> None:
             )
 
 
+def _device(value: str) -> tuple[str, str]:
+    name, sep, url = value.partition("=")
+    if not sep or not name or not url:
+        raise contract_model.SetupError(f"--device must be NAME=URL, got {value!r}")
+    return name, url.rstrip("/")
+
+
+def collect_devices(devices: Mapping[str, str], get: Any = None) -> dict[str, Any]:
+    """The facts of this host (the client) and of every device's agent, and the round trips: this
+    host to each device (TCP connects to its agent) and each device to its ``--rtt-target``s."""
+    import host_agent
+    import httpx
+
+    fetch = get or (lambda url: httpx.get(url, timeout=60).raise_for_status().json())
+    out: dict[str, Any] = {"client": host_agent.host_facts({}), "network": {}}
+    for name, url in devices.items():
+        facts = fetch(f"{url}/host")
+        out[name] = facts
+        parsed = httpx.URL(url)
+        if parsed.port is None:
+            raise contract_model.SetupError(f"--device {name}: the URL names no port")
+        out["network"][f"client->{name}"] = host_agent.tcp_rtt(parsed.host, parsed.port)
+        for target in facts["rtt_targets"]:
+            out["network"][f"{name}->{target}"] = fetch(f"{url}/rtt/{target}")
+    return out
+
+
 def server_cpu_source(args: argparse.Namespace) -> int | str | None:
     """Where the server's CPU is read: its pid on this host, or its agent's URL; None: neither
     was given, so server CPU is not measured."""
@@ -1158,7 +1245,14 @@ def run_from_args(
     ):
         print(f"replication WARNING (the audit log decides): {warning}", flush=True)
     processes = setup.load.processes or max(1, math.ceil((os.cpu_count() or 2) / 2))
-    ep = endpoints_from_setup(setup)
+    ep = replace(
+        endpoints_from_setup(setup),
+        docker_stats_url=args.source_cpu_url,
+        backend_containers=tuple(args.backend_container),
+    )
+    if args.device:
+        devices = collect_devices(dict(_device(d) for d in args.device))
+        (output_dir / "devices.json").write_text(json.dumps(devices, indent=2))
     audit = None
     if args.skip_route_verification:
         print("routes: NOT verified (--skip-route-verification)", flush=True)

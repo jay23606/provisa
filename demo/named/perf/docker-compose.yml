@@ -210,7 +210,9 @@ services:
       <<: *demo-labels
       com.provisa.demo.role: cache
     ports:
-      - "127.0.0.1:${PROVISA_BENCH_REDIS_PORT:-26379}:6379"
+      # 127.0.0.1 on one host; the three-device run binds the backends device's private address
+      # (PROVISA_BENCH_BIND) so Provisa on device 1 reaches it.
+      - "${PROVISA_BENCH_BIND:-127.0.0.1}:${PROVISA_BENCH_REDIS_PORT:-26379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -251,6 +253,147 @@ services:
       PROVISA_BENCH_ITEMS_PER_ORDER: "${PROVISA_BENCH_ITEMS_PER_ORDER:-4}"
     volumes:
       - ./data:/data-marker
+
+  # ---- The three-device benchmark's backends device (METHODOLOGY.md): profile three-device ----
+  # Each runs in its own container so its CPU is reported on its own. None starts on one host
+  # unless the profile is asked for.
+
+  # The pg federation engine, apart from the source's Postgres: same image (the engine needs the
+  # extensions), its own database and its own CPU.
+  engine-postgresql:
+    profiles: [three-device]
+    image: provisa-perf-postgres:16
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
+    restart: unless-stopped
+    labels:
+      <<: *demo-labels
+      com.provisa.demo.role: engine
+    environment:
+      POSTGRES_USER: provisa
+      POSTGRES_PASSWORD: provisa
+      POSTGRES_DB: provisa_engine
+    ports:
+      - "${PROVISA_BENCH_BIND:-127.0.0.1}:${PROVISA_BENCH_ENGINE_PORT:-25633}:5432"
+    shm_size: 1g
+    command:
+      - postgres
+      - -c
+      - shared_buffers=16GB
+      - -c
+      - work_mem=64MB
+      - -c
+      - jit=off
+      - -c
+      - max_connections=1000
+      - -c
+      - shared_preload_libraries=pg_duckdb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U provisa -d provisa_engine"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  # The Trino federation engine, when a run names it.
+  trino:
+    profiles: [three-device-trino]
+    image: trinodb/trino:481
+    restart: unless-stopped
+    labels:
+      <<: *demo-labels
+      com.provisa.demo.role: engine
+    ports:
+      - "${PROVISA_BENCH_BIND:-127.0.0.1}:${PROVISA_BENCH_TRINO_PORT:-28080}:8080"
+    volumes:
+      - ./trino/config.properties:/etc/trino/config.properties:ro
+      - ./trino/jvm.config:/etc/trino/jvm.config:ro
+      - ./trino/node.properties:/etc/trino/node.properties:ro
+    healthcheck:
+      test: ["CMD-SHELL", "trino --execute 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 42
+      start_period: 120s
+
+  # The control plane Provisa on device 1 reads its model from.
+  control-plane:
+    profiles: [three-device]
+    image: postgres:16
+    restart: unless-stopped
+    labels:
+      <<: *demo-labels
+      com.provisa.demo.role: control-plane
+    environment:
+      POSTGRES_DB: provisa
+      POSTGRES_USER: provisa
+      POSTGRES_PASSWORD: provisa
+    ports:
+      - "${PROVISA_BENCH_BIND:-127.0.0.1}:${PROVISA_BENCH_CONTROL_PLANE_PORT:-25634}:5432"
+    volumes:
+      - ../../../db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    command: ["postgres", "-c", "max_connections=1000"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U provisa -d provisa"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  # Telemetry, when a run has it on: the collector receives Provisa's OTLP export and forwards it
+  # to otlp2sql, which writes the ops tables into ops-postgresql.
+  otel-collector:
+    profiles: [three-device]
+    image: otel/opentelemetry-collector-contrib:0.99.0
+    restart: unless-stopped
+    labels:
+      <<: *demo-labels
+      com.provisa.demo.role: telemetry
+    volumes:
+      - ./otel/collector.yaml:/etc/otelcol/config.yaml:ro
+    command: ["--config=/etc/otelcol/config.yaml"]
+    ports:
+      - "${PROVISA_BENCH_BIND:-127.0.0.1}:${PROVISA_BENCH_OTLP_PORT:-24318}:4318"
+    depends_on:
+      - otlp2sql
+
+  otlp2sql:
+    profiles: [three-device]
+    image: provisa-perf-otlp2sql
+    build:
+      context: ../../..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    labels:
+      <<: *demo-labels
+      com.provisa.demo.role: telemetry
+    command: ["python", "-m", "provisa.observability.otlp2sql"]
+    environment:
+      OTLP2SQL_HOST: 0.0.0.0
+      OTLP2SQL_PORT: "4318"
+      PROVISA_OPS_DB_URL: postgresql+psycopg://provisa:provisa@ops-postgresql:5432/provisa_ops
+    depends_on:
+      ops-postgresql:
+        condition: service_healthy
+
+  ops-postgresql:
+    profiles: [three-device]
+    image: postgres:16
+    restart: unless-stopped
+    labels:
+      <<: *demo-labels
+      com.provisa.demo.role: telemetry
+    environment:
+      POSTGRES_DB: provisa_ops
+      POSTGRES_USER: provisa
+      POSTGRES_PASSWORD: provisa
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U provisa -d provisa_ops"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
 
 volumes:
   mongo_bench_data:

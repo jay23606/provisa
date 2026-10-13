@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+#
+# The three-device optimistic benchmark (../METHODOLOGY.md), driven from the operator's machine over
+# `gcloud compute ssh`: device 3 brought up once, then each repetition runs telemetry off and on in
+# turn (off, on, off, on, ...), Provisa restarted on device 1 for every run, the load generated on
+# device 2. The results are copied back and reported (three_device.py report).
+#
+# The devices are the ones terraform/perf creates. The repository is checked out at the commit
+# under test on all three, at the same path.
+#
+# Usage: three_device_run.sh [--reps 5] [--engine pg]
+# Needs:
+#   PERF_ZONE                    the devices' zone
+#   PERF_REPO                    the repository's path on every device
+#   PERF_SERVER_IP, PERF_BACKENDS_IP   private addresses (terraform output private_ip)
+#   PERF_CONTRACT                the setup contract, a path on device 2 relative to the bench dir,
+#                                its endpoints naming PERF_SERVER_IP
+set -euo pipefail
+
+REPS=5
+ENGINE=pg
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --reps) REPS="$2"; shift 2 ;;
+    --engine) ENGINE="$2"; shift 2 ;;
+    *) echo "Unknown option: $1"; exit 2 ;;
+  esac
+done
+: "${PERF_ZONE:?}" "${PERF_REPO:?}" "${PERF_SERVER_IP:?}" "${PERF_BACKENDS_IP:?}" "${PERF_CONTRACT:?}"
+
+SERVER=provisa-perf-server
+CLIENT=provisa-perf-client
+BACKENDS=provisa-perf-backends
+AGENT_PORT=9555
+BENCH="$PERF_REPO/demo/named/perf/bench"
+PY="$PERF_REPO/.venv/bin/python3"
+OUT="results/three-device"
+STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+LOCAL_OUT="$(cd "$(dirname "$0")" && pwd)/results/three-device-$STAMP"
+
+on() {  # on <instance> <command>
+  gcloud compute ssh "$1" --zone "$PERF_ZONE" --command "$2"
+}
+
+# The containers whose CPU each step reports beside the source's (compose project "perf").
+BACKEND_CONTAINERS=(perf-engine-postgresql-1 perf-control-plane-1 perf-redis-1
+  perf-otel-collector-1 perf-otlp2sql-1 perf-ops-postgresql-1)
+[ "$ENGINE" = trino ] && BACKEND_CONTAINERS+=(perf-trino-1)
+_containers=""
+for c in "${BACKEND_CONTAINERS[@]}"; do _containers+=" --backend-container $c"; done
+
+echo "=== device 3: backends ==="
+_profiles="--profile three-device"
+[ "$ENGINE" = trino ] && _profiles+=" --profile three-device-trino"
+on "$BACKENDS" "cd $PERF_REPO/demo/named/perf && export PROVISA_BENCH_BIND=$PERF_BACKENDS_IP \
+  && docker compose $_profiles up -d --build \
+  && docker compose up seeder \
+  && (pgrep -f host_agent.py >/dev/null || nohup setsid $PY $BENCH/host_agent.py \
+      --listen $PERF_BACKENDS_IP:$AGENT_PORT --fact device=backends > ~/host-agent.log 2>&1 < /dev/null &)"
+
+run_one() {  # run_one <rep> <telemetry>
+  local name="$1-$2"
+  echo "=== run $name (engine $ENGINE) ==="
+  on "$SERVER" "export PROVISA_BENCH_BACKENDS_HOST=$PERF_BACKENDS_IP \
+    PROVISA_BENCH_AGENT_LISTEN=$PERF_SERVER_IP:$AGENT_PORT; \
+    nohup setsid $BENCH/orchestrate.sh serve --telemetry $2 --engine $ENGINE \
+      > ~/serve-$name.log 2>&1 < /dev/null &"
+  # serving once the server's agent answers: serve_three_device.sh starts it after every worker
+  # is ready
+  on "$CLIENT" "for i in \$(seq 1 210); do curl -sf http://$PERF_SERVER_IP:$AGENT_PORT/host >/dev/null && exit 0; sleep 2; done; exit 1"
+  on "$CLIENT" "cd $BENCH && $PY run_benchmark.py --engine $ENGINE --optimistic \
+    --setup $PERF_CONTRACT \
+    --server-cpu-url http://$PERF_SERVER_IP:$AGENT_PORT/cpu \
+    --source-cpu-url http://$PERF_BACKENDS_IP:$AGENT_PORT/docker-stats $_containers \
+    --device server=http://$PERF_SERVER_IP:$AGENT_PORT \
+    --device backends=http://$PERF_BACKENDS_IP:$AGENT_PORT \
+    --output-dir $OUT/$name"
+  on "$SERVER" "pkill -INT -f serve_three_device.sh; for i in \$(seq 1 60); do pgrep -f serve_three_device.sh >/dev/null || exit 0; sleep 1; done; exit 1"
+}
+
+for rep in $(seq 1 "$REPS"); do
+  run_one "$rep" off
+  run_one "$rep" on
+done
+
+mkdir -p "$LOCAL_OUT"
+gcloud compute scp --recurse --zone "$PERF_ZONE" "$CLIENT:$BENCH/$OUT/*" "$LOCAL_OUT/"
+"$(cd "$(dirname "$0")/../../../.." && pwd)/.venv/bin/python3" "$(dirname "$0")/three_device.py" \
+  report --root "$LOCAL_OUT" --out "$LOCAL_OUT-report"
+echo "published: $LOCAL_OUT-report/published.json (telemetry off); internal: $LOCAL_OUT-report/internal.json"

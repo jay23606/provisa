@@ -251,6 +251,9 @@ class Load:
     # seconds of no load after the ramp, to measure what the deployment costs idle (the refresh cost
     # of replicated sources); 0 skips it
     idle_window_s: int
+    # seconds of load at the highest step before the ramp, per transport, discarded: it warms the
+    # plan cache, the response cache, connection pools and the source; 0 (or absent) skips it
+    warmup_s: int = 0
 
 
 @dataclass(frozen=True)

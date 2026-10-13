@@ -531,3 +531,29 @@ def test_an_idle_window_needs_the_server_pid(
         ol.run_all(
             ol.endpoints_from_setup(setup), tmp_path / "out", ["graphql"], (1,), 1.0, 1, None
         )
+
+
+def test_a_warm_up_runs_at_the_highest_step_and_is_kept_apart(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    calls: list[tuple[int, float]] = []
+    monkeypatch.setattr(
+        ol, "verify", lambda t, ep: {"rows": 1, "columns": 1, "second_request_hit": None}
+    )
+
+    def run_step(transport: str, ep: Any, c: int, window: float, *rest: Any) -> dict:
+        calls.append((c, window))
+        return {"concurrency": c, "window_s": window, "req_per_s": 5.0, "errors": 0}
+
+    monkeypatch.setattr(ol, "run_step", run_step)
+    setup = _setup(tmp_path, lambda r: r["load"].update({"warmup_s": 60}))
+    report = ol.run_transport("graphql", ol.endpoints_from_setup(setup), (1, 16, 64), 20.0, 1, None)
+    assert calls == [(64, 60), (1, 20.0), (16, 20.0), (64, 20.0)]
+    assert report["warmup"] == {
+        "concurrency": 64,
+        "window_s": 60,
+        "req_per_s": 5.0,
+        "errors": 0,
+        "error": None,
+    }
+    assert [s["concurrency"] for s in report["steps"]] == [1, 16, 64]

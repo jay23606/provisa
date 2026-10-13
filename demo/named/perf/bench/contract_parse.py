@@ -546,6 +546,7 @@ def _load_section(raw: Any, path: str) -> Load:
                 "profile_requests",
                 "idle_window_s",
             ),
+            optional=("warmup_s",),
         )
         rate = None
         steps = tuple(
@@ -566,6 +567,7 @@ def _load_section(raw: Any, path: str) -> Load:
                 "profile_requests",
                 "idle_window_s",
             ),
+            optional=("warmup_s",),
         )
         rate = _number(raw["rate_per_s"], f"{path}.rate_per_s")
         if rate <= 0:
@@ -583,7 +585,8 @@ def _load_section(raw: Any, path: str) -> Load:
     )
     profile = _int(raw["profile_requests"], f"{path}.profile_requests")
     idle = _int(raw["idle_window_s"], f"{path}.idle_window_s")
-    return Load(raw["mode"], steps, window, processes, rate, profile, idle)
+    warmup = _int(raw["warmup_s"], f"{path}.warmup_s") if "warmup_s" in raw else 0
+    return Load(raw["mode"], steps, window, processes, rate, profile, idle, warmup)
 
 
 def _workload(raw: Any, path: str, transports: Collection[str]) -> Workload:
