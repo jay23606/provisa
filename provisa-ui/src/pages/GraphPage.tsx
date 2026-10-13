@@ -41,6 +41,7 @@ import { NativeFilterModal } from "../components/graph/graph-context-menus";
 import { Neo4jExportModal } from "../components/graph/Neo4jExportModal";
 import { buildDropExpansion } from "./graph-drop";
 import { getStored, removeStored, setStored } from "../lib/browserStorage";
+import { toResultRedirect } from "../api/admin";
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export function GraphPage() {
@@ -358,6 +359,9 @@ export function GraphPage() {
         const rows: Record<string, unknown>[] = data.rows ?? [];
         const columns: string[] = data.columns ?? [];
         const queryStats: unknown = data.provisa_stats ?? undefined;
+        // REQ-1224: a result over the large-result threshold comes back as a handle to the file
+        // it was delivered to, with no rows; the frame says so rather than drawing nothing.
+        const redirect = data.redirect ? toResultRedirect(data.redirect) : undefined;
         const { nodes, edges } = extractElements(rows);
         nodes.forEach((node) => {
           const clusters = clusterMapRef.current[node.label];
@@ -371,7 +375,17 @@ export function GraphPage() {
         setFrames((f) => {
           const next = f.map((fr) =>
             fr.id === id
-              ? { ...fr, status: "done" as const, nodes, edges, rows, columns, elapsed, queryStats }
+              ? {
+                  ...fr,
+                  status: "done" as const,
+                  nodes,
+                  edges,
+                  rows,
+                  columns,
+                  redirect,
+                  elapsed,
+                  queryStats,
+                }
               : fr,
           );
           graphState.frames = next;
@@ -455,6 +469,7 @@ export function GraphPage() {
                 columns: [],
                 elapsed: undefined,
                 error: undefined,
+                redirect: undefined,
               }
             : fr,
         );
@@ -494,6 +509,9 @@ export function GraphPage() {
         const rows: Record<string, unknown>[] = data.rows ?? [];
         const columns: string[] = data.columns ?? [];
         const queryStats: unknown = data.provisa_stats ?? undefined;
+        // REQ-1224: a result over the large-result threshold comes back as a handle to the file
+        // it was delivered to, with no rows; the frame says so rather than drawing nothing.
+        const redirect = data.redirect ? toResultRedirect(data.redirect) : undefined;
         const { nodes, edges } = extractElements(rows);
         nodes.forEach((node) => {
           const clusters = clusterMapRef.current[node.label];
@@ -507,7 +525,17 @@ export function GraphPage() {
         setFrames((f) => {
           const next = f.map((fr) =>
             fr.id === id
-              ? { ...fr, status: "done" as const, nodes, edges, rows, columns, elapsed, queryStats }
+              ? {
+                  ...fr,
+                  status: "done" as const,
+                  nodes,
+                  edges,
+                  rows,
+                  columns,
+                  redirect,
+                  elapsed,
+                  queryStats,
+                }
               : fr,
           );
           graphState.frames = next;

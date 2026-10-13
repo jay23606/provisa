@@ -59,6 +59,7 @@ import {
   PushPinIcon,
 } from "./GraphIcons";
 import { Tip } from "../Tip";
+import { ResultRedirectNotice } from "../ResultRedirectNotice";
 
 // ── Frame component ───────────────────────────────────────────────────────────
 interface GraphFrameProps {
@@ -794,6 +795,9 @@ export function GraphFrame({
             />
           </div>
         )}
+        {frame.redirect && (
+          <ResultRedirectNotice className="gf-redirect" redirect={frame.redirect} />
+        )}
         {frame.status !== "error" && hasGraph && (
           <div
             className="gf-graph-area"
@@ -868,7 +872,7 @@ export function GraphFrame({
             )}
           </div>
         )}
-        {frame.status !== "error" && activeView === "table" && (
+        {frame.status !== "error" && !frame.redirect && activeView === "table" && (
           <TableView
             columns={frame.columns}
             rows={frame.rows}

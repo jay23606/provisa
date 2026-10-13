@@ -13,6 +13,7 @@
 // GraphFrame (the component) and GraphPage. See react-graphql SKILL.md
 // (Module Size — Subdivide Past 1000 Lines).
 
+import type { ResultRedirect } from "../../api/admin";
 import type { Relationship } from "../../types/admin";
 import { getStored, setStored } from "../../lib/browserStorage";
 
@@ -409,6 +410,9 @@ export interface FrameData {
   rows: Record<string, unknown>[];
   columns: string[];
   error?: string;
+  /** The result was over the large-result threshold and was delivered to a file instead of
+   *  rows (REQ-1224): the frame says so, with the row count and the link, never zero rows. */
+  redirect?: ResultRedirect;
   elapsed?: number;
   queryStats?: unknown;
   pinned?: boolean;
