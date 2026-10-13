@@ -8,8 +8,9 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 
-"""createSource makes a new source: an id that exists is refused by name before anything is
-staged, connected or written (REQ-012). It used to overwrite the source and report it created.
+"""createSource makes a new source: a valid definition whose id exists is refused by name before
+anything is staged, connected or written (REQ-012); a refused definition is refused for what it is
+(test_landing_ttl_admin). It used to overwrite the source and report it created.
 Changing a source is updateSource, which also provisions it again on the engine bound at the call
 -- the one it was saved under, or one swapped to since -- then rebuilds the schemas and lands
 its replicated tables there (REQ-1730)."""
@@ -41,8 +42,8 @@ async def _stored(db) -> list[tuple]:
     return [tuple(r) for r in rows]
 
 
-async def test_a_create_on_an_existing_id_is_refused_and_writes_nothing(tmp_path):
-    async with _db(tmp_path, source_signal="ttl", source_ttl=60) as db:
+async def test_a_create_on_an_existing_id_is_refused_and_writes_nothing(control_plane):
+    async with _db(control_plane, source_signal="ttl", source_ttl=60) as db:
         before = await _stored(db)
         m, p = _mutation(db)
         m = cast(Any, m)
@@ -51,6 +52,10 @@ async def test_a_create_on_an_existing_id_is_refused_and_writes_nothing(tmp_path
             p,
             patch("provisa.api.admin.capabilities.require_capability", return_value=None),
             patch("provisa.api.admin.schema_mutation._add_source_pool", add_pool),
+            patch(
+                "provisa.api.admin.schema_mutation._refuse_over_source_limit",
+                new=AsyncMock(return_value=None),
+            ),
         ):
             source = _source_input(change_signal="ttl", cache_ttl=60)
             source.host = "elsewhere"
@@ -64,10 +69,12 @@ async def test_a_create_on_an_existing_id_is_refused_and_writes_nothing(tmp_path
         add_pool.assert_not_awaited()  # not connected to either
 
 
-async def test_an_update_provisions_the_source_on_the_bound_engine_again(tmp_path, monkeypatch):
+async def test_an_update_provisions_the_source_on_the_bound_engine_again(
+    control_plane, monkeypatch
+):
     from provisa.api.app import state
 
-    async with _db(tmp_path, source_signal="ttl", source_ttl=60) as db:
+    async with _db(control_plane, source_signal="ttl", source_ttl=60) as db:
         m, p = _mutation(db)
         m = cast(Any, m)
 
