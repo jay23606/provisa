@@ -70,17 +70,17 @@ def _request(roles: list[str] | None, user_id: str = "u1"):
 
 class TestMemberRights:
     async def test_a_developer_passes(self, wired):
-        assert await er._member(_request(["developer"]), "acme", MANAGE) == "u1"
+        assert await er._member_rights(_request(["developer"]), "acme", MANAGE) == "u1"
         assert wired == [True]  # membership still checked, on top of the right
 
     async def test_an_org_admin_passes(self, wired):
-        assert await er._member(_request(["org_admin"]), "acme", MANAGE) == "u1"
+        assert await er._member_rights(_request(["org_admin"]), "acme", MANAGE) == "u1"
 
     async def test_an_analyst_is_refused_before_the_membership_lookup(self, wired):
         # The analyst IS a member; that is the point. Membership was the whole of the old guard,
         # and REQ-1573 is what now refuses them — so the lookup must never be reached.
         with pytest.raises(ApiError) as exc:
-            await er._member(_request(["analyst"]), "acme", MANAGE)
+            await er._member_rights(_request(["analyst"]), "acme", MANAGE)
         assert exc.value.status_code == 403
         assert exc.value.code == "environments.capability_required"
         assert wired == []
@@ -89,20 +89,20 @@ class TestMemberRights:
         # The listing endpoints accept both: switching is reading which environments exist.
         holder = SimpleNamespace(user_id="u2", roles=["developer"])
         assert (
-            await er._member(
+            await er._member_rights(
                 SimpleNamespace(state=SimpleNamespace(identity=holder)), "acme", MANAGE, SWITCH
             )
             == "u2"
         )
         with pytest.raises(ApiError):
-            await er._member(_request(["analyst"]), "acme", MANAGE, SWITCH)
+            await er._member_rights(_request(["analyst"]), "acme", MANAGE, SWITCH)
 
     async def test_platform_authority_bypasses_the_right(self, wired):
         # cross_org is authority over any org's lifecycle (REQ-1337); it has never needed the
         # org's own membership row either.
-        assert await er._member(_request(["platform_admin"]), "acme", MANAGE) == "u1"
+        assert await er._member_rights(_request(["platform_admin"]), "acme", MANAGE) == "u1"
         assert wired == []
 
     async def test_dev_no_auth_is_exempt(self, wired):
-        assert await er._member(_request(None), "acme", MANAGE) is None
+        assert await er._member_rights(_request(None), "acme", MANAGE) is None
         assert wired == []
