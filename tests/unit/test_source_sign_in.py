@@ -10,7 +10,7 @@
 
 """Signing a source in to its issuer by a person's approval (REQ-1923).
 
-The control plane is a real SQLite file, so the single use of a state and its survival across
+The control plane is a real PostgreSQL database, so the single use of a state and its survival across
 database handles are the database's doing. The issuer is a stand-in and every credential is
 made up; the vault is a dict that records what was put under which name.
 """
@@ -28,7 +28,6 @@ import pytest
 import sqlalchemy as sa
 
 from provisa.core import schema_admin, secrets_store, source_sign_in
-from provisa.core.database import Database, create_engine_from_url
 from provisa.core.source_sign_in import SignInKind, SignInRefused
 
 pytestmark = pytest.mark.asyncio
@@ -98,17 +97,13 @@ class Issuer:
 
 
 @pytest.fixture
-def control_plane(tmp_path):
-    def open_handle() -> Database:
-        engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'plane.db'}")
-        return Database(engine, name="admin")
-
-    first = open_handle()
+def plane(control_plane):
+    first = control_plane.platform
     with first.engine.begin() as conn:
-        schema_admin.metadata.create_all(
-            conn, tables=[schema_admin.orgs, schema_admin.source_sign_ins]
+        conn.execute(
+            schema_admin.orgs.insert(), [{"id": org, "name": org} for org in (ORG, "globex")]
         )
-    first.open_handle = open_handle  # type: ignore[attr-defined]
+    first.open_handle = lambda: control_plane.platform  # type: ignore[attr-defined]
     return first
 
 
@@ -157,7 +152,7 @@ def issuer(monkeypatch):
     return issuer
 
 
-async def _start(control_plane, vault, **changed):
+async def _start(plane, vault, **changed):
     given = {
         "org_id": ORG,
         "env": ENV,
@@ -170,7 +165,7 @@ async def _start(control_plane, vault, **changed):
         "public_address": PUBLIC,
     }
     given.update(changed)
-    return await source_sign_in.start(control_plane, **given)
+    return await source_sign_in.start(plane, **given)
 
 
 def _asked(started) -> dict[str, str]:
@@ -203,7 +198,7 @@ async def _forget_grant(source_id: str, account: str) -> None:
     GRANTS.pop((source_id, account), None)
 
 
-async def _complete(control_plane, vault, state, **changed):
+async def _complete(plane, vault, state, **changed):
     given = {
         "org_id": ORG,
         "user_id": USER,
@@ -213,11 +208,11 @@ async def _complete(control_plane, vault, state, **changed):
         "keep_grant": _keep_grant,
     }
     given.update(changed)
-    return await source_sign_in.complete(control_plane, **given)
+    return await source_sign_in.complete(plane, **given)
 
 
-def _rows(control_plane) -> list[dict]:
-    with control_plane.engine.connect() as conn:
+def _rows(plane) -> list[dict]:
+    with plane.engine.connect() as conn:
         return [dict(r._mapping) for r in conn.execute(sa.select(schema_admin.source_sign_ins))]
 
 
@@ -258,10 +253,8 @@ class TestRedirectAddress:
 
 
 class TestStart:
-    async def test_the_issuer_is_asked_with_a_state_and_a_challenge(
-        self, control_plane, vault, issuer
-    ):
-        started = await _start(control_plane, vault)
+    async def test_the_issuer_is_asked_with_a_state_and_a_challenge(self, plane, vault, issuer):
+        started = await _start(plane, vault)
         asked = _asked(started)
         assert started.authorization_url.startswith("https://issuer.test/authorize?")
         assert started.expires_in == source_sign_in.STATE_LIFETIME == 600
@@ -274,15 +267,15 @@ class TestStart:
         assert asked["login_hint"] == ACCOUNT
         assert len(asked["state"]) >= 43  # 32 random bytes
 
-    async def test_each_start_has_its_own_state(self, control_plane, vault, issuer):
-        first, second = [_asked(await _start(control_plane, vault))["state"] for _ in range(2)]
+    async def test_each_start_has_its_own_state(self, plane, vault, issuer):
+        first, second = [_asked(await _start(plane, vault))["state"] for _ in range(2)]
         assert first != second
 
     async def test_only_the_states_digest_is_kept_and_the_verifier_is_sealed(
-        self, control_plane, vault, issuer
+        self, plane, vault, issuer
     ):
-        asked = _asked(await _start(control_plane, vault))
-        (row,) = _rows(control_plane)
+        asked = _asked(await _start(plane, vault))
+        (row,) = _rows(plane)
         assert row["state_digest"] == hashlib.sha256(asked["state"].encode()).hexdigest()
         assert asked["state"] not in map(str, row.values())
         assert row["verifier"].startswith(b"sealed:")
@@ -291,19 +284,19 @@ class TestStart:
         assert asked["code_challenge"] == challenge.rstrip(b"=").decode()
         assert verifier.encode() not in row["verifier"]
 
-    async def test_it_is_bound_to_who_started_it_and_what_for(self, control_plane, vault, issuer):
-        await _start(control_plane, vault)
-        (row,) = _rows(control_plane)
+    async def test_it_is_bound_to_who_started_it_and_what_for(self, plane, vault, issuer):
+        await _start(plane, vault)
+        (row,) = _rows(plane)
         assert (row["org_id"], row["env"], row["user_id"]) == (ORG, ENV, USER)
         assert (row["source_id"], row["account"], row["scopes"]) == ("mail", ACCOUNT, SCOPE)
         assert row["used_at"] is None
 
     async def test_the_organisations_client_secret_is_never_recorded_with_a_sign_in(
-        self, control_plane, vault, issuer
+        self, plane, vault, issuer
     ):
-        started = await _start(control_plane, vault)
+        started = await _start(plane, vault)
         assert vault == {}  # start writes nothing on the operator's behalf
-        (row,) = _rows(control_plane)
+        (row,) = _rows(plane)
         # Neither the secret, nor what was entered for it, nor a name for it: the entry is
         # read when the sign-in is completed.
         assert (row["client_secret_name"], row["refresh_token_name"]) == ("", "")
@@ -311,23 +304,21 @@ class TestStart:
         assert CLIENT_SECRET not in map(str, row.values())
         assert CLIENT_SECRET not in started.authorization_url
 
-    async def test_the_redirect_address_is_the_configured_one(self, control_plane, vault, issuer):
+    async def test_the_redirect_address_is_the_configured_one(self, plane, vault, issuer):
         with pytest.raises(SignInRefused) as raised:
-            await _start(control_plane, vault, public_address="")
+            await _start(plane, vault, public_address="")
         assert raised.value.code == "source_sign_in.public_address_not_set"
-        assert vault == {} and _rows(control_plane) == []
+        assert vault == {} and _rows(plane) == []
 
-    async def test_an_unknown_kind_is_refused(self, control_plane, vault, issuer):
+    async def test_an_unknown_kind_is_refused(self, plane, vault, issuer):
         with pytest.raises(SignInRefused) as raised:
-            await _start(control_plane, vault, kind_id="nobody")
+            await _start(plane, vault, kind_id="nobody")
         assert raised.value.code == "source_sign_in.unknown_kind"
 
     @pytest.mark.parametrize("missing", ["source_id", "account", "client_id"])
-    async def test_a_start_without_what_it_needs_is_refused(
-        self, control_plane, vault, issuer, missing
-    ):
+    async def test_a_start_without_what_it_needs_is_refused(self, plane, vault, issuer, missing):
         with pytest.raises(SignInRefused) as raised:
-            await _start(control_plane, vault, **{missing: ""})
+            await _start(plane, vault, **{missing: ""})
         assert raised.value.code == "source_sign_in.incomplete"
         assert vault == {}
 
@@ -337,10 +328,10 @@ class TestStart:
 
 class TestComplete:
     async def test_the_code_is_exchanged_with_the_verifier_and_the_approval_is_kept_as_state(
-        self, control_plane, vault, issuer
+        self, plane, vault, issuer
     ):
-        asked = _asked(await _start(control_plane, vault))
-        done = await _complete(control_plane, vault, asked["state"])
+        asked = _asked(await _start(plane, vault))
+        done = await _complete(plane, vault, asked["state"])
         (form,) = issuer.forms
         assert form["grant_type"] == "authorization_code"
         assert form["code"] == CODE
@@ -356,123 +347,111 @@ class TestComplete:
         assert GRANTS == {("mail", ACCOUNT): REFRESH}
         assert done == source_sign_in.Completed(source_id="mail", account=ACCOUNT)
 
-    async def test_what_it_answers_carries_no_credential(self, control_plane, vault, issuer):
-        asked = _asked(await _start(control_plane, vault))
-        done = await _complete(control_plane, vault, asked["state"])
+    async def test_what_it_answers_carries_no_credential(self, plane, vault, issuer):
+        asked = _asked(await _start(plane, vault))
+        done = await _complete(plane, vault, asked["state"])
         assert not any(secret in repr(done) for secret in (REFRESH, CLIENT_SECRET, CODE, ACCESS))
 
-    async def test_a_state_is_good_once(self, control_plane, vault, issuer):
-        state = _asked(await _start(control_plane, vault))["state"]
-        await _complete(control_plane, vault, state)
+    async def test_a_state_is_good_once(self, plane, vault, issuer):
+        state = _asked(await _start(plane, vault))["state"]
+        await _complete(plane, vault, state)
         with pytest.raises(SignInRefused) as raised:
-            await _complete(control_plane, vault, state)
+            await _complete(plane, vault, state)
         assert raised.value.code == "source_sign_in.state_used"
         assert len(issuer.forms) == 1
 
-    async def test_a_state_this_deployment_did_not_issue_is_refused(
-        self, control_plane, vault, issuer
-    ):
+    async def test_a_state_this_deployment_did_not_issue_is_refused(self, plane, vault, issuer):
         with pytest.raises(SignInRefused) as raised:
-            await _complete(control_plane, vault, "made-up-state")
+            await _complete(plane, vault, "made-up-state")
         assert raised.value.code == "source_sign_in.unknown_state"
         assert issuer.forms == [] and vault == {}
 
     @pytest.mark.parametrize("caller", [{"org_id": "globex"}, {"user_id": "uid-bo"}])
     async def test_another_organisations_or_persons_state_is_refused_and_not_spent(
-        self, control_plane, vault, issuer, caller
+        self, plane, vault, issuer, caller
     ):
-        state = _asked(await _start(control_plane, vault))["state"]
+        state = _asked(await _start(plane, vault))["state"]
         with pytest.raises(SignInRefused) as raised:
-            await _complete(control_plane, vault, state, **caller)
+            await _complete(plane, vault, state, **caller)
         assert raised.value.code == "source_sign_in.state_not_yours"
         assert raised.value.status == 403
         assert issuer.forms == [] and vault == {}
-        assert (await _complete(control_plane, vault, state)).account == ACCOUNT
+        assert (await _complete(plane, vault, state)).account == ACCOUNT
 
-    async def test_a_state_past_its_time_is_refused(
-        self, control_plane, vault, issuer, monkeypatch
-    ):
-        state = _asked(await _start(control_plane, vault))["state"]
+    async def test_a_state_past_its_time_is_refused(self, plane, vault, issuer, monkeypatch):
+        state = _asked(await _start(plane, vault))["state"]
         later = dt.datetime.now(dt.timezone.utc) + dt.timedelta(seconds=601)
         monkeypatch.setattr(source_sign_in, "_now", lambda: later)
         with pytest.raises(SignInRefused) as raised:
-            await _complete(control_plane, vault, state)
+            await _complete(plane, vault, state)
         assert raised.value.code == "source_sign_in.state_expired"
         assert issuer.forms == []
 
-    async def test_a_sign_in_may_be_completed_by_another_process(
-        self, control_plane, vault, issuer
-    ):
-        state = _asked(await _start(control_plane, vault))["state"]
-        elsewhere = control_plane.open_handle()
+    async def test_a_sign_in_may_be_completed_by_another_process(self, plane, vault, issuer):
+        state = _asked(await _start(plane, vault))["state"]
+        elsewhere = plane.open_handle()
         assert (await _complete(elsewhere, vault, state)).account == ACCOUNT
         with pytest.raises(SignInRefused) as raised:
-            await _complete(control_plane, vault, state)
+            await _complete(plane, vault, state)
         assert raised.value.code == "source_sign_in.state_used"
 
     async def test_the_issuers_refusal_at_the_approval_is_named_and_spends_the_state(
-        self, control_plane, vault, issuer
+        self, plane, vault, issuer
     ):
-        state = _asked(await _start(control_plane, vault))["state"]
+        state = _asked(await _start(plane, vault))["state"]
         with pytest.raises(SignInRefused) as raised:
-            await _complete(control_plane, vault, state, code=None, error="access_denied")
+            await _complete(plane, vault, state, code=None, error="access_denied")
         assert raised.value.code == "source_sign_in.refused_by_issuer"
         assert raised.value.params == {"error": "access_denied"}
         with pytest.raises(SignInRefused) as again:
-            await _complete(control_plane, vault, state)
+            await _complete(plane, vault, state)
         assert again.value.code == "source_sign_in.state_used"
 
     async def test_what_the_browser_says_the_issuer_said_is_not_repeated_unless_it_is_a_name(
-        self, control_plane, vault, issuer
+        self, plane, vault, issuer
     ):
-        state = _asked(await _start(control_plane, vault))["state"]
+        state = _asked(await _start(plane, vault))["state"]
         with pytest.raises(SignInRefused) as raised:
-            await _complete(
-                control_plane, vault, state, code=None, error="<script>made-up</script>"
-            )
+            await _complete(plane, vault, state, code=None, error="<script>made-up</script>")
         assert raised.value.params == {"error": "no_code"}
 
     async def test_the_issuers_refusal_of_the_code_is_named_without_what_else_it_said(
-        self, control_plane, vault, issuer
+        self, plane, vault, issuer
     ):
         issuer.answer = httpx.Response(
             400, json={"error": "invalid_grant", "error_description": f"Bad code {CODE}"}
         )
-        state = _asked(await _start(control_plane, vault))["state"]
+        state = _asked(await _start(plane, vault))["state"]
         with pytest.raises(SignInRefused) as raised:
-            await _complete(control_plane, vault, state)
+            await _complete(plane, vault, state)
         assert raised.value.code == "source_sign_in.refused_by_issuer"
         assert raised.value.params == {"error": "invalid_grant"}
         assert _says_no_secret(raised.value)
         assert vault == {}
 
-    async def test_an_approval_without_a_refresh_token_is_refused(
-        self, control_plane, vault, issuer
-    ):
+    async def test_an_approval_without_a_refresh_token_is_refused(self, plane, vault, issuer):
         issuer.answer = httpx.Response(200, json=issuer.granted(refresh_token=None))
-        state = _asked(await _start(control_plane, vault))["state"]
+        state = _asked(await _start(plane, vault))["state"]
         with pytest.raises(SignInRefused) as raised:
-            await _complete(control_plane, vault, state)
+            await _complete(plane, vault, state)
         assert raised.value.code == "source_sign_in.no_refresh_token"
         assert _says_no_secret(raised.value) and vault == {}
 
     async def test_an_approval_by_another_account_is_refused_naming_both(
-        self, control_plane, vault, issuer
+        self, plane, vault, issuer
     ):
         issuer.approved = "Bo@Example.test"
-        state = _asked(await _start(control_plane, vault))["state"]
+        state = _asked(await _start(plane, vault))["state"]
         with pytest.raises(SignInRefused) as raised:
-            await _complete(control_plane, vault, state)
+            await _complete(plane, vault, state)
         assert raised.value.code == "source_sign_in.wrong_account"
         assert raised.value.params == {"approved": "bo@example.test", "account": ACCOUNT}
         assert _says_no_secret(raised.value) and vault == {}
 
-    async def test_the_account_is_compared_without_regard_to_case(
-        self, control_plane, vault, issuer
-    ):
+    async def test_the_account_is_compared_without_regard_to_case(self, plane, vault, issuer):
         issuer.approved = "Ada@Example.Test"
-        state = _asked(await _start(control_plane, vault))["state"]
-        assert (await _complete(control_plane, vault, state)).account == ACCOUNT
+        state = _asked(await _start(plane, vault))["state"]
+        assert (await _complete(plane, vault, state)).account == ACCOUNT
 
 
 class TestAnIssuerWhoseAddressesDependOnTheSource:
@@ -494,83 +473,73 @@ class TestAnIssuerWhoseAddressesDependOnTheSource:
             ),
         )
 
-    async def test_the_operator_is_sent_to_the_tenants_address(
-        self, control_plane, vault, tenanted
-    ):
-        started = await _start(
-            control_plane, vault, kind_id="tenanted", settings={"tenant": "contoso"}
-        )
+    async def test_the_operator_is_sent_to_the_tenants_address(self, plane, vault, tenanted):
+        started = await _start(plane, vault, kind_id="tenanted", settings={"tenant": "contoso"})
         assert started.authorization_url.startswith("https://issuer.test/contoso/authorize?")
-        (row,) = _rows(control_plane)
+        (row,) = _rows(plane)
         assert row["settings"] == '{"tenant": "contoso"}'
 
     async def test_the_code_is_exchanged_at_the_same_tenants_address(
-        self, control_plane, vault, issuer, tenanted
+        self, plane, vault, issuer, tenanted
     ):
-        started = await _start(
-            control_plane, vault, kind_id="tenanted", settings={"tenant": "contoso"}
-        )
-        await _complete(control_plane, vault, _asked(started)["state"])
+        started = await _start(plane, vault, kind_id="tenanted", settings={"tenant": "contoso"})
+        await _complete(plane, vault, _asked(started)["state"])
         assert issuer.asked_at == ["https://issuer.test/contoso/token"]
 
-    async def test_an_issuer_of_one_address_needs_no_settings(self, control_plane, vault, issuer):
-        await _start(control_plane, vault)
-        (row,) = _rows(control_plane)
+    async def test_an_issuer_of_one_address_needs_no_settings(self, plane, vault, issuer):
+        await _start(plane, vault)
+        (row,) = _rows(plane)
         assert row["settings"] == "{}"
 
 
 class TestWhereTheRefreshTokenGoes:
-    async def test_it_is_kept_as_sign_in_state_and_nowhere_else(self, control_plane, vault, issuer):
-        state = _asked(await _start(control_plane, vault))["state"]
-        done = await _complete(control_plane, vault, state)
+    async def test_it_is_kept_as_sign_in_state_and_nowhere_else(self, plane, vault, issuer):
+        state = _asked(await _start(plane, vault))["state"]
+        done = await _complete(plane, vault, state)
         assert GRANTS == {("mail", ACCOUNT): REFRESH}
         assert vault == {} and REFRESH not in repr(done)
-        assert not any(
-            REFRESH in str(value) for row in _rows(control_plane) for value in row.values()
-        )
+        assert not any(REFRESH in str(value) for row in _rows(plane) for value in row.values())
 
-    async def test_a_refused_sign_in_keeps_nothing(self, control_plane, vault, issuer):
-        state = _asked(await _start(control_plane, vault))["state"]
+    async def test_a_refused_sign_in_keeps_nothing(self, plane, vault, issuer):
+        state = _asked(await _start(plane, vault))["state"]
         with pytest.raises(SignInRefused):
-            await _complete(control_plane, vault, state, code=None, error="access_denied")
+            await _complete(plane, vault, state, code=None, error="access_denied")
         assert GRANTS == {}
 
-    async def test_an_approval_that_cannot_be_kept_fails_the_sign_in(
-        self, control_plane, vault, issuer
-    ):
+    async def test_an_approval_that_cannot_be_kept_fails_the_sign_in(self, plane, vault, issuer):
         async def refuse(*_: str) -> None:
             raise RuntimeError("the state store cannot be written")
 
-        state = _asked(await _start(control_plane, vault))["state"]
+        state = _asked(await _start(plane, vault))["state"]
         with pytest.raises(RuntimeError, match="cannot be written"):
-            await _complete(control_plane, vault, state, keep_grant=refuse)
+            await _complete(plane, vault, state, keep_grant=refuse)
 
-    async def test_what_the_approval_grants_is_kept_with_it(self, control_plane, vault, issuer):
+    async def test_what_the_approval_grants_is_kept_with_it(self, plane, vault, issuer):
         """REQ-1994: the scopes the issuer says it granted, so a source that reads more than its
         approval grants is told to sign in again."""
         issuer.answer = httpx.Response(
             200, json=issuer.granted(scope=f"{SCOPE} https://issuer.test/extra")
         )
-        state = _asked(await _start(control_plane, vault))["state"]
-        await _complete(control_plane, vault, state)
+        state = _asked(await _start(plane, vault))["state"]
+        await _complete(plane, vault, state)
         assert GRANTED == {("mail", ACCOUNT): [SCOPE, "https://issuer.test/extra"]}
 
     async def test_an_approval_that_does_not_say_what_it_grants_is_refused(
-        self, control_plane, vault, issuer
+        self, plane, vault, issuer
     ):
         issuer.answer = httpx.Response(200, json=issuer.granted(scope=None))
-        state = _asked(await _start(control_plane, vault))["state"]
+        state = _asked(await _start(plane, vault))["state"]
         with pytest.raises(SignInRefused) as refused:
-            await _complete(control_plane, vault, state)
+            await _complete(plane, vault, state)
         assert refused.value.code.endswith("no_scope")
         assert GRANTS == {}
 
     async def test_the_scopes_asked_are_the_kinds_for_the_settings_stated(
-        self, control_plane, vault, issuer
+        self, plane, vault, issuer
     ):
         """The form sends the source's settings; what the issuer is asked is the kind's own
         reading of them, never a list the form made."""
-        asked = _asked(await _start(control_plane, vault))
+        asked = _asked(await _start(plane, vault))
         assert asked["scope"] == SCOPE
 
 
@@ -585,7 +554,7 @@ class TestSweep:
     saved: set[str]
 
     @pytest.fixture
-    def swept(self, control_plane, vault):
+    def swept(self, plane, vault):
         self.saved = set()
 
         async def exists(source_id: str) -> bool:
@@ -593,7 +562,7 @@ class TestSweep:
 
         async def run() -> None:
             await source_sign_in.sweep(
-                control_plane,
+                plane,
                 org_id=ORG,
                 env=ENV,
                 source_exists=exists,
@@ -607,69 +576,69 @@ class TestSweep:
         later = dt.datetime.now(dt.timezone.utc) + dt.timedelta(seconds=seconds)
         monkeypatch.setattr(source_sign_in, "_now", lambda: later)
 
-    async def test_a_sign_in_still_in_time_is_left_alone(self, control_plane, vault, issuer, swept):
-        await _start(control_plane, vault)
+    async def test_a_sign_in_still_in_time_is_left_alone(self, plane, vault, issuer, swept):
+        await _start(plane, vault)
         await swept()
-        assert len(_rows(control_plane)) == 1
+        assert len(_rows(plane)) == 1
 
     async def test_one_never_completed_loses_its_row(
-        self, control_plane, vault, issuer, swept, monkeypatch
+        self, plane, vault, issuer, swept, monkeypatch
     ):
-        await _start(control_plane, vault)
+        await _start(plane, vault)
         self._later(monkeypatch, 601)
         await swept()
-        assert _rows(control_plane) == [] and vault == {}
+        assert _rows(plane) == [] and vault == {}
 
     async def test_one_completed_loses_its_row_after_a_day(
-        self, control_plane, vault, issuer, swept, monkeypatch
+        self, plane, vault, issuer, swept, monkeypatch
     ):
-        state = _asked(await _start(control_plane, vault))["state"]
-        await _complete(control_plane, vault, state)
+        state = _asked(await _start(plane, vault))["state"]
+        await _complete(plane, vault, state)
         self._later(monkeypatch, 3600)
         await swept()
-        assert len(_rows(control_plane)) == 1
+        assert len(_rows(plane)) == 1
         assert GRANTS == {("mail", ACCOUNT): REFRESH}
         self._later(monkeypatch, 24 * 3600 + 1)
         await swept()
-        assert _rows(control_plane) == [] and vault == {}
+        assert _rows(plane) == [] and vault == {}
         # Its source was never saved: the approval kept for it goes with the sign-in.
         assert GRANTS == {}
 
     async def test_the_approval_of_a_source_that_was_saved_stands(
-        self, control_plane, vault, issuer, swept, monkeypatch
+        self, plane, vault, issuer, swept, monkeypatch
     ):
-        state = _asked(await _start(control_plane, vault))["state"]
-        await _complete(control_plane, vault, state)
+        state = _asked(await _start(plane, vault))["state"]
+        await _complete(plane, vault, state)
         self.saved.add("mail")
         self._later(monkeypatch, 24 * 3600 + 1)
         await swept()
-        assert _rows(control_plane) == []
+        assert _rows(plane) == []
         assert GRANTS == {("mail", ACCOUNT): REFRESH}
 
     async def test_an_approval_is_not_forgotten_while_its_source_is_being_signed_in_again(
-        self, control_plane, vault, issuer, swept, monkeypatch
+        self, plane, vault, issuer, swept, monkeypatch
     ):
-        state = _asked(await _start(control_plane, vault))["state"]
-        await _complete(control_plane, vault, state)
+        state = _asked(await _start(plane, vault))["state"]
+        await _complete(plane, vault, state)
         self._later(monkeypatch, 24 * 3600 + 1)
-        await _start(control_plane, vault)  # the operator signs the same source in again
+        await _start(plane, vault)  # the operator signs the same source in again
         await swept()
-        assert len(_rows(control_plane)) == 1
+        assert len(_rows(plane)) == 1
         assert GRANTS == {("mail", ACCOUNT): REFRESH}
 
     async def test_a_source_being_signed_in_again_keeps_its_new_sign_in(
-        self, control_plane, vault, issuer, swept, monkeypatch
+        self, plane, vault, issuer, swept, monkeypatch
     ):
-        await _start(control_plane, vault)
+        await _start(plane, vault)
         self._later(monkeypatch, 601)
-        await _start(control_plane, vault)  # the operator tries again
+        await _start(plane, vault)  # the operator tries again
         await swept()
-        assert len(_rows(control_plane)) == 1
+        assert len(_rows(plane)) == 1
 
     async def test_another_organisations_sign_ins_are_not_touched(
-        self, control_plane, vault, issuer, swept, monkeypatch
+        self, plane, vault, issuer, swept, monkeypatch
     ):
-        await _start(control_plane, vault, org_id="globex")
+        await _start(plane, vault, org_id="globex")
         self._later(monkeypatch, 601)
         await swept()
-        assert len(_rows(control_plane)) == 1
+        assert len(_rows(plane)) == 1

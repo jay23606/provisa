@@ -17,7 +17,7 @@ goes. A role the deployment defines is
 one whose row carries no org — what the seed writes; a role an administrator creates records
 the org it was created in.
 
-Run here on the SQLite control plane; ``tests/integration/test_role_delete_paths.py`` runs the
+Run here on a PostgreSQL control plane of its own; ``tests/integration/test_role_delete_paths.py`` runs the
 same cases on PostgreSQL through a served instance.
 """
 
@@ -34,8 +34,7 @@ from sqlalchemy import select
 import provisa.api.app as appmod
 from provisa.api.admin import roles_router, schema_mutation
 from provisa.api.errors import ApiError
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.db import _init_schema_portable
+from provisa.core.database import Database
 from provisa.core.models import Role
 from provisa.core.repositories import role as role_repo
 from provisa.core.schema_org import roles
@@ -53,12 +52,11 @@ def _role(role_id: str, parent: str | None = None) -> Role:
 
 
 @pytest.fixture
-async def plane(monkeypatch) -> Database:
-    """A seeded SQLite control plane holding: the seeded roles; ``from_config`` (declared by the
+async def plane(monkeypatch, control_plane) -> Database:
+    """A seeded control plane holding: the seeded roles; ``from_config`` (declared by the
     deployment's config); ``base`` with its heir ``derived``; and ``loose``, which nothing
     inherits from. The last three were created by an administrator of ORG."""
-    db = Database(create_engine_from_url("sqlite+pysqlite:///:memory:"), name="role-delete-test")
-    await _init_schema_portable(db)
+    db = control_plane.org()
     async with db.acquire() as conn:
         await role_repo.upsert(conn, _role("from_config"), org_id=None)
         await role_repo.upsert(conn, _role("base"), org_id=ORG)

@@ -26,20 +26,14 @@ pytestmark = pytest.mark.asyncio
 
 
 @pytest.fixture
-def model_db(tmp_path, monkeypatch):
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.schema_org import metadata
-
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'org.db'}")
-    with engine.begin() as raw:
-        metadata.create_all(raw)
+def model_db(control_plane, monkeypatch):
     monkeypatch.setattr(companion, "_forget_spec", lambda cid: None)
     # The stored credential is a reference: encrypted at rest without a key service here.
     from provisa.encryption import encryption_service
 
     service = encryption_service()
     monkeypatch.setattr(service, "encrypt", lambda raw: b"sealed:" + raw)
-    return Database(engine, "org-model", holds="model")
+    return control_plane.org(holds="model")
 
 
 async def _servicenow(db, **over) -> None:

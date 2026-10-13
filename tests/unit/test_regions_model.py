@@ -279,14 +279,15 @@ def test_a_region_whose_engine_cannot_read_another_region_is_refused_naming_both
 
 
 @pytest.fixture
-async def model(tmp_path):
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.schema_org import metadata
+async def model(control_plane):
+    from sqlalchemy import insert
 
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'model.db'}")
-    with engine.begin() as raw:
-        metadata.create_all(raw)  # the whole model: a guard reads every table that may refer
-    return Database(engine, "test")
+    from provisa.core.schema_org import domains
+
+    db = control_plane.org()
+    async with db.acquire() as conn:
+        await conn.execute_core(insert(domains).values(id="sales"))  # a table's domain is a key
+    return db
 
 
 def _source(region: str | None):

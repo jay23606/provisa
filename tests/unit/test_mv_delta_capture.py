@@ -6,7 +6,7 @@
 
 """REQ-877 row-level MV delta capture + REQ-878 point-in-time reconstruction.
 
-Drives the real append-only ledger on a shared SQLite control-plane catalog: a refresh diffs the
+Drives the real append-only ledger on a shared control-plane catalog: a refresh diffs the
 prior and freshly landed row sets into insert/update/delete events; reconstruction folds the ledger
 to rebuild the view as-of a refresh version, forward from base and in reverse from live, both
 yielding the identical as-of-N set; an unknown version fails loud; an opt-out MV writes no ledger.
@@ -20,11 +20,7 @@ import pytest
 
 from tests.helpers import hold_registered_tables
 from sqlalchemy import insert, select
-from provisa.core.database import create_engine_from_url
-
-from provisa.core.database import Database
 from provisa.core.schema_org import materialized_views as MVT
-from provisa.core.schema_org import metadata
 from provisa.core.schema_org import mv_delta_ledger as LEDGER
 from provisa.executor.result import QueryResult
 from provisa.mv.delta import (
@@ -62,11 +58,8 @@ def _mv(mv_id=MV_ID, *, capture=True, key=("id",), exclude=()):
 
 
 @pytest.fixture
-async def store(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}")
-    with engine.begin() as c:
-        metadata.create_all(c, tables=[MVT, LEDGER])
-    db = Database(engine, name="cp")
+async def store(control_plane):
+    db = control_plane.org()
     async with db.acquire() as conn:
         await conn.execute_core(
             insert(MVT).values(
@@ -77,8 +70,7 @@ async def store(tmp_path):
                 target_table="mv_orders",
             )
         )
-    yield db
-    engine.dispose()
+    return db
 
 
 async def _ledger_rows(store, version=None):

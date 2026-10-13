@@ -100,9 +100,7 @@ def test_a_config_raising_the_operators_bound_on_a_table_is_refused_at_load():
 
 
 @pytest.fixture
-async def control_plane(tmp_path):
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.db import init_schema
+async def org_plane(control_plane):
     from provisa.core.schema_org import (
         api_endpoints,
         api_sources,
@@ -111,9 +109,7 @@ async def control_plane(tmp_path):
         sources,
     )
 
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'tenant.db'}")
-    db = Database(engine, name="org")
-    await init_schema(db, "", org_id="default")
+    db = control_plane.org()
     async with db.acquire() as conn:
         await conn.execute_core(insert(domains).values(id="d"))
         await conn.execute_core(insert(sources).values(id="api", type="openapi"))
@@ -130,10 +126,7 @@ async def control_plane(tmp_path):
                 source_id="api", path="/pets", table_name="pets", columns=[]
             )
         )
-    try:
-        yield db
-    finally:
-        engine.dispose()
+    return db
 
 
 def _state():
@@ -164,33 +157,33 @@ async def _stored(db, table_id: int) -> tuple:
 
 
 async def test_a_rest_tables_paging_is_saved_on_the_table_and_copied_to_its_endpoint(
-    control_plane,
+    org_plane,
 ):
     from provisa.api.admin._table_paging import save_table_paging
     from provisa.api.admin.types import PagingInput
 
     state = _state()
-    async with control_plane.acquire() as conn:
+    async with org_plane.acquire() as conn:
         result = await save_table_paging(
             state, conn, 1, PagingInput(type="offset", page_size=50, max_pages=3)
         )
     assert result.success and result.code == "schema.table_paging_updated"
     declared = {"type": "offset", "page_size": 50, "max_pages": 3}
-    assert await _stored(control_plane, 1) == (declared, declared)
+    assert await _stored(org_plane, 1) == (declared, declared)
     assert state.api_endpoints[("api", "pets")].pagination == PaginationConfig(**declared)
 
-    async with control_plane.acquire() as conn:
+    async with org_plane.acquire() as conn:
         cleared = await save_table_paging(state, conn, 1, None)
-    assert cleared.success and await _stored(control_plane, 1) == (None, None)
+    assert cleared.success and await _stored(org_plane, 1) == (None, None)
     assert state.api_endpoints[("api", "pets")].pagination is None
 
 
-async def test_a_connection_tables_bound_is_saved_only_below_the_operators(control_plane):
+async def test_a_connection_tables_bound_is_saved_only_below_the_operators(org_plane):
     from provisa.api.admin._table_paging import save_table_paging
     from provisa.api.admin.types import PagingInput
 
     state = _state()
-    async with control_plane.acquire() as conn:
+    async with org_plane.acquire() as conn:
         above = await save_table_paging(state, conn, 2, PagingInput(max_rows=500))
         typed = await save_table_paging(state, conn, 2, PagingInput(type="offset"))
         rest_bound = await save_table_paging(state, conn, 1, PagingInput(max_rows=5))
@@ -200,26 +193,26 @@ async def test_a_connection_tables_bound_is_saved_only_below_the_operators(contr
     assert (typed.success, typed.code) == (False, "schema.paging_connection_rows_only")
     assert (rest_bound.success, rest_bound.code) == (False, "schema.paging_endpoint_needs_type")
     assert lowered.success
-    assert (await _stored(control_plane, 2))[0] == {"max_rows": 20}
+    assert (await _stored(org_plane, 2))[0] == {"max_rows": 20}
 
 
-async def test_inconsistent_paging_is_refused_with_its_reason(control_plane):
+async def test_inconsistent_paging_is_refused_with_its_reason(org_plane):
     from provisa.api.admin._table_paging import save_table_paging
     from provisa.api.admin.types import PagingInput
 
-    async with control_plane.acquire() as conn:
+    async with org_plane.acquire() as conn:
         result = await save_table_paging(_state(), conn, 1, PagingInput(max_pages=3))
     assert (result.success, result.code) == (False, "schema.paging_invalid")
     assert "need its type" in result.params["reason"]
 
 
-async def test_a_remote_graphql_table_that_is_no_connection_takes_no_paging(control_plane):
+async def test_a_remote_graphql_table_that_is_no_connection_takes_no_paging(org_plane):
     from provisa.api.admin._table_paging import save_table_paging
     from provisa.api.admin.types import PagingInput
 
     state = _state()
     state.graphql_remote_sources["gh"]["tables"][0]["rows_path"] = None
-    async with control_plane.acquire() as conn:
+    async with org_plane.acquire() as conn:
         result = await save_table_paging(state, conn, 2, PagingInput(max_rows=5))
     assert (result.success, result.code) == (False, "schema.paging_not_paged")
 
@@ -236,13 +229,13 @@ def test_a_rest_endpoint_may_say_where_its_rows_are_and_nothing_else():
         PaginationConfig(rows_field="values", max_rows=10)
 
 
-async def test_an_edit_of_a_tables_paging_keeps_where_its_rows_are(control_plane):
+async def test_an_edit_of_a_tables_paging_keeps_where_its_rows_are(org_plane):
     from provisa.api.admin._table_paging import save_table_paging
     from provisa.api.admin.types import PagingInput
     from provisa.core.schema_org import registered_tables
 
     state = _state()
-    async with control_plane.acquire() as conn:
+    async with org_plane.acquire() as conn:
         await conn.execute_core(
             update(registered_tables)
             .where(registered_tables.c.id == 1)

@@ -33,9 +33,7 @@ import pytest
 from provisa import otel_compat
 from provisa.compiler.directives import NO_CACHE_HINT, CacheHint
 from provisa.core import trace_scope as ts
-from provisa.core.database import Database, create_engine_from_url
 from provisa.core.operator_floor import OperatorFloorError
-from provisa.core.schema_admin import debug_trace_hint_roles, debug_trace_windows, metadata
 from provisa.pgwire import _pipeline
 from tests.unit.test_governed_sql_engine_internals import _state as gov_state
 
@@ -45,17 +43,17 @@ _DEBUG_HINT = CacheHint(opt_in=False, ttl=None, debug_trace=True)
 
 
 @pytest.fixture
-def served(tmp_path, monkeypatch):
+def served(control_plane, monkeypatch):
     """A pipeline whose state has a real control plane and serves org ``acme``. ``at_routing``
     records the trace detail in force when the statement reached routing — after request entry,
     before its sources were known."""
     import provisa.api.app as app_mod
 
-    db = Database(
-        create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}"), name="trace-scope"
-    )
+    from provisa.core.schema_admin import orgs
+
+    db = control_plane.platform
     with db.engine.begin() as conn:
-        metadata.create_all(conn, tables=[debug_trace_windows, debug_trace_hint_roles])
+        conn.execute(orgs.insert(), [{"id": org, "name": org} for org in ("acme", "globex")])
     state = gov_state(["*"])
     state.admin_db = db
     state.org_id = "acme"

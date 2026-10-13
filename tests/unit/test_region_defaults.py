@@ -49,17 +49,17 @@ def node():
 
 
 @pytest.fixture
-async def model(tmp_path):
+async def model(control_plane):
     """An org model with regions eu and us selected."""
-    from provisa.core.database import Database, create_engine_from_url
     from provisa.core.repositories import region as region_repo
-    from provisa.core.schema_org import metadata
 
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'model.db'}")
-    with engine.begin() as raw:
-        metadata.create_all(raw)
-    db = Database(engine, "test")
+    from sqlalchemy import insert
+
+    from provisa.core.schema_org import domains
+
+    db = control_plane.org()
     async with db.acquire() as conn:
+        await conn.execute_core(insert(domains).values(id="sales"))  # a table's domain is a key
         for rid in ("eu", "us"):
             await region_repo.upsert_store(
                 conn, StoreConfig(id=f"{rid}-pg", url=f"postgresql://{rid}/db")

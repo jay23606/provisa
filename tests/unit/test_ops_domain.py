@@ -346,8 +346,8 @@ class TestReportViewRegistry:
         assert "jsonb_array_elements_text" in _ops_table_usage_ddl("postgresql")
 
 
-@pytest.mark.parametrize("uri", ["sqlite+pysqlite:///:memory:", "duckdb:///:memory:"])
-async def test_report_views_functional(uri):
+@pytest.mark.parametrize("uri", ["postgresql", "sqlite+pysqlite:///:memory:", "duckdb:///:memory:"])
+async def test_report_views_functional(uri, control_plane):
     """REQ-1386: create the report views on a real embedded backend, feed audit
     rows + tags, and query every view — validates the SQL on each dialect."""
     from sqlalchemy import insert, text
@@ -364,8 +364,11 @@ async def test_report_views_functional(uri):
     )
     from provisa.api.startup_seed import _adapt_view_ddl
 
-    db = Database(create_engine_from_url(uri), name="ops-report-test")
-    await _init_schema_portable(db)
+    if uri == "postgresql":
+        db = control_plane.org()
+    else:
+        db = Database(create_engine_from_url(uri), name="ops-report-test")
+        await _init_schema_portable(db)
     try:
         async with db.acquire() as conn:
             # The tables' domain, as a config declares it: no demo domain is seeded.
@@ -572,7 +575,9 @@ class TestViewDdlIsReseedableAfterNarrowing:
         assert "CASCADE" not in _adapt_view_ddl(ddl, "mysql")
 
 
-async def test_the_queries_report_from_the_audit_log_matches_the_report_from_query_spans(tmp_path):
+async def test_the_queries_report_from_the_audit_log_matches_the_report_from_query_spans(
+    tmp_path, control_plane
+):
     """REQ-1910: the `queries` report moved from the trace table's ``provisa.query.*`` spans to
     ``query_audit_log``. On a fixed mix — three requests, one of them two statements — the old
     report (every span stored, the span-name predicate) and the audit-backed report list the same
@@ -584,9 +589,7 @@ async def test_the_queries_report_from_the_audit_log_matches_the_report_from_que
     from sqlalchemy import insert, text
 
     from provisa.api.startup_seed import _adapt_view_ddl
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.db import _init_schema_portable
-    from provisa.core.schema_org import query_audit_log, registered_tables, sources
+    from provisa.core.schema_org import domains, query_audit_log, registered_tables, sources
     from provisa.observability import otlp2sql
     from provisa.observability.ops_schema import ensure_tables
 
@@ -646,11 +649,9 @@ async def test_the_queries_report_from_the_audit_log_matches_the_report_from_que
         )
 
     # New report: the audit rows the same statements wrote, read through the seeded view.
-    db = Database(
-        create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cp.sqlite'}"), name="queries"
-    )
-    await _init_schema_portable(db)
+    db = control_plane.org()
     async with db.acquire() as conn:
+        await conn.execute_core(insert(domains).values(id="shelter", description="shelter"))
         await conn.execute_core(insert(sources).values(id="s1", type="postgres"))
         for tid, name in ((1, "orders"), (2, "customers")):
             await conn.execute_core(

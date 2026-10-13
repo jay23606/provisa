@@ -11,23 +11,14 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 
 import pytest
-from provisa.core.database import create_engine_from_url
 
-from provisa.core.database import Database
-from provisa.core.schema_org import event_status, events, node_freshness_state
 from provisa.events import queue
 from provisa.events.processor import MVTableProcessor, SourceTableProcessor, TableProcessor
 
 
 @asynccontextmanager
-async def _db(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'q.db'}")
-    with engine.begin() as c:
-        events.metadata.create_all(c, tables=[events, event_status, node_freshness_state])
-    try:
-        yield Database(engine, name="q")
-    finally:
-        engine.dispose()
+async def _db(control_plane):
+    yield control_plane.org()
 
 
 class _Proc(TableProcessor):
@@ -58,8 +49,8 @@ def _proc(db, *, result, node="mv.a", deps=None):
 
 
 @pytest.mark.asyncio
-async def test_process_pending_claims_handles_reposts(tmp_path):
-    async with _db(tmp_path) as db, db.acquire() as conn:
+async def test_process_pending_claims_handles_reposts(control_plane):
+    async with _db(control_plane) as db, db.acquire() as conn:
         # upstream change fanned out to our node → pending work
         up = await queue.post_event(conn, source_table="s.orders", event_type="append")
         await queue.fan_out(conn, up, ["mv.a"])
@@ -94,14 +85,14 @@ async def test_process_pending_claims_handles_reposts(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_nothing_pending_is_noop(tmp_path):
-    async with _db(tmp_path) as db, db.acquire() as conn:
+async def test_nothing_pending_is_noop(control_plane):
+    async with _db(control_plane) as db, db.acquire() as conn:
         assert await _proc(db, result=("replace", {}, None)).process_pending(conn) is None
 
 
 @pytest.mark.asyncio
-async def test_unchanged_handle_does_not_repost(tmp_path):
-    async with _db(tmp_path) as db, db.acquire() as conn:
+async def test_unchanged_handle_does_not_repost(control_plane):
+    async with _db(control_plane) as db, db.acquire() as conn:
         up = await queue.post_event(conn, source_table="s.o", event_type="append")
         await queue.fan_out(conn, up, ["mv.a"])
         proc = _proc(db, result=None)  # handle says unchanged
@@ -113,8 +104,8 @@ async def test_unchanged_handle_does_not_repost(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_consume_kafka_posts_delta_per_message(tmp_path):
-    async with _db(tmp_path) as db:
+async def test_consume_kafka_posts_delta_per_message(control_plane):
+    async with _db(control_plane) as db:
 
         async def consumer():
             yield {"op": "u", "id": 1}
@@ -137,8 +128,8 @@ async def test_consume_kafka_posts_delta_per_message(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_variants_delegate_handle(tmp_path):
-    async with _db(tmp_path) as db:
+async def test_variants_delegate_handle(control_plane):
+    async with _db(control_plane) as db:
 
         async def land(pending, *, prior_hash, forced=False):
             return ("append", {"n": len(pending)}, None)
@@ -182,7 +173,7 @@ class _CrashProc(_Proc):
 
 
 @pytest.mark.asyncio
-async def test_req960_crash_between_land_and_commit_loses_nothing(tmp_path):
+async def test_req960_crash_between_land_and_commit_loses_nothing(control_plane):
     """A crash after land but before the post+fan_out+complete commit must roll back
     atomically (no downstream ripple, claim not completed), and a re-run must recover."""
     from datetime import datetime, timezone
@@ -196,7 +187,7 @@ async def test_req960_crash_between_land_and_commit_loses_nothing(tmp_path):
             raise RuntimeError("simulated crash during fan_out")
         return ["down.x"]
 
-    async with _db(tmp_path) as db:
+    async with _db(control_plane) as db:
         async with db.acquire() as conn:
             up = await queue.post_event(conn, source_table="s.o", event_type="append")
             await queue.fan_out(conn, up, ["mv.a"])
@@ -240,12 +231,12 @@ async def test_req960_crash_between_land_and_commit_loses_nothing(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_req959_ownership_cas_aborts_ripple_on_peer_takeover(tmp_path):
+async def test_req959_ownership_cas_aborts_ripple_on_peer_takeover(control_plane):
     """If a peer reclaims this node's work while it is mid-handle, the ownership CAS at complete fails
     and the whole commit rolls back — no ripple, no partial completion (REQ-959)."""
     from datetime import datetime, timedelta, timezone
 
-    async with _db(tmp_path) as db:
+    async with _db(control_plane) as db:
         async with db.acquire() as conn:
             up = await queue.post_event(conn, source_table="s.o", event_type="append")
             await queue.fan_out(conn, up, ["mv.a"])
@@ -323,14 +314,14 @@ def test_debounce_deadline_math():
 
 
 @pytest.mark.asyncio
-async def test_debounce_collapses_burst_into_one_recompute(tmp_path, monkeypatch):
+async def test_debounce_collapses_burst_into_one_recompute(control_plane, monkeypatch):
     """A burst of fan-ins is deferred until the debounce deadline, then fires ONCE coalescing all of
     them into a single recompute (REQ-963)."""
     from datetime import datetime, timedelta, timezone
 
     import provisa.events.processor as processor_mod
 
-    async with _db(tmp_path) as db:
+    async with _db(control_plane) as db:
         async with db.acquire() as conn:
             # three rapid upstream changes fan into the live MV
             ids = []
@@ -365,7 +356,7 @@ async def test_debounce_collapses_burst_into_one_recompute(tmp_path, monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_a_views_own_cadence_recomputes_the_view_with_no_input_signalling_it(tmp_path):
+async def test_a_views_own_cadence_recomputes_the_view_with_no_input_signalling_it(control_plane):
     """A view no input signals (every input read in place, so no source node ripples into it) is
     built on its own schedule: its poll job's tick is work for THE VIEW, which recomputes and then
     re-posts its change to its dependents — never only to the dependents, where it never ran."""
@@ -378,7 +369,7 @@ async def test_a_views_own_cadence_recomputes_the_view_with_no_input_signalling_
     async def cadence() -> None:
         return None  # a cadence-only probe: every tick is a request to recompute
 
-    async with _db(tmp_path) as db:
+    async with _db(control_plane) as db:
         view = MVTableProcessor(
             "mv.every_orders",
             change_signal="ttl",

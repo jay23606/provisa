@@ -333,21 +333,17 @@ async def test_a_promoted_table_is_the_replicators_before_its_reads_go_to_the_re
 
 
 async def test_a_deployment_with_no_store_and_nothing_replicated_reads_its_routes(
-    tmp_path, monkeypatch
+    control_plane, monkeypatch
 ):
     """Trino is not its own store; with no materialization store configured and none to fall
     back on, ``store_identity`` raises. A deployment that replicates nothing must still build
     its routes and floored set, as it did before Hot replication read the replica state."""
     import asyncio as _asyncio
 
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.db import init_schema
     from provisa.federation import replica_routing
     from provisa.federation.engine import MaterializeStoreUnconfigured
 
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'tenant.db'}")
-    db = Database(engine, name="org")
-    await init_schema(db, "", org_id="default")
+    db = control_plane.org()
     monkeypatch.delenv("TENANT_DATABASE_URL", raising=False)
     monkeypatch.delenv("PROVISA_MATERIALIZE_URL", raising=False)
     monkeypatch.setattr("provisa.federation.engine.configured_materialize_url", lambda: None)
@@ -382,11 +378,8 @@ async def test_a_deployment_with_no_store_and_nothing_replicated_reads_its_route
         config=SimpleNamespace(),
         federation_engine=SimpleNamespace(engine=trino),
     )
-    try:
-        assert await replica_routing.replica_tables(trino, state) == []
-        assert await replica_routing.floored_tables(state) == {}
-    finally:
-        engine.dispose()
+    assert await replica_routing.replica_tables(trino, state) == []
+    assert await replica_routing.floored_tables(state) == {}
     del _asyncio
 
 

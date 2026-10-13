@@ -25,8 +25,6 @@ from provisa.api.admin import secrets_router as sr
 from provisa.api.errors import ApiError
 from provisa.core.org_membership import JOINED_VIA_INVITE, grant_membership
 from provisa.core.schema_admin import (
-    deployment_encryption_key,
-    metadata,
     orgs,
     secrets_store,
     user_org_memberships,
@@ -53,17 +51,10 @@ def _isolated(tmp_path, monkeypatch):
 
 
 @pytest.fixture
-async def plane(tmp_path, monkeypatch):
+async def plane(control_plane, monkeypatch):
     """A platform control plane holding two organizations and one person, who belongs to the
     first only. The deployment is multi-tenant."""
-    from provisa.core.database import Database, create_engine_from_url
-
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'platform.db'}")
-    with engine.begin() as conn:
-        metadata.create_all(
-            conn, tables=[orgs, user_org_memberships, secrets_store, deployment_encryption_key]
-        )
-    db = Database(engine, name="admin")
+    db = control_plane.platform
     async with db.acquire() as conn:
         for org_id in (MINE, OTHER):
             await conn.execute_core(insert(orgs).values(id=org_id, name=org_id))
@@ -75,8 +66,7 @@ async def plane(tmp_path, monkeypatch):
     monkeypatch.setattr(sr, "_admin_pool", lambda: db)
     monkeypatch.setattr(sr, "_audit", _no_audit)  # the audit trail is the org's tenant plane
     monkeypatch.setattr(sr, "_deployment", lambda: (True, MINE))
-    yield db
-    engine.dispose()
+    return db
 
 
 def _request(person: str | None = PERSON) -> SimpleNamespace:
@@ -174,8 +164,7 @@ async def test_a_deployment_of_one_organization_serves_that_organization_only(pl
     """Without multi-tenancy the deployment has one organization and records no memberships:
     its people keep personal secrets under it, and no other organization id answers."""
     monkeypatch.setattr(sr, "_deployment", lambda: (False, "default"))
-    async with plane.acquire() as conn:  # the deployment's own organization, as its start seeds it
-        await conn.execute_core(insert(orgs).values(id="default", name="Enterprise"))
+    # the deployment's own organization is seeded by its start (the control plane's template)
     request = _request("uid-with-no-membership")
     await sr.put_my_secret(request, "default", "GIT_TOKEN", sr.SecretBody(value="v"))
     assert await _stored(plane) == [("default", "uid-with-no-membership", "GIT_TOKEN")]

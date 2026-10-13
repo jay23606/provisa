@@ -23,14 +23,11 @@ import types
 
 import pytest
 
-from provisa.core import config_stamp, config_watch
+from provisa.core import config_watch
 import provisa.api.app  # noqa: F401 - imported before a test narrows the registry to its own settings
 from provisa.api.admin import settings_catalog_router as catalog
 from provisa.api.errors import ApiError
 from provisa.core import deployment_settings, settings_registry
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.schema_admin import deployment_settings as settings_table
-from provisa.core.schema_admin import metadata
 from provisa.core.settings_registry import Setting
 
 LIMIT = Setting(
@@ -104,7 +101,7 @@ SINGLE_TENANT_ORG_ADMIN = ("platform_settings", "org_settings")
 
 
 @pytest.fixture
-def control_plane(tmp_path, monkeypatch):
+def settings_plane(tmp_path, monkeypatch, control_plane):
     monkeypatch.setattr(settings_registry, "_settings", {s.key: s for s in (*ALL, RELOAD_INTERVAL)})
     monkeypatch.setattr(settings_registry, "_loaded", True)
     monkeypatch.setattr(settings_registry, "_config", {})
@@ -112,23 +109,17 @@ def control_plane(tmp_path, monkeypatch):
     monkeypatch.setattr(settings_registry, "_appliers", [])
     monkeypatch.delenv("PROVISA_TEST_LIMIT", raising=False)
     monkeypatch.delenv(settings_registry.IGNORE_STORED_ENV, raising=False)
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}")
-    with engine.begin() as conn:
-        metadata.create_all(conn, tables=[settings_table, metadata.tables["config_stamp"]])
-        # REQ-1914: the settings snapshot is loaded with the plane's `settings` stamp.
-        config_stamp.install(conn, config_stamp.PLATFORM_TABLES)
-    db = Database(engine, name="platform")
+    db = control_plane.platform
     monkeypatch.setattr(deployment_settings, "_held", None)
     monkeypatch.setattr(deployment_settings, "_db", db)
     monkeypatch.setattr(
         "provisa.api.app.state", types.SimpleNamespace(admin_db=db, roles={}), raising=False
     )
     yield db
-    engine.dispose()
 
 
 @pytest.fixture
-def caller(monkeypatch, control_plane):
+def caller(monkeypatch, settings_plane):
     """A request from an identity holding exactly the rights a case names; no rights named is the
     anonymous caller of a deployment with no auth provider."""
     import provisa.api.admin.capabilities as capmod
@@ -255,8 +246,8 @@ async def test_a_read_only_setting_says_why(caller):
     assert entry["editable"] is False and entry["readonly_reason"] == "locates_control_plane"
 
 
-async def test_a_stored_value_that_cannot_be_used_is_listed_with_its_error(caller, control_plane):
-    deployment_settings.write(control_plane, {"test.limit": 99999}, updated_by="x")
+async def test_a_stored_value_that_cannot_be_used_is_listed_with_its_error(caller, settings_plane):
+    deployment_settings.write(settings_plane, {"test.limit": 99999}, updated_by="x")
     entry = _by_key(await catalog.get_catalog(caller(*PLATFORM_ADMIN)))["test.limit"]
     assert entry["error"] == {"field": "test.limit", "source": "stored", "reason": "above_max"}
 
@@ -373,7 +364,7 @@ def test_the_catalog_routes_are_served_by_the_app():
 
 
 async def test_the_ui_server_is_told_its_proxy_timeout_and_where_it_comes_from(
-    control_plane, monkeypatch
+    settings_plane, monkeypatch
 ):
     """The UI server has no control plane of its own; it carries no identity when it asks."""
     from provisa.auth.middleware import _SKIP_PATHS
@@ -386,7 +377,7 @@ async def test_the_ui_server_is_told_its_proxy_timeout_and_where_it_comes_from(
     assert await catalog.ui_server_settings() == {
         "proxy_timeout": {"value": 480.0, "source": "default"}
     }
-    settings_registry.store(control_plane, {"ui.proxy_timeout": 30}, updated_by="a")
+    settings_registry.store(settings_plane, {"ui.proxy_timeout": 30}, updated_by="a")
     assert await catalog.ui_server_settings() == {
         "proxy_timeout": {"value": 30.0, "source": "stored"}
     }

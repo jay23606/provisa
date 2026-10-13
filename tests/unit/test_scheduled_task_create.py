@@ -16,16 +16,11 @@ from provisa.scheduler import jobs
 
 
 @pytest.fixture
-def cfg_path(tmp_path, monkeypatch):
+def cfg_path(tmp_path, monkeypatch, control_plane):
     """The bound org's model store, holding the triggers table; no scheduler runs here."""
     import provisa.api.app as app_mod
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.schema_org import metadata, scheduled_triggers, tracked_webhooks
 
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'model.db'}")
-    with engine.begin() as raw:
-        metadata.create_all(raw, tables=[scheduled_triggers, tracked_webhooks])
-    db = Database(engine, "model")
+    db = control_plane.org()
     monkeypatch.setattr(app_mod.state, "model_db", db, raising=False)
     monkeypatch.setattr(app_mod.state, "_scheduler", None, raising=False)
     # A config file is present and must stay untouched: triggers are never written to it.

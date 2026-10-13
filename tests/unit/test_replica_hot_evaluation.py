@@ -11,7 +11,7 @@
 """Hot promotion's evaluation (REQ-826): a table under a threshold is promoted when it is busy,
 its build is requested with the promotion, and it is demoted when its traffic falls away.
 
-The control plane's replica state is real (SQLite); the registry read and the engine are stand
+The control plane's replica state is real; the registry read and the engine are stand
 ins. What the evaluation writes is read back through the state store, and the replica-state stamp
 is asserted, because that stamp is how every other process learns of the change."""
 
@@ -25,11 +25,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from provisa.core import config_stamp, settings_registry
-from provisa.core.database import Database, create_engine_from_url
+from provisa.core import settings_registry
 from provisa.core.models import Source, SourceType
-from provisa.core.schema_org import config_stamp as stamps
-from provisa.core.schema_org import metadata, replica_state as replica_state_table
 from provisa.federation import replica_hot, replica_state
 from provisa.federation.engine import build_engine
 from provisa.federation.replica_hot import (
@@ -108,14 +105,10 @@ def world_org(bind_org) -> str:
 
 
 @pytest.fixture
-async def world(tmp_path, monkeypatch, world_org):
+async def world(control_plane, monkeypatch, world_org):
     """One org environment: a real replica-state control plane, a registry of two tables on a
     source the engine reads in place, an embedded count store with its own clock."""
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}")
-    with engine.begin() as raw:
-        metadata.create_all(raw, tables=[replica_state_table, stamps])
-        config_stamp.install(raw, {}, advanced=config_stamp.TENANT_ADVANCED)
-    db = Database(engine, "test")
+    db = control_plane.org()
     registry = SimpleNamespace(tables=[_reg(1, "orders"), _reg(2, "items")], source=_pg())
 
     async def _tables(_state, _conn=None):
@@ -161,7 +154,6 @@ async def world(tmp_path, monkeypatch, world_org):
     yield SimpleNamespace(
         state=state, registry=registry, seen=seen, stored=stored, db=db, scope=scope
     )
-    engine.dispose()
 
 
 async def _promote(world, key=ORDERS, *, built: bool = False) -> None:

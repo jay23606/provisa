@@ -29,19 +29,17 @@ from sqlalchemy import insert, select
 
 from provisa.api.admin import schema_mutation
 from provisa.api.admin.types import RelationshipInput
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.db import _init_schema_portable
+from provisa.core.database import Database
 from provisa.core.models import Cardinality, Relationship
 from provisa.core.repositories import relationship as rel_repo
 from provisa.core.schema_org import domains, registered_tables, relationships, sources
 
 
 @pytest.fixture
-async def plane(monkeypatch) -> Database:
+async def plane(monkeypatch, control_plane) -> Database:
     """customers, and shop_access registered under the alias access_log, with the weblogs demo's
     forward relationship access_log.customer_id -> customers.id, alias BY_CUSTOMER."""
-    db = Database(create_engine_from_url("sqlite+pysqlite:///:memory:"), name="rel-save-test")
-    await _init_schema_portable(db)
+    db = control_plane.org()
     async with db.acquire() as conn:
         await conn.execute_core(insert(sources).values(id="shop-db", type="postgresql"))
         await conn.execute_core(insert(sources).values(id="other-db", type="postgresql"))

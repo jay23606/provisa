@@ -23,7 +23,6 @@ from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import select
-from provisa.core.database import create_engine_from_url
 
 from provisa.api.admin import org_storage_router as router_mod
 from provisa.api.admin.org_storage_router import (
@@ -34,21 +33,15 @@ from provisa.api.admin.org_storage_router import (
 from provisa.api.errors import ApiError
 from provisa.api.org_runtime import OrgRegistry, OrgRuntime
 from provisa.core.database import Database
-from provisa.core.schema_admin import metadata, orgs
+from provisa.core.schema_admin import orgs
 
 _ORG_STORE = "postgresql+psycopg://acme:secret@acme-own-host/store"
 _REQUEST = SimpleNamespace()
 
 
 @pytest.fixture
-async def admin_db():
-    engine = create_engine_from_url("sqlite+pysqlite:///:memory:")
-    with engine.begin() as conn:
-        metadata.create_all(conn)
-    try:
-        yield Database(engine, "test")
-    finally:
-        engine.dispose()
+def admin_db(control_plane):
+    return control_plane.platform
 
 
 @pytest.fixture

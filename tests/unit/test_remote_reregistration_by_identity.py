@@ -27,8 +27,7 @@ import pytest
 from sqlalchemy import insert, select
 
 from provisa.api.admin.graphql_remote_router import _upsert_tables_to_semantic_layer
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.db import _init_schema_portable
+from provisa.core.database import Database
 from provisa.core.repositories import table as table_repo
 from provisa.core.schema_org import (
     domains,
@@ -44,9 +43,8 @@ def _gql_table(name: str) -> dict:
 
 
 @pytest.fixture
-async def plane() -> Database:
-    db = Database(create_engine_from_url("sqlite+pysqlite:///:memory:"), name="reregister-test")
-    await _init_schema_portable(db)
+async def plane(control_plane) -> Database:
+    db = control_plane.org()
     async with db.acquire() as conn:
         await conn.execute_core(insert(sources).values(id="crm", type="graphql_remote"))
         await conn.execute_core(insert(domains).values(id="sales"))

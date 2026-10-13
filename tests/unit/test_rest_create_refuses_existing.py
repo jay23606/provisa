@@ -24,9 +24,7 @@ from sqlalchemy import func, insert, select
 
 from provisa.api.admin import local_users_router, roles_router
 from provisa.api.errors import ApiError
-from provisa.core import schema_admin
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.db import _init_schema_portable
+from provisa.core.database import Database
 from provisa.core.schema_admin import local_users
 from provisa.core.schema_org import roles
 
@@ -40,9 +38,8 @@ async def _count(db: Database, table) -> int:
         return (await conn.execute_core(select(func.count()).select_from(table))).scalar_one()
 
 
-async def test_a_role_id_that_exists_is_refused_by_name(monkeypatch):
-    plane = Database(create_engine_from_url("sqlite+pysqlite:///:memory:"), name="roles-create")
-    await _init_schema_portable(plane)
+async def test_a_role_id_that_exists_is_refused_by_name(monkeypatch, control_plane):
+    plane = control_plane.org()
     async with plane.acquire() as conn:
         await conn.execute_core(
             insert(roles).values(id="auditor", capabilities=[], domain_access=["*"], org_id="a")
@@ -70,10 +67,8 @@ async def test_a_role_id_that_exists_is_refused_by_name(monkeypatch):
     assert await _count(plane, roles) == before
 
 
-async def test_a_username_that_is_taken_is_refused_by_name(monkeypatch):
-    platform = Database(create_engine_from_url("sqlite+pysqlite:///:memory:"), name="users-create")
-    with platform.engine.begin() as conn:
-        schema_admin.metadata.create_all(conn)
+async def test_a_username_that_is_taken_is_refused_by_name(monkeypatch, control_plane):
+    platform = control_plane.platform
     async with platform.acquire() as conn:
         await conn.execute_core(
             insert(local_users).values(

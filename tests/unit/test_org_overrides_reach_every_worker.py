@@ -30,24 +30,21 @@ from provisa.api.app import AppState
 from provisa.api.org_runtime import OrgRuntime
 from provisa.core import config_stamp, config_watch
 from provisa.core import org_settings as org_settings_mod
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.schema_org import config_stamp as stamp_table
-from provisa.core.schema_org import metadata, org_settings
+from provisa.core.database import Database
+from provisa.core.schema_org import org_settings
 
 
 @pytest.fixture
-def tenant_db(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'tenant.db'}")
-    with engine.begin() as conn:
-        metadata.create_all(conn, tables=[org_settings, stamp_table])
-        config_stamp.install(conn, {"org_settings": config_stamp.SETTINGS})
-    yield Database(engine, name="org")
-    engine.dispose()
+def tenant_db(control_plane):
+    return control_plane.org()
 
 
 def _another_worker_writes(db: Database, key: str, value: dict) -> None:
-    with db.engine.begin() as conn:
-        conn.execute(insert(org_settings).values(key=key, value=value))
+    async def write() -> None:
+        async with db.acquire() as conn:
+            await conn.execute_core(insert(org_settings).values(key=key, value=value))
+
+    asyncio.run(write())
 
 
 @pytest.fixture

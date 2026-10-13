@@ -15,7 +15,7 @@ other order — the view exists, then its table is switched to row-level replica
 endpoint starts needing arguments — is refused where the table or endpoint is stored, naming the
 views that read it, instead of leaving the view's next refresh to fail.
 
-A real SQLite control plane through the table repository and the endpoint persist function: the
+A real control plane through the table repository and the endpoint persist function: the
 refusal IS their last write gate."""
 
 from __future__ import annotations
@@ -29,25 +29,28 @@ import sqlalchemy as sa
 import provisa.api.app as app_mod
 from provisa.api_source.models import ApiColumn, ApiColumnType, ApiEndpoint, ParamType
 from provisa.api_source.persist import persist_api_endpoint
-from provisa.core.database import Database, create_engine_from_url
 from provisa.core.models import Column, Table
 from provisa.core.repositories import table as table_repo
-from provisa.core.schema_org import api_endpoints, metadata, registered_tables
+from provisa.core.schema_org import (
+    api_endpoints,
+    api_sources,
+    domains,
+    registered_tables,
+    sources,
+)
 from provisa.mv.models import MVDefinition
 from provisa.mv.readable_inputs import ViewsReadTable
 from provisa.mv.registry import MVRegistry
 
 
 @asynccontextmanager
-async def _conn(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'tenant.db'}")
-    with engine.begin() as c:
-        metadata.create_all(c)
-    try:
-        async with Database(engine, name="org").acquire() as conn:
-            yield conn
-    finally:
-        engine.dispose()
+async def _conn(control_plane):
+    async with control_plane.org().acquire() as conn:
+        await conn.execute_core(sa.insert(domains).values(id="web"))
+        for source_id, kind in (("graph", "neo4j"), ("crm", "openapi"), ("__derived__", "trino")):
+            await conn.execute_core(sa.insert(sources).values(id=source_id, type=kind))
+        await conn.execute_core(sa.insert(api_sources).values(id="crm", type="openapi"))
+        yield conn
 
 
 @pytest.fixture
@@ -100,9 +103,9 @@ async def _stored_row_level(conn, name: str) -> bool:
 
 
 async def test_switching_a_table_a_view_reads_to_row_level_is_refused_naming_the_views(
-    tmp_path, state
+    control_plane, state
 ):
-    async with _conn(tmp_path) as conn:
+    async with _conn(control_plane) as conn:
         await table_repo.upsert(conn, _clicks(row_level=False))
         await table_repo.upsert(
             conn,
@@ -122,7 +125,7 @@ async def test_switching_a_table_a_view_reads_to_row_level_is_refused_naming_the
         assert await _stored_row_level(conn, "clicks") is False  # nothing was stored
 
 
-async def test_a_view_held_in_memory_from_the_config_refuses_the_switch_too(tmp_path, state):
+async def test_a_view_held_in_memory_from_the_config_refuses_the_switch_too(control_plane, state):
     state.mv_registry.register(
         MVDefinition(
             id="view-config-clicks",
@@ -132,14 +135,16 @@ async def test_a_view_held_in_memory_from_the_config_refuses_the_switch_too(tmp_
             sql="SELECT region FROM web.clicks",
         )
     )
-    async with _conn(tmp_path) as conn:
+    async with _conn(control_plane) as conn:
         await table_repo.upsert(conn, _clicks(row_level=False))
         with pytest.raises(ViewsReadTable, match="'view-config-clicks' read it"):
             await table_repo.upsert(conn, _clicks(row_level=True))
 
 
-async def test_the_switch_is_allowed_when_no_materialized_view_reads_the_table(tmp_path, state):
-    async with _conn(tmp_path) as conn:
+async def test_the_switch_is_allowed_when_no_materialized_view_reads_the_table(
+    control_plane, state
+):
+    async with _conn(control_plane) as conn:
         await table_repo.upsert(conn, _clicks(row_level=False))
         # An inline (not materialized) view is expanded into each request: it builds nothing.
         await table_repo.upsert(
@@ -153,12 +158,12 @@ async def test_the_switch_is_allowed_when_no_materialized_view_reads_the_table(t
         await table_repo.upsert(conn, _clicks(row_level=True))  # and it stays storable
 
 
-async def test_a_table_the_engine_attaches_live_is_not_switched_by_the_flag(tmp_path, state):
+async def test_a_table_the_engine_attaches_live_is_not_switched_by_the_flag(control_plane, state):
     """The flag is ignored where the engine reads the source in place: the view stays readable."""
     state.federation_engine = SimpleNamespace(
         connectors={"neo4j": SimpleNamespace(reads_in_place=True)}
     )
-    async with _conn(tmp_path) as conn:
+    async with _conn(control_plane) as conn:
         await table_repo.upsert(conn, _clicks(row_level=False))
         await table_repo.upsert(conn, _view("clicks_by_region", "SELECT region FROM clicks"))
         await table_repo.upsert(conn, _clicks(row_level=True))
@@ -169,8 +174,8 @@ def _endpoint(path: str, *columns: ApiColumn) -> ApiEndpoint:
     return ApiEndpoint(source_id="crm", path=path, table_name="contacts", columns=list(columns))
 
 
-async def test_an_endpoint_a_view_reads_may_not_start_needing_arguments(tmp_path, state):
-    async with _conn(tmp_path) as conn:
+async def test_an_endpoint_a_view_reads_may_not_start_needing_arguments(control_plane, state):
+    async with _conn(control_plane) as conn:
         await persist_api_endpoint(conn, _endpoint("/contacts"))
         await table_repo.upsert(conn, _view("contacts_by_region", "SELECT region FROM contacts"))
 
@@ -189,8 +194,8 @@ async def test_an_endpoint_a_view_reads_may_not_start_needing_arguments(tmp_path
         assert [r.path for r in stored.fetchall()] == ["/contacts"]
 
 
-async def test_an_endpoint_no_view_reads_may_start_needing_arguments(tmp_path, state):
-    async with _conn(tmp_path) as conn:
+async def test_an_endpoint_no_view_reads_may_start_needing_arguments(control_plane, state):
+    async with _conn(control_plane) as conn:
         await persist_api_endpoint(conn, _endpoint("/contacts"))
         await persist_api_endpoint(conn, _endpoint("/contacts/{id}"))
         stored = await conn.execute_core(sa.select(api_endpoints.c.path))
