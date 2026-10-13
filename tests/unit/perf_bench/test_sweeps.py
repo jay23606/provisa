@@ -136,8 +136,9 @@ def test_cache_sweep() -> None:
     assert runs["graphql.bench-postgresql.cache.0.5"].contract["knobs"]["cache"] == {
         "probability": 0.5
     }
+    # knob runs are uncached, so a knob's cost is never mixed with the cache's
     assert runs["graphql.bench-postgresql.baseline"].contract["knobs"]["cache"] == {
-        "probability": 1.0
+        "probability": 0.0
     }
 
 
@@ -199,7 +200,7 @@ def test_write_plan_writes_contracts_and_a_manifest(tmp_path: Path) -> None:
         values={"rows": [10]},
         deployment=_NO_REST,
     )
-    sweeps.write_plan(runs, tmp_path)
+    sweeps.write_plan(runs, tmp_path, hardware=sweeps.Hardware(8, True))
     manifest = json.loads((tmp_path / "manifest.json").read_text())
     by = {m["name"]: m for m in manifest["runs"]}
     assert (
@@ -219,8 +220,10 @@ def test_write_plan_writes_contracts_and_a_manifest(tmp_path: Path) -> None:
         "value": 10,
         "contract": "pgwire.bench-postgresql.rows.10.yaml",
         "skipped": None,
+        "server_env": None,
     }
     assert manifest["label"] == "internal: not for publication"
+    assert manifest["hardware"] == {"physical_cores": 8, "shared_host": True}
 
 
 def test_the_run_command_for_a_contract() -> None:
@@ -240,3 +243,72 @@ def test_the_run_command_for_a_contract() -> None:
         "--output-dir",
         "results/sweeps/x",
     ]
+
+
+def test_the_worker_sweep_plans_each_pair_of_workers_and_in_flight_per_transport(
+    tmp_path: Path,
+) -> None:
+    runs = _by_name(
+        sweeps.plan_worker_sweep(
+            _base(),
+            known_transports=TRANSPORTS,
+            deployment=fx.build(),
+            environ=ENV,
+            transports=["graphql", "pgwire"],
+            workers=[8, 16],
+            request_threads=[1, 4],
+        )
+    )
+    assert set(runs) == {
+        f"{t}.workers.{w}.threads.{r}"
+        for t in ("graphql", "pgwire")
+        for w in (8, 16)
+        for r in (1, 4)
+    }
+    run = runs["pgwire.workers.16.threads.4"]
+    assert run.knob == "workers" and run.value == {"workers": 16, "request_threads": 4}
+    assert run.server_env == {"PROVISA_WORKERS": "16", "PROVISA_REQUEST_THREADS": "4"}
+    # the base contract as it stands, one transport: the optimistic request
+    setup = _load(run, tmp_path)
+    assert list(setup.transports) == ["pgwire"]
+    assert setup.knobs.cache_probability == 1.0
+    assert all(k.probability == 0 for k in setup.knobs.distributions.values())
+
+
+def test_a_worker_sweep_transport_the_deployment_cannot_serve_is_skipped() -> None:
+    base = _base()
+    base["knobs"]["source_weights"] = {
+        "bench-postgresql": 0.0,
+        "bench-clickhouse": 1.0,
+        "bench-mongodb": 0.0,
+        "bench-neo4j": 0.0,
+    }
+    runs = sweeps.plan_worker_sweep(
+        base,
+        known_transports=TRANSPORTS,
+        deployment=_NO_REST,
+        environ=ENV,
+        transports=["rest"],
+        workers=[8],
+        request_threads=[1],
+    )
+    (run,) = runs
+    assert run.contract is None
+    assert "is not exposed in rest by the deployment" in run.skipped
+
+
+def test_the_manifest_carries_a_worker_runs_server_environment(tmp_path: Path) -> None:
+    runs = sweeps.plan_worker_sweep(
+        _base(),
+        known_transports=TRANSPORTS,
+        deployment=fx.build(),
+        environ=ENV,
+        transports=["graphql"],
+        workers=[4],
+        request_threads=[2],
+    )
+    sweeps.write_plan(runs, tmp_path, hardware=sweeps.Hardware(16, False))
+    manifest = json.loads((tmp_path / "manifest.json").read_text())
+    (entry,) = manifest["runs"]
+    assert entry["server_env"] == {"PROVISA_WORKERS": "4", "PROVISA_REQUEST_THREADS": "2"}
+    assert manifest["hardware"] == {"physical_cores": 16, "shared_host": False}

@@ -184,3 +184,10 @@ load:
   idle_window_s: 0
 
 seed: 0
+
+# A contract may describe the workload a deployment is sized for (sizing.py, sizing_guide.py): its
+# request rate and each transport's share of it; the knobs above describe its requests. A run
+# never reads it (it sends each transport in turn). Example:
+# workload:
+#   rate_per_s: 2000
+#   transport_weights: {graphql: 0.6, pgwire: 0.3, flight_sql: 0.1}

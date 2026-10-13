@@ -38,6 +38,7 @@ from contract_model import (
     Source,
     Table,
     TransportOverride,
+    Workload,
 )
 
 _WEIGHT_TOLERANCE = 1e-9
@@ -583,3 +584,26 @@ def _load_section(raw: Any, path: str) -> Load:
     profile = _int(raw["profile_requests"], f"{path}.profile_requests")
     idle = _int(raw["idle_window_s"], f"{path}.idle_window_s")
     return Load(raw["mode"], steps, window, processes, rate, profile, idle)
+
+
+def _workload(raw: Any, path: str, transports: Collection[str]) -> Workload:
+    _mapping(raw, path, required=("rate_per_s", "transport_weights"))
+    rate = _number(raw["rate_per_s"], f"{path}.rate_per_s")
+    if rate <= 0:
+        raise SetupError(f"{path}.rate_per_s: must be > 0")
+    wp = f"{path}.transport_weights"
+    weights_raw = raw["transport_weights"]
+    if not isinstance(weights_raw, dict) or not weights_raw:
+        raise SetupError(f"{wp}: must be a non-empty mapping")
+    weights: dict[str, float] = {}
+    for name, w in weights_raw.items():
+        if name not in transports:
+            raise SetupError(
+                f"{wp}: {name!r} is not a transport of the contract "
+                f"(transports: {', '.join(transports)})"
+            )
+        weights[name] = _number(w, f"{wp}.{name}")
+        if weights[name] < 0:
+            raise SetupError(f"{wp}.{name}: must be >= 0")
+    _weights_sum_to_one(list(weights.values()), wp)
+    return Workload(rate, weights)

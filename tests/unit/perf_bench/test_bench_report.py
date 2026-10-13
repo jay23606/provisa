@@ -73,8 +73,9 @@ def _write_run(
     busy = {**step, "concurrency": 16, "server_cpu_ms_per_request": 99.0}  # not the one costed
     out = root / "results" / name / "optimistic"
     out.mkdir(parents=True)
+    replication = {source: {"replication": "live", "ttl_seconds": 0, "route": "auto"}}
     (out / f"{transport}.json").write_text(
-        json.dumps({"transport": transport, "steps": [busy, step]})
+        json.dumps({"transport": transport, "replication": replication, "steps": [busy, step]})
     )
     return {
         "name": name,
@@ -116,9 +117,12 @@ def _sweep(
     return runs
 
 
+HARDWARE = {"physical_cores": 8, "shared_host": True}
+
+
 def _manifest(root: Path, runs: list[dict[str, Any]]) -> None:
     (root / "manifest.json").write_text(
-        json.dumps({"label": "internal: not for publication", "runs": runs})
+        json.dumps({"label": "internal: not for publication", "hardware": HARDWARE, "runs": runs})
     )
 
 
@@ -299,3 +303,148 @@ def test_sizing_inputs_come_from_the_baseline(tmp_path: Path) -> None:
     baseline_ms = _cpu(PROVISA, ZERO)
     assert cell["sizing"]["provisa_cpu_ms_per_request"] == pytest.approx(baseline_ms)
     assert cell["sizing"]["requests_per_s_per_core"] == pytest.approx(1000 / baseline_ms)
+
+
+def test_the_cache_runs_give_the_cost_of_a_hit_and_a_miss_kept_out_of_the_model(
+    tmp_path: Path,
+) -> None:
+    runs = _sweep(tmp_path)
+    miss = _write_run(
+        tmp_path,
+        "graphql.bench-postgresql.cache.0.0",
+        "graphql",
+        "bench-postgresql",
+        "cache",
+        0.0,
+        ZERO,
+        provisa=2.0,
+    )
+    # every request opted in, 90% of them hits: 0.9 x hit + 0.1 x 2.0 = 0.47
+    opted = _write_run(
+        tmp_path,
+        "graphql.bench-postgresql.cache.1.0",
+        "graphql",
+        "bench-postgresql",
+        "cache",
+        1.0,
+        ZERO,
+        provisa=0.47,
+        extra={"hit_ratio": 0.9},
+    )
+    _manifest(tmp_path, runs + [miss, opted])
+    cell = br.build_report(tmp_path)["transports"]["graphql"]["bench-postgresql"]
+    assert cell["cache"]["miss_ms"] == pytest.approx(2.0)
+    assert cell["cache"]["hit_ms"] == pytest.approx(0.3)
+    # the cache runs are not observations of the knob model
+    assert cell["provisa_cpu"]["base"] == pytest.approx(PROVISA["base"])
+    assert cell["provisa_cpu"]["r2"] == pytest.approx(1.0)
+
+
+def test_an_opted_in_run_with_no_hits_is_an_error(tmp_path: Path) -> None:
+    runs = _sweep(tmp_path)
+    for value, extra in ((0.0, {}), (1.0, {"hit_ratio": None})):
+        runs.append(
+            _write_run(
+                tmp_path,
+                f"graphql.bench-postgresql.cache.{value}",
+                "graphql",
+                "bench-postgresql",
+                "cache",
+                value,
+                ZERO,
+                extra=extra,
+            )
+        )
+    _manifest(tmp_path, runs)
+    with pytest.raises(ValueError, match="cache.1.0: no cache hits measured"):
+        br.build_report(tmp_path)
+
+
+def test_the_cell_records_what_its_baseline_measured(tmp_path: Path) -> None:
+    _manifest(tmp_path, _sweep(tmp_path))
+    cell = br.build_report(tmp_path)["transports"]["graphql"]["bench-postgresql"]
+    assert cell["baseline_knob_means"] == ZERO
+    assert cell["replication"] == {"replication": "live", "ttl_seconds": 0, "route": "auto"}
+    assert cell["cache"] is None
+
+
+def _worker_run(
+    root: Path, transport: str, workers: int, threads: int, steps: list[dict[str, Any]]
+) -> dict[str, Any]:
+    name = f"{transport}.workers.{workers}.threads.{threads}"
+    out = root / "results" / name / "optimistic"
+    out.mkdir(parents=True)
+    (out / f"{transport}.json").write_text(json.dumps({"transport": transport, "steps": steps}))
+    return {
+        "name": name,
+        "transport": transport,
+        "source": "",
+        "knob": "workers",
+        "value": {"workers": workers, "request_threads": threads},
+        "contract": f"{name}.yaml",
+        "skipped": None,
+        "server_env": {"PROVISA_WORKERS": str(workers), "PROVISA_REQUEST_THREADS": str(threads)},
+    }
+
+
+def _ramp(peak: float, p99: float, cpu_ms: float = 1.2) -> list[dict[str, Any]]:
+    return [
+        {
+            "concurrency": 1,
+            "req_per_s": 400.0,
+            "p99_ms": 3.0,
+            "errors": 0,
+            "server_cpu_ms_per_request": cpu_ms,
+        },
+        {
+            "concurrency": 64,
+            "req_per_s": peak,
+            "p99_ms": p99,
+            "errors": 0,
+            "server_cpu_ms_per_request": 2.0,
+        },
+        # a faster step with errors is not a peak
+        {
+            "concurrency": 256,
+            "req_per_s": peak * 2,
+            "p99_ms": 900.0,
+            "errors": 5,
+            "server_cpu_ms_per_request": 2.0,
+        },
+    ]
+
+
+def test_the_worker_sweep_gives_workers_per_core_in_flight_per_worker_and_capacity(
+    tmp_path: Path,
+) -> None:
+    peaks = {
+        (8, 1): 1000.0, (8, 4): 1100.0,
+        (16, 1): 1580.0, (16, 2): 1650.0, (16, 4): 1660.0,
+        (24, 1): 1600.0, (24, 4): 1700.0,
+    }  # fmt: skip
+    runs = [
+        _worker_run(tmp_path, "graphql", w, t, _ramp(peak, 10.0 + t))
+        for (w, t), peak in peaks.items()
+    ]
+    _manifest(tmp_path, runs)
+    report = br.build_report(tmp_path, tolerance=0.05)
+    s = report["server"]["graphql"]
+    assert report["transports"] == {}
+    # best 1700; within 5% is >= 1615: 16 workers is the fewest, and at 16 two threads is
+    assert s["best_peak_req_per_s"] == 1700.0
+    assert (s["workers"], s["in_flight_per_worker"]) == (16, 2)
+    assert s["workers_per_physical_core"] == pytest.approx(16 / 8)
+    assert s["peak_req_per_s"] == 1650.0 and s["p99_ms"] == 12.0
+    assert s["peak_req_per_s_per_physical_core"] == pytest.approx(1650 / 8)
+    assert s["provisa_cpu_ms_per_request"] == pytest.approx(1.2)
+    assert s["capacity_factor"] == pytest.approx(1650 / 8 * 1.2 / 1000)
+    assert len(s["grid"]) == 7
+    assert report["hardware"] == HARDWARE and report["tolerance"] == 0.05
+
+
+def test_a_worker_run_with_no_error_free_step_is_an_error(tmp_path: Path) -> None:
+    steps = [{"concurrency": 1, "req_per_s": 9.0, "p99_ms": 3.0, "errors": 2,
+              "server_cpu_ms_per_request": 1.0}]  # fmt: skip
+    _manifest(tmp_path, [_worker_run(tmp_path, "pgwire", 8, 1, steps)])
+    with pytest.raises(ValueError, match="pgwire.workers.8.threads.1: no step completed without"):
+        br.build_report(tmp_path)

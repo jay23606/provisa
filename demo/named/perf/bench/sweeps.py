@@ -10,12 +10,24 @@
 """Knob sweeps (REQ-1911): each knob alone, per transport and per source, as setup contracts.
 
 A sweep run is the base contract with every knob at zero, one transport, all weight on one source
-and one knob set. ``plan_sweeps`` builds every run and validates it with the contract loader; a run
-the contract cannot serve (a transport that cannot spell the source's tables, joins on gRPC, more
-fields than the table has) is listed with the reason, never dropped. ``write_plan`` writes the
-contracts and a manifest; ``run_command`` is the command that runs one.
+and one knob set. Knob runs are uncached (cache probability 0), so a knob's cost is never mixed
+with the cache's; the cache runs (``cache``) are the hit and miss figures, kept apart. ``plan_sweeps``
+builds every run and validates it with the contract loader; a run the contract cannot serve (a
+transport that cannot spell the source's tables, joins on gRPC, more fields than the table has) is
+listed with the reason, never dropped.
 
-    python sweeps.py plan --setup setups/perf-stack.yaml --out results/sweeps
+``plan_worker_sweep`` plans the server's own sizing: the base contract per transport, run against a
+server started with each pair of worker processes (``PROVISA_WORKERS``) and in-flight requests per
+worker (``concurrency.request_threads``, ``PROVISA_REQUEST_THREADS``). Such a run carries the
+environment its server is started with (``server_env``); ``orchestrate.sh`` passes the caller's
+environment to the server.
+
+``write_plan`` writes the contracts and a manifest with the server's hardware as stated (physical
+cores, and whether the sources and the load generator shared its host); ``run_command`` is the
+command that runs one.
+
+    python sweeps.py plan --setup setups/perf-stack.yaml --out results/sweeps \
+        --physical-cores 8 --shared-host yes --workers 4,8,16 --request-threads 1,2,4
 """
 
 from __future__ import annotations
@@ -43,6 +55,9 @@ DEFAULT_VALUES: dict[str, list[int]] = {
     "joins_cross_source": [1, 2],
 }
 DEFAULT_CACHE = [0.0, 1.0]
+# the server settings a worker sweep run is started with
+WORKERS_ENV = "PROVISA_WORKERS"
+REQUEST_THREADS_ENV = "PROVISA_REQUEST_THREADS"
 _ZERO_KNOB = {"probability": 0, "distribution": {"kind": "constant", "value": 0}}
 
 
@@ -51,10 +66,12 @@ class SweepRun:
     name: str
     transport: str
     source: str
-    knob: str  # baseline | a distribution knob | cache | replication
+    knob: str  # baseline | a distribution knob | cache | replication | workers
     value: Any
     contract: dict[str, Any] | None  # the loadable contract, or None
     skipped: str | None  # why there is no contract
+    # the environment the server under test is started with (worker sweep runs); None: any
+    server_env: dict[str, str] | None = None
 
 
 def _constant(n: int) -> dict[str, Any]:
@@ -64,12 +81,13 @@ def _constant(n: int) -> dict[str, Any]:
 def _baseline(
     raw: dict[str, Any], transport: str, source: str, spread: Sequence[str]
 ) -> dict[str, Any]:
-    """The base contract with every knob at zero, one transport, weight on ``source`` (and on
-    ``spread``, equally, when a knob needs other sources to reach)."""
+    """The base contract with every knob at zero and uncached, one transport, weight on
+    ``source`` (and on ``spread``, equally, when a knob needs other sources to reach)."""
     out = copy.deepcopy(raw)
     k = out["knobs"]
     for name in contract_model.DISTRIBUTION_KNOBS:
         k[name] = copy.deepcopy(_ZERO_KNOB)
+    k["cache"] = {"probability": 0.0}
     sources = list(out["sources"])
     on = {source, *spread}
     k["source_weights"] = {s: (1.0 / len(on) if s in on else 0.0) for s in sources}
@@ -159,7 +177,51 @@ def plan_sweeps(
     return runs
 
 
-def write_plan(runs: Sequence[SweepRun], out_dir: Path) -> None:
+def plan_worker_sweep(
+    base: Mapping[str, Any],
+    *,
+    known_transports: Sequence[str],
+    deployment: Any,
+    workers: Sequence[int],
+    request_threads: Sequence[int],
+    environ: Mapping[str, str] | None = None,
+    transports: Sequence[str] | None = None,
+) -> list[SweepRun]:
+    """Per transport, the base contract as it stands (the optimistic request when its knobs are
+    at zero) against a server started with each (workers, request threads) pair."""
+    env = os.environ if environ is None else environ
+    runs: list[SweepRun] = []
+    for transport in transports or list(base["transports"]):
+        contract = copy.deepcopy(dict(base))
+        contract["transports"] = {transport: base["transports"][transport]}
+        contract.pop("workload", None)
+        reason = _validate(contract, known_transports, env, deployment)
+        for w in workers:
+            for r in request_threads:
+                runs.append(
+                    SweepRun(
+                        f"{transport}.workers.{w}.threads.{r}",
+                        transport,
+                        "",
+                        "workers",
+                        {"workers": w, "request_threads": r},
+                        None if reason else contract,
+                        reason,
+                        {WORKERS_ENV: str(w), REQUEST_THREADS_ENV: str(r)},
+                    )
+                )
+    return runs
+
+
+@dataclass(frozen=True)
+class Hardware:
+    """The server's hardware as stated by whoever runs the sweep, never guessed."""
+
+    physical_cores: int
+    shared_host: bool  # the sources and the load generator ran on the server's host
+
+
+def write_plan(runs: Sequence[SweepRun], out_dir: Path, *, hardware: Hardware) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     manifest = []
     for r in runs:
@@ -176,15 +238,25 @@ def write_plan(runs: Sequence[SweepRun], out_dir: Path) -> None:
                 "value": r.value,
                 "contract": file,
                 "skipped": r.skipped,
+                "server_env": r.server_env,
             }
         )
-    (out_dir / "manifest.json").write_text(json.dumps({"label": LABEL, "runs": manifest}, indent=2))
+    body = {
+        "label": LABEL,
+        "hardware": {
+            "physical_cores": hardware.physical_cores,
+            "shared_host": hardware.shared_host,
+        },
+        "runs": manifest,
+    }
+    (out_dir / "manifest.json").write_text(json.dumps(body, indent=2))
 
 
 def run_command(
     contract: str, *, engine: str, output_dir: str, python: str, server_pid: int | None
 ) -> list[str]:
-    """The command that runs one sweep contract (from the bench directory)."""
+    """The command that runs one sweep contract (from the bench directory), against a server
+    started with the run's ``server_env`` when it has one."""
     cmd = [python, "run_benchmark.py", "--engine", engine, "--optimistic", "--setup", contract]
     if server_pid is not None:
         cmd += ["--server-pid", str(server_pid)]
@@ -205,7 +277,27 @@ def main() -> int:
     )
     parser.add_argument("--replication", default="", help="live,replica: sweep the setting")
     parser.add_argument("--ttl", type=int, default=0)
+    parser.add_argument(
+        "--physical-cores",
+        type=int,
+        required=True,
+        help="the server's physical cores (lscpu: cores per socket x sockets), not its threads",
+    )
+    parser.add_argument(
+        "--shared-host",
+        choices=["yes", "no"],
+        required=True,
+        help="whether the sources and the load generator run on the server's host",
+    )
+    parser.add_argument("--workers", default="", help="4,8,16: worker processes to sweep")
+    parser.add_argument(
+        "--request-threads", default="", help="1,2,4: in-flight requests per worker to sweep"
+    )
     args = parser.parse_args()
+    workers = [int(v) for v in args.workers.split(",") if v]
+    threads = [int(v) for v in args.request_threads.split(",") if v]
+    if bool(workers) != bool(threads):
+        parser.error("--workers and --request-threads are swept together: give both or neither")
     base = yaml.safe_load(Path(args.setup).read_text())
     runs = plan_sweeps(
         base,
@@ -214,7 +306,16 @@ def main() -> int:
         replication=[m for m in args.replication.split(",") if m],
         ttl_s=args.ttl,
     )
-    write_plan(runs, Path(args.out))
+    if workers:
+        runs += plan_worker_sweep(
+            base,
+            known_transports=list(optimistic_load.TRANSPORTS),
+            deployment=lookup.read_resolved(Path(args.resolved_names)),
+            workers=workers,
+            request_threads=threads,
+        )
+    hardware = Hardware(args.physical_cores, args.shared_host == "yes")
+    write_plan(runs, Path(args.out), hardware=hardware)
     runnable = sum(1 for r in runs if r.contract is not None)
     print(f"{runnable} runnable, {len(runs) - runnable} skipped (reasons in manifest.json)")
     return 0

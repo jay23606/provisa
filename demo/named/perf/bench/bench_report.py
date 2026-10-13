@@ -8,8 +8,11 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 """The report derived from a set of sweep runs (REQ-1911): per transport and source, a cost model
-for Provisa's CPU per request and one for the source's, the check of a mixed run against them, the
-break-even between live and replica reads, and the per-core sizing inputs.
+for Provisa's CPU per request and one for the source's (fitted over the uncached knob runs), the
+cost of a response-cache hit and miss, the check of a mixed run against them, the break-even
+between live and replica reads, and the per-core sizing inputs; per transport, the server's own
+sizing from the worker sweep (worker processes per physical core, in-flight requests per worker,
+and what a physical core delivers), with the hardware the sweep stated.
 
 Reads what ``sweeps.py`` planned and ``run_benchmark.py --optimistic`` produced:
 
@@ -17,7 +20,7 @@ Reads what ``sweeps.py`` planned and ``run_benchmark.py --optimistic`` produced:
     <root>/results/<run name>/optimistic/<transport>.json     (every step, server and source CPU)
     <root>/results/<run name>/idle.json                       (replica runs: the refresh cost)
 
-    python bench_report.py --root results/sweeps --out results/sweeps/report.json
+    python bench_report.py --root results/sweeps --out results/sweeps/report.json [--tolerance 0.05]
 
 The report is internal analysis: it is labelled so and is not for publication.
 """
@@ -40,8 +43,9 @@ _MODEL_RUNS = (
     "rows",
     "joins_same_source",
     "joins_cross_source",
-    "cache",
 )
+# a worker setting is enough when its peak is within this share of the best peak (--tolerance)
+DEFAULT_TOLERANCE = 0.05
 
 
 def _step(root: Path, run: Mapping[str, Any]) -> dict[str, Any]:
@@ -67,6 +71,12 @@ def _provisa_ms(run: Mapping[str, Any], step: Mapping[str, Any]) -> float:
 
 def _source_ms(run: Mapping[str, Any], step: Mapping[str, Any]) -> float | None:
     return (step.get("source_cpu_ms_per_request") or {}).get(run["source"])
+
+
+def _replication(root: Path, run: Mapping[str, Any]) -> dict[str, Any]:
+    """What the run measured its source under: the replication setting, its TTL and the route."""
+    path = root / "results" / run["name"] / "optimistic" / f"{run['transport']}.json"
+    return json.loads(path.read_text())["replication"][run["source"]]
 
 
 def _model(
@@ -130,18 +140,105 @@ def _break_even(
     }
 
 
-def build_report(root: Path) -> dict[str, Any]:
+def _cache(root: Path, cell_runs: list[Mapping[str, Any]]) -> dict[str, Any] | None:
+    """Provisa CPU of a response-cache miss (the uncached run) and of a hit, from the run with
+    every request opted in: its measured cost less its misses at the miss cost, over its hits."""
+    by_value = {r["value"]: r for r in cell_runs if r["knob"] == "cache"}
+    if not {0.0, 1.0} <= set(by_value):
+        return None
+    miss_run, opted_run = by_value[0.0], by_value[1.0]
+    miss_ms = _provisa_ms(miss_run, _step(root, miss_run))
+    opted_step = _step(root, opted_run)
+    hit_ratio = opted_step.get("hit_ratio")
+    if not hit_ratio:
+        raise ValueError(
+            f"{opted_run['name']}: no cache hits measured (hit_ratio {hit_ratio!r}): "
+            "the hit cost cannot be derived"
+        )
+    opted_ms = _provisa_ms(opted_run, opted_step)
+    return {
+        "miss_ms": miss_ms,
+        "opted_in_ms": opted_ms,
+        "opted_in_hit_ratio": hit_ratio,
+        "hit_ms": (opted_ms - (1 - hit_ratio) * miss_ms) / hit_ratio,
+    }
+
+
+def _peak(root: Path, run: Mapping[str, Any]) -> dict[str, Any]:
+    """The run's highest error-free throughput and its p99, and the CPU of a request at its
+    lowest concurrency."""
+    path = root / "results" / run["name"] / "optimistic" / f"{run['transport']}.json"
+    report = json.loads(path.read_text())
+    if "error" in report:
+        raise ValueError(f"{run['name']}: the transport reported {report['error']}")
+    clean = [s for s in report["steps"] if "error" not in s and s["errors"] == 0]
+    if not clean:
+        raise ValueError(f"{run['name']}: no step completed without errors")
+    best = max(clean, key=lambda s: s["req_per_s"])
+    return {
+        **run["value"],
+        "peak_req_per_s": best["req_per_s"],
+        "p99_ms": best["p99_ms"],
+        "concurrency": best["concurrency"],
+        "provisa_cpu_ms_per_request": _provisa_ms(run, _step(root, run)),
+    }
+
+
+def _server(
+    root: Path, runs: list[Mapping[str, Any]], physical_cores: int, tolerance: float
+) -> dict[str, Any]:
+    """One transport's worker sweep: every (workers, request threads) point, the fewest workers
+    and then the fewest in-flight requests per worker whose peak is within ``tolerance`` of the
+    best, and what a physical core delivers at that setting."""
+    grid = [_peak(root, r) for r in runs]
+    best = max(p["peak_req_per_s"] for p in grid)
+    enough = (1 - tolerance) * best
+    workers = min(p["workers"] for p in grid if p["peak_req_per_s"] >= enough)
+    threads = min(
+        p["request_threads"]
+        for p in grid
+        if p["workers"] == workers and p["peak_req_per_s"] >= enough
+    )
+    chosen = next(p for p in grid if (p["workers"], p["request_threads"]) == (workers, threads))
+    per_core = chosen["peak_req_per_s"] / physical_cores
+    return {
+        "grid": sorted(grid, key=lambda p: (p["workers"], p["request_threads"])),
+        "best_peak_req_per_s": best,
+        "workers": workers,
+        "workers_per_physical_core": workers / physical_cores,
+        "in_flight_per_worker": threads,
+        "peak_req_per_s": chosen["peak_req_per_s"],
+        "p99_ms": chosen["p99_ms"],
+        "peak_req_per_s_per_physical_core": per_core,
+        "provisa_cpu_ms_per_request": chosen["provisa_cpu_ms_per_request"],
+        # what a physical core delivers against the CPU one request costs on its own
+        "capacity_factor": per_core * chosen["provisa_cpu_ms_per_request"] / 1000,
+    }
+
+
+def build_report(root: Path, tolerance: float = DEFAULT_TOLERANCE) -> dict[str, Any]:
     manifest = json.loads((root / "manifest.json").read_text())
     runs = manifest["runs"]
+    hardware = manifest["hardware"]
     report: dict[str, Any] = {
         "label": LABEL,
+        "hardware": hardware,
+        "tolerance": tolerance,
         "transports": {},
+        "server": {},
         "skipped": [{"name": r["name"], "reason": r["skipped"]} for r in runs if r["skipped"]],
     }
     cells: dict[tuple[str, str], list[Mapping[str, Any]]] = {}
+    worker_runs: dict[str, list[Mapping[str, Any]]] = {}
     for r in runs:
-        if r["contract"] is not None:
+        if r["contract"] is None:
+            continue
+        if r["knob"] == "workers":
+            worker_runs.setdefault(r["transport"], []).append(r)
+        else:
             cells.setdefault((r["transport"], r["source"]), []).append(r)
+    for transport, w_runs in worker_runs.items():
+        report["server"][transport] = _server(root, w_runs, hardware["physical_cores"], tolerance)
     for (transport, source), cell_runs in cells.items():
         model_runs = [r for r in cell_runs if r["knob"] in _MODEL_RUNS]
         steps = {r["name"]: _step(root, r) for r in cell_runs if r["knob"] in (*_MODEL_RUNS, "mix")}
@@ -179,6 +276,9 @@ def build_report(root: Path) -> dict[str, Any]:
             cell["mix_checks"].append(check)
         baseline = next(r for r in cell_runs if r["knob"] == "baseline")
         base_ms = _provisa_ms(baseline, steps[baseline["name"]])
+        cell["baseline_knob_means"] = steps[baseline["name"]]["knob_means"]
+        cell["replication"] = _replication(root, baseline)
+        cell["cache"] = _cache(root, cell_runs)
         cell["sizing"] = {
             "provisa_cpu_ms_per_request": base_ms,
             "requests_per_s_per_core": 1000 / base_ms,
@@ -192,8 +292,15 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Report derived from knob sweep runs (internal)")
     parser.add_argument("--root", required=True)
     parser.add_argument("--out", required=True)
+    parser.add_argument(
+        "--tolerance",
+        type=float,
+        default=DEFAULT_TOLERANCE,
+        help="a worker setting is enough within this share of the best peak (0.05: 5%%)",
+    )
     args = parser.parse_args()
-    Path(args.out).write_text(json.dumps(build_report(Path(args.root)), indent=2))
+    report = build_report(Path(args.root), args.tolerance)
+    Path(args.out).write_text(json.dumps(report, indent=2))
     return 0
 
 

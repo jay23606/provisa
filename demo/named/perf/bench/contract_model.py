@@ -254,6 +254,15 @@ class Load:
 
 
 @dataclass(frozen=True)
+class Workload:
+    """The workload a deployment is sized for: its request rate and each transport's share of it.
+    Read by the sizing (``sizing.py``), never by a run: a run sends each transport in turn."""
+
+    rate_per_s: float
+    transport_weights: Mapping[str, float]  # sums to 1; every transport is one the contract runs
+
+
+@dataclass(frozen=True)
 class Setup:
     name: str
     endpoints: Endpoints
@@ -266,6 +275,7 @@ class Setup:
     transports: Mapping[str, TransportOverride]
     load: Load
     seed: int
+    workload: Workload | None = None  # None: the contract describes no workload to size
 
     def knob(self, transport: str, name: str) -> Knob:
         """The distribution knob ``name`` as it applies to ``transport`` (its override, else the
