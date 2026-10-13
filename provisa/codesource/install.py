@@ -62,6 +62,17 @@ class UploadCode:
 
 
 @dataclass(frozen=True)
+class Lockfile:
+    """A lockfile given beside a package reference on the source's form, kept with the source: a
+    published package rarely carries its own (``npm publish`` leaves out package-lock.json, and
+    a wheel has no place for one), and every install is frozen. It is put into the code before
+    the content hash is taken, so it is hashed like the code."""
+
+    filename: str
+    data: bytes
+
+
+@dataclass(frozen=True)
 class Installed:
     #: The installed bundle: its files and, where it has dependencies, what its language installed.
     path: Path
@@ -190,6 +201,26 @@ def fetch_kept(code: GitCode | UploadCode, registries: Sequence[Resolved], dest:
     return unpack(code.filename, code.data, dest)
 
 
+def place_lockfile(root: Path, lockfile: Lockfile, allowed: Sequence[str]) -> None:
+    """Put the lockfile given beside the reference into the code. One its language does not read,
+    or one the code already carries a file of that name for, is refused by name."""
+    if lockfile.filename not in allowed:
+        raise BundleRefused(
+            "lockfile_kind",
+            f"{lockfile.filename} is not a lockfile this source installs from "
+            f"({', '.join(allowed)})",
+            filename=lockfile.filename,
+        )
+    target = root / lockfile.filename
+    if target.exists():
+        raise BundleRefused(
+            "lockfile_twice",
+            f"the code already carries {lockfile.filename}; the one given beside it would replace it",
+            filename=lockfile.filename,
+        )
+    target.write_bytes(lockfile.data)
+
+
 # -- the cache --------------------------------------------------------------------------------------
 
 
@@ -205,6 +236,8 @@ def ensure_installed(
     install: Callable[[Path], None],
     expected_hash: str | None,
     cache_root: Path,
+    lockfile: Lockfile | None = None,
+    lockfiles: Sequence[str] = (),
 ) -> Installed:
     """The source's bundle, installed and cached under ``<cache_root>/code-bundles/<runtime>/
     <content hash>/``. A complete install already cached is used as it is.
@@ -213,12 +246,15 @@ def ensure_installed(
     installs its dependencies in place, or does nothing when it has none. ``expected_hash`` is the
     hash the source recorded when it was saved; None when it is being saved now, and the hash
     found is then the one to record. Content whose hash is not the recorded one is refused by the
-    source's name and both hashes."""
+    source's name and both hashes. ``lockfile``, given beside the reference, is put into the code
+    (one of the language's ``lockfiles``) before the hash is taken."""
     base = install_root(cache_root) / runtime
     base.mkdir(parents=True, exist_ok=True)
     staging = Path(tempfile.mkdtemp(prefix=".staging-", dir=base))
     try:
         root = fetch(staging / "code")
+        if lockfile is not None:
+            place_lockfile(root, lockfile, lockfiles)
         found = content_hash(root)
         if expected_hash is not None and found != expected_hash:
             raise BundleRefused(

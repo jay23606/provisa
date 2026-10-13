@@ -93,6 +93,8 @@ _MATERIALIZE_ONLY = frozenset(
         "grpc_remote",
         "mongodb",
         "cosmosdb",  # REQ-1982: no engine reaches it; read by its SDK and landed
+        "node",  # REQ-1984: a function's rows, read in its worker and landed
+        "python",  # REQ-1993: the same, for a Python function
         "cassandra",
         "redis",
         "elasticsearch",

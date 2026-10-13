@@ -89,6 +89,20 @@ async def _git(plane, org="acme", **changed):
     return await registries.put(plane, org, **given)
 
 
+async def _pypi(plane, org="acme", **changed):
+    given = {
+        "registry_id": None,
+        "kind": "pypi",
+        "address": "https://pypi.acme.test/simple/",
+        "scope": None,
+        "credential": "made-up-index-token",
+        "mirror": False,
+        "actor": "uid-ada",
+    }
+    given.update(changed)
+    return await registries.put(plane, org, **given)
+
+
 def _stored(plane) -> list[dict]:
     with plane.engine.connect() as conn:
         return [
@@ -144,7 +158,7 @@ class TestTheStore:
     @pytest.mark.parametrize(
         ("changed", "code"),
         [
-            ({"kind": "pypi"}, "package_registry.unknown_kind"),
+            ({"kind": "cargo"}, "package_registry.unknown_kind"),
             ({"address": "  "}, "package_registry.incomplete"),
             ({"credential": None}, "package_registry.incomplete"),
         ],
@@ -171,6 +185,20 @@ class TestTheStore:
             await _npm(plane, scope=None, mirror=True, address="https://other.acme.test/")
         assert refused.value.code == "package_registry.second_mirror"
         assert refused.value.params == {"mirror": "https://mirror.acme.test/"}
+
+    async def test_a_pypi_index_has_no_scope(self, plane):
+        with pytest.raises(PackageRegistryRefused) as scoped:
+            await _pypi(plane, scope="@acme")
+        assert scoped.value.code == "package_registry.pypi_scope"
+
+    async def test_npm_and_python_each_have_their_own_mirror(self, plane):
+        await _npm(plane, scope=None, mirror=True, address="https://mirror.acme.test/")
+        index = await _pypi(plane, mirror=True)
+        assert index.mirror is True
+        with pytest.raises(PackageRegistryRefused) as refused:
+            await _pypi(plane, mirror=True, address="https://other.acme.test/simple/")
+        assert refused.value.code == "package_registry.second_mirror"
+        assert refused.value.params == {"mirror": "https://pypi.acme.test/simple/"}
 
     async def test_the_mirror_itself_is_replaced_in_place(self, plane):
         kept = await _npm(plane, scope=None, mirror=True)

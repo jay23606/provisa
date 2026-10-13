@@ -117,6 +117,7 @@ const CATEGORY_TONES: Record<string, string> = {
   Enterprise: "#4b5563",
   "Data Quality": "#0e7490",
   Subscriptions: "#5b4bb7",
+  Code: "#1f6f5c", // REQ-1984, REQ-1993
 };
 
 function initials(label: string): string {

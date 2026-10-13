@@ -844,15 +844,15 @@ org_package_registries = Table(
     metadata,
     Column("org_id", Text, ForeignKey("orgs.id", ondelete="CASCADE"), primary_key=True),
     Column("id", Text, primary_key=True),
-    # "npm" or "git".
+    # "npm", "pypi" or "git".
     Column("kind", Text, nullable=False),
-    # An npm registry's URL, or a Git host.
+    # An npm registry's URL, a PyPI index's simple-index URL, or a Git host.
     Column("address", Text, nullable=False),
     # An npm registry's scope ("@acme"); NULL for a registry with none, and for a Git host.
     Column("scope", Text, nullable=True),
     Column("credential", Text, nullable=False),
-    # Whether this npm registry is the mirror every install goes through: at most one per
-    # organisation (core/package_registries.put).
+    # Whether this npm registry (or PyPI index) is the mirror every npm (or Python) install goes
+    # through: at most one of each kind per organisation (core/package_registries.put).
     Column("mirror", Boolean, nullable=False, server_default=false()),
     Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     Column("updated_by", Text, nullable=True),

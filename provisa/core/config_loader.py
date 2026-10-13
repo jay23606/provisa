@@ -490,6 +490,13 @@ def _validate_neo4j_sources(config: ProvisaConfig) -> None:  # REQ-1668, REQ-168
 
             check_qdrant_table(tbl)
             continue
+        if stype in ("node", "python"):
+            # REQ-1984, REQ-1993: a code table names its function; checked against the code when
+            # the table is registered (its manifest is the code's, read in the worker's sandbox).
+            from provisa.codesource.table import check_table as check_code_table
+
+            check_code_table(tbl)
+            continue
         if tbl.query_template and stype == "mongodb":
             # REQ-1980: a MongoDB table with a native query is a pipeline table.
             from provisa.mongodb.native_query import check_table
@@ -499,7 +506,7 @@ def _validate_neo4j_sources(config: ProvisaConfig) -> None:  # REQ-1668, REQ-168
         if tbl.query_template and not is_query_api:
             raise ValueError(
                 f"table {tbl.table_name!r}: query_template is only valid under a neo4j, sparql, "
-                "mongodb, cosmosdb or qdrant source"
+                "mongodb, cosmosdb, qdrant, node or python source"
             )
 
 

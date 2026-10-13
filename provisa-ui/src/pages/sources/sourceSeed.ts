@@ -26,6 +26,7 @@ import { MICROSOFT_365, m365FieldsFromMapping } from "./microsoft365";
 import { LOGS, logsFieldsFromMapping } from "./logs";
 import { COSMOSDB, cosmosFieldsFromHints } from "./cosmosdb";
 import { QDRANT, qdrantFieldsFromHints } from "./qdrant";
+import { CODE_SOURCE_TYPES, codeFieldsFromMapping } from "./codeSource";
 import { WIKIPEDIA, wikipediaFieldsFromHints } from "./wikipedia";
 import { subjectsOfSchemas, type GovdataSubjectCatalog } from "./govdataSubjects";
 
@@ -195,6 +196,9 @@ export function seedSource(s: Source, govdataCatalog: GovdataSubjectCatalog | nu
   }
   if (s.type === QDRANT) {
     authFields = qdrantFieldsFromHints(hintsJson); // REQ-1983
+  }
+  if (CODE_SOURCE_TYPES.has(s.type) && s.mappingJson) {
+    authFields = codeFieldsFromMapping(s.mappingJson); // REQ-1984, REQ-1993
   }
   if (sourceBrand(hintsJson) === WIKIPEDIA && hintsJson) {
     // REQ-1960: the directory is the source's own path, shown as where its files land.

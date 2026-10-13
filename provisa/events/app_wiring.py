@@ -245,6 +245,12 @@ def build_adapter_loaders(state: Any, engine: Any) -> dict[str, Any]:
     from provisa.cosmosdb.loader import make_cosmosdb_loader
 
     loaders["cosmosdb"] = make_cosmosdb_loader()
+
+    # REQ-1984, REQ-1993: a code table with no parameters is read whole by calling its function.
+    from provisa.codesource.table import make_code_loader
+
+    loaders["node"] = make_code_loader()
+    loaders["python"] = make_code_loader()
     if not engine_attaches(bare_engine, "clickhouse"):  # REQ-1730
         loaders["clickhouse"] = make_clickhouse_loader()
     if not engine_attaches(bare_engine, "kafka"):  # REQ-1730

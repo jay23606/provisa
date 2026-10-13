@@ -1,0 +1,30 @@
+{
+  "codeSourceFields": {
+    "runtime": "Runtime",
+    "runtime_node": "Node.js",
+    "runtime_bun": "Bun",
+    "runtime_deno": "Deno",
+    "origin": "Codice da",
+    "originHint": "Il codice viene installato e letto quando la sorgente viene salvata; le sue funzioni marcate @table, @command o @stream diventano le sue tabelle, i comandi e le tabelle live.",
+    "npm": "Pacchetto npm",
+    "pypi": "Pacchetto PyPI",
+    "git": "Repository Git",
+    "upload": "Caricamento",
+    "package": "Pacchetto",
+    "version": "Versione",
+    "versionHint": "Una versione esatta, come 1.2.0.",
+    "lockfile": "File di lock",
+    "lockfileHint": "Un pacchetto pubblicato raramente include il suo file di lock. Fornitene uno ({{names}}) quando il pacchetto ha dipendenze.",
+    "lockfilePlaceholder": "Nessun file di lock",
+    "repository": "URL del repository",
+    "commit": "Commit",
+    "commitHint": "Il commit completo di 40 caratteri.",
+    "subdirectory": "Sottodirectory",
+    "archive": "Archivio",
+    "archiveHint": "Un .zip, .tgz o .tar.gz del codice.",
+    "archivePlaceholder": "Scegli un archivio",
+    "entry": "Modulo di ingresso",
+    "entryHint": "Il modulo da cui si entra nella sorgente. Lasciate vuoto se il codice ha un solo modulo o pacchetto di primo livello.",
+    "kept": "Conservato: {{name}}"
+  }
+}

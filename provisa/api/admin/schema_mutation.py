@@ -1020,6 +1020,10 @@ async def _delete_source(id: str) -> MutationResult:
             from provisa.api.admin.schema_mutation_ops import reschedule_org_triggers
 
             await reschedule_org_triggers()
+        if _existing["type"] in ("node", "python"):  # REQ-1984, REQ-1993: its workers go
+            from provisa.codesource.source import forget
+
+            forget(id)
         return MutationResult(
             success=True,
             message=f"Source {id!r} deleted",
@@ -1379,6 +1383,11 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
         _profiler_refusal = _refuse_invalid_profiler(input.id, input.type, _mapping)  # REQ-1934
         if _profiler_refusal is not None:
             return _profiler_refusal
+        from provisa.api.admin._code_source_registration import record_code
+
+        _code_refusal = await record_code(input.id, input.type, _mapping)  # REQ-1984, REQ-1993
+        if _code_refusal is not None:
+            return _code_refusal
         if not _mapping:
             from provisa.dq.registration import is_checker_source_type
 
@@ -1744,6 +1753,13 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
             )
             if _profiler_refusal is not None:
                 return _profiler_refusal
+            from provisa.api.admin._code_source_registration import record_code
+
+            _code_refusal = await record_code(  # REQ-1984, REQ-1993
+                input.id, input.type, _stored_mapping
+            )
+            if _code_refusal is not None:
+                return _code_refusal
             model = SourceModel(
                 id=input.id,
                 type=SourceTypeEnum(input.type),

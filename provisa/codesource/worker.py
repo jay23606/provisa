@@ -19,9 +19,11 @@ stderr is kept (the last lines) to name a crash.
 
 Frames are a 4-byte big-endian length and that many bytes of UTF-8 JSON. A timestamp travels as
 ``{"$date": iso}``, an integer outside JSON's exact range as ``{"$bigint": digits}``, a decimal as
-``{"$decimal": digits}``.
+``{"$decimal": digits}``, a calendar date with no time as ``{"$day": iso}``. An argument the read
+does not give is ``{"$absent": true}`` (:data:`ABSENT`), and ``names`` are the parameters' names in
+the order ``args`` gives them, for a host whose language passes arguments by name.
 
-    Provisa -> host  {op: "call", id, export, kind: "table"|"command"|"stream", args}
+    Provisa -> host  {op: "call", id, export, kind: "table"|"command"|"stream", args, names}
                      {op: "cancel", id}      {op: "ping", id}
     host -> Provisa  {op: "hello", exports}  {op: "rows", id, rows}  {op: "value", id, value}
                      {op: "end", id}         {op: "error", id, message, stack}  {op: "pong", id}
@@ -109,8 +111,22 @@ class CodeFailed(Exception):
 # -- values on the wire -----------------------------------------------------------------------------
 
 
+class _Absent:
+    """An argument the read does not give: the function's own default applies."""
+
+    def __repr__(self) -> str:
+        return "ABSENT"
+
+
+#: An optional parameter the read gives no value for: sent as absent, so the function's own
+#: default applies (JavaScript's ``undefined``; Python's keyword left out), never as null.
+ABSENT = _Absent()
+
+
 def encode(value: Any) -> Any:
     """``value`` as the wire carries it."""
+    if value is ABSENT:
+        return {"$absent": True}
     if isinstance(value, bool) or value is None or isinstance(value, (str, float)):
         return value
     if isinstance(value, int):
@@ -120,7 +136,7 @@ def encode(value: Any) -> Any:
     if isinstance(value, datetime):
         return {"$date": value.isoformat()}
     if isinstance(value, date):
-        return {"$date": value.isoformat()}
+        return {"$day": value.isoformat()}
     if isinstance(value, dict):
         return {str(k): encode(v) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
@@ -137,6 +153,8 @@ def decode(value: Any) -> Any:
         if len(value) == 1:
             if "$date" in value:
                 return datetime.fromisoformat(value["$date"].replace("Z", "+00:00"))
+            if "$day" in value:
+                return date.fromisoformat(value["$day"])
             if "$bigint" in value:
                 return int(value["$bigint"])
             if "$decimal" in value:
@@ -392,7 +410,9 @@ class Worker:
             raise CodeFailed(self.source_id, export, message["message"], message.get("stack", ""))
         return message
 
-    def rows(self, export: str, kind: str, args: Sequence[Any]) -> Iterator[list[dict]]:
+    def rows(
+        self, export: str, kind: str, args: Sequence[Any], names: Sequence[str] = ()
+    ) -> Iterator[list[dict]]:
         """A table's or a stream's rows, batch by batch, as the host sends them. Closing the
         iterator before its end cancels the call in the host."""
         if kind not in ("table", "stream"):
@@ -407,6 +427,7 @@ class Worker:
                     "export": export,
                     "kind": kind,
                     "args": encode(list(args)),
+                    "names": list(names),
                 }
             )
             while True:
@@ -424,7 +445,7 @@ class Worker:
                     pass  # the worker has ended: there is no call left to stop
             self._close(call_id)
 
-    def command(self, export: str, args: Sequence[Any]) -> Any:
+    def command(self, export: str, args: Sequence[Any], names: Sequence[str] = ()) -> Any:
         """A command's result: its single value, or the rows it returned as a list."""
         call_id, waiting = self._open()
         try:
@@ -435,6 +456,7 @@ class Worker:
                     "export": export,
                     "kind": "command",
                     "args": encode(list(args)),
+                    "names": list(names),
                 }
             )
             collected: list[dict] = []

@@ -34,7 +34,7 @@ Each language's reader prints one JSON document, the same for both:
 
 Types are the trees Node's reader already writes: `string`, `number`, `bigint`, `boolean`, `date`, `literal`, `union`, `array`, `object`, `ref`, `record`, `any`, `unknown`, `promise`, `iterable` (async, generator), `undefined`, `null`, `unsupported`.
 
-Python's reader writes the same trees. Its mapping (section 6.2) adds two values the tree already has room for: `int` is written as `number` with `integer: true`, so it maps to `bigint` rather than `double` *(proposed: a Python int is an integer; Node's number stays double)*, and `Decimal` as `decimal`, which maps to numeric and travels as a string on the wire (decision P5). Node has no decimal type, so its reader never writes one.
+Python's reader writes the same trees. Its mapping (section 6.2) adds three kinds: `int` is written as `number` with `integer: true`, so it maps to `bigint` rather than `double` (a Python int is an integer; Node's number stays double); `date` as `day`, which maps to date; and `Decimal` as `decimal`, which maps to numeric and travels as a string on the wire (decision P5). Node has neither, so its reader never writes them. The rules differ in two places only (`manifest.Rules`): Python has no standard `@` docstring tag, so every tag but Provisa's is unknown; and a Python `@stream` may be a plain generator as well as an async one (REQ-1993).
 
 The rules in `manifest.read_manifest` apply unchanged to both languages: which exports are tables, commands and streams; a table returns a collection; a stream is an async generator (for Python, a generator or an async generator, per REQ-1993); columns from the row type or a preview for a loose row; every referenced type mapped; every problem by name, all at once.
 
@@ -44,7 +44,7 @@ One long-running process per code source per Provisa process, in its runtime, st
 
 - **Transport:** a Unix domain socket in a private directory (mode 0700). Provisa listens; the host connects. A socket, not the process's stdout, so anything the code prints never reaches the protocol.
 - **Frames:** a 4-byte big-endian length, then UTF-8 JSON.
-- **Values:** JSON, with a timestamp as `{"$date": iso}`, a big integer as `{"$bigint": digits}`, a decimal as `{"$decimal": digits}`, a missing value as null.
+- **Values:** JSON, with a timestamp as `{"$date": iso}`, a big integer as `{"$bigint": digits}`, a decimal as `{"$decimal": digits}`, a calendar date as `{"$day": iso}`, a missing value as null.
 - **Messages:**
 
   | From | Message | Meaning |
@@ -61,7 +61,7 @@ One long-running process per code source per Provisa process, in its runtime, st
 - **Calls:** multiplexed by id; a request's deadline sends `cancel`; a crash fails every call in flight, naming the source and the export.
 - **Pool:** keyed by `(source, content hash)`.
 
-`codesource/worker.py` is Provisa's side (`Worker`, `WorkerPool`, `HostCommand`); `host.mjs` (Node part 4) is Node's host. Deno is granted the socket as `--allow-net=unix:<socket>`. `host.py` *(proposed)* is the same program in Python, built on asyncio: it imports the code's module, says hello, and serves calls, iterating sync and async generators and lists alike.
+`codesource/worker.py` is Provisa's side (`Worker`, `WorkerPool`, `HostCommand`); `host.mjs` (Node part 4) is Node's host. Deno is granted the socket as `--allow-net=unix:<socket>`. `provisa/python/host.py` is the same program in Python, built on asyncio (standard library only): it imports the code's module, says hello, and serves calls; a coroutine is awaited, a generator or async generator iterated (a sync one a step at a time on a thread), any other function run on a thread. A row is a dict, a dataclass, a NamedTuple or an annotated object.
 
 ## 4. The sandbox, for every runtime
 
@@ -79,6 +79,8 @@ The maintainer's ruling for Node applies to Python (REQ-1993): no file access be
       - The worker's socket is therefore handed to the host already connected, as an inherited descriptor (`fd:N`); the host reads and writes it with `node:fs`, because Bun's `net.Socket` does not take a descriptor.
     - Windows: no sandbox; a code source is refused there by name (S2).
   - **Proven by:** `.github/workflows/sandbox-probe.yml` runs the launcher's `--probe` on the runner, under Docker's default seccomp and under containerd's default profile (what `RuntimeDefault` applies); `tests/integration/test_node_worker.py` runs Node, Bun and Deno sandboxed (reads outside the code refused, the allow-list reached through the proxy and nothing else).
+    - Run 38307119574 on main (2026-10-12): kernel 6.17.0-1022-azure, Landlock ABI 7. On the runner, under `docker run` (Docker's default seccomp) and under `ctr run --seccomp` (containerd's default, what Kubernetes' `RuntimeDefault` applies), every check held: reading `/etc/passwd` refused and the sandbox's own code read; writing `/tmp` refused; a TCP bind refused; TCP to another port refused and to the proxy's port allowed; UDP, Unix and `socketpair` sockets refused.
+    - The cloud's nodes boot `ubuntu-2204-lts`, whose GCP kernel is 6.8 (Landlock ABI 4 or later); a node's running kernel is the one its own upgrades installed.
   - **Missing sandbox:** a host where the mechanism is not available (no `sandbox-exec`; a kernel without Landlock ABI 4; a container profile that refuses `landlock_*` or `seccomp`) refuses to start a code source's worker, naming what is missing. It never starts one unsandboxed.
 
 The egress allow-list is the deployment's `udf_egress_allowlist`, the one commands already use (REQ-885). Loopback is never reached by a code source, whatever the list says or a name resolves to (S3): Provisa's own ports are not a code source's to call. The proxy is `provisa/codesource/egress.py`, one per allow-list per process.
@@ -131,7 +133,7 @@ def churn_risk(account_id: str, as_of: datetime | None = None) -> list[RiskRow]:
 
 Python's annotations are not readable without importing the module: a type hint can name a type from another module or a dependency. So the Python reader imports the code, and **it runs in the same sandbox as the worker** (section 4). Importing the code is running it.
 
-`reader.py` *(proposed)* is shipped with Provisa and runs under the source's pinned Python, with the installed code on its path. It imports the entry module and:
+`provisa/python/reader.py` (standard library only) is shipped with Provisa and runs under the source's pinned Python, with the installed code on its path. It imports the entry module and:
 - for each module-level function, reads its docstring with `inspect.getdoc` and its hints with `typing.get_type_hints(include_extras=True)`;
 - writes the trees of section 2;
 - writes an import error as a diagnostic: the code is refused, with the error.
@@ -141,6 +143,8 @@ Python's annotations are not readable without importing the module: a type hint 
 - when there is more than one, the source registration form names the module, a field Provisa keeps with the source;
 - when there is more than one and the form names none, the source is refused, naming the candidates.
 
+Built in part P1 for a code directory (`provisa/python/source.entry_module`: setup.py, conftest.py and the like, test modules and `tests/` are not the code); the wheel's `top_level.txt` comes with the PyPI fetch in part P2. The reader and the host run sandboxed (`read_code`, `host_command`), the reader once per read with no worker socket.
+
 ### 6.3 Fetching the code and installing its dependencies
 
 **The code.** One of three references; each is pinned, and the content hash is taken before any install:
@@ -148,28 +152,29 @@ Python's annotations are not readable without importing the module: a type hint 
 - a Git repository at a commit, with a subdirectory: the shared Git fetch;
 - an uploaded archive: the shared uploads store.
 
-A package is fetched as its **wheel**, checked against the index's published SHA-256. An sdist is refused *(proposed: building an sdist runs its build backend, the Python counterpart of an install script, which the maintainer ruled out for Node)*.
+A package is fetched as its **wheel** for the pinned Python (`py3`/`cp312` tags, `none`/`abi3`/`cp312` ABI, `any` or this platform's `macosx_*_arm64` / `manylinux*_x86_64`), from the organisation's default index else the public PyPI, and checked against the index's published SHA-256. A release with no such wheel is refused: building an sdist runs its build backend, the Python counterpart of an install script (P2). The entry module is the wheel's `top_level.txt`, else the first part of each path its `RECORD` lists (P1). Built: `provisa/python/install.py`.
 
-**The lockfile.**
-- A code with dependencies carries `uv.lock`, `pylock.toml` (PEP 751) or a `requirements.txt` with `--hash` on every line;
-- one without dependencies needs none.
+**The lockfile** (P4).
+- A code with dependencies (a wheel's `Requires-Dist` without an extra, or a project's `[project].dependencies`) carries `uv.lock` (with its `pyproject.toml`), `pylock.toml` (PEP 751) or a `requirements.txt` with `--hash` on every requirement; one that does not is refused by name;
+- one without dependencies needs none, and runs on the pinned Python itself.
+- **A lockfile beside the package** (lead, 2026-10-12): a wheel carries no lockfile, so the source's form may give one beside the PyPI reference; it is kept with the source, put into the code before the content hash is taken, and hashed like the code (`codesource.install.Lockfile`). Without one, a package that declares dependencies is refused, and the refusal says to add one. The same rule holds for npm packages, which rarely publish a lockfile. Every install stays frozen.
 
-**The install** *(proposed)*:
-- uv, pinned and hashed like a runtime, installs into a virtual environment inside the code's cache directory;
-- for `uv.lock`: `uv sync --frozen --no-build --no-install-project`;
-- for the other lockfiles: `uv pip install --require-hashes --no-build --only-binary :all:`;
-- the index configuration is written into the install's own directory (`uv.toml` with the index URLs, and credentials in environment variables uv reads per index) and removed after it, exactly as Node's `.npmrc`;
-- the result is cached by content hash.
+**The install.**
+- `uv venv --python <pinned python> <install>/.venv`, then the lockfile into it: `uv sync --frozen --no-build --no-install-project` for `uv.lock`; `uv pip sync --no-build [--require-hashes] <file>` for `pylock.toml` and `requirements.txt`;
+- the indexes reach uv in the install's environment only (`UV_DEFAULT_INDEX` for the default index, `UV_INDEX` for the others, each with its credential in its URL), never in a file; `UV_NO_CONFIG=1`, `UV_PYTHON_DOWNLOADS=never`, a HOME and a cache of the install's own, and Git dependencies through the same Git configuration as Node's;
+- the result is cached by content hash (`<cache>/code-bundles/python/<hash>`), and a worker runs the venv's interpreter (`environment_python`); a project laid out with `src/` is entered there (`code_path`).
 
-**The runtime** *(proposed)*: CPython from astral-sh/python-build-standalone, at a pinned release and Python version, for the three platforms, with each archive's SHA-256 recorded. It is fetched on demand and cached beside the JS runtimes. The release and version are chosen when part P2 is built, from releases at least two weeks old.
+**The credential** of a PyPI index is a token, sent as PyPI's `__token__` user, or `user:password` as entered.
+
+**The runtime** (P3): CPython 3.12.14 from python-build-standalone release 20260924 (`install_only`), and uv 0.12.18, pinned and hashed for the three platforms in `provisa/runtime_deps/code_runtimes.py`.
 
 ### 6.4 Package indexes
 
-REQ-1993 asks for the organisation's package indexes, "like REQ-1984's registries". *(Proposed: the same admin page and table, with a third kind.)*
-- **PyPI index:** a URL and a credential, one of which may be the default index every install goes through, like npm's mirror.
-- **No scope:** Python packages have none, so the page shows no scope for this kind.
+REQ-1993 asks for the organisation's package indexes, "like REQ-1984's registries". Built as a third kind, `pypi`, of the same table and admin page:
+- **PyPI index:** a simple-index URL and a credential; one may be the default index every Python install goes through in place of the public PyPI. The mirror is per kind: one npm mirror and one default index per organisation.
+- **No scope:** Python packages have none; a scope on a PyPI index is refused.
 - **Same rules:** every field is kept as entered and resolved at use.
-- **The page** becomes "Package registries" with three lists: npm registries, PyPI indexes, Git hosts.
+- **The page** "Package registries" has three lists: npm registries, PyPI indexes, Git hosts (13 locales; rendered at 1280 and 1900).
 
 ### 6.5 Tables, commands and live tables
 

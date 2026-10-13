@@ -1,0 +1,30 @@
+{
+  "codeSourceFields": {
+    "runtime": "סביבת ריצה",
+    "runtime_node": "Node.js",
+    "runtime_bun": "Bun",
+    "runtime_deno": "Deno",
+    "origin": "הקוד מתוך",
+    "originHint": "הקוד מותקן ונקרא כשהמקור נשמר; הפונקציות שלו המסומנות ב-@table, @command או @stream הופכות לטבלאות, לפקודות ולטבלאות החיות שלו.",
+    "npm": "חבילת npm",
+    "pypi": "חבילת PyPI",
+    "git": "מאגר Git",
+    "upload": "העלאה",
+    "package": "חבילה",
+    "version": "גרסה",
+    "versionHint": "גרסה מדויקת, כמו 1.2.0.",
+    "lockfile": "קובץ נעילה",
+    "lockfileHint": "חבילה שפורסמה כמעט אף פעם אינה כוללת קובץ נעילה. ספקו אחד ({{names}}) כשלחבילה יש תלויות.",
+    "lockfilePlaceholder": "אין קובץ נעילה",
+    "repository": "כתובת המאגר",
+    "commit": "Commit",
+    "commitHint": "ה-commit המלא בן 40 התווים.",
+    "subdirectory": "תיקיית משנה",
+    "archive": "ארכיון",
+    "archiveHint": "קובץ ‎.zip, ‎.tgz או ‎.tar.gz של הקוד.",
+    "archivePlaceholder": "בחרו ארכיון",
+    "entry": "מודול כניסה",
+    "entryHint": "המודול שדרכו נכנסים למקור. השאירו ריק כשלקוד יש מודול או חבילה אחת ברמה העליונה.",
+    "kept": "נשמר: {{name}}"
+  }
+}

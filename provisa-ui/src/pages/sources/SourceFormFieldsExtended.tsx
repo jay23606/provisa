@@ -41,6 +41,8 @@ import { ServiceNowFields } from "./ServiceNowFields";
 import { CloudopsFields } from "./CloudopsFields";
 import { GoogleWorkspaceFields } from "./GoogleWorkspaceFields";
 import { Microsoft365Fields } from "./Microsoft365Fields";
+import { CodeSourceFields } from "./CodeSourceFields";
+import { CODE_SOURCE_TYPES } from "./codeSource";
 import { CosmosDbFields } from "./CosmosDbFields";
 import { COSMOSDB } from "./cosmosdb";
 import { QdrantFields } from "./QdrantFields";
@@ -668,6 +670,9 @@ export function SourceFormFieldsExtended({
       )}
       {form.type === "microsoft_365" && ( // REQ-1923
         <Microsoft365Fields sourceId={form.id} fields={authFields} setFields={setAuthFields} />
+      )}
+      {CODE_SOURCE_TYPES.has(form.type) && ( // REQ-1984, REQ-1993
+        <CodeSourceFields type={form.type} fields={authFields} setFields={setAuthFields} />
       )}
       {form.type === COSMOSDB && ( // REQ-1982
         <CosmosDbFields

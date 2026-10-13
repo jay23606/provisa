@@ -277,6 +277,7 @@ def test_port_allocation_exhaustion_is_loud():
 
 def test_a_connector_with_its_own_release_is_fetched_from_it_and_the_rest_from_the_pin():
     # REQ-1946: pgwire-salesforce first exists in engine-v0.108.0; the pin itself has not moved.
+    # REQ-1997: pgwire-servicenow comes from engine-v0.109.7.
     assert rd.CONNECTOR_RELEASE == {
         "salesforce": "engine-v0.108.0",
         "file": "engine-v0.109.0",

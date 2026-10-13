@@ -93,6 +93,7 @@ import { MICROSOFT_365, m365Mapping } from "./sources/microsoft365";
 import { LOGS, logsMapping } from "./sources/logs";
 import { COSMOSDB, cosmosHints } from "./sources/cosmosdb";
 import { QDRANT, qdrantHints } from "./sources/qdrant";
+import { CODE_SOURCE_TYPES, codeMappingJson } from "./sources/codeSource";
 import { WIKIPEDIA, wikipediaHints } from "./sources/wikipedia";
 import { sourceFormCacheTtl, sourceLoadFieldsValid } from "./sources/loadManagement";
 import { useCacheTtlRequired } from "./sources/sourceKind";
@@ -744,6 +745,8 @@ export function SourcesPage() {
       const spMappingJson =
         form.type === "data_profiler"
           ? profilerMappingJson(authFields) // REQ-1934
+          : CODE_SOURCE_TYPES.has(form.type)
+            ? codeMappingJson(form.type, authFields) // REQ-1984, REQ-1993
           : form.type === "cloudops"
             ? cloudopsMappingJson(authFields) // REQ-1947
             : form.type === GOOGLE_WORKSPACE

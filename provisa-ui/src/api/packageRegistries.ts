@@ -8,8 +8,8 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
-// REQ-1984: the organisation's package registries -- the npm registries and Git hosts every Node
-// install of the organisation goes through, entered by an organisation administrator. Each field
+// REQ-1984, REQ-1993: the organisation's package registries -- the npm registries, PyPI indexes and
+// Git hosts every Node and Python install of the organisation goes through, entered by an organisation administrator. Each field
 // is answered as it was entered (a value, or the reference typed for it), to the administrator
 // who may enter it.
 
@@ -17,18 +17,19 @@ import { requestFailed, serverMessage } from "../i18n/serverMessage";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "";
 
-export type RegistryKind = "npm" | "git";
+export type RegistryKind = "npm" | "pypi" | "git";
 
 export interface PackageRegistry {
   id: string;
   kind: RegistryKind;
-  /** An npm registry's URL, or a Git host. */
+  /** An npm registry's URL, a PyPI index's simple-index URL, or a Git host. */
   address: string;
   /** An npm registry's scope ("@acme"), or null. */
   scope: string | null;
   /** As entered: the value, or a reference someone typed. */
   credential: string;
-  /** Whether this npm registry is the mirror every install goes through. */
+  /** Whether this npm registry (or PyPI index) is the mirror every npm (or Python) install
+   * goes through. */
   mirror: boolean;
 }
 

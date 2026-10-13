@@ -14,6 +14,7 @@ organisation by the content hash of the bundle they unpack to -- the hash a sour
 # Requirements: REQ-1984, REQ-1993
 from __future__ import annotations
 
+import hashlib
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -69,3 +70,30 @@ async def read(admin_db: "Database", org_id: str, content_hash_: str) -> UploadC
             content_hash=content_hash_,
         )
     return UploadCode(row[0], bytes(row[1]))
+
+
+async def put_file(
+    admin_db: "Database", org_id: str, filename: str, data: bytes, *, actor: str | None
+) -> str:
+    """Keep a single file for ``org_id`` (a lockfile given beside a package reference) and return
+    the SHA-256 of its bytes, which the source records. It is kept as it is, never unpacked."""
+    found = hashlib.sha256(data).hexdigest()
+    async with admin_db.acquire() as conn:
+        await conn.upsert(
+            _t,
+            {
+                "org_id": org_id,
+                "content_hash": found,
+                "filename": filename,
+                "archive": data,
+                "uploaded_by": actor,
+            },
+            index_elements=["org_id", "content_hash"],
+            update_columns=[],
+        )
+    return found
+
+
+async def read_file(admin_db: "Database", org_id: str, sha256: str) -> bytes:
+    """The bytes of the file ``org_id`` kept with that SHA-256, refused by name when there is none."""
+    return (await read(admin_db, org_id, sha256)).data

@@ -75,6 +75,9 @@ _ADAPTER_FETCH_ONLY: frozenset[str] = frozenset(
         # REQ-1982: Cosmos DB documents are read through its SDK (provisa/cosmosdb/loader.py); no
         # engine reaches it.
         "cosmosdb",
+        # REQ-1984, REQ-1993: a code source's rows come from its functions, run in its worker.
+        "node",
+        "python",
         # REQ-1730: same gap as neo4j/sparql above — firebird/airport rows are produced by a
         # scratch DuckDB connection ATTACHed via their own community extension
         # (make_firebird_loader/make_airport_loader), not scanned from a relation Trino can reach

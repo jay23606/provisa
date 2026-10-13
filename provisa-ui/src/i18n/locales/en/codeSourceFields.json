@@ -1,0 +1,30 @@
+{
+  "codeSourceFields": {
+    "runtime": "Runtime",
+    "runtime_node": "Node.js",
+    "runtime_bun": "Bun",
+    "runtime_deno": "Deno",
+    "origin": "Code from",
+    "originHint": "The code is installed and read when the source is saved; its functions tagged @table, @command or @stream become its tables, commands and live tables.",
+    "npm": "npm package",
+    "pypi": "PyPI package",
+    "git": "Git repository",
+    "upload": "Upload",
+    "package": "Package",
+    "version": "Version",
+    "versionHint": "An exact version, such as 1.2.0.",
+    "lockfile": "Lockfile",
+    "lockfileHint": "A published package rarely carries its lockfile. Give one ({{names}}) when the package has dependencies.",
+    "lockfilePlaceholder": "No lockfile",
+    "repository": "Repository URL",
+    "commit": "Commit",
+    "commitHint": "The full 40-character commit.",
+    "subdirectory": "Subdirectory",
+    "archive": "Archive",
+    "archiveHint": "A .zip, .tgz or .tar.gz of the code.",
+    "archivePlaceholder": "Choose an archive",
+    "entry": "Entry module",
+    "entryHint": "The module the source is entered by. Leave empty when the code has one top-level module or package.",
+    "kept": "Kept: {{name}}"
+  }
+}

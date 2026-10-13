@@ -50,6 +50,7 @@ from provisa.codesource.install import (
     GitCode,
     Http,
     Installed,
+    Lockfile,
     Runner,
     UploadCode,
     gitconfig,
@@ -215,7 +216,8 @@ def needs_install(root: Path, runtime: str) -> bool:
         raise BundleRefused(
             "no_lockfile",
             f"the bundle declares dependencies but carries no {' or '.join(LOCKFILES[runtime])} "
-            f"for {runtime}",
+            f"for {runtime}; add one beside the package on the source's form (a published "
+            "package rarely carries its own)",
             runtime=runtime,
         )
     return True
@@ -295,11 +297,13 @@ def ensure_installed(
     registries: Sequence[Resolved],
     runtime_executable: Path,
     cache_root: Path,
+    lockfile: Lockfile | None = None,
     http: Http = http_get,
     run: Runner = run_command,
 ) -> Installed:
     """The source's bundle, installed and cached by content hash
-    (:func:`provisa.codesource.install.ensure_installed`)."""
+    (:func:`provisa.codesource.install.ensure_installed`), with ``lockfile`` -- given beside the
+    package reference -- put into it first."""
     if runtime not in LOCKFILES:
         raise BundleRefused("unknown_runtime", f"{runtime!r} is not a runtime", runtime=runtime)
 
@@ -314,4 +318,6 @@ def ensure_installed(
         install=_dependencies,
         expected_hash=expected_hash,
         cache_root=cache_root,
+        lockfile=lockfile,
+        lockfiles=LOCKFILES[runtime],
     )
