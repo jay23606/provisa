@@ -521,6 +521,9 @@ async def _settle_nested_columns(pool, input, columns) -> "MutationResult | None
         c
         for c in columns
         if c.native_filter_type is None
+        # REQ-424: an embedding column stays the native array a similarity search reads, end to
+        # end -- registration, landing, lowering and index; REQ-1965's JSON rule is for the rest
+        and not c.embedding
         and (stored.get(c.name) or "").lower() != (c.data_type or "").lower()
     ]
     if not unsettled:

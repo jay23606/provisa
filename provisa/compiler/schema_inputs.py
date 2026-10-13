@@ -36,6 +36,7 @@ from provisa.compiler.naming import apply_gql_name, to_type_name
 from provisa.compiler.type_map import (
     FILTER_TYPE_MAP,
     column_type_to_graphql,
+    array_graphql_type,
     nested_column_graphql_type,
 )
 from provisa.compiler.schema_types import _TableInfo
@@ -119,7 +120,10 @@ def _build_column_fields(  # REQ-008, REQ-010, REQ-039, REQ-155, REQ-156, REQ-22
 
             object_fields = _json.loads(object_fields)
         nested_type = nested_column_graphql_type(col)  # REQ-1965
-        if nested_type is not None and not object_fields:
+        if col.get("embedding"):
+            # REQ-424: an embedding is the list of its components, never REQ-1965's JSON value
+            gql_type = array_graphql_type(meta.data_type)
+        elif nested_type is not None and not object_fields:
             gql_type = nested_type
         elif object_fields and meta.data_type in ("json", "jsonb"):
             _type_prefix = ""

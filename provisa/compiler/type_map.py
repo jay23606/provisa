@@ -221,10 +221,10 @@ def nested_column_graphql_type(column: Mapping) -> GraphQLScalarType | GraphQLLi
     return declared
 
 
-def parameter_graphql_type(data_type: str) -> GraphQLScalarType | GraphQLList:  # REQ-1986
-    """The GraphQL type of a parameter's argument. A parameter is an argument, not a column: an
-    array parameter (a query vector) takes a list of its element type, where a column of that
-    type is a JSON column (REQ-1965)."""
+def array_graphql_type(data_type: str) -> GraphQLScalarType | GraphQLList:  # REQ-1986, REQ-424
+    """The GraphQL type of a parameter's argument or an embedding column: an array (a query
+    vector, an embedding) is a list of its element type, where any other column of that type is
+    a JSON column (REQ-1965)."""
     normalized = data_type.lower().strip()
     if normalized.startswith("array(") and normalized.endswith(")"):
         return GraphQLList(GraphQLNonNull(column_type_to_graphql(normalized[6:-1])))

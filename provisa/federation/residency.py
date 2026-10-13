@@ -92,6 +92,10 @@ def resolve_landing_args(
         # REQ-424: an embedding column lands as a vector where the engine indexes its replica.
         if c.embedding and platform in EMBEDDING_INDEX_PLATFORMS:
             columns.append((c.name, "vector"))
+        elif c.embedding:
+            # REQ-424: elsewhere an embedding lands as it did before REQ-1965 (text, the lowering
+            # casting it to the engine's array): never as JSON, which REQ-1965 is for the rest
+            columns.append((c.name, "text"))
         else:
             columns.append((c.name, to_ir(c.data_type, platform)))
     # REQ-982: resolve the effective probe_type (validated against the source's capability class;

@@ -142,3 +142,35 @@ async def test_a_native_type_the_engine_listed_is_recorded_as_the_engines_spelli
     assert (tags.data_type, tags.array_depth, tags.element_type) == ("json", 1, "text")
     assert (tags.native_type, tags.native_platform) == ("array(varchar)", "trino")
     assert columns[0].native_platform is None
+
+
+async def test_an_embedding_column_stays_the_native_array_a_similarity_search_reads(monkeypatch):
+    """REQ-424: an embedding is exempt from the JSON rule end to end: registered as the array it
+    is, with no hidden attribute, so no read converts it to JSON."""
+    vec = AvailableColumnType(
+        name="vec",
+        data_type="json",
+        comment=None,
+        array_depth=1,
+        element_type="double",
+        native_type="double precision[]",
+        native_platform="postgresql",
+    )
+    asked = _source(monkeypatch, [vec], stored={})
+    columns = [
+        Column(
+            name="vec",
+            data_type="array(double)",
+            visible_to=[],
+            embedding=True,
+            embedding_model="mini",
+        )
+    ]
+
+    assert await _table_ops._settle_nested_columns(_Pool(), _INPUT, columns) is None
+    assert (columns[0].data_type, columns[0].native_type, columns[0].array_depth) == (
+        "array(double)",
+        None,
+        0,
+    )
+    assert asked == []
