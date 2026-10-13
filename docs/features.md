@@ -923,7 +923,7 @@ Polly can do the work as well as describe it. She can search for data sources, r
 A new user is offered a short core tour: welcome, Polly, connecting a source, and running a query. Every step has a Deep Dives button that jumps to a menu of topic tours. Each step waits until the page it points at is loaded and ready, and the tour is never offered over a sign-in or registration form.
 { #product-tour-and-demos-guided-tour }
 
-You can start Provisa already loaded with a demo. Running the launcher with a demo name picks one of the bundled scenarios, and plain demo mode loads the default. In demo mode a complete configuration is loaded instead of the first-run wizard, and tier restrictions are lifted so every feature can be shown. Each demo, instance and organization keeps what you left in the browser, such as the domain filter, saved query tabs and open panels, so switching demos carries none of it across and coming back restores it.
+You can start Provisa already loaded with a demo. Running the launcher with a demo name picks one of the bundled scenarios, and plain demo mode loads the default. In demo mode a complete configuration is loaded instead of the first-run wizard, and tier restrictions are lifted so every feature can be shown. Each demo, instance and organization keeps what you left in the browser, such as the domain filter, saved query tabs and open panels, so switching demos carries none of it across and coming back restores it. A named demo can also tell its own story, a guided track over its own sources, queries and roles, offered before the product tour, with the Deep Dives after it.
 { #product-tour-and-demos-named-demos }
 
 On the hosted service, a prospect can try Provisa with no signup in an ephemeral sandbox cloned from a prepared template. The sandbox is deleted on logout or after a period of inactivity, has caps on time, rows and cost, and can only use the bundled sample sources.
@@ -932,7 +932,7 @@ On the hosted service, a prospect can try Provisa with no signup in an ephemeral
 ??? note "Requirements"
 
     - [A new user is offered a short core tour: welcome, Polly, connecting a source, and runni...](#product-tour-and-demos-guided-tour): [REQ-1362](arch/requirements.md#REQ-1362), [REQ-1446](arch/requirements.md#REQ-1446), [REQ-1570](arch/requirements.md#REQ-1570), [REQ-1945](arch/requirements.md#REQ-1945)
-    - [You can start Provisa already loaded with a demo.](#product-tour-and-demos-named-demos): [REQ-414](arch/requirements.md#REQ-414), [REQ-1220](arch/requirements.md#REQ-1220), [REQ-1858](arch/requirements.md#REQ-1858), [REQ-2008](arch/requirements.md#REQ-2008), [REQ-2009](arch/requirements.md#REQ-2009)
+    - [You can start Provisa already loaded with a demo.](#product-tour-and-demos-named-demos): [REQ-414](arch/requirements.md#REQ-414), [REQ-1220](arch/requirements.md#REQ-1220), [REQ-1858](arch/requirements.md#REQ-1858), [REQ-2008](arch/requirements.md#REQ-2008), [REQ-2009](arch/requirements.md#REQ-2009), [REQ-2010](arch/requirements.md#REQ-2010)
     - [On the hosted service, a prospect can try Provisa with no signup in an ephemeral sandbo...](#product-tour-and-demos-sandbox): [REQ-1033](arch/requirements.md#REQ-1033), [REQ-1034](arch/requirements.md#REQ-1034), [REQ-1036](arch/requirements.md#REQ-1036), [REQ-1037](arch/requirements.md#REQ-1037), [REQ-1039](arch/requirements.md#REQ-1039), [REQ-2006](arch/requirements.md#REQ-2006)
 
 ### Internationalization and accessibility

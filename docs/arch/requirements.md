@@ -23183,3 +23183,15 @@ Polly's spend is metered and, in demo sandboxes, capped. Every model call marks 
 **Code:** `provisa/api/mcp/chat.py`, `provisa/api/mcp/polly_usage.py`, `provisa/api/admin/settings_guards.py`, `provisa/core/settings_catalog.py`, `.github/workflows/polly-bakeoff.yml`
 
 **Tests:** `tests/unit/test_polly_usage.py`, `tests/unit/test_mcp_chat.py`, `tests/integration/test_polly_bakeoff_e2e.py`
+
+### REQ-2010 · UI {#REQ-2010}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+A named demo has its own tour, the story of the demo told with its own data, for a demo that runs with no one to present it. Its steps are written with the demo (demo/named/<name>/tour.yaml) and reach the UI on /setup/status with its example queries; the guided tour runs them as the demo's track. Starting the tour in a named demo starts its track, and the tour button offers it first until it has been walked to its end in that demo (each demo, and each fresh start of one, being its own control plane); the Deep Dives menu lists it first, marked once done, and the product tour and Deep Dives follow it. Each step names a page and one object of the demo: a source (its row on Sources), a relationship (its row on Relationships, by alias), an example query (opened in a new GraphQL explorer tab and run), a statement (opened in a new SQL explorer tab and run), a glossary term (opened on the Glossary), or a role (picked in the SQL explorer's run-as picker when the visitor moves on, all roles again at the end). A step's words are translated like every other tour step's, in every language the UI speaks. A unit test holds every step's object to the demo's config and example queries, every page to the right its gate needs, and every step's words to each language. The weblogs demo's track: the shop's two logs (the web server's and the database's), joined on the request id, the slowest pages and the SQL behind them, the requests that failed in the database, the glossary and ontology that name what the logs mean, and the customers as an administrator and then as the analyst, whose email addresses are gone.
+
+**Use case:** A prospect opens the weblogs demo on a kiosk and starts the tour: it walks them through the shop's own logs, queries and rights in eleven steps, then offers the product tour.
+
+**Code:** —
+
+**Tests:** —
