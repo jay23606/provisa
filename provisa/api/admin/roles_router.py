@@ -146,13 +146,6 @@ async def create_role(body: CreateRoleBody, request: Request):  # REQ-042, REQ-0
     org_id = _active_org(request)
     pool = _pool(request)
     async with pool.acquire() as conn:
-        # A create makes a new role: an existing id is refused by name, before anything is written.
-        from provisa.core.repositories import role as role_repo
-
-        if any(r["id"] == body.id for r in await role_repo.list_all(conn)):
-            raise ApiError(
-                409, "roles.already_exists", f"Role {body.id!r} already exists", role=body.id
-            )
         await _check_parent(conn, body.id, body.parent_role_id)  # REQ-1677
         await _check_definition(
             conn, request, body.id, body.capabilities, body.domain_access, body.parent_role_id
@@ -164,6 +157,12 @@ async def create_role(body: CreateRoleBody, request: Request):  # REQ-042, REQ-0
         await role_repo.require_residency_grant_saved(  # REQ-1921
             conn, body.id, body.capabilities, body.residency_values
         )
+        # A create makes a new role. A definition that is refused is refused for what it is
+        # (above); a valid one whose id exists is refused by name. Nothing is written either way.
+        if any(r["id"] == body.id for r in await role_repo.list_all(conn)):
+            raise ApiError(
+                409, "roles.already_exists", f"Role {body.id!r} already exists", role=body.id
+            )
         await conn.execute_core(
             insert(roles).values(
                 id=body.id,

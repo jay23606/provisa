@@ -49,6 +49,15 @@ async def test_a_role_id_that_exists_is_refused_by_name(monkeypatch):
         )
     monkeypatch.setattr(roles_router, "require_capability_request", lambda _r, _c: None)
     monkeypatch.setattr(roles_router, "_pool", lambda _r: plane)
+
+    async def _valid(*_args, **_kwargs):
+        return None
+
+    # The definition is valid and the caller may grant it (its checks are tested where they are
+    # made): what is left to refuse is the id.
+    for check in ("_check_parent", "_check_definition", "_require_reach_of_added"):
+        monkeypatch.setattr(roles_router, check, _valid)
+    monkeypatch.setattr(roles_router.role_repo, "require_residency_grant_saved", _valid)
     before = await _count(plane, roles)
     body = roles_router.CreateRoleBody(id="auditor", capabilities=[], domain_access=["sales"])
     with pytest.raises(ApiError) as err:
