@@ -22,9 +22,7 @@ from contextlib import asynccontextmanager
 
 import pytest
 
-from provisa.core.database import create_engine_from_url
 
-from provisa.core.database import Database
 from provisa.core.derived_tags import derived_tags_for_table
 from provisa.core.models import (
     DERIVED_TAG_IDS,
@@ -40,15 +38,9 @@ _TABLES = [tags, tag_assignments, registered_tables]
 
 
 @asynccontextmanager
-async def _conn(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'tags.db'}")
-    with engine.begin() as c:
-        tags.metadata.create_all(c, tables=_TABLES)
-    try:
-        async with Database(engine, name="t").acquire() as conn:
-            yield conn
-    finally:
-        engine.dispose()
+async def _conn(control_plane):
+    async with control_plane.org().acquire() as conn:
+        yield conn
 
 
 def test_a_modeling_role_derives_its_own_tag():
@@ -86,8 +78,8 @@ def test_every_derivable_id_is_a_registered_derived_tag():
 
 
 @pytest.mark.asyncio
-async def test_the_registry_synthesizes_derived_tags_in_front_of_the_table(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_the_registry_synthesizes_derived_tags_in_front_of_the_table(control_plane):
+    async with _conn(control_plane) as conn:
         await tag_repo.upsert(conn, Tag(id="pii_reviewed", applies_to=["column"]))
         rows = await tag_repo.list_all(conn)
 
@@ -103,9 +95,9 @@ async def test_the_registry_synthesizes_derived_tags_in_front_of_the_table(tmp_p
 
 
 @pytest.mark.asyncio
-async def test_a_stored_row_can_never_shadow_a_derived_tag(tmp_path):
+async def test_a_stored_row_can_never_shadow_a_derived_tag(control_plane):
     """The mutation layer refuses the id, so a stored row means a hand-edited DB — it is ignored."""
-    async with _conn(tmp_path) as conn:
+    async with _conn(control_plane) as conn:
         await tag_repo.upsert(conn, Tag(id="data_quality", applies_to=["table"]))
         rows = await tag_repo.list_all(conn)
         fetched = await tag_repo.get(conn, "data_quality")
@@ -116,8 +108,8 @@ async def test_a_stored_row_can_never_shadow_a_derived_tag(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_get_returns_the_derived_definition_without_touching_the_table(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_get_returns_the_derived_definition_without_touching_the_table(control_plane):
+    async with _conn(control_plane) as conn:
         fetched = await tag_repo.get(conn, "fact")
         missing = await tag_repo.get(conn, "not_a_tag")
 

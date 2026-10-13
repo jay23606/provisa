@@ -212,18 +212,13 @@ def test_with_no_platform_regions_nothing_is_judged(node, monkeypatch):
     capabilities.require_residency_change(nobody, "table orders", CREATED, None)
 
 
-async def test_a_role_saved_with_a_grant_is_held_to_the_same_rules(node, tmp_path):
-    from provisa.core.database import Database, create_engine_from_url
+async def test_a_role_saved_with_a_grant_is_held_to_the_same_rules(node, control_plane):
     from provisa.core.models import Role
     from provisa.core.regions import OrgRegion, StoreConfig
     from provisa.core.repositories import region as region_repo
     from provisa.core.repositories import role as role_repo
-    from provisa.core.schema_org import metadata
 
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'model.db'}")
-    with engine.begin() as raw:
-        metadata.create_all(raw)
-    db = Database(engine, "test")
+    db = control_plane.org()
     node("eu")
     async with db.acquire() as conn:
         for store in (

@@ -13,37 +13,28 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from provisa.core.database import create_engine_from_url
 
-from provisa.core.database import Database
-from provisa.core.schema_org import event_status, events
 from provisa.events import queue
 
 _T0 = datetime(2026, 7, 8, 12, 0, 0, tzinfo=timezone.utc)
 
 
 @asynccontextmanager
-async def _conn(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'q.db'}")
-    with engine.begin() as c:
-        events.metadata.create_all(c, tables=[events, event_status])
-    try:
-        async with Database(engine, name="q").acquire() as conn:
-            yield conn
-    finally:
-        engine.dispose()
+async def _conn(control_plane):
+    async with control_plane.org().acquire() as conn:
+        yield conn
 
 
 @pytest.mark.asyncio
-async def test_post_validates_event_type(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_post_validates_event_type(control_plane):
+    async with _conn(control_plane) as conn:
         with pytest.raises(ValueError, match="invalid event_type"):
             await queue.post_event(conn, source_table="s.t", event_type="bogus")
 
 
 @pytest.mark.asyncio
-async def test_full_flow_post_fanout_claim_complete(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_full_flow_post_fanout_claim_complete(control_plane):
+    async with _conn(control_plane) as conn:
         # injector posts a change on source s.orders
         eid = await queue.post_event(
             conn, source_table="s.orders", event_type="append", payload={"cursor": 42}
@@ -78,8 +69,8 @@ async def test_full_flow_post_fanout_claim_complete(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_reclaim_stale_lease(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_reclaim_stale_lease(control_plane):
+    async with _conn(control_plane) as conn:
         eid = await queue.post_event(conn, source_table="s.orders", event_type="replace")
         await queue.fan_out(conn, eid, ["mv.daily"])
         # claim, then let the lease go stale (heartbeat at _T0, reaper cutoff later)
@@ -97,8 +88,8 @@ async def test_reclaim_stale_lease(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_repeater_reads_by_cursor(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_repeater_reads_by_cursor(control_plane):
+    async with _conn(control_plane) as conn:
         e1 = await queue.post_event(conn, source_table="s.a", event_type="delta")
         e2 = await queue.post_event(
             conn, source_table="s.b", event_type="warn", payload={"msg": "x"}
@@ -111,10 +102,10 @@ async def test_repeater_reads_by_cursor(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_req959_ownership_cas_blocks_stale_owner(tmp_path):
+async def test_req959_ownership_cas_blocks_stale_owner(control_plane):
     """A returning owner whose claim was reclaimed by a peer cannot complete it: the ownership CAS
     in complete() matches only while THIS processor still owns the row (REQ-959)."""
-    async with _conn(tmp_path) as conn:
+    async with _conn(control_plane) as conn:
         eid = await queue.post_event(conn, source_table="s.o", event_type="replace")
         await queue.fan_out(conn, eid, ["mv.x"])
         # box-1 claims, then its lease is reclaimed (crash) and box-2 takes over.
@@ -142,10 +133,10 @@ async def test_req959_ownership_cas_blocks_stale_owner(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_req959_deadline_reclaims_stuck_but_alive(tmp_path):
+async def test_req959_deadline_reclaims_stuck_but_alive(control_plane):
     """A per-claim deadline reclaims a stuck-but-alive owner whose HEARTBEAT is still fresh — the
     failure a heartbeat structurally cannot catch (REQ-959)."""
-    async with _conn(tmp_path) as conn:
+    async with _conn(control_plane) as conn:
         eid = await queue.post_event(conn, source_table="s.o", event_type="replace")
         await queue.fan_out(conn, eid, ["mv.x"])
         # claim at _T0 with a deadline at _T0; heartbeat_at = _T0 (fresh).

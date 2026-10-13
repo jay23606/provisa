@@ -42,12 +42,8 @@ from provisa.federation.replica_state import RetryPolicy
 
 
 @pytest.fixture
-def tenant_db(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'tenant.db'}")
-    db = Database(engine, name="org")
-    asyncio.run(init_schema(db, "", org_id="default"))
-    yield db
-    engine.dispose()
+def tenant_db(control_plane):
+    return control_plane.org()
 
 
 def _stamps(db: Database) -> dict[str, int]:

@@ -18,8 +18,6 @@ import pytest
 
 from provisa.core.request_context import current_org
 
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.schema_org import metadata, replica_state as replica_state_table
 from provisa.federation import replica_converge, replica_state
 from provisa.federation.replica_address import ReplicaAddress, replica_table_name
 from provisa.federation.replica_converge import (
@@ -53,13 +51,8 @@ def _key(table: str, sid="src"):
 
 
 @pytest.fixture
-def plane(tmp_path):
-    url = f"sqlite+pysqlite:///{tmp_path / 'cp.db'}"
-    engine = create_engine_from_url(url)
-    with engine.begin() as conn:
-        metadata.create_all(conn, tables=[replica_state_table])
-    yield url, Database(engine, "test")
-    engine.dispose()
+def plane(control_plane):
+    yield control_plane.url, control_plane.org()
 
 
 class _Store:

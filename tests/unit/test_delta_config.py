@@ -106,21 +106,21 @@ def test_the_save_refuses_a_delta_on_a_non_sql_source():
     assert asyncio.run(_refuse("postgresql")) is None
 
 
-def test_delta_round_trips_through_the_control_plane(tmp_path):
+def test_delta_round_trips_through_the_control_plane(control_plane):
     import asyncio
     from types import SimpleNamespace
 
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.db import init_schema
     from provisa.core.repositories import table as table_repo
+    from provisa.core.schema_org import domains, sources
     from provisa.federation.registry_view import registered_tables
 
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 't.db'}")
-    db = Database(engine, name="org")
-    asyncio.run(init_schema(db, "", org_id="default"))
+    db = control_plane.org()
 
     async def _go():
         async with db.acquire() as conn:
+            # the table's source and domain: the control plane's foreign keys hold
+            await conn.execute_core(sources.insert().values(id="pg", type="postgresql"))
+            await conn.execute_core(domains.insert().values(id="d"))
             await table_repo.upsert(
                 conn,
                 _table(watermark_column="u", delta=DeltaConfig(apply="upsert", rebuild_every=3600)),
@@ -133,7 +133,6 @@ def test_delta_round_trips_through_the_control_plane(tmp_path):
     (t,) = [r for r in rows if r.table_name == "orders"]
     assert t.delta is not None
     assert t.delta.apply == "upsert" and t.delta.rebuild_every == 3600
-    engine.dispose()
 
 
 def test_delta_of_treats_json_null_and_non_dict_as_no_delta():

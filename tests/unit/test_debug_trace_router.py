@@ -26,17 +26,15 @@ import pytest
 from provisa.api.admin import debug_trace_router as dr
 from provisa.api.errors import ApiError
 from provisa.core import trace_scope as ts
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.schema_admin import debug_trace_hint_roles, debug_trace_windows, metadata
+from provisa.core.schema_admin import orgs
+from provisa.core.database import Database
 
 
 @pytest.fixture
-def db(tmp_path, monkeypatch) -> Database:
-    database = Database(
-        create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}"), name="debug-trace-api"
-    )
+def db(control_plane, monkeypatch) -> Database:
+    database = control_plane.platform
     with database.engine.begin() as conn:
-        metadata.create_all(conn, tables=[debug_trace_windows, debug_trace_hint_roles])
+        conn.execute(orgs.insert().values(id="acme", name="Acme"))  # the org the windows are for
     monkeypatch.setattr(dr, "_admin_pool", lambda: database)
     monkeypatch.setattr(dr, "require_platform_settings", lambda _r: None)
     ts.invalidate()

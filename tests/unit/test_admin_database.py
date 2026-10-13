@@ -14,16 +14,13 @@ nested savepoints, status strings, and the Row adapter.
 from __future__ import annotations
 
 import pytest
-from provisa.core.database import create_engine_from_url
 
-from provisa.core.database import Capabilities, Database, Row
+from provisa.core.database import Capabilities, Row
 
 
 @pytest.fixture
-async def db():
-    # A single shared in-memory connection so all acquires see the same schema.
-    engine = create_engine_from_url("sqlite+pysqlite:///:memory:")
-    database = Database(engine, name="test")
+async def db(control_plane):
+    database = control_plane.org()
     async with database.acquire() as c:
         await c.execute("CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT, n INTEGER)")
     yield database
@@ -148,7 +145,7 @@ async def test_insert_returning(db):
         Column("name", Text),
     )
     async with db.acquire() as c:
-        await c.execute("CREATE TABLE ins (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)")
+        await c.execute("CREATE TABLE ins (id SERIAL PRIMARY KEY, name TEXT)")
         new_id = await c.insert_returning(t, {"name": "x"}, returning="id")
         assert new_id == 1
         assert await c.fetchval("SELECT name FROM ins WHERE id = $1", new_id) == "x"

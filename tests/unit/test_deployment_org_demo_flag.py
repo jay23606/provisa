@@ -24,7 +24,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import select
 
-from provisa.core.database import Database, create_engine_from_url
+from provisa.core.database import Database
 from provisa.core.schema_admin import init_registry_schema, orgs
 
 
@@ -35,15 +35,17 @@ async def _flag(plane: Database) -> bool:
 
 
 @pytest.mark.parametrize(("demo", "expected"), [("", False), ("true", True)])
-async def test_the_bootstrap_org_is_a_demo_only_in_a_demo_deployment(monkeypatch, demo, expected):
+async def test_the_bootstrap_org_is_a_demo_only_in_a_demo_deployment(
+    monkeypatch, control_plane, demo, expected
+):
     monkeypatch.setenv("PROVISA_DEMO", demo)
-    plane = Database(create_engine_from_url("sqlite+pysqlite:///:memory:"), name="registry")
+    plane = control_plane.platform
     await init_registry_schema(plane, "acme")
     assert await _flag(plane) is expected
 
 
-async def test_the_flag_follows_the_deployment_at_every_start(monkeypatch):
-    plane = Database(create_engine_from_url("sqlite+pysqlite:///:memory:"), name="registry")
+async def test_the_flag_follows_the_deployment_at_every_start(monkeypatch, control_plane):
+    plane = control_plane.platform
     monkeypatch.setenv("PROVISA_DEMO", "true")
     await init_registry_schema(plane, "acme")
     assert await _flag(plane) is True

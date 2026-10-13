@@ -17,8 +17,6 @@ import pytest
 from sqlalchemy import insert, select
 
 from provisa.core import env_classes, store_sides
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.db import _init_schema_portable
 from provisa.core.schema_org import mail_sync_state as table
 from provisa.core.schema_org import sources
 from provisa.federation import mail_sync_state as kept
@@ -29,9 +27,8 @@ A, B = "megan@contoso.com", "sam@contoso.com"
 
 
 @pytest.fixture
-async def db():
-    made = Database(create_engine_from_url("sqlite+pysqlite:///:memory:"), name="mail-sync")
-    await _init_schema_portable(made)
+async def db(control_plane):
+    made = control_plane.org()
     yield made
     await made.close()
 

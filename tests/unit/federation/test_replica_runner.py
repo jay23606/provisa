@@ -17,8 +17,6 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from provisa.core import process_mode
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.schema_org import metadata, replica_state
 from provisa.federation import replica_state as build_state
 from provisa.federation.replica_locks import BuildLocks
 from provisa.federation.replica_errors import WAITING_ENGINE, WAITING_SOURCE
@@ -46,23 +44,9 @@ def _key(n: int):
 
 
 @pytest.fixture
-def plane(tmp_path):
-    """A control plane file, and a factory of independent connections to it."""
-    url = f"sqlite+pysqlite:///{tmp_path / 'cp.db'}"
-    engines = []
-
-    def connect() -> Database:
-        engine = create_engine_from_url(url)
-        engines.append(engine)
-        return Database(engine, "test")
-
-    first = create_engine_from_url(url)
-    with first.begin() as conn:
-        metadata.create_all(conn, tables=[replica_state])
-    first.dispose()
-    yield url, connect
-    for engine in engines:
-        engine.dispose()
+def plane(control_plane):
+    """A control plane, and a factory of independent connections to it."""
+    yield control_plane.url, control_plane.org
 
 
 class _Permits:

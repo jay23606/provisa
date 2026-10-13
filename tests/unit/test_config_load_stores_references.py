@@ -19,8 +19,8 @@ from sqlalchemy import select
 
 from provisa.core import secrets_store
 from provisa.core.config_loader import apply_config, parse_config_dict
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.db import _init_schema_portable
+from provisa.core.database import Database
+from provisa.core.environments import org_schema
 from provisa.core.schema_org import metadata
 
 SECRETS = {
@@ -68,7 +68,7 @@ _SPEC = {
 
 
 @pytest.fixture
-async def db(monkeypatch, tmp_path) -> Database:
+async def db(monkeypatch, control_plane) -> Database:
     for name, value in SECRETS.items():
         monkeypatch.setenv(name, value)
 
@@ -77,8 +77,7 @@ async def db(monkeypatch, tmp_path) -> Database:
         yield
 
     monkeypatch.setattr(secrets_store, "bound_to_request_org", _unbound)
-    plane = Database(create_engine_from_url("sqlite+pysqlite:///:memory:"), name="refs-test")
-    await _init_schema_portable(plane)
+    plane = control_plane.org()
     return plane
 
 
@@ -173,11 +172,11 @@ async def _everything_stored(db: Database) -> dict[str, str]:
     return held
 
 
-async def assert_no_value_is_stored(db: Database, tmp_path, schema: str = "main") -> None:
+async def assert_no_value_is_stored(db: Database, tmp_path, schema: str) -> None:
     """Load the config into ``db`` and fail naming every column that holds a value, and every
     file of the environment's repository projection that does (a secret committed to git cannot
-    be taken back by a reload). ``schema`` is the org schema the projection reads (SQLite's
-    database is ``main``). Shared by the PostgreSQL plane
+    be taken back by a reload). ``schema`` is the org schema the projection reads. Shared by the
+    PostgreSQL plane
     (tests/integration/test_config_load_stores_references_pg.py)."""
     import json
 
@@ -214,7 +213,7 @@ async def assert_no_value_is_stored(db: Database, tmp_path, schema: str = "main"
 
 
 async def test_after_a_config_load_no_control_plane_column_holds_a_credentials_value(db, tmp_path):
-    await assert_no_value_is_stored(db, tmp_path)
+    await assert_no_value_is_stored(db, tmp_path, org_schema("default"))
 
 
 def test_the_running_process_still_has_the_resolved_values(monkeypatch, tmp_path):

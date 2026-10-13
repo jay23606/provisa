@@ -32,8 +32,8 @@ from sqlalchemy import insert, select
 import provisa.api.app as appmod
 from provisa.api.admin import actions_router, roles_router, schema_mutation
 from provisa.api.errors import ApiError
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.db import _SEED_ROLES, _init_schema_portable
+from provisa.core.database import Database
+from provisa.core.db import _SEED_ROLES
 from provisa.core.schema_org import (
     data_products,
     domains,
@@ -96,10 +96,9 @@ STEWARD_IDS = ["data_steward", "governance_lead"]
 
 
 @pytest.fixture(params=STEWARD_IDS)
-async def plane(request, monkeypatch):
+async def plane(request, monkeypatch, control_plane):
     steward_id = request.param
-    db = Database(create_engine_from_url("sqlite+pysqlite:///:memory:"), name="steward-test")
-    await _init_schema_portable(db)
+    db = control_plane.org()
     from provisa.core.models import Column, Table
     from provisa.core.repositories import table as table_repo
 

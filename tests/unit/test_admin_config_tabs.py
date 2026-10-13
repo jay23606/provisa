@@ -22,7 +22,6 @@ import yaml
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from provisa.core import config_stamp
 from provisa.api.admin._config_io import read_config
 from provisa.api.admin.ai_models_router import router as ai_models_router
 from provisa.api.admin.security_router import router as security_router
@@ -255,21 +254,13 @@ class TestCacheStorageWarmAndMv:
 
 
 @pytest.fixture
-def settings_store(cfg_env, tmp_path, monkeypatch):
+def settings_store(cfg_env, control_plane, monkeypatch):
     """REQ-1913: the `otel` block is stored in the control plane (it used to be written to the
     config file). A control plane for the settings, standing in for the platform database."""
 
     from provisa.core import deployment_settings, settings_registry
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.schema_admin import deployment_settings as settings_table
-    from provisa.core.schema_admin import metadata
 
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'settings.db'}")
-    with engine.begin() as conn:
-        metadata.create_all(conn, tables=[settings_table, metadata.tables["config_stamp"]])
-        # REQ-1914: the settings snapshot is loaded with the plane's `settings` stamp.
-        config_stamp.install(conn, config_stamp.PLATFORM_TABLES)
-    db = Database(engine, name="platform")
+    db = control_plane.platform
     monkeypatch.setattr(deployment_settings, "_held", None)
     monkeypatch.setattr(deployment_settings, "_db", db)
     monkeypatch.setattr(settings_registry, "_frozen", None)
@@ -278,7 +269,6 @@ def settings_store(cfg_env, tmp_path, monkeypatch):
     # Set on whatever app state the test already runs on (another fixture may have replaced it).
     monkeypatch.setattr(app_module.state, "admin_db", db, raising=False)
     yield settings_registry
-    engine.dispose()
 
 
 class TestOtelExtended:

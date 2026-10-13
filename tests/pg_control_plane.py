@@ -83,10 +83,10 @@ class ControlPlane:
     def url(self) -> str:
         return self.pg.url(self.name)
 
-    def engine(self, **kwargs: Any) -> Engine:
+    def engine(self, url: str | None = None, **kwargs: Any) -> Engine:
         from provisa.core.database import create_engine_from_url
 
-        engine = create_engine_from_url(self.url, **kwargs)
+        engine = create_engine_from_url(url or self.url, **kwargs)
         self._engines.append(engine)
         return engine
 
@@ -100,10 +100,13 @@ class ControlPlane:
         from provisa.core.database import Database
         from provisa.core.environments import org_schema
 
+        schema = org_schema(org_id)
+        # Every connection starts in the org's schema -- a raw one off ``db.engine`` too, not only
+        # those ``acquire`` scopes -- so a test writing through the engine reaches the org's tables.
         return Database(
-            self.engine(),
+            self.engine(f"{self.url}?options=-csearch_path%3D{schema}"),
             name=f"org-{holds or 'model'}",
-            search_path=org_schema(org_id),
+            search_path=schema,
             holds=holds,
         )
 

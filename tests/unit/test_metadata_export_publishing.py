@@ -26,27 +26,20 @@ from datetime import datetime, timezone
 import pytest
 
 from sqlalchemy import select
-from provisa.core.database import create_engine_from_url
 
 from provisa.api.metadata_export import publishing
 from provisa.api.metadata_export.provider import AssetError, AssetRefStub, PublishResult
-from provisa.core.database import Database
-from provisa.core.schema_org import event_status, events
+from provisa.core.schema_org import event_status
 from provisa.events import queue
+from tests.pg_control_plane import clone
 
 _T0 = datetime(2026, 8, 4, 9, 0, 0, tzinfo=timezone.utc)
 
 
 @asynccontextmanager
-async def _conn(tmp_path, name="q.db"):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / name}")
-    with engine.begin() as c:
-        events.metadata.create_all(c, tables=[events, event_status])
-    try:
-        async with Database(engine, name="q").acquire() as conn:
-            yield conn
-    finally:
-        engine.dispose()
+async def _conn(plane):
+    async with plane.org().acquire() as conn:
+        yield conn
 
 
 def _ok(count: int = 7) -> PublishResult:
@@ -68,8 +61,8 @@ async def _claim_status(conn) -> list[str]:
 
 
 @pytest.mark.asyncio
-async def test_a_metadata_change_queues_work_for_the_export_target(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_a_metadata_change_queues_work_for_the_export_target(control_plane):
+    async with _conn(control_plane) as conn:
         event_id = await publishing.notify_metadata_change(
             conn, table="wh.public.orders", reason="column description edited"
         )
@@ -83,7 +76,7 @@ async def test_a_metadata_change_queues_work_for_the_export_target(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_a_drain_publishes_the_claimed_work_once_and_completes_it(tmp_path, monkeypatch):
+async def test_a_drain_publishes_the_claimed_work_once_and_completes_it(monkeypatch, control_plane):
     published: list[str] = []
 
     async def _publish(org_id: str) -> PublishResult:
@@ -91,7 +84,7 @@ async def test_a_drain_publishes_the_claimed_work_once_and_completes_it(tmp_path
         return _ok()
 
     monkeypatch.setattr(publishing, "publish_snapshot", _publish)
-    async with _conn(tmp_path) as conn:
+    async with _conn(control_plane) as conn:
         await publishing.notify_metadata_change(conn, table="wh.public.orders", reason="edit")
         await publishing.notify_metadata_change(conn, table="wh.public.customers", reason="edit")
 
@@ -105,17 +98,17 @@ async def test_a_drain_publishes_the_claimed_work_once_and_completes_it(tmp_path
 
 
 @pytest.mark.asyncio
-async def test_a_drain_with_nothing_pending_does_not_publish(tmp_path, monkeypatch):
+async def test_a_drain_with_nothing_pending_does_not_publish(monkeypatch, control_plane):
     async def _publish(org_id: str) -> PublishResult:
         raise AssertionError("published with no pending work")
 
     monkeypatch.setattr(publishing, "publish_snapshot", _publish)
-    async with _conn(tmp_path) as conn:
+    async with _conn(control_plane) as conn:
         assert await publishing.drain(conn, "acme", now=_T0) is None
 
 
 @pytest.mark.asyncio
-async def test_a_failed_publish_leaves_the_work_reclaimable(tmp_path, monkeypatch):
+async def test_a_failed_publish_leaves_the_work_reclaimable(monkeypatch, control_plane):
     """A completed work item is a promise the catalog holds the change. A partial publish did
     not deliver it, so completing it would drop the change until the next reconcile."""
 
@@ -123,7 +116,7 @@ async def test_a_failed_publish_leaves_the_work_reclaimable(tmp_path, monkeypatc
         return _partial()
 
     monkeypatch.setattr(publishing, "publish_snapshot", _publish)
-    async with _conn(tmp_path) as conn:
+    async with _conn(control_plane) as conn:
         await publishing.notify_metadata_change(conn, table="wh.public.orders", reason="edit")
         result = await publishing.drain(conn, "acme", now=_T0)
         assert result is not None and not result.ok
@@ -149,13 +142,13 @@ async def _succeed(org_id: str) -> PublishResult:
 
 @pytest.mark.asyncio
 async def test_a_publish_that_raises_leaves_the_work_claimed_rather_than_completed(
-    tmp_path, monkeypatch
+    monkeypatch, control_plane
 ):
     async def _publish(org_id: str) -> PublishResult:
         raise RuntimeError("the catalog refused the connection")
 
     monkeypatch.setattr(publishing, "publish_snapshot", _publish)
-    async with _conn(tmp_path) as conn:
+    async with _conn(control_plane) as conn:
         await publishing.notify_metadata_change(conn, table="wh.public.orders", reason="edit")
         with pytest.raises(RuntimeError, match="refused the connection"):
             await publishing.drain(conn, "acme", now=_T0)
@@ -163,7 +156,7 @@ async def test_a_publish_that_raises_leaves_the_work_claimed_rather_than_complet
 
 
 @pytest.mark.asyncio
-async def test_two_drains_of_the_same_org_do_not_both_publish(tmp_path, monkeypatch):
+async def test_two_drains_of_the_same_org_do_not_both_publish(monkeypatch, control_plane):
     """Two processes draining one org would send the catalog the same snapshot twice. The claim
     is what prevents it — which is why this path claims rather than reading the event stream."""
     published: list[str] = []
@@ -173,7 +166,7 @@ async def test_two_drains_of_the_same_org_do_not_both_publish(tmp_path, monkeypa
         return _ok()
 
     monkeypatch.setattr(publishing, "publish_snapshot", _publish)
-    async with _conn(tmp_path) as conn:
+    async with _conn(control_plane) as conn:
         await publishing.notify_metadata_change(conn, table="wh.public.orders", reason="edit")
         assert await publishing.drain(conn, "acme", now=_T0) is not None
         assert await publishing.drain(conn, "acme", now=_T0) is None
@@ -181,12 +174,22 @@ async def test_two_drains_of_the_same_org_do_not_both_publish(tmp_path, monkeypa
 
 
 @pytest.mark.asyncio
-async def test_one_orgs_work_is_invisible_to_another(tmp_path):
+async def test_one_orgs_work_is_invisible_to_another(
+    control_plane, embedded_postgres, control_plane_template
+):
     """Tenant isolation is the queue's own boundary: the events table lives in the org's schema,
     so a second org's drain finds nothing rather than finding the first org's change."""
-    async with _conn(tmp_path, name="acme.db") as acme:
+    globex_plane = clone(embedded_postgres, control_plane_template)
+    try:
+        await _one_orgs_work_is_invisible_to_another(control_plane, globex_plane)
+    finally:
+        globex_plane.close()
+
+
+async def _one_orgs_work_is_invisible_to_another(acme_plane, globex_plane):
+    async with _conn(acme_plane) as acme:
         await publishing.notify_metadata_change(acme, table="wh.public.orders", reason="edit")
-        async with _conn(tmp_path, name="globex.db") as globex:
+        async with _conn(globex_plane) as globex:
             assert (
                 await queue.claim(
                     globex,

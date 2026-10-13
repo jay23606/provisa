@@ -38,6 +38,10 @@ _SETTINGS = {
     "synchronous_commit": "off",
     "full_page_writes": "off",
     "max_connections": "300",
+    # The zone a session reads a timestamptz back in: UTC, as the postgres image the docker stack and
+    # CI run is. pgserver's initdb takes the machine's, so a test on a laptop read 04:00-04:00 for
+    # 08:00+00:00 where CI reads the latter.
+    "timezone": "UTC",
 }
 
 

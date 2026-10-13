@@ -32,16 +32,14 @@ import provisa.api.app as appmod
 from provisa.api.admin import settings_router
 from provisa.api.errors import ApiError
 from provisa.core import domain_policy
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.db import _init_schema_portable
+from provisa.core.database import Database
 from provisa.core.org_settings import read_org_overrides
 from provisa.core.schema_org import domains, registered_tables, sources
 
 
 @pytest.fixture
-async def db() -> Database:
-    plane = Database(create_engine_from_url("sqlite+pysqlite:///:memory:"), name="policy-test")
-    await _init_schema_portable(plane)
+async def db(control_plane) -> Database:
+    plane = control_plane.org()
     return plane
 
 

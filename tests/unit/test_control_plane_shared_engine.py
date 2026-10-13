@@ -31,6 +31,11 @@ from provisa.core.connection_loop import connection_loop
 from provisa.core.database import Database, _PgListener, _translate, create_engine_from_url
 
 
+def _db(control_plane, *, pool_size: int = 1, max_overflow: int = 0) -> Database:
+    engine = control_plane.engine(pool_size=pool_size, max_overflow=max_overflow)
+    return Database(engine, name="cp")
+
+
 def _file_db(tmp_path, *, pool_size: int = 1, max_overflow: int = 0) -> Database:
     engine = create_engine_from_url(
         f"sqlite:///{tmp_path / 'cp.db'}", pool_size=pool_size, max_overflow=max_overflow
@@ -58,8 +63,8 @@ def _on_request_thread(fn):
     return out["value"]
 
 
-def test_request_threads_share_one_engine_and_pool(tmp_path) -> None:
-    db = _file_db(tmp_path, pool_size=2)
+def test_request_threads_share_one_engine_and_pool(control_plane) -> None:
+    db = _db(control_plane, pool_size=2)
     seen: list[tuple[int, int, int]] = []
     both_inside = threading.Barrier(2)
 
@@ -85,8 +90,8 @@ def test_request_threads_share_one_engine_and_pool(tmp_path) -> None:
         asyncio.run(db.close())
 
 
-def test_the_extra_borrower_waits_then_succeeds(tmp_path) -> None:
-    db = _file_db(tmp_path, pool_size=1)
+def test_the_extra_borrower_waits_then_succeeds(control_plane) -> None:
+    db = _db(control_plane, pool_size=1)
     holding = threading.Event()
     release = threading.Event()
 
@@ -120,8 +125,8 @@ def test_the_extra_borrower_waits_then_succeeds(tmp_path) -> None:
         asyncio.run(db.close())
 
 
-def test_the_wait_is_bounded_by_the_request_budget(tmp_path) -> None:
-    db = _file_db(tmp_path, pool_size=1)
+def test_the_wait_is_bounded_by_the_request_budget(control_plane) -> None:
+    db = _db(control_plane, pool_size=1)
     holding = threading.Event()
     release = threading.Event()
 
@@ -149,10 +154,10 @@ def test_the_wait_is_bounded_by_the_request_budget(tmp_path) -> None:
         asyncio.run(db.close())
 
 
-def test_a_statement_is_cancelled_at_the_request_deadline(tmp_path) -> None:
-    """A real blocking SQLite statement (no await while it runs) is interrupted by the deadline
+def test_a_statement_is_cancelled_at_the_request_deadline(control_plane) -> None:
+    """A real blocking statement (no await while it runs) is interrupted by the deadline
     watchdog — an asyncio timer alone could never fire here."""
-    db = _file_db(tmp_path)
+    db = _db(control_plane)
     slow = (
         "WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c WHERE x < 500000000) "
         "SELECT count(*) FROM c"
@@ -281,10 +286,10 @@ def test_listen_is_refused_on_a_backend_without_notify(tmp_path) -> None:
         asyncio.run(db.close())
 
 
-def test_deadline_bound_is_not_applied_outside_a_request(tmp_path) -> None:
+def test_deadline_bound_is_not_applied_outside_a_request(control_plane) -> None:
     """Startup/background work runs with no request budget bound."""
     assert request_deadline.remaining() is None
-    db = _file_db(tmp_path)
+    db = _db(control_plane)
 
     async def _q() -> int:
         async with db.acquire() as conn:
