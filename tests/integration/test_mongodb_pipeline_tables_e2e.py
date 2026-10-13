@@ -138,16 +138,24 @@ class _Atlas:
             check=True,
             capture_output=True,
         )
+        # The image's entrypoint starts mongod for its own setup and then shuts it down to start
+        # the deployment's mongod and mongot: a client that connects as soon as mongod answers is
+        # talking to the setup server, and its commands fail "interrupted at shutdown" (code
+        # 11600, CI 2026-10-13). The image's healthcheck is healthy only once the deployment
+        # itself is up.
         deadline = time.monotonic() + 300
         while True:
-            try:
-                with self.client() as c:
-                    c.admin.command("ping")
+            health = subprocess.run(
+                ["docker", "inspect", "--format", "{{.State.Health.Status}}", self._name],
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout.strip()
+            if health == "healthy":
                 break
-            except Exception:  # allow-blind-except: polling the server until it answers
-                if time.monotonic() > deadline:
-                    raise
-                time.sleep(2)
+            if time.monotonic() > deadline:
+                raise TimeoutError(f"{_IMAGE} was not healthy after 300 s: {health}")
+            time.sleep(2)
         with self.client() as c:
             db = c[_DB]
             db.movies.insert_many([dict(m) for m in _MOVIES])
