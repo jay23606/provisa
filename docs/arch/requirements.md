@@ -23105,3 +23105,17 @@ MotherDuck is a federation engine, the production counterpart of the embedded Du
 **Code:** —
 
 **Tests:** —
+
+## 3. Source Registration & Data Modeling
+
+### REQ-2003 · Table Registration {#REQ-2003}
+
+**Status:** ⚙ in-progress · **Priority:** MUST · **Type:** behavioral
+
+A table Provisa reads itself for each statement (a parameterized or native-query table: a MongoDB pipeline, a Cosmos DB query, a Qdrant search, a code source's function, a live-only table's part) is kept for its TTL, which is the first one set of the table's own, its source's, and the response cache's default. A TTL of 0 is set: it means 0, never "unset", so it does not fall through to the source's TTL or the default. With a TTL above 0 the rows are landed for the engine and kept under the statement's arguments for the TTL, and the next statement asking the same reuses them (the reuse pays for the write). With a TTL of 0 the read always goes live and nothing is kept: rows up to the large-result threshold (redirect.threshold) are inlined into the statement as a VALUES CTE, with no write on any engine, and more rows are landed in a scratch table of that statement alone, dropped when it ends and never reused. An API endpoint table's TTL, and a gRPC remote query's, are likewise the first one set. A statement that lands a scratch table is answered through the pipeline terminal, which drops it, so its answer is buffered rather than streamed.
+
+**Use case:** A Cosmos DB query table on a Databricks engine is read with new arguments on every dashboard refresh. With its TTL set to 0, each statement reads it live and inlines the few dozen rows it answers, instead of writing a parquet table the next statement would not reuse.
+
+**Code:** `provisa/api/data/materialization.py`, `provisa/pgwire/_pipeline.py`
+
+**Tests:** `tests/unit/test_landing_ttl.py`

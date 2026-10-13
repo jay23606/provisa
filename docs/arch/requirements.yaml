@@ -81403,3 +81403,35 @@
   - REQ-1916
   - REQ-988
   notes: 'Maintainer 2026-10-12, to the ui teammate directly: "can motherduck also be an engine - and its there a valid use case for that", then "it seems to me that duckdb local is for dev and motherduck is a valid production choice", then "as the engine". The lead took "as the engine" as the go-ahead (2026-10-12), to follow the warehouse engines'' pattern (provisa/federation/engine.py _ENGINE_BUILDERS) and REQ-1916, with the costs stated where it is chosen. The lead''s rulings on the design (2026-10-12): the token rides in the engine URL as its motherduck_token parameter, redacted on read and restored on write as an engine URL''s password is, so no new column; the store is attached on the engine connection, not reached through the embedded store''s file broker; the costs are stated in the engine''s description where it is chosen; the live test builds into a scratch database created and dropped for the run, the drop also sweeping such databases left more than a day; v1 selects the engine for the whole deployment, choosing it per organization is a follow-up. One account per engine: measured 2026-10-12 with duckdb 1.5.5, motherduck_token is the DuckDB instance''s setting.'
+- id: REQ-2003
+  status: in-progress
+  since: 2026-10
+  group: 3. Source Registration & Data Modeling
+  category: Table Registration
+  feature: replicas-and-freshness-freshness-gate
+  priority: MUST
+  type: behavioral
+  description: 'A table Provisa reads itself for each statement (a parameterized or native-query table: a MongoDB pipeline, a Cosmos DB query, a Qdrant search, a code source''s function, a live-only table''s part) is kept for its TTL, which is the first one set of the table''s own, its source''s, and the response cache''s default. A TTL of 0 is set: it means 0, never "unset", so it does not fall through to the source''s TTL or the default. With a TTL above 0 the rows are landed for the engine and kept under the statement''s arguments for the TTL, and the next statement asking the same reuses them (the reuse pays for the write). With a TTL of 0 the read always goes live and nothing is kept: rows up to the large-result threshold (redirect.threshold) are inlined into the statement as a VALUES CTE, with no write on any engine, and more rows are landed in a scratch table of that statement alone, dropped when it ends and never reused. An API endpoint table''s TTL, and a gRPC remote query''s, are likewise the first one set. A statement that lands a scratch table is answered through the pipeline terminal, which drops it, so its answer is buffered rather than streamed.'
+  use_case: 'A Cosmos DB query table on a Databricks engine is read with new arguments on every dashboard refresh. With its TTL set to 0, each statement reads it live and inlines the few dozen rows it answers, instead of writing a parquet table the next statement would not reuse.'
+  scenario: 'Given a pipeline table whose TTL is 0 and whose source''s TTL is 300
+
+    When a statement reads it and the read answers fewer rows than the large-result threshold
+
+    Then the rows are inlined into the statement and nothing is written to the engine
+
+    When a statement''s read answers more rows than the threshold
+
+    Then the rows are landed in a scratch table that is dropped when the statement ends
+
+    Given the table''s TTL is 600
+
+    When two statements read it with the same arguments
+
+    Then the second reuses the rows the first landed'
+  related_reqs: [REQ-1980, REQ-1982, REQ-1983, REQ-1986, REQ-2000]
+  code:
+  - provisa/api/data/materialization.py
+  - provisa/pgwire/_pipeline.py
+  tests:
+  - tests/unit/test_landing_ttl.py
+  notes: 'Maintainer 2026-10-12, through the lead: "if the ttl is zero just always goes to live", and "if the engine is say databricks writing a parquet file could be slower". The lead''s design: 0 means 0 (first non-null, as cache/policy.resolve_policy resolves a TTL, removing the `or` fallback that turned 0 into the source''s TTL or the default); a TTL above 0 lands as before; a TTL of 0 inlines a small result through the existing VALUES CTE path and lands a large one in a scratch table dropped after the statement; "small" reuses the org''s large-result threshold, with no new setting. A statement with a scratch table is run through the pipeline terminal, which drops it, rather than streamed by a surface that would not. Lead 2026-10-12: buffering a large TTL-0 read instead of streaming it is acceptable for now; dropping the scratch table when each streaming surface''s drain ends is not worth it yet. And a gRPC remote query''s TTL resolves first-non-null too, a missing one no longer becoming 300 by itself.'
