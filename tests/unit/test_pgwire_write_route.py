@@ -320,6 +320,7 @@ async def test_the_direct_terminal_opens_the_pool_for_a_write(monkeypatch):
     def _plan(writes: bool):
         return SimpleNamespace(
             kept=None,
+            two_step=None,  # as _Plan: written whole (REQ-2001)
             materialize=None,
             auto_deliver=None,
             engine_landing=None,
