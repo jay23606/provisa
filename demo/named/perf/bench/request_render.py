@@ -27,6 +27,8 @@ _SQL_HINT = "-- @provisa cache=true"
 _CYPHER_HINT = "// @provisa cache=true"
 _GRAPHQL_HINT = "@cached"
 _GRPC_CACHE_METADATA = ("x-provisa-cache", "true")
+# REST and JSON:API state the opt-in only in a header: gRPC's metadata name, as an HTTP header.
+_HTTP_CACHE_HEADER = dict([_GRPC_CACHE_METADATA])
 
 
 def _sql_literal(value: str | int | float) -> str:
@@ -219,7 +221,8 @@ class Renderer:
             params["filter"] = json.dumps(
                 [{"field": c.names["rest"], "comparator": "eq", "value": v} for c, v in filters]
             )
-        return {"path": table.rest_path, "params": params}
+        headers = _HTTP_CACHE_HEADER if spec.cached else {}
+        return {"path": table.rest_path, "params": params, "headers": headers}
 
     @staticmethod
     def _jsonapi(spec: RequestSpec, table: contract_model.Table, cols: list, filters: list) -> dict:
@@ -229,7 +232,8 @@ class Renderer:
         }
         for c, v in filters:
             params[f"filter[{c.names['jsonapi']}]"] = v
-        return {"path": table.jsonapi_path, "params": params}
+        headers = _HTTP_CACHE_HEADER if spec.cached else {}
+        return {"path": table.jsonapi_path, "params": params, "headers": headers}
 
 
 def build_query(setup: contract_model.Setup, transport: str, *, cached: bool) -> Query:

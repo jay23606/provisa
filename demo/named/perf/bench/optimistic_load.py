@@ -62,10 +62,8 @@ TRANSPORTS: dict[str, tuple[str, str | None]] = {
     "flight_sql": ("Arrow Flight ticket, SQL", "-- @provisa cache=true"),
     "bolt": ("Bolt, Cypher", "// @provisa cache=true"),
     "grpc": ("gRPC ProvisaService typed RPC", "x-provisa-cache: true metadata"),
-    # REST and JSON:API have no per-request cache opt-in (both pass NO_CACHE_HINT to the
-    # pipeline), so they run uncached and are labelled so.
-    "rest": ("GET /data/rest/{domain}/{table}", None),
-    "jsonapi": ("GET /data/jsonapi/{domain}/{table}", None),
+    "rest": ("GET /data/rest/{domain}/{table}", "x-provisa-cache: true header"),
+    "jsonapi": ("GET /data/jsonapi/{domain}/{table}", "x-provisa-cache: true header"),
 }
 
 DEFAULT_STEPS = (1, 16, 64, 256)
@@ -78,11 +76,7 @@ NOTES: dict[str, str] = {
         "read_mask is not applied (every column of the row is returned) and the cache opt-in has "
         "no effect on a DIRECT-route statement (the answer follows the source)"
     ),
-    "rest": "no per-request cache opt-in exists: uncached",
-    "jsonapi": (
-        "no per-request cache opt-in exists: uncached; meta.total is counted only for a request "
-        "that sends page[total]=true (REQ-1197)"
-    ),
+    "jsonapi": "meta.total is counted only for a request that sends page[total]=true (REQ-1197)",
 }
 
 # A client process whose CPU use over the window is at or above this share of one core is the
@@ -180,7 +174,9 @@ class RestClient(_HttpClient):
     def call(self, query: Query, role: str) -> tuple[int, int, bool | None]:
         spec = query.rest
         assert spec is not None  # the generator only sends REST a table REST exposes
-        resp = self._http.get(spec["path"], params=spec["params"], headers=self._headers(role))
+        resp = self._http.get(
+            spec["path"], params=spec["params"], headers=self._headers(role, spec["headers"])
+        )
         resp.raise_for_status()
         rows = resp.json()["data"]
         return len(rows), len(rows[0]) if rows else 0, self._hit(resp)
@@ -193,7 +189,7 @@ class JsonApiClient(_HttpClient):
         resp = self._http.get(
             spec["path"],
             params=spec["params"],
-            headers=self._headers(role, {"Accept": "application/vnd.api+json"}),
+            headers=self._headers(role, {"Accept": "application/vnd.api+json", **spec["headers"]}),
         )
         resp.raise_for_status()
         rows = resp.json()["data"]

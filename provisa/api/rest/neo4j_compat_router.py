@@ -31,6 +31,7 @@ from typing import Any
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from provisa.cache.middleware import build_cache_headers
 from provisa.core.read_refusal import ReadRefused
 from provisa.compiler.complexity import ComplexityLimitExceeded
 
@@ -101,7 +102,7 @@ async def neo4j_query_v2(  # REQ-345, REQ-346, REQ-347, REQ-349, REQ-350, REQ-35
     from provisa.cypher.params import collect_param_names, bind_params, CypherParamError
     from provisa.cypher.assembler import assemble_rows, to_serializable
     from provisa.compiler.sql_rewrite import make_semantic_sql
-    from provisa.compiler.directives import cache_hint_for
+    from provisa.compiler.directives import cache_hint_for, request_cache_hint
     from provisa.pgwire._pipeline import _govern_and_route_compiled, _execute_plan
 
     role_id = _resolve_role_id(request, state)
@@ -142,13 +143,20 @@ async def neo4j_query_v2(  # REQ-345, REQ-346, REQ-347, REQ-349, REQ-350, REQ-35
     semantic_sql = make_semantic_sql(sql_str, ctx)
     resolved_params = [body.parameters.get(name) for name in ordered_params]
 
+    # REQ-544: the statement's `// @provisa cache` opt-in, the request's x-provisa-cache headers
+    # and its Cache-Control header; two that disagree are refused, naming them.
+    try:
+        cache_hint = request_cache_hint(cache_hint_for("cypher", body.statement), request.headers)
+    except ValueError as exc:
+        return _error_response(str(exc), "ArgumentError")
     try:
         plan = await _govern_and_route_compiled(
             semantic_sql,
             role_id,
             exec_params=resolved_params or None,
-            # REQ-544: the Cypher statement's own `// @provisa cache` opt-in.
-            cache_hint=cache_hint_for("cypher", body.statement),
+            cache_hint=cache_hint,
+            # REQ-1897: an opted-in read is looked up in the response cache before it is routed.
+            serve_cached=True,
             sdl_joins=False,
         )
     except ComplexityLimitExceeded:
@@ -185,7 +193,9 @@ async def neo4j_query_v2(  # REQ-345, REQ-346, REQ-347, REQ-349, REQ-350, REQ-35
                 "values": [_to_query_v2_row(columns, r) for r in serializable_rows],
             },
             "bookmarks": [],
-        }
+        },
+        # REQ-536: a header, so Neo4j's body is unchanged.
+        headers=build_cache_headers(result.cache_entry),
     )
 
 

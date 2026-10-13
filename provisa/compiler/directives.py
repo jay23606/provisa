@@ -51,7 +51,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Mapping
 
 from graphql import DocumentNode
 from graphql.language.ast import (
@@ -492,3 +492,69 @@ def cache_hint_from_grpc_metadata(metadata: Any) -> CacheHint:  # REQ-544
     trace_raw = values.get(TRACE_HEADER)  # REQ-1910
     debug_trace = debug_trace_from_header(trace_raw)
     return CacheHint(opt_in=opt_in, ttl=ttl, debug_trace=debug_trace)
+
+
+CACHE_CONTROL_HEADER = "Cache-Control"
+_STATES_NO_CACHE = ("no-cache", "no-store")
+_STATES_TTL = ("max-age", "max-stale")
+
+
+def cache_hint_from_cache_control(value: str | None) -> CacheHint | None:  # REQ-544
+    """The opt-in an HTTP request's standard ``Cache-Control`` header (RFC 9111 §5.2.1) states, or
+    None when it states none. ``max-age=N`` or ``max-stale=N`` is ``@cached(ttl: N)``; a bare
+    ``max-stale`` is ``@cached`` (the operator's TTL); ``no-cache`` / ``no-store`` is no cache,
+    the default. Directives that disagree (``no-cache`` with ``max-age``, ``max-age=5`` with
+    ``max-stale=60``) and a malformed ``N`` fail the request. Any other directive is not one of
+    the cache's and is ignored, as RFC 9111 §5.2.3 requires of a cache."""
+    if value is None:
+        return None
+    stated: set[CacheHint] = set()
+    for part in value.split(","):
+        name, _, raw = part.strip().partition("=")
+        name = name.strip().lower()
+        raw = raw.strip().strip('"')
+        if name in _STATES_NO_CACHE:
+            stated.add(NO_CACHE_HINT)
+        elif name == "max-stale" and not raw:
+            stated.add(CacheHint(opt_in=True, ttl=None))
+        elif name in _STATES_TTL:
+            if not raw.isdigit():
+                raise ValueError(f"{CACHE_CONTROL_HEADER} {name} takes seconds, got {raw!r}")
+            stated.add(CacheHint(opt_in=True, ttl=int(raw)))
+    if len(stated) > 1:
+        raise ValueError(f"{CACHE_CONTROL_HEADER} {value!r} states more than one cache opt-in")
+    return stated.pop() if stated else None
+
+
+def request_cache_hint(hint: CacheHint, headers: Mapping[str, str]) -> CacheHint:  # REQ-544
+    """An HTTP request's response-cache opt-in: ``hint`` (the one its text states, if any), the
+    Provisa headers gRPC's metadata takes (``x-provisa-cache`` / ``x-provisa-cache-ttl``, read by
+    :func:`cache_hint_from_grpc_metadata`) and the standard ``Cache-Control`` header
+    (:func:`cache_hint_from_cache_control`). Each form behaves as ``@cached(ttl:)``; when two of
+    them state an opt-in and they disagree the request fails, naming them: neither is chosen."""
+    provisa = cache_hint_from_grpc_metadata(headers.items())
+    standard = cache_hint_from_cache_control(headers.get(CACHE_CONTROL_HEADER.lower()))
+    stated = [
+        (form, h)
+        for form, h in (
+            ("the request's text", hint if hint.opt_in else None),
+            (_GRPC_CACHE_KEY, provisa if provisa.opt_in else None),
+            (CACHE_CONTROL_HEADER, standard),
+        )
+        if h is not None
+    ]
+    if len({(h.opt_in, h.ttl) for _, h in stated}) > 1:
+        said = "; ".join(f"{form} {_said(h)}" for form, h in stated)
+        raise ValueError(f"the request states its response-cache opt-in more than once: {said}")
+    chosen = stated[0][1] if stated else NO_CACHE_HINT
+    return CacheHint(
+        opt_in=chosen.opt_in,
+        ttl=chosen.ttl,
+        debug_trace=hint.debug_trace or provisa.debug_trace,
+    )
+
+
+def _said(h: CacheHint) -> str:
+    if not h.opt_in:
+        return "asks for no cache"
+    return "asks for the operator's TTL" if h.ttl is None else f"asks for a ttl of {h.ttl} s"

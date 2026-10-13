@@ -11824,13 +11824,19 @@
   type: behavioral
   description: 'All data responses include cache status headers: `X-Provisa-Cache: HIT|MISS` on every
     response, and `X-Provisa-Cache-Age: <seconds>` on cache HITs, indicating how many seconds old the
-    cached result is.'
+    cached result is.
+
+
+    (Amended 2026-10-13:) REST and JSON:API row responses (every shape: rows, aggregates, group-by,
+    redirect handles, CSV/Parquet/Arrow) and Neo4j Query API v2 responses carry them too; they sent neither
+    before. On the Neo4j Query API they are headers only, so Neo4j''s body is unchanged.'
   use_case: Cache headers let clients and proxies distinguish fresh vs cached results and detect stale
     responses.
   code:
   - provisa/cache/middleware.py
   tests:
   - tests/unit/test_cache_headers_requirements.py
+  - tests/unit/test_http_cache_opt_in.py
   - tests/unit/test_misc_requirements.py
   - tests/unit/test_cache_headers_requirements.py
   - tests/integration/test_execution_routing.py
@@ -11895,8 +11901,8 @@
     require it) carries it onto the plan''s `cache_opt_in`/`cache_ttl`: GraphQL `@cached` over HTTP and
     Arrow Flight; Cypher `// @provisa cache=true` or `// @provisa cache_ttl=N` over HTTP (`/data/cypher`,
     the Neo4j Query API), Bolt and Arrow Flight; gRPC call metadata `x-provisa-cache: true` / `x-provisa-cache-ttl:
-    N` (the same names as headers on the HTTP gRPC proxy). REST and JSON:API carry no hint. A malformed
-    ttl fails the request. With caching disabled (the no-op store) no result is teed, buffered or encoded
+    N` (the same names as headers on the HTTP gRPC proxy). REST and JSON:API carry the hint in headers only
+    (amended 2026-10-13, below). A malformed ttl fails the request. With caching disabled (the no-op store) no result is teed, buffered or encoded
     for the cache. Every read, write and invalidation uses the acting org as the tenant (REQ-595, `cache.tenancy`):
     a write in one org drops that org''s entries for the written table and never another org''s. (Amended
     2026-10-03, THE CACHE TIER SETTINGS:) The settings that govern the cache tiers are `hot_tables`, `replication.hot_*`
@@ -11909,7 +11915,22 @@
     plan served by `_execute_plan`, a miss is written through by the pipeline''s terminal, and the endpoint
     only shapes the rows it gets back (each alias placed over the same rows, since the entry holds the
     statement''s rows, not a response). There is one key namespace, one store write path and one invalidation.
-    Where this requirement says "GraphQL''s" response cache, read the pipeline''s.'
+    Where this requirement says "GraphQL''s" response cache, read the pipeline''s.
+
+
+    (Amended 2026-10-13, THE OPT-IN IN HTTP HEADERS:) REST, JSON:API, GraphQL over HTTP, Cypher over HTTP
+    (`/data/cypher`) and the Neo4j Query API take the opt-in in request headers: gRPC''s `x-provisa-cache:
+    true` / `x-provisa-cache-ttl: N` (read by the same function as gRPC''s metadata, `cache_hint_from_grpc_metadata`)
+    and the standard RFC 9111 `Cache-Control` request header, where `max-age=N` or `max-stale=N` is `@cached(ttl:
+    N)`, a bare `max-stale` is `@cached`, and `no-cache` / `no-store` is no cache (the default). Each form
+    behaves exactly as `@cached(ttl: N)` under the rules above; none is ever refused for asking more than the
+    operator allows. No header still means no cache, although plain HTTP would cache by default. GraphQL,
+    Cypher and the Neo4j Query API also keep the hint in the request text; where two forms (the text, the
+    x-provisa-cache headers, Cache-Control) state an opt-in and disagree, the request fails (400, `data.invalid_cache_control`),
+    naming them; neither is chosen. A malformed N fails the request; any other Cache-Control directive is
+    ignored, as RFC 9111 section 5.2.3 requires of a cache (`compiler.directives.request_cache_hint`). Each of
+    these surfaces reads an opted-in request through the cache (`serve_cached`); the Neo4j Query API, which
+    carried the hint but never read the cache, now does. The response headers stay REQ-536''s.'
   use_case: Hierarchical TTL lets operators tune cache freshness per source or per table while security-partitioned
     cache keys prevent cross-role result leakage.
   code:
@@ -11925,6 +11946,7 @@
   - tests/unit/test_cache_key.py
   - tests/unit/test_cache_policy.py
   - tests/unit/test_response_cache_opt_in.py
+  - tests/unit/test_http_cache_opt_in.py
   - tests/integration/test_graphql_response_cache_hit.py
   - tests/integration/test_raw_sql_response_cache_e2e.py
   since: 2026-01

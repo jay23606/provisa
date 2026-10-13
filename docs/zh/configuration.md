@@ -932,8 +932,9 @@ tables:
 | SQL (pgwire, Flight SQL, `/data/sql`) | 在语句中加入注释行 `-- @provisa cache=true` 或 `-- @provisa cache_ttl=60` |
 | Cypher（`/data/cypher`、Neo4j Query API、Bolt、Arrow Flight） | 在查询中加入注释行 `// @provisa cache=true` 或 `// @provisa cache_ttl=60` |
 | gRPC（以及 HTTP gRPC 代理） | 调用元数据（代理上为请求头）`x-provisa-cache: true` 或 `x-provisa-cache-ttl: 60` |
+| REST、JSON:API，以及作为文本中提示的替代方式：HTTP 上的 GraphQL、`/data/cypher`、Neo4j Query API | 请求头 `Cache-Control: max-age=60`（或 `max-stale=60`），或 `x-provisa-cache: true` / `x-provisa-cache-ttl: 60` |
 
-REST 和 JSON:API 没有选择启用方式。非整数的 `ttl` 会使请求失败。
+非整数的 `ttl` 会使请求失败。在文本中和请求头中，或在两个请求头中两次声明选择启用且值不同的请求，会以 `400` 失败；不会偏向任何一个。`Cache-Control: no-cache` 或 `no-store` 表示不缓存，与没有请求头相同。 [tool-verified: `provisa/compiler/directives.py` `cache_hint_for`, `cache_hint_from_grpc_metadata`, `request_cache_hint`]
 
 没有该提示时，请求既不读取也不写入缓存。有提示时，仍由上述设置决定：只有当读取的每个数据源都设置了 `cache_enabled: true`，且每张表解析出的 TTL 大于 0 时，结果才会被缓存。若请求给出了 `ttl`，条目的存活时间即为该值；否则为所读取各表中最短的解析 TTL。（REQ-544）
 

@@ -931,8 +931,9 @@ O cache de respostas fica desligado para toda requisição que não o pede. (REQ
 | SQL (pgwire, Flight SQL, `/data/sql`) | uma linha de comentário `-- @provisa cache=true` ou `-- @provisa cache_ttl=60` na instrução |
 | Cypher (`/data/cypher`, a Neo4j Query API, Bolt, Arrow Flight) | uma linha de comentário `// @provisa cache=true` ou `// @provisa cache_ttl=60` na consulta |
 | gRPC (e o proxy gRPC HTTP) | metadados da chamada (cabeçalhos no proxy) `x-provisa-cache: true` ou `x-provisa-cache-ttl: 60` |
+| REST, JSON:API e, como alternativa à indicação no texto: GraphQL sobre HTTP, `/data/cypher`, a Neo4j Query API | o cabeçalho de requisição `Cache-Control: max-age=60` (ou `max-stale=60`), ou `x-provisa-cache: true` / `x-provisa-cache-ttl: 60` |
 
-REST e JSON:API não têm adesão. Um `ttl` que não seja inteiro faz a requisição falhar.
+Um `ttl` que não seja inteiro faz a requisição falhar. Uma requisição que indica a adesão duas vezes (no texto e em um cabeçalho, ou em dois cabeçalhos) com valores diferentes falha com `400`; nenhum é preferido. `Cache-Control: no-cache` ou `no-store` significa sem cache, o mesmo que sem cabeçalho. [tool-verified: `provisa/compiler/directives.py` `cache_hint_for`, `cache_hint_from_grpc_metadata`, `request_cache_hint`]
 
 Sem a indicação, a requisição não lê nem grava o cache. Com ela, as configurações acima continuam decidindo: o resultado só é armazenado se cada fonte lida tiver `cache_enabled: true` e o TTL resolvido de cada tabela for maior que 0. A entrada dura o `ttl` da requisição, se ela informar um; caso contrário, o menor TTL resolvido das tabelas lidas. (REQ-544)
 

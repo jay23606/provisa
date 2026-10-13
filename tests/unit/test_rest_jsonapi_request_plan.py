@@ -84,7 +84,7 @@ class _Pipeline:
     async def execute(self, plan, state):
         sql, params = plan.sql, plan.params
         if "COUNT(*)" in sql:
-            return SimpleNamespace(rows=[(_TABLE_ROWS,)], redirect=None)
+            return SimpleNamespace(rows=[(_TABLE_ROWS,)], redirect=None, cache_entry=None)
 
         def _bound(keyword: str) -> int | None:
             m = re.search(rf"{keyword} \$(\d+)", sql)
@@ -99,7 +99,9 @@ class _Pipeline:
         rows = rows[offset : offset + limit] if limit is not None else rows[offset:]
         select_list = sql[len("SELECT ") : sql.index(" FROM ")]
         names = [re.findall(r'"([^"]+)"', part)[-1] for part in select_list.split(", ")]
-        return SimpleNamespace(rows=[tuple(r[n] for n in names) for r in rows], redirect=None)
+        return SimpleNamespace(
+            rows=[tuple(r[n] for n in names) for r in rows], redirect=None, cache_entry=None
+        )
 
     @property
     def sql(self) -> list[str]:

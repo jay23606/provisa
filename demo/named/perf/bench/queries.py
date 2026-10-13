@@ -401,7 +401,7 @@ QUERIES: list[Query] = [
 #   cypher   /data/cypher, Bolt                         `// @provisa cache=true`
 #   graphql  /data/graphql, Flight GraphQL ticket       `@cached`
 #   grpc     QueryPbOrders, read_mask + limit           `x-provisa-cache: true` call metadata
-#   rest / jsonapi   no per-request opt-in exists (both pass NO_CACHE_HINT) — they run uncached.
+#   rest / jsonapi   `x-provisa-cache: true` header (or `Cache-Control: max-age=N`)
 # Not expressible: Cypher as a Flight ticket — a single-source statement routes DIRECT and the
 # Flight Cypher path refuses that route ("Route DIRECT is not supported for Cypher via Flight").
 OPTIMISTIC = Query(
@@ -420,9 +420,14 @@ OPTIMISTIC = Query(
         "read_mask": ["order_id"],
         "metadata": [("x-provisa-cache", "true")],
     },
-    rest={"path": "/data/rest/perf-bench/orders", "params": {"limit": 1, "fields": "orderId"}},
+    rest={
+        "path": "/data/rest/perf-bench/orders",
+        "params": {"limit": 1, "fields": "orderId"},
+        "headers": {"x-provisa-cache": "true"},
+    },
     jsonapi={
         "path": "/data/jsonapi/perf-bench/orders",
         "params": {"page[size]": 1, "fields[orders]": "order_id"},
+        "headers": {"x-provisa-cache": "true"},
     },
 )

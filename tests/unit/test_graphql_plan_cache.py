@@ -248,10 +248,12 @@ def _endpoint_harness(monkeypatch, *, approval_hook=None):
         return [_cq()]
 
     seen_sql: list[str] = []
+    seen_hints: list = []
 
     async def _execute(compiled, *args, **kwargs):
         calls["execute"] += 1
         seen_sql.append(compiled.sql)
+        seen_hints.append(kwargs.get("cache_hint"))
         compiled.sql = "MUTATED DOWNSTREAM"
         return compiled.root_field, [{"orderId": 1}], None, None
 
@@ -291,8 +293,10 @@ def _endpoint_harness(monkeypatch, *, approval_hook=None):
         endpoint, "_build_directives_with_legacy", lambda query, doc, hints: _DIRECTIVES
     )
 
-    def call(query="{ orders { orderId } }", variables=None, **headers):
-        raw = SimpleNamespace(state=SimpleNamespace(role="analyst", tenant_id=None))
+    def call(query="{ orders { orderId } }", variables=None, request_headers=None, **headers):
+        raw = SimpleNamespace(
+            state=SimpleNamespace(role="analyst", tenant_id=None), headers=request_headers or {}
+        )
         req = endpoint.GraphQLRequest(query=query, variables=variables)
         defaults = dict(
             x_provisa_role=None,
@@ -310,7 +314,9 @@ def _endpoint_harness(monkeypatch, *, approval_hook=None):
         assert isinstance(response, JSONResponse)
         return response
 
-    return SimpleNamespace(call=call, calls=calls, state=state, seen_sql=seen_sql)
+    return SimpleNamespace(
+        call=call, calls=calls, state=state, seen_sql=seen_sql, seen_hints=seen_hints
+    )
 
 
 def test_a_repeated_query_compiles_once(monkeypatch):

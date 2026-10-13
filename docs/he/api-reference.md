@@ -68,6 +68,29 @@ GET /auth/provider-type
 
 **מטמון תגובות:** הצטרפות לפי בקשה באמצעות הנחיית הפעולה `@cached` (`query @cached(ttl: 60) { ... }`, `ttl` אופציונלי); אותה הנחיה חלה על GraphQL הנשלח דרך Arrow Flight. Cypher מצטרף בשורה `// @provisa cache=true` או `// @provisa cache_ttl=N`, ו-gRPC במטא-נתוני הקריאה `x-provisa-cache: true` או `x-provisa-cache-ttl: N`. בלעדיה הבקשה אינה קוראת ממטמון התגובות ואינה כותבת אליו. כותרת התגובה `X-Provisa-Cache` מדווחת `HIT` או `MISS`. ראו [מטמון](configuration.md). (REQ-544)
 
+<a id="response-cache-request-headers"></a>
+
+#### כותרות בקשה למטמון התגובות
+
+`/data/graphql`, `/data/cypher`, ה-Neo4j Query API (`/db/{database}/query/v2`), `/data/rest` ו-`/data/jsonapi` מקבלים את ההצטרפות גם ככותרת בקשה. כל אחת מהצורות שלהלן מתנהגת כמו `@cached(ttl: N)`: (REQ-544)
+
+| כותרת | שווה ערך ל |
+| --- | --- |
+| `Cache-Control: max-age=N` / `Cache-Control: max-stale=N` | `@cached(ttl: N)` |
+| `Cache-Control: max-stale` (ללא ערך) | `@cached` (ה-TTL של המפעיל) |
+| `Cache-Control: no-cache` / `no-store` | ללא מטמון, כמו אי-שליחת דבר |
+| `x-provisa-cache: true` | `@cached` |
+| `x-provisa-cache-ttl: N` | `@cached(ttl: N)` |
+
+בקשה ללא אחת מהכותרות האלה וללא רמז בטקסט שלה אינה נשמרת במטמון, אף ש-cache רגיל של HTTP שומר כברירת מחדל. הגדרות המטמון של המפעיל עדיין חלות כמו ב-`@cached`: כותרת לעולם אינה הופכת קריאה לטרייה יותר ממה שההגדרות מתירות, ולעולם אינה נדחית בשל בקשת `ttl` ארוך יותר. הנחיות `Cache-Control` אחרות (`no-transform`, `min-fresh`, ...) מתעלמים מהן, כפי ש-RFC 9111 דורש ממטמון. [tool-verified: `provisa/compiler/directives.py` `request_cache_hint`]
+
+בקשה יכולה לציין את ההצטרפות יותר מפעם אחת: בטקסט שלה ובכותרת, או בשתי כותרות. אם הן מסכימות, הבקשה נשמרת במטמון פעם אחת כפי שנתבקש. אם הן סותרות (למשל `@cached(ttl: 60)` עם `Cache-Control: max-age=5`, או `x-provisa-cache-ttl: 10` עם `Cache-Control: max-age=20`), הבקשה נכשלת עם `400` והקוד `data.invalid_cache_control`, ומציינת כל צורה שנשלחה. ערך `N` שאינו מספר שלם של שניות נכשל באותו אופן. אף צורה אינה מועדפת על האחרת.
+
+```bash
+curl -H 'Cache-Control: max-age=120' -H 'X-Provisa-Role: analyst' \
+  'http://localhost:8001/data/rest/sales/orders?limit=10'
+```
+
 **תגובה (JSON מוטבע):**
 
 ```json
@@ -280,6 +303,8 @@ X-Provisa-Redirect-Threshold: 1000
 
 התפקיד המאומת נדרש; בקשות לא מאומתות מחזירות `401`. מפרט OpenAPI עבור נתיבים אלה מוגש בכתובת `GET /data/rest/openapi.json` עם Swagger UI בכתובת `GET /data/rest/docs`.
 
+**מטמון תגובות:** הצטרפות באמצעות כותרת בקשה, `Cache-Control: max-age=N` או `x-provisa-cache: true` (ראו [כותרות בקשה למטמון התגובות](#response-cache-request-headers)). כל תגובה נושאת `X-Provisa-Cache: HIT|MISS`, ובפגיעה גם `X-Provisa-Cache-Age`. (REQ-544, REQ-536) [tool-verified: `provisa/api/rest/generator.py`]
+
 #### חוקר OpenAPI / Swagger UI
 
 עמוד חוקר ה-OpenAPI (`/app/openapi`) מטביע את Swagger UI ב-iframe מבודד (Sandboxed). המפרט מוגבל-תפקיד — רק טבלאות ועמודות הנראות לתפקיד הנוכחי מופיעות — ובאופן אופציונלי מסונן לפי תחום דרך בורר התחום. ה-UI עובר בין ערכות נושא בהירה וכהה אוטומטית. [tool-verified: `provisa-ui/src/pages/OpenApiPage.tsx:20-34`]
@@ -308,6 +333,8 @@ X-Provisa-Redirect-Threshold: 1000
 - `includeNodes` — `true` לכלול עמודות סקלריות של טבלת הבסיס (וסקלרים של ממדים מצורפים (Joined) הנקובים ב-`include=`) בתוך מערך `nodes` של כל שורת קבוצה. נדרש כאשר שאילתת קיבוץ NL מבקשת גם פרטי ממד. (REQ-1405)
 
 התגובות הן אובייקטי משאב עם `type`/`id`/`attributes`. שגיאות עוקבות אחר צורת אובייקט השגיאה של JSON:API.
+
+**מטמון תגובות:** הצטרפות באמצעות כותרת בקשה, `Cache-Control: max-age=N` או `x-provisa-cache: true` (ראו [כותרות בקשה למטמון התגובות](#response-cache-request-headers)). כל תגובה נושאת `X-Provisa-Cache: HIT|MISS`, ובפגיעה גם `X-Provisa-Cache-Age`. שתי צורות סותרות מחזירות `400` כאובייקט שגיאה של JSON:API. (REQ-544, REQ-536) [tool-verified: `provisa/api/jsonapi/generator.py`]
 
 #### חוקר JSON:API
 

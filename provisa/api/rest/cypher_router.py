@@ -59,7 +59,7 @@ from provisa.compiler.naming import apply_cql_property as _cql_prop
 
 from provisa.executor import stats as _qs_mod
 from provisa.cache.middleware import build_cache_headers
-from provisa.compiler.directives import NO_CACHE_HINT, cache_hint_for
+from provisa.compiler.directives import NO_CACHE_HINT, cache_hint_for, request_cache_hint
 from provisa.api.rest.cypher_exec import (
     _build_label_map,
     _execute_call_body,
@@ -598,6 +598,12 @@ async def cypher_query(  # REQ-345, REQ-346, REQ-347, REQ-349, REQ-350, REQ-351,
     # materialize stage; else REQ-1224's threshold decides (a buffered transport), when the
     # operator has enabled it. A header that cannot be read is refused (400) here.
     delivery = delivery_from_headers(request.headers, role_id)
+    # REQ-544: the request's `// @provisa cache` opt-in, its x-provisa-cache headers and its
+    # Cache-Control header; two that disagree are refused (400), naming them.
+    try:
+        cache_hint = request_cache_hint(cache_hint_for("cypher", body.query), request.headers)
+    except ValueError as exc:
+        return JSONResponse(status_code=400, content={"error": str(exc)})
     try:
         plan = await _govern_and_route_compiled(
             semantic_sql,
@@ -605,8 +611,7 @@ async def cypher_query(  # REQ-345, REQ-346, REQ-347, REQ-349, REQ-350, REQ-351,
             exec_params=resolved_params or None,
             deliver=delivery,
             buffered=True,
-            # REQ-544: the Cypher request's own `// @provisa cache` opt-in.
-            cache_hint=cache_hint_for("cypher", body.query),
+            cache_hint=cache_hint,
             # REQ-1897: an opted-in read is looked up in the response cache before it is routed.
             serve_cached=True,
             sdl_joins=False,

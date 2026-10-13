@@ -106,7 +106,9 @@ def test_uncached_request_drops_exactly_the_opt_in() -> None:
     assert q.cypher == "MATCH (o:PerfBench:Orders) RETURN o.orderId AS order_id LIMIT 1"
     assert q.graphql == "query { pb__orders(limit: 1) { orderId } }"
     assert q.grpc is not None and q.grpc["metadata"] == []
-    assert q.rest == OPTIMISTIC.rest and q.jsonapi == OPTIMISTIC.jsonapi  # no opt-in to drop
+    assert OPTIMISTIC.rest is not None and OPTIMISTIC.jsonapi is not None
+    assert q.rest == {**OPTIMISTIC.rest, "headers": {}}
+    assert q.jsonapi == {**OPTIMISTIC.jsonapi, "headers": {}}
 
 
 def test_per_transport_override_wins(tmp_path: Path) -> None:
@@ -283,11 +285,20 @@ def test_loop_sequence_is_the_seeded_stream(
     assert {s.cached for s in specs} == {True, False}
 
 
-def test_transport_without_opt_in_never_draws(
+def test_rest_and_jsonapi_draw_their_header_opt_in(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    """REST and JSON:API opt in with the x-provisa-cache header (REQ-544), so the knob applies."""
+    assert all(ol.TRANSPORTS[t][1] is not None for t in ("rest", "jsonapi"))
     specs, _ = _run_loop(monkeypatch, "rest", _ep(tmp_path, _cache_p(1.0)))
-    assert specs and not any(s.cached for s in specs)
+    assert specs and all(s.cached for s in specs)
+    q = request_render.build_query(_load(_raw(), tmp_path), "rest", cached=True)
+    assert q.rest is not None and q.rest["headers"] == {"x-provisa-cache": "true"}
+
+
+def test_a_generator_without_opt_in_never_draws(tmp_path: Path) -> None:
+    gen = request_mix.RequestGenerator(_load(_raw(), tmp_path), "rest", "w", cacheable=False)
+    assert not any(gen.next().cached for _ in range(20))
 
 
 def test_warmup_covers_every_cache_variant_the_client_can_send(tmp_path: Path) -> None:

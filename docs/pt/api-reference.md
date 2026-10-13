@@ -68,6 +68,29 @@ O campo `extensions` suporta o protocolo Automatic Persisted Query (APQ): (REQ-2
 
 **Cache de respostas:** adesão por requisição com a diretiva de operação `@cached` (`query @cached(ttl: 60) { ... }`, `ttl` opcional); a mesma diretiva vale para GraphQL enviado por Arrow Flight. Cypher adere com uma linha `// @provisa cache=true` ou `// @provisa cache_ttl=N`, gRPC com os metadados de chamada `x-provisa-cache: true` ou `x-provisa-cache-ttl: N`. Sem ela, a requisição não lê nem grava o cache de respostas. O cabeçalho de resposta `X-Provisa-Cache` informa `HIT` ou `MISS`. Veja [Cache](configuration.md). (REQ-544)
 
+<a id="response-cache-request-headers"></a>
+
+#### Cabeçalhos de requisição do cache de respostas
+
+`/data/graphql`, `/data/cypher`, a Neo4j Query API (`/db/{database}/query/v2`), `/data/rest` e `/data/jsonapi` também aceitam a adesão como cabeçalho de requisição. Cada forma abaixo se comporta como `@cached(ttl: N)`: (REQ-544)
+
+| Cabeçalho | Equivale a |
+| --- | --- |
+| `Cache-Control: max-age=N` / `Cache-Control: max-stale=N` | `@cached(ttl: N)` |
+| `Cache-Control: max-stale` (sem valor) | `@cached` (o TTL do operador) |
+| `Cache-Control: no-cache` / `no-store` | sem cache, o mesmo que não enviar nada |
+| `x-provisa-cache: true` | `@cached` |
+| `x-provisa-cache-ttl: N` | `@cached(ttl: N)` |
+
+Uma requisição sem um desses cabeçalhos e sem indicação em seu texto não é armazenada em cache, embora caches HTTP simples armazenem por padrão. As configurações de cache do operador continuam valendo como em `@cached`: um cabeçalho nunca torna uma leitura mais recente do que elas permitem, e nunca é recusado por pedir um `ttl` maior. As demais diretivas de `Cache-Control` (`no-transform`, `min-fresh`, ...) são ignoradas, como a RFC 9111 exige de um cache. [tool-verified: `provisa/compiler/directives.py` `request_cache_hint`]
+
+Uma requisição pode indicar a adesão mais de uma vez: no texto e em um cabeçalho, ou em dois cabeçalhos. Se concordam, é armazenada em cache uma vez como pedido. Se divergem (por exemplo `@cached(ttl: 60)` com `Cache-Control: max-age=5`, ou `x-provisa-cache-ttl: 10` com `Cache-Control: max-age=20`), a requisição falha com `400` e o código `data.invalid_cache_control`, nomeando cada forma enviada. Um valor `N` que não seja um número inteiro de segundos falha do mesmo modo. Nenhuma forma é preferida à outra.
+
+```bash
+curl -H 'Cache-Control: max-age=120' -H 'X-Provisa-Role: analyst' \
+  'http://localhost:8001/data/rest/sales/orders?limit=10'
+```
+
 **Resposta (JSON inline):**
 
 ```json
@@ -280,6 +303,8 @@ Valores de filtro e de parâmetro seguem como variáveis ao lado do texto GraphQ
 
 A função autenticada é exigida; requisições não autenticadas retornam `401`. Uma especificação OpenAPI para essas rotas é servida em `GET /data/rest/openapi.json` com Swagger UI em `GET /data/rest/docs`.
 
+**Cache de respostas:** adesão com um cabeçalho de requisição, `Cache-Control: max-age=N` ou `x-provisa-cache: true` (veja [Cabeçalhos de requisição do cache de respostas](#response-cache-request-headers)). Toda resposta traz `X-Provisa-Cache: HIT|MISS`, e `X-Provisa-Cache-Age` em um acerto. (REQ-544, REQ-536) [tool-verified: `provisa/api/rest/generator.py`]
+
 #### Explorador OpenAPI / Swagger UI
 
 A página do explorador OpenAPI (`/app/openapi`) incorpora o Swagger UI em um iframe isolado (sandboxed). A especificação é restrita por função — apenas tabelas e colunas visíveis à função atual aparecem — e opcionalmente filtrada por domínio via o seletor de domínio. A UI alterna entre os temas claro e escuro automaticamente. [tool-verified: `provisa-ui/src/pages/OpenApiPage.tsx:20-34`]
@@ -308,6 +333,8 @@ Endpoint compatível com [JSON:API](https://jsonapi.org), auto-gerado para cada 
 - `includeNodes` — `true` para incluir colunas escalares da tabela base (e escalares de dimensão unida nomeados em `include=`) dentro do array `nodes` de cada linha de grupo. Obrigatório quando uma consulta NL de agrupamento também solicita detalhes de dimensão. (REQ-1405)
 
 Respostas são objetos de recurso com `type`/`id`/`attributes`. Erros seguem o formato de objeto de erro do JSON:API.
+
+**Cache de respostas:** adesão com um cabeçalho de requisição, `Cache-Control: max-age=N` ou `x-provisa-cache: true` (veja [Cabeçalhos de requisição do cache de respostas](#response-cache-request-headers)). Toda resposta traz `X-Provisa-Cache: HIT|MISS`, e `X-Provisa-Cache-Age` em um acerto. Duas formas divergentes retornam `400` como objeto de erro do JSON:API. (REQ-544, REQ-536) [tool-verified: `provisa/api/jsonapi/generator.py`]
 
 #### Explorador JSON:API
 

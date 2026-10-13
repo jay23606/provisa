@@ -932,8 +932,9 @@ tables:
 | SQL (pgwire, Flight SQL, `/data/sql`) | строка комментария `-- @provisa cache=true` или `-- @provisa cache_ttl=60` в инструкции |
 | Cypher (`/data/cypher`, Neo4j Query API, Bolt, Arrow Flight) | строка комментария `// @provisa cache=true` или `// @provisa cache_ttl=60` в запросе |
 | gRPC (и HTTP-прокси gRPC) | метаданные вызова (заголовки на прокси) `x-provisa-cache: true` или `x-provisa-cache-ttl: 60` |
+| REST, JSON:API и, как альтернатива указанию в тексте: GraphQL по HTTP, `/data/cypher`, Neo4j Query API | заголовок запроса `Cache-Control: max-age=60` (или `max-stale=60`) либо `x-provisa-cache: true` / `x-provisa-cache-ttl: 60` |
 
-У REST и JSON:API включения нет. `ttl`, не являющийся целым числом, приводит к ошибке запроса.
+`ttl`, не являющийся целым числом, приводит к ошибке запроса. Запрос, который указывает включение дважды (в тексте и в заголовке или в двух заголовках) с разными значениями, завершается ошибкой `400`; ни одному значению предпочтение не отдаётся. `Cache-Control: no-cache` или `no-store` означает отсутствие кеша, как без заголовка. [tool-verified: `provisa/compiler/directives.py` `cache_hint_for`, `cache_hint_from_grpc_metadata`, `request_cache_hint`]
 
 Без подсказки запрос не читает кеш и не пишет в него. С ней по-прежнему решают настройки выше: результат кешируется, только если у каждого читаемого источника `cache_enabled: true`, а разрешённый TTL каждой таблицы больше 0. Запись живёт `ttl` запроса, если он указан, иначе — кратчайший разрешённый TTL прочитанных таблиц. (REQ-544)
 

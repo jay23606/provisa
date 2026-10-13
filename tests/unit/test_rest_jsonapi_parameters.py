@@ -136,8 +136,8 @@ class _Pipeline:
 
     async def execute(self, plan, state):
         if "COUNT(*)" in plan.sql and "GROUP BY" not in plan.sql:
-            return SimpleNamespace(rows=[(0,)], redirect=None)
-        return SimpleNamespace(rows=[], redirect=None)
+            return SimpleNamespace(rows=[(0,)], redirect=None, cache_entry=None)
+        return SimpleNamespace(rows=[], redirect=None, cache_entry=None)
 
 
 @pytest.fixture

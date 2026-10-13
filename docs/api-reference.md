@@ -68,6 +68,27 @@ The `extensions` field supports the Automatic Persisted Query (APQ) protocol: (R
 
 **Response cache:** opt-in per request with the `@cached` operation directive (`query @cached(ttl: 60) { ... }`, `ttl` optional); the same directive applies to GraphQL sent over Arrow Flight. Cypher opts in with a `// @provisa cache=true` or `// @provisa cache_ttl=N` line, gRPC with `x-provisa-cache: true` or `x-provisa-cache-ttl: N` call metadata. Without it the request neither reads nor writes the response cache. The `X-Provisa-Cache` response header reports `HIT` or `MISS`. See [Cache](configuration.md#per-request-opt-in). (REQ-544)
 
+#### Response cache request headers
+
+`/data/graphql`, `/data/cypher`, the Neo4j Query API (`/db/{database}/query/v2`), `/data/rest` and `/data/jsonapi` also take the opt-in as a request header. Each form below behaves like `@cached(ttl: N)`: (REQ-544)
+
+| Header | Same as |
+| --- | --- |
+| `Cache-Control: max-age=N` or `Cache-Control: max-stale=N` | `@cached(ttl: N)` |
+| `Cache-Control: max-stale` (no value) | `@cached` (the operator's TTL) |
+| `Cache-Control: no-cache` or `no-store` | no cache, the same as sending nothing |
+| `x-provisa-cache: true` | `@cached` |
+| `x-provisa-cache-ttl: N` | `@cached(ttl: N)` |
+
+A request without one of these headers and without a hint in its text is not cached, although plain HTTP caches by default. The operator's cache settings still apply as for `@cached`: a header never makes a read fresher than they allow, and is never refused for asking for a longer `ttl`. Other `Cache-Control` directives (`no-transform`, `min-fresh`, ...) are ignored, as RFC 9111 requires of a cache. [tool-verified: `provisa/compiler/directives.py` `request_cache_hint`]
+
+A request can state the opt-in more than once: in its text and in a header, or in two headers. If they agree, it is cached once as asked. If they disagree (for example `@cached(ttl: 60)` with `Cache-Control: max-age=5`, or `x-provisa-cache-ttl: 10` with `Cache-Control: max-age=20`), the request fails with `400` and code `data.invalid_cache_control`, naming each form it sent. A value of `N` that is not a whole number of seconds fails the same way. Neither form is picked over the other.
+
+```bash
+curl -H 'Cache-Control: max-age=120' -H 'X-Provisa-Role: analyst' \
+  'http://localhost:8001/data/rest/sales/orders?limit=10'
+```
+
 **Response (JSON inline):**
 
 ```json
@@ -291,6 +312,8 @@ Filter values and parameter values travel beside the GraphQL text the endpoint b
 
 The authenticated role is required; unauthenticated requests return `401`. An OpenAPI spec for these routes is served at `GET /data/rest/openapi.json` with Swagger UI at `GET /data/rest/docs`.
 
+**Response cache:** opt in with a request header, `Cache-Control: max-age=N` or `x-provisa-cache: true` (see [Response cache request headers](#response-cache-request-headers)). Every response carries `X-Provisa-Cache: HIT|MISS`, and `X-Provisa-Cache-Age` on a hit. (REQ-544, REQ-536) [tool-verified: `provisa/api/rest/generator.py`]
+
 #### OpenAPI / Swagger UI Explorer
 
 The OpenAPI explorer page (`/app/openapi`) embeds the Swagger UI in a sandboxed iframe. The spec is role-scoped — only tables and columns visible to the current role appear — and optionally domain-filtered via the domain selector. The UI switches between light and dark themes automatically. [tool-verified: `provisa-ui/src/pages/OpenApiPage.tsx:20-34`]
@@ -320,6 +343,8 @@ Auto-generated [JSON:API](https://jsonapi.org)-compliant endpoint for every regi
 - `includeNodes` — `true` to include base-table scalar columns (and joined dimension scalars named in `include=`) inside each group row's `nodes` array. Required when an NL group-by query also requests dimension details. (REQ-1405)
 
 Responses are resource objects with `type`/`id`/`attributes`. Errors follow the JSON:API error object shape.
+
+**Response cache:** opt in with a request header, `Cache-Control: max-age=N` or `x-provisa-cache: true` (see [Response cache request headers](#response-cache-request-headers)). Every response carries `X-Provisa-Cache: HIT|MISS`, and `X-Provisa-Cache-Age` on a hit. Two forms that disagree return `400` as a JSON:API error object. (REQ-544, REQ-536) [tool-verified: `provisa/api/jsonapi/generator.py`]
 
 #### JSON:API Explorer
 

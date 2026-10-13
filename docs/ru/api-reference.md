@@ -68,6 +68,29 @@ GET /auth/provider-type
 
 **Кеш ответов:** включается для отдельного запроса директивой операции `@cached` (`query @cached(ttl: 60) { ... }`, `ttl` необязателен); та же директива действует для GraphQL, отправленного через Arrow Flight. Cypher включает кеш строкой `// @provisa cache=true` или `// @provisa cache_ttl=N`, gRPC — метаданными вызова `x-provisa-cache: true` или `x-provisa-cache-ttl: N`. Без неё запрос не читает кеш ответов и не пишет в него. Заголовок ответа `X-Provisa-Cache` сообщает `HIT` или `MISS`. См. [Кеш](configuration.md). (REQ-544)
 
+<a id="response-cache-request-headers"></a>
+
+#### Заголовки запроса для кеша ответов
+
+`/data/graphql`, `/data/cypher`, Neo4j Query API (`/db/{database}/query/v2`), `/data/rest` и `/data/jsonapi` принимают включение также в виде заголовка запроса. Каждая из форм ниже ведёт себя как `@cached(ttl: N)`: (REQ-544)
+
+| Заголовок | Равносильно |
+| --- | --- |
+| `Cache-Control: max-age=N` / `Cache-Control: max-stale=N` | `@cached(ttl: N)` |
+| `Cache-Control: max-stale` (без значения) | `@cached` (TTL оператора) |
+| `Cache-Control: no-cache` / `no-store` | без кеша, как если бы ничего не было отправлено |
+| `x-provisa-cache: true` | `@cached` |
+| `x-provisa-cache-ttl: N` | `@cached(ttl: N)` |
+
+Запрос без одного из этих заголовков и без указания в тексте не кешируется, хотя обычные HTTP-кеши кешируют по умолчанию. Настройки кеша оператора действуют так же, как для `@cached`: заголовок никогда не делает чтение более свежим, чем они допускают, и никогда не отклоняется из-за запроса более длинного `ttl`. Остальные директивы `Cache-Control` (`no-transform`, `min-fresh`, ...) игнорируются, как того требует RFC 9111 от кеша. [tool-verified: `provisa/compiler/directives.py` `request_cache_hint`]
+
+Запрос может указать включение несколько раз: в тексте и в заголовке или в двух заголовках. Если они совпадают, запрос кешируется один раз, как запрошено. Если расходятся (например, `@cached(ttl: 60)` с `Cache-Control: max-age=5` или `x-provisa-cache-ttl: 10` с `Cache-Control: max-age=20`), запрос завершается ошибкой `400` с кодом `data.invalid_cache_control`, в которой названа каждая отправленная форма. Значение `N`, не являющееся целым числом секунд, приводит к такой же ошибке. Ни одной из форм предпочтение не отдаётся.
+
+```bash
+curl -H 'Cache-Control: max-age=120' -H 'X-Provisa-Role: analyst' \
+  'http://localhost:8001/data/rest/sales/orders?limit=10'
+```
+
 **Ответ (JSON inline):**
 
 ```json
@@ -280,6 +303,8 @@ UI опрашивает этот эндпоинт, чтобы показать �
 
 Аутентифицированная роль обязательна; неаутентифицированные запросы возвращают `401`. Спецификация OpenAPI для этих маршрутов предоставляется по адресу `GET /data/rest/openapi.json`, со Swagger UI по адресу `GET /data/rest/docs`.
 
+**Кеш ответов:** включается заголовком запроса, `Cache-Control: max-age=N` или `x-provisa-cache: true` (см. [Заголовки запроса для кеша ответов](#response-cache-request-headers)). Каждый ответ содержит `X-Provisa-Cache: HIT|MISS`, а при попадании ещё и `X-Provisa-Cache-Age`. (REQ-544, REQ-536) [tool-verified: `provisa/api/rest/generator.py`]
+
 #### Обозреватель OpenAPI / Swagger UI
 
 Страница обозревателя OpenAPI (`/app/openapi`) встраивает Swagger UI в изолированный (sandboxed) iframe. Спецификация ограничена ролью — отображаются только таблицы и столбцы, видимые текущей роли, — и опционально фильтруется по домену через селектор домена. UI автоматически переключается между светлой и тёмной темами. [tool-verified: `provisa-ui/src/pages/OpenApiPage.tsx:20-34`]
@@ -308,6 +333,8 @@ UI опрашивает этот эндпоинт, чтобы показать �
 - `includeNodes` — `true`, чтобы включить скалярные столбцы базовой таблицы (и скалярные поля присоединённых измерений, названных в `include=`) внутрь массива `nodes` каждой строки группы. Требуется, когда NL-запрос с группировкой также запрашивает детали измерения. (REQ-1405)
 
 Ответы представляют собой объекты-ресурсы с `type`/`id`/`attributes`. Ошибки следуют форме объекта ошибки JSON:API.
+
+**Кеш ответов:** включается заголовком запроса, `Cache-Control: max-age=N` или `x-provisa-cache: true` (см. [Заголовки запроса для кеша ответов](#response-cache-request-headers)). Каждый ответ содержит `X-Provisa-Cache: HIT|MISS`, а при попадании ещё и `X-Provisa-Cache-Age`. Две расходящиеся формы возвращают `400` в виде объекта ошибки JSON:API. (REQ-544, REQ-536) [tool-verified: `provisa/api/jsonapi/generator.py`]
 
 #### Обозреватель JSON:API
 

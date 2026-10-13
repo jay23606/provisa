@@ -341,6 +341,18 @@ async def graphql_endpoint(  # REQ-001, REQ-002, REQ-043, REQ-047, REQ-049, REQ-
     trace_hint = directives.debug_trace or debug_trace_from_header(x_provisa_trace)
     await resolve_trace_scope(state, role_id, hint=trace_hint)
 
+    # REQ-544: the request's response-cache opt-in -- `@cached(ttl:)` (or its comment), the
+    # x-provisa-cache headers and Cache-Control, refused by name when two disagree.
+    from provisa.compiler.directives import CacheHint, request_cache_hint
+
+    try:
+        cache_hint = request_cache_hint(
+            CacheHint(opt_in=directives.cache_opt_in, ttl=directives.cache_ttl),
+            raw_request.headers,
+        )
+    except ValueError as exc:
+        raise ApiError(400, "data.invalid_cache_control", str(exc), error=str(exc))
+
     # REQ-1448: the wake belongs to every executing surface, not only the SQL pipeline's
     # _execute_plan. Introspection returned above without touching the engine; everything below
     # dispatches to it, so this is the point where the active org's shard must be serving and
@@ -443,8 +455,8 @@ async def graphql_endpoint(  # REQ-001, REQ-002, REQ-043, REQ-047, REQ-049, REQ-
                         as_of=_as_of,  # REQ-1163
                         steward_hint=steward_hint,
                         query_session_props=directives.to_session_props(),
-                        cache_ttl=directives.cache_ttl,
-                        cache_opt_in=directives.cache_opt_in,  # REQ-544 (amended): per-request opt-in
+                        cache_ttl=cache_hint.ttl,
+                        cache_opt_in=cache_hint.opt_in,  # REQ-544 (amended): per-request opt-in
                         # REQ-1910: the request's own trace hint, which each field's pipeline
                         # entry resolves again with the request's org and role.
                         debug_trace=trace_hint,
