@@ -325,3 +325,121 @@ def test_a_sandbox_source_on_a_private_address_is_refused_and_never_reached(tier
         assert listener.accepted == 0
     finally:
         listener.close()
+
+
+_NAMED_USER, _NAMED_PASSWORD = "trier", "trier-password-0123"
+
+
+def _seat_named_user() -> None:
+    import os
+
+    import bcrypt
+    from sqlalchemy import create_engine, insert, select
+
+    from provisa.core.schema_admin import local_users
+
+    engine = create_engine(os.environ["PLATFORM_DATABASE_URL"])
+    try:
+        with engine.begin() as conn:
+            if conn.execute(
+                select(local_users.c.id).where(local_users.c.id == _NAMED_USER)
+            ).fetchone():
+                return
+            conn.execute(
+                insert(local_users).values(
+                    id=_NAMED_USER,
+                    username=_NAMED_USER,
+                    password_hash=bcrypt.hashpw(
+                        _NAMED_PASSWORD.encode(), bcrypt.gensalt()
+                    ).decode(),
+                    email="trier@example.com",
+                    display_name="Trier",
+                    is_active=True,
+                )
+            )
+    finally:
+        engine.dispose()
+
+
+def _open_named(tier, name: str) -> dict:
+    """The named sandbox of ``name``, once its template is ready."""
+    deadline = time.monotonic() + 180
+    while True:
+        resp = httpx.post(
+            f"{tier.base_url}/sandboxes/{name}", auth=(_NAMED_USER, _NAMED_PASSWORD), timeout=240
+        )
+        if resp.status_code != 503 or resp.json().get("code") != "sandbox.demo_not_ready":
+            assert resp.status_code == 200, (resp.text, _last_traceback(tier))
+            return resp.json()
+        assert time.monotonic() < deadline, tier.dump_stderr_debug()[-6000:]
+        time.sleep(2)
+
+
+def test_a_named_sandbox_is_the_persons_own_from_every_device(tier):
+    """A signed-in person opens a sandbox of a demo; asked again -- from another device -- they
+    get the same one."""
+    _seat_named_user()
+    auth = (_NAMED_USER, _NAMED_PASSWORD)
+    first = _open_named(tier, "alpha")
+    again = _open_named(tier, "alpha")
+    assert again["org_id"] == first["org_id"]
+    named = {"org_id": first["org_id"]}
+    rows = httpx.post(
+        f"{tier.base_url}/data/sql",
+        json={"sql": "SELECT name FROM animals"},
+        auth=auth,
+        headers={"x-org-provisa": named["org_id"]},
+        timeout=120,
+    )
+    assert _names(rows) == sorted(_ROWS["alpha"])
+
+
+def test_two_devices_writing_at_once_leave_one_whole_source(tier):
+    """Two devices of one named sandbox register the same source at the same moment. Saving a
+    source is an upsert, so both saves land and the model holds that one source, whole -- the
+    second write does not corrupt the first. (Writes to the sandbox's DuckDB store are serialized
+    by the store's file lock; a write-write conflict DuckDB itself raises is refused by name,
+    tests/unit/test_duckdb_write_conflict.py.)"""
+    import concurrent.futures
+
+    _seat_named_user()
+    auth = (_NAMED_USER, _NAMED_PASSWORD)
+    org = _open_named(tier, "alpha")["org_id"]
+    uploaded = httpx.put(
+        f"{tier.base_url}/admin/sources/twice/file",
+        params={"name": "t.csv", "type": "csv"},
+        content=b"id,name\n1,owl\n",
+        auth=auth,
+        headers={"x-org-provisa": org},
+        timeout=120,
+    )
+    assert uploaded.status_code == 200, uploaded.text
+    mutation = (
+        'mutation { createSource(input: {id: "twice", type: "csv", host: "", port: 0, '
+        f'database: "", path: "{uploaded.json()["path"]}"}}) {{ success message code }} }}'
+    )
+
+    def register() -> dict:
+        resp = httpx.post(
+            f"{tier.base_url}/admin/graphql",
+            json={"query": mutation},
+            auth=auth,
+            headers={"x-org-provisa": org},
+            timeout=120,
+        )
+        assert resp.status_code == 200, resp.text
+        return resp.json()["data"]["createSource"]
+
+    with concurrent.futures.ThreadPoolExecutor(2) as pool:
+        results = list(pool.map(lambda _: register(), range(2)))
+    assert [r["success"] for r in results] == [True, True], results
+    listed = httpx.post(
+        f"{tier.base_url}/admin/graphql",
+        json={"query": "{ sources { id type } }"},
+        auth=auth,
+        headers={"x-org-provisa": org},
+        timeout=120,
+    )
+    assert listed.status_code == 200, listed.text
+    twice = [s for s in listed.json()["data"]["sources"] if s["id"] == "twice"]
+    assert twice == [{"id": "twice", "type": "csv"}]

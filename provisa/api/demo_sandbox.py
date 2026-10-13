@@ -96,7 +96,7 @@ async def _template_ready(demo: PublishedDemo) -> None:
         raise ApiError(
             503,
             "sandbox.demo_not_ready",
-            f"The {demo.title} demo is still being prepared; try again shortly",
+            f"{demo.title} is still being prepared; try again shortly",
             demo=demo.name,
         )
 
