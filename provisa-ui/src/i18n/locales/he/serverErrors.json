@@ -156,6 +156,7 @@
       "rowwise_external": "הפונקציה '{{name}}' (kind={{impl_kind}}) היא חיצונית ברמת שורה: כל הארגומנטים הם column_value סקלרי. הצהירו על ארגומנט יחס table_ref/result_set כדי שהקריאות יהיו ברמת קבוצה ובאצוות.",
       "script_failed": "הסקריפט הסתיים בקוד {{returncode}}: {{stderr}}",
       "source_not_connected": "המקור '{{source_id}}' אינו מחובר",
+      "statement_broken": "הפקודה {{name}} שבורה: {{reason}}",
       "unknown_arg_kind": "arg_kind לא מוכר '{{arg_kind}}' עבור '{{name}}'",
       "unknown_command": "פקודה לא ידועה: '{{name}}'",
       "unknown_impl_kind": "impl_kind לא מוכר של פונקציה: '{{impl_kind}}'",

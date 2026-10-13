@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from provisa.api.errors import ApiError
 from provisa.core.statement_declaration import StatementCommandRefused, declared
 
 
@@ -32,8 +33,19 @@ async def run(fn: dict, args: dict, state: Any, role_id: str | None) -> list[dic
         raise StatementCommandRefused(
             fn["name"], "a statement command runs as a role; none is bound"
         )
-    names = [a["name"] for a in fn.get("arguments") or []]
-    found = declared(fn["name"], fn.get("binding") or {}, names)
+    broken = fn["contract"]["broken"]
+    if broken is not None:
+        # Its statement no longer resolves against the model: a table or column it reads or
+        # writes was renamed or dropped since it was registered.
+        raise ApiError(
+            409,
+            "functions.statement_broken",
+            f"command {fn['name']!r} is broken: {broken}",
+            name=fn["name"],
+            reason=broken,
+        )
+    names = [a["name"] for a in fn["arguments"]]
+    found = declared(fn["name"], fn["binding"], names)
     params = [args[n] for n in names]
     plan = await _govern_and_route(found.sql, role_id, params=params or None)
     result = await _execute_plan(plan, state)

@@ -156,6 +156,7 @@
       "rowwise_external": "la función '{{name}}' (kind={{impl_kind}}) es externa por fila: todos los argumentos son column_value escalares. Declare un argumento de relación table_ref/result_set para que las llamadas sean por conjunto y en lote.",
       "script_failed": "el script terminó con código {{returncode}}: {{stderr}}",
       "source_not_connected": "El origen '{{source_id}}' no está conectado",
+      "statement_broken": "El comando {{name}} está roto: {{reason}}",
       "unknown_arg_kind": "arg_kind desconocido '{{arg_kind}}' para '{{name}}'",
       "unknown_command": "Comando desconocido: '{{name}}'",
       "unknown_impl_kind": "impl_kind de función desconocido: '{{impl_kind}}'",

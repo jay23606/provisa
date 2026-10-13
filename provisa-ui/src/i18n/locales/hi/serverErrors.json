@@ -156,6 +156,7 @@
       "rowwise_external": "फ़ंक्शन '{{name}}' (kind={{impl_kind}}) पंक्ति-वार बाहरी है: सभी आर्ग्युमेंट स्केलर column_value हैं। एक table_ref/result_set रिलेशन आर्ग्युमेंट घोषित करें ताकि कॉल सेट-वार और बैच्ड हों।",
       "script_failed": "स्क्रिप्ट {{returncode}} के साथ समाप्त हुई: {{stderr}}",
       "source_not_connected": "स्रोत '{{source_id}}' कनेक्ट नहीं है",
+      "statement_broken": "कमांड {{name}} टूटा हुआ है: {{reason}}",
       "unknown_arg_kind": "'{{name}}' के लिए अज्ञात arg_kind '{{arg_kind}}'",
       "unknown_command": "अज्ञात कमांड: '{{name}}'",
       "unknown_impl_kind": "अज्ञात फ़ंक्शन impl_kind: '{{impl_kind}}'",

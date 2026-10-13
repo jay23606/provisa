@@ -156,6 +156,7 @@
       "rowwise_external": "functie '{{name}}' (kind={{impl_kind}}) is rijgewijs extern: alle argumenten zijn scalaire column_value. Declareer een table_ref/result_set-relatieargument zodat aanroepen setgewijs en gebatcht zijn.",
       "script_failed": "script eindigde met code {{returncode}}: {{stderr}}",
       "source_not_connected": "Bron '{{source_id}}' niet verbonden",
+      "statement_broken": "Opdracht {{name}} is defect: {{reason}}",
       "unknown_arg_kind": "Onbekende arg_kind '{{arg_kind}}' voor '{{name}}'",
       "unknown_command": "Onbekend commando: '{{name}}'",
       "unknown_impl_kind": "Onbekende functie-impl_kind: '{{impl_kind}}'",

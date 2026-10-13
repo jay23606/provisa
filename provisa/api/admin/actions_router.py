@@ -126,10 +126,13 @@ async def list_actions(request: Request):  # REQ-205, REQ-209
             wh["approved"] = await cr_repo.latest_status(conn, "webhook", wh["name"]) == "executed"
             webhooks.append(wh)
 
-    return {
-        "functions": [_row_to_function(dict(r._mapping)) for r in fn_rows],
-        "webhooks": webhooks,
-    }
+    functions = [_row_to_function(dict(r._mapping)) for r in fn_rows]
+    # REQ-2001: a statement command's contract as this build derived it from its statement.
+    served = getattr(state, "tracked_functions", None) or {}
+    for fn in functions:
+        if fn["implKind"] == "statement" and fn["name"] in served:
+            fn["contract"] = served[fn["name"]]["contract"]
+    return {"functions": functions, "webhooks": webhooks}
 
 
 class FunctionInput(BaseModel):  # REQ-205, REQ-206, REQ-304, REQ-305, REQ-306

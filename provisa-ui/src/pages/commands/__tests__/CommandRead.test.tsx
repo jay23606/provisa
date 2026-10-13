@@ -149,3 +149,50 @@ describe("a webhook's read view", () => {
     ]);
   });
 });
+
+describe("a statement command's panel (REQ-2001)", () => {
+  const contract = {
+    version: "8359d5f7e33b2980",
+    statement_hash: "0ba0",
+    kind: "mutation",
+    writes: "kb.docs",
+    upsert: true,
+    reads: ["support.tickets"],
+    outputs: [{ name: "rows_affected", type: "bigint" }],
+    arguments: [{ name: "since", type: "timestamp" }],
+    lineage: { title: ["support.tickets.subject"] },
+    write_select: "SELECT subject AS title FROM support.tickets",
+    broken: null,
+  };
+  const statement: TrackedFunction = {
+    ...fn,
+    name: "embed_tickets",
+    implKind: "statement",
+    binding: { sql: "INSERT INTO kb.docs (title) SELECT subject FROM support.tickets" },
+    writesTable: "kb.docs",
+    outputColumns: null,
+    contract,
+  };
+
+  it("shows what its statement declares", () => {
+    render(<FunctionRead fn={statement} productName={null} />);
+    const shown = Object.fromEntries(fields("function-read-fields"));
+    expect(shown["Declares"]).toBe(
+      "reads support.tickets, writes kb.docs (upsert), returns a row count",
+    );
+    expect(shown["Argument types"]).toBe("since: timestamp");
+    expect(shown["Contract version"]).toBe("8359d5f7e33b2980");
+    expect(shown["Broken"]).toBeUndefined();
+  });
+
+  it("says why one that no longer resolves is broken", () => {
+    const broken = {
+      ...statement,
+      contract: { ...contract, broken: "Column 'subject' could not be resolved" },
+    };
+    render(<FunctionRead fn={broken} productName={null} />);
+    const shown = Object.fromEntries(fields("function-read-fields"));
+    expect(shown["Broken"]).toBe("Column 'subject' could not be resolved");
+    expect(shown["Declares"]).toBeUndefined();
+  });
+});

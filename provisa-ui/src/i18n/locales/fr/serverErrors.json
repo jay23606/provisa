@@ -156,6 +156,7 @@
       "rowwise_external": "la fonction « {{name}} » (kind={{impl_kind}}) est externe ligne par ligne : tous ses arguments sont des column_value scalaires. Déclarez un argument de relation table_ref/result_set pour que les appels soient ensemblistes et regroupés.",
       "script_failed": "le script s'est terminé avec le code {{returncode}} : {{stderr}}",
       "source_not_connected": "Source « {{source_id}} » non connectée",
+      "statement_broken": "La commande {{name}} est cassée : {{reason}}",
       "unknown_arg_kind": "arg_kind « {{arg_kind}} » inconnu pour « {{name}} »",
       "unknown_command": "Commande inconnue : '{{name}}'",
       "unknown_impl_kind": "impl_kind de fonction inconnu : « {{impl_kind}} »",

@@ -75,6 +75,23 @@ export interface TrackedFunction {
   writesTable?: string | null;
   // REQ-1634: optional data-product membership.
   productId?: string | null;
+  // REQ-2001: a statement command's contract, derived from its statement at every build.
+  contract?: StatementContract;
+}
+
+/** What a statement command's statement declares (REQ-2001), as the server derived it. */
+export interface StatementContract {
+  version: string;
+  statement_hash: string;
+  kind: string | null;
+  writes: string | null;
+  upsert: boolean;
+  reads: string[];
+  outputs: { name: string; type: string }[];
+  arguments: { name: string; type: string }[];
+  lineage: Record<string, string[]>;
+  write_select: string | null;
+  broken: string | null;
 }
 
 export interface TrackedWebhook {

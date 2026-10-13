@@ -156,6 +156,7 @@
       "rowwise_external": "функция '{{name}}' (kind={{impl_kind}}) является построчной внешней: все аргументы — скалярные column_value. Объявите аргумент-отношение table_ref/result_set, чтобы вызовы выполнялись помножественно и пакетно.",
       "script_failed": "скрипт завершился с кодом {{returncode}}: {{stderr}}",
       "source_not_connected": "Источник '{{source_id}}' не подключен",
+      "statement_broken": "Команда {{name}} не работает: {{reason}}",
       "unknown_arg_kind": "Неизвестный arg_kind '{{arg_kind}}' для '{{name}}'",
       "unknown_command": "Неизвестная команда: '{{name}}'",
       "unknown_impl_kind": "Неизвестный impl_kind функции: '{{impl_kind}}'",

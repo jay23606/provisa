@@ -156,6 +156,7 @@
       "rowwise_external": "関数「{{name}}」（kind={{impl_kind}}）は行単位の外部関数です：すべての引数がスカラーの column_value です。呼び出しがセット単位でバッチ処理されるよう、table_ref/result_set のリレーション引数を宣言してください。",
       "script_failed": "スクリプトが終了コード {{returncode}} で終了しました：{{stderr}}",
       "source_not_connected": "ソース「{{source_id}}」が接続されていません",
+      "statement_broken": "コマンド {{name}} は壊れています: {{reason}}",
       "unknown_arg_kind": "「{{name}}」の arg_kind「{{arg_kind}}」は不明です",
       "unknown_command": "不明なコマンド: '{{name}}'",
       "unknown_impl_kind": "不明な関数 impl_kind：「{{impl_kind}}」",

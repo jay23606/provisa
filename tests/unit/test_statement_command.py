@@ -147,6 +147,7 @@ def _fn_dict(sql: str = _INSERT) -> dict:
         "impl_kind": "statement",
         "arguments": [{"name": "since"}, {"name": "team"}],
         "binding": {"sql": sql},
+        "contract": {"broken": None},
     }
 
 
@@ -172,6 +173,20 @@ async def test_a_query_command_answers_its_rows(pipeline):
     sql = "SELECT id, title FROM kb.docs WHERE id > {{since}} AND team = {{team}}"
     rows = await run(_fn_dict(sql), {"since": 0, "team": "x"}, object(), "steward")
     assert rows == [{"id": 1, "title": "a"}]
+
+
+@pytest.mark.asyncio
+async def test_a_broken_command_is_refused_naming_why(pipeline):
+    from provisa.api.errors import ApiError
+    from provisa.executor.statement_command import run
+
+    calls, _ = pipeline
+    fn = {**_fn_dict(), "contract": {"broken": "no registered table is named 'kb.docs'"}}
+    with pytest.raises(ApiError) as refused:
+        await run(fn, {"since": "x", "team": "y"}, object(), "steward")
+    assert refused.value.code == "functions.statement_broken"
+    assert "no registered table is named 'kb.docs'" in str(refused.value)
+    assert calls == {}
 
 
 @pytest.mark.asyncio
