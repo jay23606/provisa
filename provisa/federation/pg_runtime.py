@@ -290,6 +290,8 @@ class PgFederationRuntime:  # REQ-825, REQ-840, REQ-904
         # store is configured. Landed/cached rows live in a schema this same connection reads.
         self._materialize_dsn = materialize_dsn
         self._raw_attached: set[str] = set()
+        # Issue 254: the MotherDuck databases whose pg_duckdb sync this runtime saw settle.
+        self._motherduck_settled: set[str] = set()
         # REQ-1867: in-place Databricks views — quoted live view name -> (source, iceberg_scan
         # arguments); re-pointed before every statement naming one (refresh_live_relations).
         self._dbx_relations: dict[str, tuple[Any, str]] = {}
@@ -345,6 +347,7 @@ class PgFederationRuntime:  # REQ-825, REQ-840, REQ-904
                 source.schema_name,
                 source.table_name,
                 _POOL_WAIT_S if budget is None else min(_POOL_WAIT_S, budget),
+                self._motherduck_settled,
             )
         elif "attach_ddl" in details:  # postgres_fdw / sqlite_fdw — import a foreign schema
             remote = f'"{details["local_schema"]}"."{source.table_name}"'

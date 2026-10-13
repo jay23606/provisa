@@ -146,6 +146,9 @@ on:
         required: false
       SNOWFLAKE_WAREHOUSE:
         required: false
+      # MotherDuck (REQ-1998, REQ-1868)
+      MOTHERDUCK_API_TOKEN:
+        required: false
       # Databricks
       DATABRICKS_SERVER_HOSTNAME:
         required: false
@@ -329,6 +332,7 @@ jobs:
           SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
           SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
           SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+          MOTHERDUCK_API_TOKEN: ${{ secrets.MOTHERDUCK_API_TOKEN }}
           DATABRICKS_SERVER_HOSTNAME: ${{ secrets.DATABRICKS_SERVER_HOSTNAME }}
           DATABRICKS_HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
