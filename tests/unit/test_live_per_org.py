@@ -187,3 +187,72 @@ async def test_only_a_prod_runtime_starts_a_live_engine(monkeypatch):
         reset_current_env(env_token)
         reset_current_org(token)
     assert state.live_engine is None  # an environment's live config runs once promoted
+
+
+class _Federation:
+    def __init__(self, name: str, closed: list[str]) -> None:
+        self.name = name
+        self._closed = closed
+
+    def close(self) -> None:
+        self._closed.append(self.name)
+
+
+def test_a_retired_org_that_owns_its_engine_closes_it(monkeypatch):
+    """REQ-2006: an org on its own engine closes it when its runtime is replaced or dropped; a
+    replacement holding the same engine keeps it, and an org on the shared engine closes none."""
+    from provisa.api.org_runtime import OrgRegistry, OrgRuntime
+
+    closed: list[str] = []
+    monkeypatch.setattr(
+        "provisa.core.connection_loop.spawn_background", lambda coro, **_kw: asyncio.run(coro)
+    )
+    registry = OrgRegistry()
+
+    def isolated(org: str, engine: _Federation) -> OrgRuntime:
+        rt = OrgRuntime(org_id=org)
+        rt.isolated_engine = True
+        rt.federation_engine = engine
+        return rt
+
+    first = isolated("acme", _Federation("acme-1", closed))
+    registry.set("acme", first)
+    registry.set("acme", isolated("acme", _Federation("acme-2", closed)))  # rebuilt
+    kept = registry.get("acme").federation_engine
+    registry.set("acme", isolated("acme", kept))  # rebuilt on the same engine
+    registry.set("shared", OrgRuntime(org_id="shared"))
+    registry.invalidate("shared")
+    registry.invalidate_org("acme")  # retired
+    assert closed == ["acme-1", "acme-2"]
+    assert first.federation_engine is None
+
+
+def test_a_retired_sandbox_org_lets_its_duckdb_file_go(monkeypatch, tmp_path):
+    """REQ-2006: the in-process DuckDB an org owns (REQ-1992) is closed with the org, so its file
+    is released: another process can open it, and the folder can be removed."""
+    import duckdb
+
+    from provisa.api.org_runtime import OrgRegistry, OrgRuntime
+
+    monkeypatch.setattr(
+        "provisa.core.connection_loop.spawn_background", lambda coro, **_kw: asyncio.run(coro)
+    )
+    path = tmp_path / "materialize.duckdb"
+
+    class _Engine:
+        def __init__(self) -> None:
+            self.con = duckdb.connect(str(path))
+            self.con.execute("CREATE TABLE t AS SELECT 1 AS x")
+
+        def close(self) -> None:
+            self.con.close()
+
+    rt = OrgRuntime(org_id="sandbox_x")
+    rt.isolated_engine = True
+    rt.federation_engine = _Engine()
+    registry = OrgRegistry()
+    registry.set("sandbox_x", rt)
+    registry.invalidate_org("sandbox_x")
+    reopened = duckdb.connect(str(path), read_only=True)
+    assert reopened.execute("SELECT x FROM t").fetchall() == [(1,)]
+    reopened.close()
