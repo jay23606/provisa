@@ -701,6 +701,8 @@ class EngineBackend:
             # execution-time attach builds the file adapter's merged glob table (the endpoint is
             # built once per source and cached, so a merge that drops them poisons later reads).
             file_glob_tables=getattr(source, "file_glob_tables", []) or [],
+            # REQ-1909: read directly by DuckDBPostgresConnector.details.
+            max_live_concurrency=source.max_live_concurrency,
             schema_name=schema_name,
             table_name=table_name,
         )
@@ -835,6 +837,7 @@ class EngineBackend:
                 path=_rs(getattr(source, "path", None)),
                 federation_hints=getattr(source, "federation_hints", {}),
                 file_glob_tables=getattr(source, "file_glob_tables", []) or [],  # REQ-788
+                max_live_concurrency=source.max_live_concurrency,  # REQ-1909
                 schema_name=schema_name,
                 table_name=table_name,
             )
