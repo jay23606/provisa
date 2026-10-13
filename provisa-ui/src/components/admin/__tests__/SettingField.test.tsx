@@ -830,3 +830,78 @@ describe("SettingsCatalogPanel", () => {
     expect(await screen.findByTestId("catalog-error")).toHaveTextContent("boom");
   });
 });
+
+// REQ-2012: a list whose entries are rows of columns is shown and edited as a table.
+describe("list settings with columns", () => {
+  const prices = mk({
+    key: "polly.model_prices",
+    type: "list",
+    value: ["claude-haiku-5-5 0.1 0.5 0.01 0.125", "openai/gpt-5.4-mini 0.75 4.5 0.075 0.75"],
+    stored: null,
+    source: "default",
+    min: undefined,
+    max: undefined,
+    columns: ["model", "input", "output", "cache_read", "cache_write"],
+  });
+  const k = "setting-polly.model_prices";
+
+  it("shows one row per entry under the column headers", () => {
+    wrap(<CatalogCard cardId="mcp" title="MCP" settings={[prices]} onSave={vi.fn()} />);
+    const table = screen.getByTestId(`${k}-table`);
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .map((h) => h.textContent),
+    ).toEqual(["Model", "Input", "Output", "Cache read", "Cache write", ""]);
+    expect((screen.getByTestId(`${k}-1-model`) as HTMLInputElement).value).toBe(
+      "openai/gpt-5.4-mini",
+    );
+    expect((screen.getByTestId(`${k}-0-cache_write`) as HTMLInputElement).value).toBe("0.125");
+  });
+
+  it("saves an edited cell, an added row and a removed one as the list", async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    wrap(<CatalogCard cardId="mcp" title="MCP" settings={[prices]} onSave={onSave} />);
+    fireEvent.change(screen.getByTestId(`${k}-0-output`), { target: { value: "0.6" } });
+    fireEvent.click(screen.getByTestId(`${k}-1-remove`));
+    fireEvent.click(screen.getByTestId(`${k}-add`));
+    const cells: [string, string][] = [
+      ["model", "moonshotai/kimi-k3"],
+      ["input", "0.73"],
+      ["output", "10"],
+      ["cache_read", "0.55"],
+      ["cache_write", "0.73"],
+    ];
+    for (const [col, v] of cells) {
+      fireEvent.change(screen.getByTestId(`${k}-1-${col}`), { target: { value: v } });
+    }
+    fireEvent.click(screen.getByRole("button", { name: /save/i }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect(onSave).toHaveBeenCalledWith(
+      {
+        "polly.model_prices": [
+          "claude-haiku-5-5 0.1 0.6 0.01 0.125",
+          "moonshotai/kimi-k3 0.73 10 0.55 0.73",
+        ],
+      },
+      [],
+    );
+  });
+
+  it("shows the server's refusal of an entry on the table", async () => {
+    const err = Object.assign(new Error("refused"), {
+      params: {
+        field: "polly.model_prices",
+        reason: "price_entry_invalid",
+        entry: "claude-haiku-5-5 cheap 0.5 0.01 0.125",
+      },
+    });
+    const onSave = vi.fn().mockRejectedValue(err);
+    wrap(<CatalogCard cardId="mcp" title="MCP" settings={[prices]} onSave={onSave} />);
+    fireEvent.change(screen.getByTestId(`${k}-0-input`), { target: { value: "cheap" } });
+    fireEvent.click(screen.getByRole("button", { name: /save/i }));
+    expect(await screen.findByTestId(`${k}-error`)).toHaveTextContent(
+      "Each entry is a model id and four prices per million tokens: input, output, cache read, cache write (claude-haiku-5-5 cheap 0.5 0.01 0.125).",
+    );
+  });
+});

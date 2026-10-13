@@ -129,7 +129,9 @@
         "pgwire": "PostgreSQL wire",
         "bolt": "Bolt",
         "airport": "Airport"
-      }
+      },
+      "addRow": "新增行",
+      "removeRow": "移除行"
     },
     "transportHelp": {
       "flight": "Arrow Flight 承載大規模資料傳輸。",

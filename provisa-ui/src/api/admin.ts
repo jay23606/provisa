@@ -2269,6 +2269,8 @@ export interface CatalogSetting {
   readonly_reason?: string;
   /** A map with a fixed set of entries: rendered as one row per key. */
   map_keys?: string[];
+  /** A list whose entries are rows of these columns, space-separated: shown as a table. */
+  columns?: string[];
   /** A map's per-entry source. */
   sources?: Record<string, "stored" | "env" | "config" | "default">;
   updated_by: string | null;

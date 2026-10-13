@@ -129,7 +129,9 @@
         "pgwire": "PostgreSQL wire",
         "bolt": "Bolt",
         "airport": "Airport"
-      }
+      },
+      "addRow": "Adicionar linha",
+      "removeRow": "Remover linha"
     },
     "transportHelp": {
       "flight": "O Arrow Flight transporta grandes transferências de dados.",

@@ -1103,6 +1103,7 @@ DECLARED: list[Setting] = [
         effect="live",  # read when a Polly turn reports its usage (REQ-2012)
         req="REQ-2012",
         env="PROVISA_POLLY_MODEL_PRICES",
+        columns=("model", "input", "output", "cache_read", "cache_write"),
         # One entry a model: "<model id> <input> <output> <cache read> <cache write>", USD per
         # million tokens, the model id as Polly's vendor names it. From the vendors' published
         # prices, 2026-10-13 (OpenRouter's catalog, which matches Anthropic's own list).

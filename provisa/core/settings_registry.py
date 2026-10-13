@@ -94,6 +94,9 @@ class Setting:
     max: float | None = None
     choices: tuple[str, ...] | None = None
     map_keys: tuple[str, ...] | None = None  # type "map": the keys it holds, each a float or unset
+    # type "list" (REQ-2012): each entry is a row of these columns, space-separated -- shown and
+    # edited as a table.
+    columns: tuple[str, ...] | None = None
     nullable: bool = False  # the setting may be unset (its value is then None)
     # type "list": the environment ADDS its items to the config file's instead of replacing them.
     # A stored value is still the whole list.
@@ -797,6 +800,8 @@ def describe(key: str) -> dict[str, Any]:
     )
     if s.type == "enum":
         out["choices"] = list(s.choices or ())
+    if s.type == "list" and s.columns:
+        out["columns"] = list(s.columns)
     if s.type == "map":
         out["map_keys"] = list(s.map_keys or ())
         out["sources"] = map_sources(key) if "error" not in state else {}

@@ -748,7 +748,14 @@
     "polly": {
       "model_prices": {
         "label": "Modelprijzen van Polly",
-        "help": "Eén regel per model: de id, daarna USD per miljoen tokens voor invoer, uitvoer, cache-lezen en cache-schrijven. Het gebruik van Polly wordt ermee berekend."
+        "help": "Eén regel per model: de id, daarna USD per miljoen tokens voor invoer, uitvoer, cache-lezen en cache-schrijven. Het gebruik van Polly wordt ermee berekend.",
+        "columns": {
+          "model": "Model",
+          "input": "Invoer",
+          "output": "Uitvoer",
+          "cache_read": "Cache lezen",
+          "cache_write": "Cache schrijven"
+        }
       }
     }
   }

@@ -28,7 +28,11 @@ _MILLION = 1_000_000
 
 
 class PriceTableError(ValueError):
-    """An entry of ``polly.model_prices`` that cannot be read."""
+    """An entry of ``polly.model_prices`` that cannot be read; ``entry`` is the entry."""
+
+    def __init__(self, entry: str, message: str) -> None:
+        super().__init__(message)
+        self.entry = entry
 
 
 @dataclass(frozen=True)
@@ -98,13 +102,14 @@ def parse_prices(entries: list[str] | tuple[str, ...]) -> dict[str, Price]:
         parts = entry.split()
         if len(parts) != 5:
             raise PriceTableError(
+                entry,
                 f"polly.model_prices entry {entry!r} is not '<model> <input> <output> "
-                "<cache read> <cache write>' (USD per million tokens)"
+                "<cache read> <cache write>' (USD per million tokens)",
             )
         try:
             numbers = [float(p) for p in parts[1:]]
         except ValueError as exc:
-            raise PriceTableError(f"polly.model_prices entry {entry!r}: {exc}") from exc
+            raise PriceTableError(entry, f"polly.model_prices entry {entry!r}: {exc}") from exc
         table[parts[0]] = Price(*numbers)
     return table
 

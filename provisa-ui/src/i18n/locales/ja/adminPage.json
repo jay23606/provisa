@@ -129,7 +129,9 @@
         "pgwire": "PostgreSQL wire",
         "bolt": "Bolt",
         "airport": "Airport"
-      }
+      },
+      "addRow": "行を追加",
+      "removeRow": "行を削除"
     },
     "transportHelp": {
       "flight": "Arrow Flight は大規模なデータ転送を扱います。",
