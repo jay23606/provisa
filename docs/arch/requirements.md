@@ -23393,3 +23393,65 @@ A TTL of -1 means never expires: the table lands once and its replica is never s
 **Code:** —
 
 **Tests:** —
+
+## 10. UI & Admin Surfaces
+
+### REQ-2032 · UI {#REQ-2032}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+A named demo, files (Instant data lake): A folder of mixed CSV, Parquet, XLSX and JSON files (a small city open-data drop: 311 complaints, building permits, a budget workbook, inspections) becomes a governed catalog through the files source type with no load step. It shows automatic table discovery (a file dropped into the folder appears as a table), data quality checks and profiling, schema change on a new file, relationships on neighborhood or address, a glossary term and a materialized view. Its tour follows the settled demo tour shape: the scenario and the features it exercises; how its sources, tables, commands, views and relationships fit, each step on its real row; predesigned queries on two or three fitting surfaces; one Polly question answered at template build and served stored ([REQ-2012](#REQ-2012)); then a recap. The demo never reaches a live external account at run time: data from real accounts is landed at build as TTL -1 replicas ([REQ-2031](#REQ-2031)). Its Polly question: "Which neighborhoods have the most complaints near active construction?"
+
+**Use case:** A visitor opens the files demo, walks its tour, and sees the business question answered: Which neighborhoods have the most complaints near active construction?
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-2033 · UI {#REQ-2033}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+A named demo, streaming (Live order stream): A live order feed arriving through Kafka or a webhook, joined to a static product catalog, on the demo's own containers. It shows freshness and change signals, live subscriptions, the response cache, and derived views refreshing as events land. Its tour follows the settled demo tour shape: the scenario and the features it exercises; how its sources, tables, commands, views and relationships fit, each step on its real row; predesigned queries on two or three fitting surfaces; one Polly question answered at template build and served stored ([REQ-2012](#REQ-2012)); then a recap. The demo never reaches a live external account at run time: data from real accounts is landed at build as TTL -1 replicas ([REQ-2031](#REQ-2031)). Its Polly question: "Which regions placed the most orders in the last five minutes?"
+
+**Use case:** A visitor opens the streaming demo, walks its tour, and sees the business question answered: Which regions placed the most orders in the last five minutes?
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-2034 · UI {#REQ-2034}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+A named demo, customer-360 (Customer 360 across enterprise SaaS): Salesforce accounts and renewals, ServiceNow incidents, Jira issues and Stripe test-mode invoices, built once against real accounts and served from TTL -1 replicas. It shows cross-application relationships (account to incident to issue, account to invoice), lineage to each table's real origin, and a data product (account health). Its tour follows the settled demo tour shape: the scenario and the features it exercises; how its sources, tables, commands, views and relationships fit, each step on its real row; predesigned queries on two or three fitting surfaces; one Polly question answered at template build and served stored ([REQ-2012](#REQ-2012)); then a recap. The demo never reaches a live external account at run time: data from real accounts is landed at build as TTL -1 replicas ([REQ-2031](#REQ-2031)). Its Polly question: "Which accounts renewing this quarter have open P1 incidents, blocked fixes or overdue invoices?"
+
+**Use case:** A visitor opens the customer-360 demo, walks its tour, and sees the business question answered: Which accounts renewing this quarter have open P1 incidents, blocked fixes or overdue invoices?
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-2035 · UI {#REQ-2035}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+A named demo, residency (One bank, three jurisdictions): Three regions (EU, US, APAC), each with its own engine and replica store, per-jurisdiction customer sources with home regions, shared reference data, users with a region attribute and row rules on it, one view built in every region and one built once in the EU and read in place. It shows the same query returning different rows per reader, the per-request record of serving region and rules, no copy of EU rows outside the EU, and a cross-region read served from the home region's replica or refused naming it. Its tour states that legal residency requirements can be met with these features, but meeting them takes active design by people who understand the cross-border data movement rules and policies that apply; it never claims the features make an organization compliant. Its tour follows the settled demo tour shape: the scenario and the features it exercises; how its sources, tables, commands, views and relationships fit, each step on its real row; predesigned queries on two or three fitting surfaces; one Polly question answered at template build and served stored ([REQ-2012](#REQ-2012)); then a recap. The demo never reaches a live external account at run time: data from real accounts is landed at build as TTL -1 replicas ([REQ-2031](#REQ-2031)). Its Polly question: "Where does EU customer data live, and who can see it?"
+
+**Use case:** A visitor opens the residency demo, walks its tour, and sees the business question answered: Where does EU customer data live, and who can see it?
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-2036 · UI {#REQ-2036}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+A named demo, vulnerabilities (Are we shipping an exploited vulnerability?): A demo GitHub organization whose repositories pin old dependency versions (repositories, dependency manifests and Dependabot alerts through the GitHub source), joined to govdata's NVD vulnerabilities, CWE catalog, CISA Known Exploited Vulnerabilities and OSV tables, trimmed at build to the CVEs that touch those packages plus the whole KEV catalog. Dependabot's alerts match packages to vulnerabilities; govdata only enriches them. It shows public government data joined to private code data, a materialized view of exploited CVEs in the organization's code with days past the CISA due date, a Repository-Package-CVE-CWE graph, and glossary terms (KEV, CWE, CVSS). Its tour follows the settled demo tour shape: the scenario and the features it exercises; how its sources, tables, commands, views and relationships fit, each step on its real row; predesigned queries on two or three fitting surfaces; one Polly question answered at template build and served stored ([REQ-2012](#REQ-2012)); then a recap. The demo never reaches a live external account at run time: data from real accounts is landed at build as TTL -1 replicas ([REQ-2031](#REQ-2031)). Its Polly question: "Which repos ship a known-exploited vulnerability, and how overdue are we?"
+
+**Use case:** A visitor opens the vulnerabilities demo, walks its tour, and sees the business question answered: Which repos ship a known-exploited vulnerability, and how overdue are we?
+
+**Code:** —
+
+**Tests:** —
