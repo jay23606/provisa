@@ -164,6 +164,7 @@ export function ResultsPanel({
             </pre>
           ) : resultRows.length === 0 ? (
             <div
+              data-testid="sql-results-empty"
               style={{
                 padding: "1.5rem",
                 textAlign: "center",
