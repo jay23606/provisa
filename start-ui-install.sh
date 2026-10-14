@@ -842,11 +842,12 @@ else
   exit 1
 fi
 # REQ-2016: a named demo's setup.yaml (its commands and view builds) runs once against this
-# control plane, now that the server answers. A step that fails stops the start, naming it.
-if [ -n "$DEMO_NAME" ] && [ -f "$SCRIPT_DIR/demo/named/$DEMO_NAME/setup.yaml" ]; then
+# control plane, now that the server answers. A step that fails stops the start, naming it. A
+# bundled demo was set up when its bundle was built: what its setup wrote is in the bundle's stores.
+if [ -n "$DEMO_NAME" ] && [ "$_DEMO_BUNDLED" = false ] && [ -f "$_NAMED_DIR/setup.yaml" ]; then
   echo "Named demo '$DEMO_NAME': running its setup (once per control plane)..."
   if ! "$SCRIPT_DIR/.venv/bin/python" "$SCRIPT_DIR/scripts/run_demo_setup.py" \
-       "$SCRIPT_DIR/demo/named/$DEMO_NAME" --url "http://localhost:$PROVISA_API_PORT"; then
+       "$_NAMED_DIR" --url "http://localhost:$PROVISA_API_PORT"; then
     echo "Named demo '$DEMO_NAME': its setup failed (above). Backend log: $LOG_DIR/backend.log"
     exit 1
   fi

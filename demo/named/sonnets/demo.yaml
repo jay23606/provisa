@@ -13,6 +13,10 @@ title: Shakespeare's sonnets
 description: >-
   Shakespeare's 154 sonnets in Postgres, embedded into Qdrant, searched by meaning and grown into
   a graph: the themes that run through them, and the lines where Shakespeare echoes himself.
-published: false
+screenshot: card.png
+published: true
+# The oldest Provisa this demo's bundle runs on (REQ-2049): a puller running an older one is refused
+# by name. The first release carrying the demo.
+requires_provisa: 0.1.0a483
 extras:
 - vector

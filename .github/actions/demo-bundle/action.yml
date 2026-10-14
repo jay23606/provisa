@@ -1,9 +1,10 @@
 name: Build a named demo's bundle
 description: >-
   REQ-2049: a named demo's bundle, built once with its data in it (scripts/demo_bundle.py build:
-  the demo's own data stores come up on ports of the build's own, its seeder runs, a sandbox tier
-  on a throwaway embedded control plane lands its template and writes the seed, its Postgres
-  stores are dumped, and everything is taken down). The bundle is written to dist/demos/; its path
+  the demo's own data stores come up on ports of the build's own, its seeder runs, its setup.yaml
+  runs against them with the extras its demo.yaml names installed, a sandbox tier on a throwaway
+  embedded control plane lands its template and writes the seed, its Postgres stores are dumped
+  and its Qdrant stores snapshotted, and everything is taken down). The bundle is written to dist/demos/; its path
   is the `bundle` output. The caller sets up Python first (setup-python, extras dev); publishing
   is the caller's step too, with the registry credentials.
 inputs:
@@ -17,6 +18,23 @@ outputs:
 runs:
   using: composite
   steps:
+    # REQ-2016: what the demo's demo.yaml says it needs installed (extras:), for its setup.yaml to
+    # run in the build -- torch from PyTorch's CPU-only wheel index first, so the vector extra's
+    # sentence-transformers pulls no GPU build. A demo that names none installs nothing.
+    - name: Install the demo's extras
+      shell: bash
+      env:
+        DEMO: ${{ inputs.demo }}
+      run: |
+        set -euo pipefail
+        reqs="$(uv run python scripts/demo_extras.py "demo/named/$DEMO")"
+        if [ -n "$reqs" ]; then
+          if grep -qx 'sentence-transformers' <<<"$reqs"; then
+            uv pip install --index-url https://download.pytorch.org/whl/cpu torch
+          fi
+          # shellcheck disable=SC2086
+          uv pip install $reqs
+        fi
     - name: Build the bundle
       id: build
       shell: bash

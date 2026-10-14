@@ -1,0 +1,81 @@
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+#
+# The sonnets demo where it runs from its bundle (start-ui-install.sh --demo sonnets; REQ-2016,
+# REQ-2049). Both stores are read live (config.yaml sonnets and vectors), so both run here, holding
+# what the bundle's build left in them -- its setup.yaml had run: every line embedded, the echoes
+# written.
+#
+#   postgres  the sonnets' database, loaded from dump/postgres.sql, with the role Provisa reads it
+#             as, read only (db/run-access.sql).
+#   qdrant    the vector store, its collection recovered from dump/qdrant/sonnet_lines.snapshot at
+#             start (Qdrant's --snapshot; a collection already there is kept).
+#
+# Ports: 28532 the database, 28533 Qdrant; each can be moved by its variable. Set empty, a port is
+# published on a free one (the sandbox tier's node runs several versions at once).
+x-demo-labels: &demo-labels
+  com.provisa.demo: sonnets
+
+name: provisa-demo-sonnets-run
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    labels:
+      <<: *demo-labels
+      com.provisa.demo.role: rdb
+      # Where the config reads it (the sandbox tier's node writes stores.env from these).
+      com.provisa.demo.host_env: SONNETS_PG_HOST
+      com.provisa.demo.port_env: SONNETS_PG_PORT
+      com.provisa.demo.port: "5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: sonnets
+    ports:
+      - "${SONNETS_PG_PORT-28532}:5432"
+    volumes:
+      - sonnets_run_pg:/var/lib/postgresql/data
+      - ./dump/postgres.sql:/docker-entrypoint-initdb.d/10-sonnets.sql:ro
+      - ./db/run-access.sql:/docker-entrypoint-initdb.d/20-access.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sonnets"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+  qdrant:
+    image: qdrant/qdrant:v1.19.1
+    restart: unless-stopped
+    labels:
+      <<: *demo-labels
+      com.provisa.demo.role: vector
+      com.provisa.demo.host_env: SONNETS_QDRANT_HOST
+      com.provisa.demo.port_env: SONNETS_QDRANT_PORT
+      com.provisa.demo.port: "6333"
+    ports:
+      - "${SONNETS_QDRANT_PORT-28533}:6333"
+    command: ["./qdrant", "--snapshot", "/snapshots/sonnet_lines.snapshot:sonnet_lines"]
+    # Read only for Provisa: it reads with the read-only key (config.yaml vectors), and writing
+    # needs the other, which it is not given. The store is shared by every sandbox of the demo.
+    environment:
+      QDRANT__SERVICE__API_KEY: ${SONNETS_QDRANT_ADMIN_KEY:-sonnets-admin}
+      QDRANT__SERVICE__READ_ONLY_API_KEY: ${SONNETS_QDRANT_KEY:-sonnets-reader}
+    volumes:
+      - sonnets_run_qdrant:/qdrant/storage
+      - ./dump/qdrant:/snapshots:ro
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+
+volumes:
+  sonnets_run_pg:
+  sonnets_run_qdrant:
