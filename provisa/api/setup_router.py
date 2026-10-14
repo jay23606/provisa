@@ -18,7 +18,7 @@ import os
 import secrets
 
 import bcrypt
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from pydantic import BaseModel
 from sqlalchemy import func, insert, select
 
@@ -183,17 +183,38 @@ def _auth_enabled(auth_cfg) -> bool:
 
 
 @router.get("/status")
-async def setup_status():  # REQ-539
+async def setup_status(request: Request):  # REQ-539
     # REQ-2009: the named demo's example GraphQL queries ride on the status the app loads first.
     # REQ-2010: and its own tour, the demo's track.
     from provisa.core.demo import demo_tour, example_queries, named_demo
 
+    directory = await _demo_directory(request)
     return {
         **(await _setup_state()),
-        "named_demo": named_demo(),
-        "example_queries": example_queries(),
-        "demo_tour": demo_tour(),
+        "named_demo": named_demo(directory),
+        "example_queries": example_queries(directory),
+        "demo_tour": demo_tour(directory),
     }
+
+
+async def _demo_directory(request: Request):
+    """The named demo whose examples and tour this request is shown: the one the deployment was
+    started as, or -- on the sandbox tier, which serves many demos -- the demo of the sandbox or
+    template the request names (REQ-2006, REQ-2049). A demo's examples and tour are public, as
+    the demos page is."""
+    from provisa.core.demo import started_demo_directory
+
+    started = started_demo_directory()
+    if started is not None:
+        return started
+    from provisa.api.sandbox_tier import serves_sandboxes
+
+    org_id = request.headers.get("x-org-provisa")
+    if not serves_sandboxes() or not org_id:
+        return None
+    from provisa.api.demo_sandbox import demo_directory_of
+
+    return await demo_directory_of(org_id)
 
 
 async def _setup_state() -> dict:  # REQ-539

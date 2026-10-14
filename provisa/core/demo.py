@@ -25,24 +25,38 @@ def is_demo() -> bool:
 NAMED_DEMO_DIR_ENV = "PROVISA_NAMED_DEMO_DIR"
 
 
-def named_demo() -> str | None:  # REQ-2010
-    """The name of the named demo this deployment was started as (its directory's name), or None
-    when none was: the UI keys the demo's own track and its words by it."""
+def started_demo_directory() -> Path | None:  # REQ-2010
+    """The directory of the named demo this deployment was started as (start-ui-install.sh --demo
+    <name> names it), or None when none was. The sandbox tier, which serves many demos, names
+    each request's own instead (setup_router)."""
     named = os.environ.get(NAMED_DEMO_DIR_ENV)
-    return Path(named).name if named else None
+    return Path(named) if named else None
 
 
-def example_queries() -> list[dict[str, str]]:  # REQ-2009
-    """The example GraphQL queries the named demo ships (``demo/named/<name>/queries/*.graphql``),
+def named_demo(directory: Path | None) -> str | None:  # REQ-2010
+    """The name of the named demo in ``directory``, or None when there is none: the UI keys the
+    demo's own track and its words by it. A bundle's directory is its version; the demo is the
+    name its bundle.json gives (REQ-2049)."""
+    if directory is None:
+        return None
+    bundle = directory / "bundle.json"
+    if bundle.is_file():
+        import json
+
+        return json.loads(bundle.read_text(encoding="utf-8"))["demo"]
+    return directory.name
+
+
+def example_queries(directory: Path | None) -> list[dict[str, str]]:  # REQ-2009
+    """The example GraphQL queries the named demo in ``directory`` ships (``queries/*.graphql``),
     in file-name order: each its file's name without the extension, and its text. The GraphQL
-    explorer opens them as tabs the first time the demo is opened. None when no named demo was
-    started (start-ui-install.sh --demo <name> names its directory) or it ships none."""
-    named = os.environ.get(NAMED_DEMO_DIR_ENV)
-    if not named:
-        return []  # no named demo started: nothing ships examples
+    explorer opens them as tabs the first time the demo is opened. None when there is no named
+    demo or it ships none."""
+    if directory is None:
+        return []  # no named demo: nothing ships examples
     return [
         {"name": path.stem, "query": path.read_text(encoding="utf-8")}
-        for path in sorted((Path(named) / "queries").glob("*.graphql"))
+        for path in sorted((directory / "queries").glob("*.graphql"))
     ]
 
 
@@ -52,7 +66,7 @@ def tour_answers_path(named: str) -> Path:  # REQ-2012
     return Path(named) / "tour_answers.json"
 
 
-def demo_tour() -> list[dict[str, str]]:  # REQ-2010
+def demo_tour(directory: Path | None) -> list[dict[str, str]]:  # REQ-2010
     """The steps of the named demo's own tour (``demo/named/<name>/tour.yaml``), as written: the
     UI runs them as the demo's track, before the product tour. None when no named demo was
     started or it has no tour.
@@ -64,10 +78,10 @@ def demo_tour() -> list[dict[str, str]]:  # REQ-2010
 
     import yaml
 
-    named = os.environ.get(NAMED_DEMO_DIR_ENV)
-    if not named:
-        return []  # no named demo started: there is no demo tour
-    path = Path(named) / "tour.yaml"
+    if directory is None:
+        return []  # no named demo: there is no demo tour
+    named = str(directory)
+    path = directory / "tour.yaml"
     if not path.is_file():
         return []  # a named demo without a tour of its own
     steps = yaml.safe_load(path.read_text(encoding="utf-8"))["steps"]

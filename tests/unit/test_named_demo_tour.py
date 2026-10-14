@@ -227,7 +227,7 @@ def test_every_step_has_its_words_in_every_language(path):
 
 def test_the_setup_status_carries_the_started_demo_s_tour(monkeypatch):
     monkeypatch.setenv(demo.NAMED_DEMO_DIR_ENV, str(_NAMED / "weblogs"))
-    steps = demo.demo_tour()
+    steps = demo.demo_tour(demo.started_demo_directory())
     assert steps[0] == {
         "key": "weblogsSources",
         "route": "/sources",
@@ -238,9 +238,9 @@ def test_the_setup_status_carries_the_started_demo_s_tour(monkeypatch):
 
 def test_no_named_demo_has_no_tour(tmp_path, monkeypatch):
     monkeypatch.delenv(demo.NAMED_DEMO_DIR_ENV, raising=False)
-    assert demo.demo_tour() == []
+    assert demo.demo_tour(demo.started_demo_directory()) == []
     monkeypatch.setenv(demo.NAMED_DEMO_DIR_ENV, str(tmp_path))
-    assert demo.demo_tour() == []
+    assert demo.demo_tour(demo.started_demo_directory()) == []
 
 
 def _named_demo(tmp_path, steps, answers=None):
@@ -257,18 +257,21 @@ _SOURCES = {"key": "s", "route": "/sources", "capability": "source_registration"
 def test_a_polly_step_carries_the_answer_stored_for_its_question(tmp_path, monkeypatch):
     answers = {"ask": {"question": _ASK["polly"], "answer": "The **/checkout** page."}}
     monkeypatch.setenv(demo.NAMED_DEMO_DIR_ENV, _named_demo(tmp_path, [_SOURCES, _ASK], answers))
-    assert demo.demo_tour() == [_SOURCES, {**_ASK, "answer": "The **/checkout** page."}]
+    assert demo.demo_tour(demo.started_demo_directory()) == [
+        _SOURCES,
+        {**_ASK, "answer": "The **/checkout** page."},
+    ]
 
 
 def test_an_answer_stored_for_another_question_is_not_served(tmp_path, monkeypatch):
     answers = {"ask": {"question": "An older question?", "answer": "Old."}}
     monkeypatch.setenv(demo.NAMED_DEMO_DIR_ENV, _named_demo(tmp_path, [_SOURCES, _ASK], answers))
-    assert demo.demo_tour() == [_SOURCES, _ASK]
+    assert demo.demo_tour(demo.started_demo_directory()) == [_SOURCES, _ASK]
 
 
 def test_a_demo_not_built_from_a_template_serves_no_answer(tmp_path, monkeypatch):
     monkeypatch.setenv(demo.NAMED_DEMO_DIR_ENV, _named_demo(tmp_path, [_SOURCES, _ASK]))
-    assert demo.demo_tour() == [_SOURCES, _ASK]
+    assert demo.demo_tour(demo.started_demo_directory()) == [_SOURCES, _ASK]
 
 
 _WEBLOGS = _NAMED / "weblogs"

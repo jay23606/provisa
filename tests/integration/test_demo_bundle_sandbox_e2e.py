@@ -141,3 +141,38 @@ def test_a_bundle_that_needs_a_newer_provisa_is_refused_by_name(tmp_path_factory
     assert pulled.returncode == 2
     assert "needs Provisa 99.0.0 or newer; this is Provisa" in pulled.stderr
     assert not (work / "demos" / "alpha").exists() or not any((work / "demos" / "alpha").iterdir())
+
+
+def test_a_sandbox_is_shown_the_example_queries_of_the_bundle_it_was_opened_from(
+    tmp_path_factory, registry
+):
+    """REQ-2006/REQ-2049: the demo's example queries ride on /setup/status (REQ-2009). The sandbox
+    tier serves many demos, so it answers with those of the sandbox's own demo, from its bundle."""
+    work = tmp_path_factory.mktemp("bundle_examples")
+    named = work / "named"
+    demo = published_demo(named, "alpha")
+    (demo / "queries").mkdir()
+    (demo / "queries" / "1-animals.graphql").write_text(
+        "# Every animal\nquery { animals { name } }\n"
+    )
+    _publish(registry, named, work / "out", "d" * 40, ["ant", "ape"])
+    tier = _tier(work, registry)
+    tier.start(timeout=240)
+    try:
+        sandbox = _open(tier)
+        status = httpx.get(
+            f"{tier.base_url}/setup/status",
+            headers={
+                "Authorization": f"Bearer {sandbox['token']}",
+                "x-org-provisa": sandbox["org_id"],
+            },
+            timeout=60,
+        )
+        assert status.status_code == 200, status.text
+        body = status.json()
+        assert body["named_demo"] == "alpha", body
+        assert body["example_queries"] == [
+            {"name": "1-animals", "query": "# Every animal\nquery { animals { name } }\n"}
+        ]
+    finally:
+        tier.stop_process()
