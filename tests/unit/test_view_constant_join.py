@@ -145,8 +145,10 @@ def test_a_constant_a_view_reads_from_the_views_it_reads_is_its_own():
     columns = {**_COLUMNS, 4: _COLUMNS[3], 5: _COLUMNS[3]}
     gov.all_columns = {tid: [(c, "varchar") for c in cols] for tid, cols in columns.items()}
     views = {
+        # Three branches: sqlglot nests them as a union of a union.
         "evokes": "SELECT line_id, theme_id FROM theme_time "
-        "UNION ALL SELECT line_id, theme_id FROM theme_beauty",
+        "UNION ALL SELECT line_id, theme_id FROM theme_beauty "
+        "UNION ALL SELECT line_id, theme_id FROM theme_time",
         "theme_time": "SELECT l.id AS line_id, 'time' AS theme_id FROM line l",
         "theme_beauty": "SELECT l.id AS line_id, 'beauty' AS theme_id FROM line l",
     }
