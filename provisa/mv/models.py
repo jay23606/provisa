@@ -144,14 +144,6 @@ class MVDefinition:  # REQ-133, REQ-135, REQ-158, REQ-160, REQ-199, REQ-234, REQ
     expose_in_sdl: bool = False
     sdl_config: SDLConfig | None = None
 
-    # Aggregate MV routing (REQ-198/199)
-    serves_aggregates: bool = False
-    aggregate_columns: list[str] = field(default_factory=list)
-    # REQ-882: predicate fragments this aggregate MV was pre-computed WITH. An aggregate
-    # query may use this MV only when these are a SUBSET of the query's own filters (so the
-    # MV is no more restrictive than the query); the query's extra filters are re-applied.
-    filters: list[str] = field(default_factory=list)
-
     # Consistency tier (REQ-879, ADR 0001): "shared" = one coordinated copy in the
     # materialization store (snapshot-consistent; engages the refresh-coordination
     # catalog). "distributed" = per-instance materialization (eventually consistent —

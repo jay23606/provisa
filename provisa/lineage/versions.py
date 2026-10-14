@@ -66,12 +66,10 @@ def mv_definition_version(
     sql: str | None,
     join_pattern: Any = None,
     source_tables: list[str] | None = None,
-    serves_aggregates: bool = False,
-    aggregate_columns: list[str] | None = None,
 ) -> str:
     """Stable content hash of the definition-determining fields of an MV.
 
-    Changes to the view SQL, join pattern, source set, or aggregate config produce a
+    Changes to the view SQL, join pattern or source set produce a
     new version; cosmetic/runtime fields (last_refresh_at, row_count, status) do not.
     Store-independent — the same value regardless of the materialization target.
     """
@@ -80,8 +78,6 @@ def mv_definition_version(
             "sql": sql or "",
             "join_pattern": repr(join_pattern) if join_pattern is not None else None,
             "source_tables": sorted(source_tables or []),
-            "serves_aggregates": serves_aggregates,
-            "aggregate_columns": sorted(aggregate_columns or []),
         },
         sort_keys=True,
     )

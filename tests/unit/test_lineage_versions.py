@@ -40,9 +40,10 @@ def test_definition_version_source_order_independent():
     assert a == b
 
 
-def test_definition_version_tracks_aggregate_config():
-    a = mv_definition_version(sql="S", serves_aggregates=False)
-    b = mv_definition_version(sql="S", serves_aggregates=True)
+def test_definition_version_tracks_the_sql():
+    # What a view serves -- aggregates included (REQ-882) -- is derived from its SQL.
+    a = mv_definition_version(sql="SELECT region, SUM(amount) AS t FROM orders GROUP BY region")
+    b = mv_definition_version(sql="SELECT region, MAX(amount) AS t FROM orders GROUP BY region")
     assert a != b
 
 
