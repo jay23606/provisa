@@ -32,6 +32,8 @@ once at the entrypoint (never silently here).
 
 from __future__ import annotations
 
+import asyncio
+
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
@@ -377,7 +379,7 @@ class OrgRegistry:
         old = self._runtimes.get(org_id)
         self._runtimes[org_id] = runtime
         if old is not None and old is not runtime:
-            _retire(old)
+            _retire(old, runtime)
 
     def invalidate(self, org_id: str) -> None:
         old = self._runtimes.pop(org_id, None)
@@ -477,13 +479,27 @@ class ActiveOrgPool:  # REQ-1266
         return db.acquire()
 
 
-def _retire(runtime: OrgRuntime) -> None:
+def _retire(runtime: OrgRuntime, replacement: OrgRuntime | None = None) -> None:
     """A runtime no longer served stops its live-query engine: its polls are its org's, and a
-    replaced runtime's subscribers end with it (the replacement starts its own)."""
-    engine = runtime.live_engine
-    if engine is None:
-        return
-    runtime.live_engine = None
+    replaced runtime's subscribers end with it (the replacement starts its own).
+
+    REQ-2006: an org that owns its federation engine (``isolated_engine``: its own coordinator
+    session, or an in-process DuckDB pinned to its own file, REQ-1992) closes it too, unless the
+    replacement holds the same one. Each build of such an org makes a new EngineRuntime, so one
+    left open leaked its connection, its sources' pools and its file per rebuild, and a retired
+    sandbox org kept its DuckDB file open after the org was gone."""
     from provisa.core.connection_loop import spawn_background
 
-    spawn_background(engine.stop(), name=f"live-engine-stop-{runtime.org_id}")
+    engine = runtime.live_engine
+    if engine is not None:
+        runtime.live_engine = None
+        spawn_background(engine.stop(), name=f"live-engine-stop-{runtime.org_id}")
+    federation = runtime.federation_engine
+    if not runtime.isolated_engine or federation is None:
+        return
+    if replacement is not None and replacement.federation_engine is federation:
+        return
+    runtime.federation_engine = None
+    spawn_background(
+        asyncio.to_thread(federation.close), name=f"federation-engine-close-{runtime.org_id}"
+    )

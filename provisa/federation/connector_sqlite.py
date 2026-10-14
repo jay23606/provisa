@@ -20,11 +20,23 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Iterator
+from pathlib import Path
+from urllib.parse import quote
+
+
+def _open(path: str, *, write: bool = False, **options: object) -> sqlite3.Connection:
+    """The source's file, opened as it is: never created. ``sqlite3.connect`` makes an empty
+    database at a path with nothing there, and a source whose file had gone (a demo's source
+    after its seed was built, REQ-2006) then read as an empty table rather than failing by name.
+    Readers open it read-only; ``write`` (a statement that may change it) read-write."""
+    mode = "rw" if write else "ro"
+    uri = f"file:{quote(str(Path(path).resolve()))}?mode={mode}"
+    return sqlite3.connect(uri, uri=True, **options)  # type: ignore[arg-type]
 
 
 def table_names(path: str) -> list[str]:
     """List all table names in a SQLite file, ordered by name."""
-    conn = sqlite3.connect(path)
+    conn = _open(path)
     try:
         cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
         return [row[0] for row in cursor.fetchall()]
@@ -34,7 +46,7 @@ def table_names(path: str) -> list[str]:
 
 def table_info(path: str, table: str) -> list[tuple]:
     """Return PRAGMA table_info(table) rows: (cid, name, type, notnull, dflt_value, pk)."""
-    conn = sqlite3.connect(path)
+    conn = _open(path)
     try:
         return conn.execute(f'PRAGMA table_info("{table}")').fetchall()  # noqa: S608
     finally:
@@ -50,7 +62,7 @@ def primary_key_columns(path: str, table: str) -> list[str]:  # REQ-1651
 
 def execute_sync(path: str, sql: str) -> list[dict]:  # REQ-229
     """Execute SQL against a SQLite file, returning rows as dicts."""
-    conn = sqlite3.connect(path)
+    conn = _open(path, write=True)
     conn.row_factory = sqlite3.Row
     try:
         cursor = conn.execute(sql)
@@ -63,7 +75,7 @@ def iter_row_batches(path: str, sql: str, batch_rows: int) -> Iterator[list[dict
     """The rows of ``sql`` against a SQLite file in batches of at most ``batch_rows``, fetched
     from the statement's cursor a batch at a time: only one batch is held. The connection may
     be stepped from more than one thread, one at a time."""
-    conn = sqlite3.connect(path, check_same_thread=False)
+    conn = _open(path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     try:
         cursor = conn.execute(sql)
@@ -78,7 +90,7 @@ def iter_row_batches(path: str, sql: str, batch_rows: int) -> Iterator[list[dict
 
 def fetch_all_rows(path: str, table: str) -> list[tuple]:  # REQ-012, REQ-017, REQ-250
     """SELECT * FROM table, returning raw row tuples (for bulk migration reads)."""
-    conn = sqlite3.connect(path)
+    conn = _open(path)
     try:
         return conn.execute(f'SELECT * FROM "{table}"').fetchall()  # noqa: S608
     finally:

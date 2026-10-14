@@ -22,6 +22,8 @@ Endpoints:
 # Requirements: REQ-314, REQ-315, REQ-316, REQ-317, REQ-320, REQ-321, REQ-406, REQ-407, REQ-408
 
 from __future__ import annotations
+
+from provisa.security import sandbox_egress  # REQ-2006
 import logging
 from typing import TYPE_CHECKING, cast
 
@@ -216,7 +218,9 @@ async def _verify_live_auth(url: str, auth: dict, headers: dict[str, str]) -> No
 
     from provisa.openapi.executor import _build_auth_headers
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
+    async with httpx.AsyncClient(
+        timeout=10.0, event_hooks=sandbox_egress.http_event_hooks()
+    ) as client:
         resp = await client.get(url, headers={**headers, **_build_auth_headers(auth)})
         resp.raise_for_status()
 

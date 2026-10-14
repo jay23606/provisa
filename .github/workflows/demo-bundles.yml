@@ -1,0 +1,93 @@
+# Demo bundles (REQ-2049)
+#
+# Each published named demo (demo/named/<name>/, `published: true` in its demo.yaml) is built
+# into a bundle -- its model, its data landed once, its tour and example queries -- and published
+# to the one package every demo shares, ghcr.io/<owner>/provisa-demos, tagged <name>-<version>
+# and <name>-latest (scripts/demo_bundle.py). Nothing of it goes into a release or the app image:
+# the sandbox tier fetches <name>-latest when it opens a sandbox, and `start-ui-install.sh --demo
+# <name>` pulls it, so a demo updated here is served with no release and no redeploy.
+#
+# A push to main rebuilds only the demos it changed; a dispatch rebuilds the one it names. A
+# version is never published twice (the push refuses one that exists).
+name: "Demo bundles"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "demo/named/**"
+  workflow_dispatch:
+    inputs:
+      demo:
+        description: The published named demo to build and publish (weblogs).
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+# Naming the shell makes GitHub run every step with `bash -eo pipefail`.
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # Which demos this run builds: the dispatcher's one, or each published demo the push changed.
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      demos: ${{ steps.plan.outputs.demos }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          NAMED: ${{ inputs.demo }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT" = workflow_dispatch ]; then
+            changed="$NAMED"
+          else
+            changed="$(git diff --name-only "$BEFORE" "$GITHUB_SHA" -- demo/named/ | cut -d/ -f3 | sort -u)"
+          fi
+          demos=()
+          for name in $changed; do
+            spec="demo/named/$name/demo.yaml"
+            if [ "$EVENT" = workflow_dispatch ] && ! grep -qx 'published: true' "$spec"; then
+              echo "::error::$name is not a published named demo ($spec)"; exit 1
+            fi
+            if [ -f "$spec" ] && grep -qx 'published: true' "$spec"; then demos+=("$name"); fi
+          done
+          echo "demos=$(printf '%s\n' "${demos[@]}" | python3 -c 'import json,sys; print(json.dumps([l for l in sys.stdin.read().split() if l]))')" >> "$GITHUB_OUTPUT"
+
+  bundle:
+    name: ${{ matrix.demo }}
+    needs: plan
+    if: needs.plan.outputs.demos != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write # the bundle, to ghcr.io/<owner>/provisa-demos
+    strategy:
+      fail-fast: false
+      matrix:
+        demo: ${{ fromJSON(needs.plan.outputs.demos) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-python
+        with:
+          cache: "true"
+      - id: build
+        uses: ./.github/actions/demo-bundle
+        with:
+          demo: ${{ matrix.demo }}
+      - name: Publish the bundle
+        env:
+          BUNDLE: ${{ steps.build.outputs.bundle }}
+          PROVISA_DEMO_REGISTRY_USER: ${{ github.actor }}
+          PROVISA_DEMO_REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY: https://ghcr.io/${{ github.repository_owner }}
+        run: uv run python scripts/demo_bundle.py push "$BUNDLE" --registry "$REGISTRY"

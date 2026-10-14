@@ -14,7 +14,7 @@ The script is never run. Its option-parsing loop, which has no side effect beyon
 variables, is cut out and run in a bash of its own; the reseed step is checked as text, in order.
 """
 
-# Requirements: REQ-1858
+# Requirements: REQ-1858, REQ-2049
 
 from __future__ import annotations
 
@@ -93,7 +93,7 @@ def _choose(tmp_path: Path, *files: str) -> tuple[int, str, str]:
     start = TEXT.index("_NAMED_WHOLE=false")
     end = TEXT.index('LOG_DIR="$SCRIPT_DIR/.logs"')
     program = (
-        f'SCRIPT_DIR="{tmp_path}"\nDEMO_NAME=x\n'
+        f'SCRIPT_DIR="{tmp_path}"\nDEMO_NAME=x\n_DEMO_DIR="{tmp_path}/demo/named/x"\n'
         + TEXT[start:end]
         + '\necho "WHOLE=$_NAMED_WHOLE"\n'
     )
@@ -124,7 +124,7 @@ def test_a_named_demo_with_both_is_refused_by_name(tmp_path: Path) -> None:
 
 
 def test_a_whole_config_is_the_config_before_any_source_overlays_it() -> None:
-    chosen = TEXT.index('export PROVISA_CONFIG="demo/named/$DEMO_NAME/config.yaml"')
+    chosen = TEXT.index('export PROVISA_CONFIG="$_DEMO_DIR/config.yaml"')
     sources = TEXT.index(
         '_SRC_WRAPPER="${PROVISA_HOME:-$HOME/.provisa}/demo/provisa-with-sources.yaml"'
     )
@@ -161,3 +161,71 @@ def test_the_pet_store_graphql_demo_is_the_standard_demos_alone() -> None:
     assert _graphql_demo_enabled(True, "weblogs", None) == "false"
     assert _graphql_demo_enabled(True, "weblogs", "true") == "false"
     assert _graphql_demo_enabled(False, "", None) == "false"
+
+
+def _where(tmp_path: Path, *args: str, published: bool = True) -> tuple[int, str]:
+    """Run only the block that decides where a named demo comes from, after parsing ``args``,
+    with a stand-in for the bundle puller that records its arguments and prints a directory:
+    (exit code, output)."""
+    demo = tmp_path / "demo" / "named" / "weblogs"
+    demo.mkdir(parents=True)
+    (demo / "demo.yaml").write_text(f"title: Web shop logs\npublished: {str(published).lower()}\n")
+    pulled = tmp_path / "pulled" / "weblogs" / "202610141530-abcdef012"
+    pulled.mkdir(parents=True)
+    python = tmp_path / ".venv" / "bin" / "python"
+    python.parent.mkdir(parents=True)
+    python.write_text(f'#!/usr/bin/env bash\necho "$*" > "{tmp_path}/pull-args"\necho "{pulled}"\n')
+    python.chmod(0o755)
+    parse = TEXT[TEXT.index("KEEP_DOCKER=false") : TEXT.index('if [ -n "$IDP" ]')]
+    where = TEXT[TEXT.index('_DEMO_VERSION=""') : TEXT.index("_NAMED_WHOLE=false")]
+    program = (
+        "set -euo pipefail\n"
+        + parse
+        + f'SCRIPT_DIR="{tmp_path}"\nPROVISA_HOME="{tmp_path}/home"\n'
+        + where
+        + '\necho "DIR=$_DEMO_DIR BUNDLED=$_DEMO_BUNDLED NAME=$DEMO_NAME"\n'
+    )
+    done = subprocess.run(["bash", "-c", program, "x", *args], capture_output=True, text=True)
+    return done.returncode, done.stdout
+
+
+def test_a_published_demo_is_pulled_as_its_latest_bundle(tmp_path: Path) -> None:
+    code, out = _where(tmp_path, "--demo", "weblogs")
+    assert code == 0, out
+    assert f"DIR={tmp_path}/pulled/weblogs/202610141530-abcdef012 BUNDLED=true NAME=weblogs" in out
+    args = (tmp_path / "pull-args").read_text().split()
+    assert args[1:4] == ["pull", "weblogs", "--into"] and args[4] == f"{tmp_path}/home/demos"
+
+
+def test_a_named_version_is_pulled_as_that_version(tmp_path: Path) -> None:
+    code, out = _where(tmp_path, "--demo", "weblogs@202610141530-abcdef012")
+    assert code == 0, out
+    assert "BUNDLED=true NAME=weblogs" in out
+    assert (tmp_path / "pull-args").read_text().split()[2] == "weblogs@202610141530-abcdef012"
+
+
+def test_from_source_runs_the_checkouts_demo(tmp_path: Path) -> None:
+    code, out = _where(tmp_path, "--demo", "weblogs", "--from-source")
+    assert code == 0, out
+    assert f"DIR={tmp_path}/demo/named/weblogs BUNDLED=false" in out
+    assert not (tmp_path / "pull-args").exists()
+
+
+def test_an_unpublished_demo_runs_from_the_checkout(tmp_path: Path) -> None:
+    code, out = _where(tmp_path, "--demo", "weblogs", published=False)
+    assert code == 0, out
+    assert "BUNDLED=false" in out
+
+
+def test_a_version_and_from_source_together_are_refused(tmp_path: Path) -> None:
+    code, out = _where(tmp_path, "--demo", "weblogs@202610141530-abcdef012", "--from-source")
+    assert code == 1
+    assert "Choose one" in out
+
+
+def test_a_bundles_logs_are_never_emptied_and_its_builders_never_run() -> None:
+    block = TEXT[TEXT.index('if [ -n "$DEMO_NAME" ]; then\n  _NAMED_DIR') :]
+    assert 'if [ "$KEEP_DATA" = false ] && [ "$_DEMO_BUNDLED" = false ]; then' in block
+    bundled = block[block.index('if [ "$_DEMO_BUNDLED" = true ]; then') : block.index("elif [ -f")]
+    assert 'docker compose -f "$_NAMED_DIR/docker-compose.run.yml" up -d --wait' in bundled
+    assert "seeder" not in bundled and "docker-compose.yml" not in bundled

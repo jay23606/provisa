@@ -1942,9 +1942,21 @@ async def _build_org_runtime(
     default org itself, startup builds the runtime directly through the shims; calling this again
     for the default org is a safe rebuild.
     """
+    from provisa.api.sandbox_tier import require_this_tier
     from provisa.api.startup_seed import _seed_built_in_sources, _resolve_pk_from_sources
     from provisa.core.config_loader import load_control_plane
     from provisa.core.region_stores import open_org_stores
+
+    # REQ-2006: a demo sandbox's runtime opens its DuckDB file, so it is built by the sandbox tier
+    # alone, and an ordinary org's never by the sandbox tier.
+    require_this_tier(org_id)
+    from provisa.security.sandbox_egress import confined
+
+    if confined(org_id):
+        # REQ-2006: what its demo declares is reached; any other destination must be public.
+        from provisa.api.demo_templates import record_demo_destinations
+
+        await record_demo_destinations(org_id)
     from provisa.core.db import apply_tenancy_role_grants, init_schema
     from provisa.audit.query_log import init_audit_schema
 
@@ -2031,7 +2043,27 @@ async def _build_org_runtime(
         from provisa.core import org_files
 
         await org_files.prepare(org_id, state.admin_db, _stop_org_servers)
-        if external_engine is not None or engine_url is not None:
+        from provisa.api.sandbox_tier import is_sandbox_tier_org
+
+        if is_sandbox_tier_org(org_id):
+            # REQ-2006: every demo sandbox and demo template runs on an in-process DuckDB of its
+            # own, pinned to the file in its folder (REQ-1992), whatever engine the deployment's
+            # orgs run on: the isolated-org seam (native_backend._attach_registered) lets an org
+            # that owns its runtime run a native kind. This process is the only one that opens
+            # the file (sandbox_tier.require_this_tier, above).
+            from provisa.federation.engine import build_engine, embedded_store_dsn
+            from provisa.federation.runtime import EngineRuntime
+
+            from provisa.core import settings_registry
+
+            rt.isolated_engine = True
+            rt.federation_engine = EngineRuntime(build_engine("duckdb"), state)
+            rt.federation_engine.engine.pin_materialize_store(embedded_store_dsn(org_id))
+            rt.federation_engine.engine.memory_limit = int(
+                settings_registry.value("sandbox.memory_limit")
+            )
+            rt.federation_engine.bind_terminal()
+        elif external_engine is not None or engine_url is not None:
             # REQ-1412: the org runs its OWN coordinator. Same dedicated-EngineRuntime shape as an
             # isolated org — what changes is where the terminal points, which terminal_conn_kwargs
             # reads back off the runtime (state.active_engine_endpoint) instead of resolving the
@@ -2148,6 +2180,14 @@ async def _build_org_runtime(
             from provisa.core.secrets_store import bound_to_request_org
 
             seed = state.seed_config
+            from provisa.api.sandbox_tier import is_template_org
+
+            if is_template_org(org_id):
+                # REQ-2006: a demo's template org is the demo organisation of that demo, rebuilt
+                # from the named demo's own configuration rather than the deployment's file.
+                from provisa.api.demo_templates import template_seed
+
+                seed = template_seed(org_id)
             domain_policy.configure(seed.naming.use_domains, seed.naming.default_domain)
             async with state.model_db.acquire() as conn:
                 if include_demo:
@@ -2206,6 +2246,14 @@ async def _build_org_runtime(
             )
 
         await _rebuild_schemas()
+        from provisa.api.sandbox_tier import is_template_org
+
+        if is_template_org(org_id) and env == PROD:
+            # REQ-2006: a demo template lands its replicas from the seed its bundle carries,
+            # before the wiring below starts its replica convergence.
+            from provisa.api.demo_templates import land_from_seed
+
+            await land_from_seed(org_id)
 
         # REQ-1882 (amended 2026-09-29): the wiring below starts process-lifetime scheduler jobs and
         # listener tasks. Inline on the process loop; from a connection-thread loop (this org built
@@ -3393,6 +3441,37 @@ def create_app() -> FastAPI:
             content={"detail": str(exc), "code": exc.code, "params": exc.params},
         )
 
+    from provisa.core.sandbox_limits import SandboxDiskFull as _SandboxDiskFull
+    from provisa.federation.duckdb_runtime import WriteConflict as _WriteConflict
+
+    from provisa.security.sandbox_egress import (
+        PrivateDestinationRefused as _PrivateDestinationRefused,
+    )
+
+    @app.exception_handler(_PrivateDestinationRefused)
+    async def _private_destination_handler(_req: _Request, exc: _PrivateDestinationRefused):  # noqa: F841  # pyright: ignore[reportUnusedFunction, reportUnusedVariable]
+        # REQ-2006: a sandbox org's source names a destination that is not public; not reached.
+        return _JSONResponse(
+            status_code=403,
+            content={"detail": str(exc), "code": exc.code, "params": exc.params},
+        )
+
+    @app.exception_handler(_SandboxDiskFull)
+    async def _sandbox_disk_full_handler(_req: _Request, exc: _SandboxDiskFull):  # noqa: F841  # pyright: ignore[reportUnusedFunction, reportUnusedVariable]
+        # REQ-2006: a demo sandbox's folder is at its disk cap; the write was not made.
+        return _JSONResponse(
+            status_code=507,
+            content={"detail": str(exc), "code": exc.code, "params": exc.params},
+        )
+
+    @app.exception_handler(_WriteConflict)
+    async def _write_conflict_handler(_req: _Request, exc: _WriteConflict):  # noqa: F841  # pyright: ignore[reportUnusedFunction, reportUnusedVariable]
+        # REQ-2006: another write to the same rows was made at the same time; nothing retried it.
+        return _JSONResponse(
+            status_code=409,
+            content={"detail": str(exc), "code": exc.code, "params": exc.params},
+        )
+
     @app.exception_handler(_ReadRefused)
     async def _read_refused_handler(_req: _Request, exc: _ReadRefused):  # noqa: F841  # pyright: ignore[reportUnusedFunction, reportUnusedVariable]
         # A read the deployment cannot answer now (core/read_refusal.py): a table kept in a
@@ -3687,6 +3766,13 @@ def create_app() -> FastAPI:
 
             # REQ-1266: every org is bound to its own runtime, the deployment's own org included.
             await ensure_serving_runtime(env_org, selected_env)
+            from provisa.api.sandbox_tier import is_sandbox_tier_org, is_template_org
+
+            if is_sandbox_tier_org(env_org) and not is_template_org(env_org):
+                # REQ-2006, REQ-1600: a request to a demo sandbox restarts its idle expiry.
+                from provisa.api.demo_sandbox import touch
+
+                await touch(env_org)
             token = set_current_org(env_org)
             env_token = set_current_env(selected_env)
             try:
@@ -3889,6 +3975,11 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(settings_catalog_router)
+    from provisa.api.demo_sandbox_router import named_router as named_sandbox_router
+    from provisa.api.demo_sandbox_router import router as demo_sandbox_router  # REQ-2006
+
+    app.include_router(demo_sandbox_router)
+    app.include_router(named_sandbox_router)
     from provisa.api.admin.org_storage_router import (  # REQ-1046, REQ-1048, REQ-1049
         router as org_storage_router,
     )

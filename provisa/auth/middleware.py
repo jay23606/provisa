@@ -493,7 +493,9 @@ class AuthMiddleware:  # REQ-120, REQ-125, REQ-273
             current_acting_role.reset(ar_token)
 
     async def _process(self, request: Request):  # REQ-486
-        if request.url.path in _SKIP_PATHS or request.url.path.startswith("/public/invite-info/"):
+        if request.url.path in _SKIP_PATHS or request.url.path.startswith(
+            ("/public/invite-info/", "/public/demos/")  # REQ-1602; REQ-2006: before any sign-in
+        ):
             return None
 
         await self._ensure_resolved()
@@ -839,7 +841,9 @@ class AuthMiddleware:  # REQ-120, REQ-125, REQ-273
             # could not finish on a commerce deploy. Safe because /billing is control plane — every
             # org-scoped handler authorizes itself with require_org_billing_access_or_creator.
             platform_plane = request.url.path.startswith(
-                ("/auth/", "/setup", "/admin/orgs", "/billing")
+                # REQ-2006: /sandboxes opens the caller's own demo sandbox, an org they do not
+                # belong to yet.
+                ("/auth/", "/setup", "/admin/orgs", "/billing", "/sandboxes/")
             )
             requested_org = _requested_org_from_host(request)
             credential_org = identity.active_org_id
@@ -882,6 +886,23 @@ class AuthMiddleware:  # REQ-120, REQ-125, REQ-273
                     cause="no_org_named",
                     code=ORG_SELECTION_REQUIRED,
                 )
+
+            if active_org_id is not None:
+                # REQ-2006: an org of the other tier is answered here, by name, before anything
+                # builds its runtime in this process -- a sandbox's opens its DuckDB file.
+                from provisa.api.errors import ApiError
+                from provisa.api.sandbox_tier import require_this_tier
+
+                try:
+                    require_this_tier(active_org_id)
+                except ApiError as refused:
+                    return _deny(
+                        request,
+                        refused.status_code,
+                        str(refused.detail),
+                        cause="wrong_tier",
+                        code=refused.code,
+                    )
 
             # Tenant-plane assignments. A member's role assignment lives in their org's OWN schema,
             # so bind that org and read it there (the default-org read above sees no such row).

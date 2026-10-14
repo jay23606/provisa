@@ -12,6 +12,15 @@
     "sandboxHeldBack": "Achtergehouden zijn de organisatiebrede besturingen — omgevingen wisselen of beheren, mensen uitnodigen en rollen toekennen, organisatie-instellingen en organisatiebrede observability. Die pagina's blijven zichtbaar, gemarkeerd als onderdeel van het productiesysteem.",
     "sandboxTemporary": "Uw omgeving is tijdelijk. Uitloggen wist haar, en ze wordt ook teruggenomen na een dag zonder activiteit. Niets van wat u hier bouwt is bedoeld om te bewaren.",
     "sandboxUpgrade": "Wanneer u klaar bent voor een organisatie die blijft bestaan, stap dan over op een Starter-abonnement.",
-    "sandboxAck": "Beginnen met verkennen"
+    "sandboxAck": "Beginnen met verkennen",
+    "demoSandboxTitle": "Welkom in uw demo-sandbox",
+    "demoSandboxIntro": "Deze sandbox is uw eigen kopie van de demo, en een lichte versie van Provisa. Dit zijn de grenzen:",
+    "demoSandboxEngine": "Hij draait op een DuckDB-engine in één proces, niet op de engine die productieorganisaties gebruiken.",
+    "demoSandboxMemory": "Zijn engine mag hooguit {{memory}} geheugen gebruiken; een query die meer nodig heeft, wordt geweigerd.",
+    "demoSandboxDisk": "Hij mag hooguit {{disk}} op schijf bevatten, zijn gegevens en uw geüploade bestanden samen; een schrijfactie daarboven wordt geweigerd.",
+    "demoSandboxConflicts": "Wijzigingen die tegelijk vanaf meerdere apparaten worden gedaan, kunnen als conflict worden geweigerd. Probeer het opnieuw.",
+    "demoSandboxExpires": "Hij wordt met alles erin verwijderd na {{idle}} zonder gebruik.",
+    "demoSandboxHeldBack": "U kunt geen mensen uitnodigen en geen omgevingen wisselen of beheren.",
+    "demoSandboxSources": "De voorbeeldbronnen zijn alleen-lezen: wat u schrijft, blijft in de sandbox."
   }
 }

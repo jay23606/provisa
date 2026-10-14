@@ -789,7 +789,7 @@ services:
       - "8815:8815"
     volumes:
       - ${CERT_DIR}:/app/certs:ro
-    environment:
+    environment: &provisa_env
       PROVISA_ROLE: "control-plane"
       # The config the app loads (REQ-528). It has no default in code, and the image bakes no
       # config/provisa.yaml, so a container without this boots into a startup error. The wizard
@@ -894,11 +894,36 @@ services:
       LEMONSQUEEZY_VARIANT_EGRESS_PRO_M: "\${LEMONSQUEEZY_VARIANT_EGRESS_PRO_M:-}"
       LEMONSQUEEZY_VARIANT_EGRESS_PRO_L: "\${LEMONSQUEEZY_VARIANT_EGRESS_PRO_L:-}"
       LEMONSQUEEZY_SIGNING_SECRET: "\${LEMONSQUEEZY_SIGNING_SECRET:-}"
-    depends_on:
+    depends_on: &provisa_depends
       redis:
         condition: service_healthy
       minio:
         condition: service_healthy
+  # REQ-2006: the sandbox tier. The demo sandboxes run on in-process DuckDB files, and exactly one
+  # process may open each, so they have a single-worker API of their own: the same image and
+  # settings as the API above, serving only the sandbox orgs (provisa/api/sandbox_tier.py). The
+  # UI server reaches it by PROVISA_SANDBOX_API_URL; it publishes no port. Its data directory
+  # holds the demo templates and the sandboxes' folders, and survives a container replacement.
+  provisa-sandbox:
+    restart: unless-stopped
+    image: provisa/provisa:local
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--ssl-certfile", "/app/certs/provisa.crt", "--ssl-keyfile", "/app/certs/provisa.key", "--timeout-keep-alive", "620", "--workers", "1"]
+    volumes:
+      - ${CERT_DIR}:/app/certs:ro
+      - provisa_sandbox_data:/var/lib/provisa
+    environment:
+      <<: *provisa_env
+      PROVISA_SANDBOX_TIER: "true"
+      PROVISA_DATA_DIR: /var/lib/provisa
+      # Its own engine is DuckDB (each sandbox's is anyway): it never wakes a Trino shard.
+      PROVISA_ENGINE: "duckdb"
+      # REQ-2049: the demos it offers, each pulled as its published bundle -- at start and again
+      # whenever a sandbox of it is opened, so a newly published demo needs no redeploy -- into
+      # its data directory (demo-bundles/), where the bundles' logs are read.
+      PROVISA_DEMO_BUNDLES: "weblogs"
+      PROVISA_DEMO_REGISTRY: "https://ghcr.io/kenstott"
+      PROVISA_LOGS_ALLOWED_ROOTS: /var/lib/provisa/demo-bundles
+    depends_on: *provisa_depends
   provisa-ui:
     restart: unless-stopped
     image: provisa/provisa:local
@@ -909,11 +934,13 @@ services:
       - ${CERT_DIR}:/app/certs:ro
     environment:
       PROVISA_API_URL: "https://provisa:8000"
+      PROVISA_SANDBOX_API_URL: "https://provisa-sandbox:8000"
       VITE_FIREBASE_API_KEY: "\${VITE_FIREBASE_API_KEY:-}"
       VITE_FIREBASE_AUTH_DOMAIN: "\${VITE_FIREBASE_AUTH_DOMAIN:-}"
       VITE_FIREBASE_PROJECT_ID: "\${VITE_FIREBASE_PROJECT_ID:-}"
     depends_on:
       - provisa
+      - provisa-sandbox
   redis:
     restart: unless-stopped
     image: redis:7-alpine
@@ -975,6 +1002,7 @@ services:
 
 volumes:
   redis_data:
+  provisa_sandbox_data:
 YAML
   ok "Control-plane base compose written: ${file}"
 }

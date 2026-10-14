@@ -112,6 +112,7 @@ from provisa.api.admin.schema_common import (  # noqa: E402
     _expand_wikipedia_if_needed,
     google_workspace_refusal,
     logs_refusal,
+    sandbox_destination_refusal,
     file_source_path,
     google_workspace_organisation_refusal,
     microsoft_365_organisation_refusal,
@@ -1941,6 +1942,11 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                 _logs_refusal = logs_refusal(input) or file_source_path(input)  # REQ-1996/1997
                 if _logs_refusal is not None:
                     return _logs_refusal
+                # REQ-2006: a sandbox org's source is checked BEFORE the connection that validates
+                # it is opened -- validating it would already reach where it points.
+                _egress_refusal = sandbox_destination_refusal(input)
+                if _egress_refusal is not None:
+                    return _egress_refusal
                 await _add_source_pool(state, input)
         except Exception as _conn_err:
             logging.getLogger(__name__).exception(
@@ -2027,7 +2033,18 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
 
         _named = [d for d in (input.allowed_domains or []) if d.strip()]
         require_reach_of_added_domains(info, None, _named, empty_is_all=True)
-        await _upsert_source_with_domains(pool, model, input)
+        try:
+            await _upsert_source_with_domains(pool, model, input, create=True)
+        except _source_repo.SourceIdTaken as taken:
+            # Its id was free when judged above and was taken since, by another create of the
+            # same source (two devices of one person at once): refused by name, never overwritten.
+            await state.source_pools.remove(input.id)
+            return MutationResult(
+                success=False,
+                message=str(taken),
+                code="schema.source_id_taken",
+                params={"source": input.id},
+            )
 
         _domains = [d for d in (input.allowed_domains or []) if d.strip()]
         if _domains:

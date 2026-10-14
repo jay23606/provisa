@@ -76,11 +76,18 @@ def test_a_blocking_call_that_returns_after_the_deadline_ends_the_request():
     """Its driver's cancel reached nothing (rows already received, being converted): the call
     comes back, and the request is ended there instead of going on to shape and send them."""
     cancelled = []
-    with request_deadline.request("sql_http"):
-        with pytest.raises(RequestTimedOut) as raised:
+    went_on = []
+    # Caught outside the request's scope: inside it the watchdog raises again until the scope
+    # ends (a raise that lands where it is discarded ends nothing), so a late one may land in
+    # whatever handles the first -- a pytest.raises inside the scope included -- and the scope's
+    # exit answers either with the request's timeout.
+    with pytest.raises(RequestTimedOut) as raised:
+        with request_deadline.request("sql_http"):
             with request_deadline.cancel_on_deadline(lambda: cancelled.append(True)):
                 time.sleep(0.3)  # returns normally, after the deadline
-        _names(raised.value, "sql_http")
+            went_on.append(True)
+    _names(raised.value, "sql_http")
+    assert went_on == []  # ended where the call came back, not handed more to do
     assert cancelled == [True]  # the watchdog did call the statement's cancel at expiry
 
 

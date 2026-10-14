@@ -12,6 +12,15 @@
     "sandboxHeldBack": "保留未开放的是组织范围的控制——切换或管理环境、邀请成员和授予角色、组织设置以及组织范围的可观测性。这些页面仍然可见，并标记为生产系统的一部分。",
     "sandboxTemporary": "您的环境是临时的。退出登录会将其清除，闲置一天后也会被回收。您在这里构建的任何内容都不用于保留。",
     "sandboxUpgrade": "当您准备好使用可持久保存的组织时，请升级到 Starter 套餐。",
-    "sandboxAck": "开始探索"
+    "sandboxAck": "开始探索",
+    "demoSandboxTitle": "欢迎使用您的演示沙盒",
+    "demoSandboxIntro": "此沙盒是演示的专属副本，也是 Provisa 的轻量版本。它的限制如下：",
+    "demoSandboxEngine": "它运行在单进程的 DuckDB 引擎上，而不是生产组织使用的引擎。",
+    "demoSandboxMemory": "其引擎最多可使用 {{memory}} 内存；需要更多内存的查询会被拒绝。",
+    "demoSandboxDisk": "它在磁盘上最多可占用 {{disk}}，包括其数据和您上传的文件；超出的写入会被拒绝。",
+    "demoSandboxConflicts": "多台设备同时进行的更改可能会因冲突被拒绝。请重试。",
+    "demoSandboxExpires": "闲置 {{idle}} 后，它会连同其中的一切被删除。",
+    "demoSandboxHeldBack": "您不能邀请他人，也不能切换或管理环境。",
+    "demoSandboxSources": "示例数据源是只读的：您写入的内容只保留在沙盒内。"
   }
 }

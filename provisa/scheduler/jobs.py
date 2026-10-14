@@ -918,6 +918,32 @@ async def watch_engine() -> None:
     await state.shared_federation_engine.watchdog()
 
 
+def unschedule_org(scheduler: "AsyncIOScheduler | None", org_id: str) -> int:  # REQ-2006
+    """Remove every scheduled job of a deleted org -- each is named ``...:org_<id>`` -- and stop
+    its replica build runner; how many jobs went. A job left behind fires against an org with no
+    runtime, and fails every time it fires."""
+    from provisa.federation.replica_builds import stop_replica_runner
+
+    stop_replica_runner(org_id)
+    if scheduler is None:
+        return 0
+    suffix = f":org_{org_id}"
+    gone = [job.id for job in scheduler.get_jobs() if job.id.endswith(suffix)]
+    for job_id in gone:
+        scheduler.remove_job(job_id)
+    return len(gone)
+
+
+async def reap_demo_sandboxes() -> None:  # REQ-2006
+    """Delete the demo sandboxes no request has reached for ``sandbox.idle_ttl`` seconds. Run by
+    the sandbox tier, the one process that opens their files."""
+    from provisa.api.demo_sandbox import reap_expired
+
+    reaped = await reap_expired()
+    if reaped:
+        logger.info("demo sandboxes reaped: %s", ", ".join(reaped))
+
+
 @_in_deployment_org
 async def reap_environments() -> None:  # REQ-1523
     """Delete the environments whose expiry has passed, with their schemas and their stores.

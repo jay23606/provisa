@@ -333,6 +333,17 @@ def _validate_new_org_id(org_id: str) -> None:  # REQ-1309
             org=org_id,
             reserved=", ".join(sorted(_RESERVED_ORG_IDS)),
         )
+    from provisa.api.sandbox_tier import SANDBOX_PREFIX, is_sandbox_tier_org
+
+    if is_sandbox_tier_org(org_id):
+        # REQ-2006: the prefix names the sandbox tier's orgs, which only that tier creates.
+        raise ApiError(
+            400,
+            "orgs.org_id_sandbox_prefix",
+            f"Org id {org_id!r} begins {SANDBOX_PREFIX!r}, which is reserved for demo sandboxes.",
+            org=org_id,
+            prefix=SANDBOX_PREFIX,
+        )
 
 
 class AddMemberBody(BaseModel):
@@ -929,11 +940,6 @@ async def delete_org(org_id: str, request: Request, confirm: str | None = None):
     """
 
     from provisa.api.admin.invites_router import _require_org_admin
-    from provisa.core.env_store import list_envs
-    from provisa.core.environments import PROD
-    from provisa.core.org_provisioning import deprovision_org
-    from provisa.core.region_purge import RegionStoreUnreachable, purge_org_regions
-    from provisa.core.schema_admin import org_auto_join_optouts, org_invites
 
     await _require_org_admin(request, org_id)
     if org_id == "root":
@@ -957,6 +963,26 @@ async def delete_org(org_id: str, request: Request, confirm: str | None = None):
                 ),
                 org=org_id,
             )
+    await destroy_org(org_id)
+    return {"deleted": org_id}
+
+
+async def destroy_org(org_id: str) -> None:  # REQ-1300, REQ-1312, REQ-2006
+    """Remove an org whole: every environment's region stores, its control-plane rows, its schemas,
+    role and ACL, and its cached runtimes. The caller has decided it goes -- delete_org after its
+    confirmation, the demo sandbox reaper after the sandbox's idle expiry."""
+    from provisa.core.env_store import list_envs
+    from provisa.core.environments import PROD
+    from provisa.core.org_provisioning import deprovision_org
+    from provisa.core.region_purge import RegionStoreUnreachable, purge_org_regions
+    from provisa.core.schema_admin import (
+        demo_sandboxes,
+        org_auto_join_optouts,
+        org_invites,
+        personal_access_tokens,
+    )
+
+    async with _admin_pool().acquire() as conn:
         # REQ-1921/REQ-1922: every environment of the org, in every region store its models
         # declare, goes first — all of it or nothing: an unreachable store refuses the delete,
         # naming its region, before anything here is removed.
@@ -981,6 +1007,12 @@ async def delete_org(org_id: str, request: Request, confirm: str | None = None):
         await conn.execute_core(
             _delete(org_auto_join_optouts).where(org_auto_join_optouts.c.org_id == org_id)
         )
+        # REQ-1263, REQ-2006: a token names its org, and dies with it (a demo sandbox's visitor
+        # holds nothing else).
+        await conn.execute_core(
+            _delete(personal_access_tokens).where(personal_access_tokens.c.org_id == org_id)
+        )
+        await conn.execute_core(_delete(demo_sandboxes).where(demo_sandboxes.c.org_id == org_id))
         await conn.execute_core(_delete(orgs).where(orgs.c.id == org_id))
     # Every environment's schemas on the control plane, then the org's own (prod, role, ACL).
     for env in envs:
@@ -993,10 +1025,13 @@ async def delete_org(org_id: str, request: Request, confirm: str | None = None):
 
     # REQ-1488: the org's environments go with it — each holds its own runtime under its own key.
     _app_state.org_registry.invalidate_org(org_id)
+    # REQ-2006: and its scheduled jobs, which would otherwise fire against the org it no longer is.
+    from provisa.scheduler.jobs import unschedule_org
+
+    unschedule_org(getattr(_app_state, "_scheduler", None), org_id)
     # REQ-1301: the registry view names the dropped schema, so it must stop naming it before anyone
     # queries it again.
     await _refresh_root_registry_view()
-    return {"deleted": org_id}
 
 
 @router.post("/{org_id}/retry")

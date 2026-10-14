@@ -27,6 +27,8 @@ it as a single document in memory, which the build reports as not optimal.
 
 from __future__ import annotations
 
+from provisa.security import sandbox_egress  # REQ-2006
+
 import time
 from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import aclosing
@@ -164,7 +166,9 @@ def _spooled_rows(
     """Send the call, spool its answer, yield its rows. A 429 or 5xx answer is sent again, as
     ``caller._request_with_retry`` does; nothing has been yielded when that happens, since the
     status is known before the first byte is spooled."""
-    with httpx.Client(timeout=_TIMEOUT) as client:
+    with httpx.Client(
+        timeout=_TIMEOUT, event_hooks=sandbox_egress.http_sync_event_hooks()
+    ) as client:
         for attempt in range(_MAX_RETRIES):
             sent = call()  # prepared per attempt: an expiring token is fetched again
             try:

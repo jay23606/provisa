@@ -647,7 +647,7 @@ class TestFetchOauth2Token:
         resp = MagicMock()
         resp.raise_for_status = MagicMock()
         resp.json.return_value = {"access_token": "tok-abc", "expires_in": 3600}
-        with patch("httpx.post", return_value=resp) as post_mock:
+        with patch("httpx.Client.post", return_value=resp) as post_mock:
             token = _fetch_oauth2_token(oauth)
         assert token == "tok-abc"
         post_mock.assert_called_once()
@@ -665,7 +665,7 @@ class TestFetchOauth2Token:
         resp = MagicMock()
         resp.raise_for_status = MagicMock()
         resp.json.return_value = {"access_token": "tok-xyz", "expires_in": 3600}
-        with patch("httpx.post", return_value=resp) as post_mock:
+        with patch("httpx.Client.post", return_value=resp) as post_mock:
             token1 = _fetch_oauth2_token(oauth)
             token2 = _fetch_oauth2_token(oauth)
         assert token1 == token2 == "tok-xyz"
@@ -682,7 +682,7 @@ class TestFetchOauth2Token:
         resp = MagicMock()
         resp.raise_for_status = MagicMock()
         resp.json.return_value = {"access_token": "fresh-tok", "expires_in": 3600}
-        with patch("httpx.post", return_value=resp) as post_mock:
+        with patch("httpx.Client.post", return_value=resp) as post_mock:
             token = _fetch_oauth2_token(oauth)
         assert token == "fresh-tok"
         post_mock.assert_called_once()

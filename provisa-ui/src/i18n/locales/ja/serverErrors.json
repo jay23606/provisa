@@ -228,7 +228,8 @@
       "platform_admin_required": "platform_admin が必要です",
       "retry_not_failed": "組織「{{org}}」は「{{state}}」であり「failed」ではないため、再試行するものがありません。",
       "self_role_change": "ユーザーは自分自身のロールを変更できません。別の管理者に依頼してください。",
-      "view_not_permitted": "この組織を表示する権限がありません"
+      "view_not_permitted": "この組織を表示する権限がありません",
+      "org_id_sandbox_prefix": "{{prefix}} で始まる組織 ID はデモサンドボックス用に予約されています。"
     },
     "platform": {
       "control_plane_role_required": "プラットフォーム管理者が必要です。",
@@ -554,6 +555,22 @@
       "too_large": "ファイルがアップロードの上限 {{limit}} バイトを超えています。",
       "bad_name": "{{name}} はアップロードするファイルの名前にできません。英字、数字、'.'、'_'、'-' を使ってください。",
       "not_a_file_source": "{{type}} ソースにはアップロードでファイルを渡せません。"
+    },
+    "sources": {
+      "private_destination": "サンドボックスのソースが到達できるのは公開アドレスだけです。{{host}} は {{address}} で、公開アドレスではありません。"
+    },
+    "sandbox": {
+      "wrong_tier": "このサンドボックスは別の場所で提供されています。サンドボックス自身のアドレスから開いてください。",
+      "unknown_demo": "{{demo}} という名前の公開デモはありません。",
+      "demo_not_ready": "このデモはまだ準備中です。少し後でもう一度お試しください。",
+      "at_capacity": "デモサンドボックスはすべて使用中です。少し後でもう一度お試しください。",
+      "disk_full": "このサンドボックスはディスク上限の {{limit}} バイトを使い切りました。これ以上書き込めません。",
+      "sign_in_required": "自分のサンドボックスを開くにはサインインしてください。",
+      "demo_unavailable": "デモ {{demo}} の最新バージョンを取得できませんでした。しばらくしてからもう一度お試しください。",
+      "demo_needs_newer_provisa": "デモ {{demo}} の最新バージョンには Provisa {{requires}} 以降が必要です。これは Provisa {{running}} です。"
+    },
+    "engine": {
+      "write_conflict": "同じデータへの別の変更が同時に書き込まれました。もう一度お試しください。"
     }
   }
 }

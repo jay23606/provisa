@@ -763,6 +763,24 @@
         "label": "Démos déjà configurées",
         "help": "Les démos nommées dont la configuration a été exécutée sur ce déploiement. Une démo listée ici n'est pas reconfigurée à son démarrage ; retirez-la pour la reconfigurer au prochain démarrage."
       }
+    },
+    "sandbox": {
+      "max_concurrent": {
+        "label": "Bacs à sable de démo ouverts en même temps",
+        "help": "Le nombre de bacs à sable de démo qui peuvent être ouverts ensemble. Au-delà, un visiteur qui ouvre une démo est invité à réessayer sous peu."
+      },
+      "memory_limit": {
+        "label": "Mémoire par bac à sable de démo",
+        "help": "La mémoire maximale que le moteur d'un bac à sable de démo peut utiliser. Une requête qui en demande davantage est refusée."
+      },
+      "disk_limit": {
+        "label": "Disque par bac à sable de démo",
+        "help": "Le maximum qu'un bac à sable de démo peut occuper sur disque : ses données et ses fichiers téléversés ensemble. Une écriture au-delà est refusée."
+      },
+      "idle_ttl": {
+        "label": "Délai d'inactivité d'un bac à sable de démo",
+        "help": "Un bac à sable de démo que personne n'a utilisé depuis ce délai est supprimé, avec tout son contenu."
+      }
     }
   }
 }

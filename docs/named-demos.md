@@ -424,6 +424,45 @@ bought, and the slow statements by table. The join between the two logs is on
 `application_name`, a column of the database log, because tables are joined only on their columns
 along a relationship. [tool-verified: `demo/named/weblogs/`; `tests/integration/test_weblogs_demo.py`]
 
+## Publishing a demo
+
+A demo marked `published: true` in its `demo.yaml` is built into a bundle and published. A bundle holds the demo's `config.yaml`, its data landed once at build, its tour and example queries, and a dump of each Postgres data store (a service labelled `com.provisa.demo.role: rdb`). The data stores' builders (seeder, traffic generator) run in the build, never where the demo runs.
+
+The Demo bundles workflow (`.github/workflows/demo-bundles.yml`) builds a demo on a push to `main` that touches `demo/named/<name>/`, or on a dispatch naming it. It publishes the bundle to `ghcr.io/kenstott/provisa-demos` under two tags: `<name>-<version>` and `<name>-latest`. The version is the build's UTC minute and commit, for example `202610141530-1a2b3c4d5`, and a version is never published twice. Bundles are not part of a release or of the app image.
+
+Whoever runs the demo pulls its bundle:
+
+- `./start-ui-install.sh --demo weblogs` pulls `weblogs-latest` into `$PROVISA_HOME/demos/weblogs/<version>` (`~/.provisa` by default). `--demo weblogs@<version>` pins one version. `PROVISA_DEMO_REGISTRY` names another registry.
+- `./start-ui-install.sh --demo weblogs --from-source` runs `demo/named/weblogs/` from your checkout, the build-everything path above. Use it while authoring.
+- The live demos page's sandbox tier pulls `<name>-latest` each time a sandbox is opened. A sandbox already open keeps the copy it was cloned from.
+
+A bundled demo does not run `docker-compose.yml`. It runs `docker-compose.run.yml`, which brings up only what reading the bundle needs. For `weblogs`, that is the shop database, loaded from `dump/postgres.sql`:
+
+```yaml
+# demo/named/weblogs/docker-compose.run.yml (excerpt)
+    volumes:
+      - weblogs_run_pg:/var/lib/postgresql/data
+      - ./dump/postgres.sql:/docker-entrypoint-initdb.d/10-shop.sql:ro
+```
+
+### Updating a published demo
+
+Edit `demo/named/<name>/` and merge to `main`. The workflow publishes a new version. The next sandbox on the demos page and the next `--demo <name>` pull get it. No release, no redeploy.
+
+A demo with a `setup.yaml` is not bundled yet; the build refuses it.
+
+### requires_provisa
+
+`demo.yaml` must say the oldest Provisa the demo runs on. The build refuses a published demo without it.
+
+```yaml
+# demo/named/weblogs/demo.yaml (excerpt)
+published: true
+requires_provisa: 0.1.0a483
+```
+
+A bundle whose `requires_provisa` is newer than the Provisa pulling it is refused by name: `demo weblogs <version> needs Provisa <required> or newer; this is Provisa <running>`. Raise the value when a change to the demo needs something added to Provisa after the stated version. [tool-verified: `scripts/demo_bundle.py`, `provisa/core/demo_bundles.py`]
+
 ## The `--source` mechanism: what it is not
 
 `--source=<name>` adds a single source from `demo/sources/<name>/` to the standard demo. Each

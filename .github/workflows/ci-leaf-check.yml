@@ -143,6 +143,34 @@ jobs:
       - name: the driver is registered
         run: odbcinst -q -d -n "ODBC Driver 18 for SQL Server"
 
+  # REQ-2049: the weblogs demo's bundle, built as demo-bundles.yml builds it -- its data stores up,
+  # its seeder run, a throwaway sandbox tier landing its template, its database dumped, and
+  # everything taken down again -- and not published.
+  demo-bundle:
+    name: action / demo-bundle
+    needs: scope
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-python
+      - id: build
+        uses: ./.github/actions/demo-bundle
+        with:
+          demo: weblogs
+      - name: the bundle holds the demo, its seed, its logs and its database
+        env:
+          BUNDLE: ${{ steps.build.outputs.bundle }}
+        run: |
+          set -euo pipefail
+          listed="$(tar -tzf "$BUNDLE")"
+          for member in bundle.json config.yaml demo.yaml tour.yaml docker-compose.run.yml \
+                        seeded/replicas.duckdb seeded/replicas.json dump/postgres.sql; do
+            grep -qx "$member" <<<"$listed" || { echo "::error::$BUNDLE has no $member"; exit 1; }
+          done
+          grep -q '^logs/nginx/access.json' <<<"$listed"
+          test -z "$(docker ps -aq --filter label=com.provisa.demo=weblogs)"
+
   docs-site-deps:
     name: action / docs-site-deps
     needs: scope
@@ -318,6 +346,7 @@ jobs:
       - setup-ui-no-install
       - mssql-odbc
       - docs-site-deps
+      - demo-bundle
       - trino-plugins
       - release-metadata
       - ensure-release-off
@@ -512,6 +541,7 @@ jobs:
       - setup-ui-no-install
       - mssql-odbc
       - docs-site-deps
+      - demo-bundle
       - trino-plugins
       - release-metadata
       - ensure-release-off

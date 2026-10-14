@@ -12,6 +12,8 @@
 
 from __future__ import annotations
 
+from provisa.security import sandbox_egress  # REQ-2006
+
 import asyncio
 import re
 from collections.abc import AsyncGenerator
@@ -458,7 +460,9 @@ def _fetch_oauth2_token(oauth) -> str:  # REQ-320
     if oauth.scope:
         data["scope"] = oauth.scope
 
-    resp = _httpx.post(oauth.token_url, data=data, timeout=10)
+    # REQ-2006: the token endpoint is the source's to name; a sandbox org's is checked and pinned.
+    with _httpx.Client(timeout=10, event_hooks=sandbox_egress.http_sync_event_hooks()) as client:
+        resp = client.post(oauth.token_url, data=data)
     resp.raise_for_status()
     body = resp.json()
     token = body["access_token"]
@@ -622,7 +626,7 @@ async def call_api(  # REQ-295, REQ-297, REQ-298, REQ-316
 
     async def _run() -> ApiAnswer:
         paging = Paging()
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(event_hooks=sandbox_egress.http_event_hooks()) as client:
             pages = [
                 page
                 async for page in _pages(
@@ -665,7 +669,7 @@ async def iter_api_pages(  # REQ-1915
     It stops at the endpoint's ``max_pages`` like every call; ``paging`` tells the reader
     whether the endpoint had more."""
     call = prepare_call(endpoint, resolved_params, base_url, auth, source_headers)
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(event_hooks=sandbox_egress.http_event_hooks()) as client:
         async for page in _pages(
             client,
             endpoint,
@@ -689,7 +693,8 @@ async def _call_grpc(  # REQ-322, REQ-325
     import grpc
     from google.protobuf import json_format, descriptor_pool, descriptor_pb2
 
-    channel = grpc.insecure_channel(host_port)
+    target, _name = sandbox_egress.pinned_address(host_port)  # REQ-2006
+    channel = grpc.insecure_channel(target)
     # gRPC dynamic invocation requires proto descriptors at runtime.
     # This is a simplified implementation; production would use grpc_reflection.
     path_parts = endpoint.path.strip("/").split("/")

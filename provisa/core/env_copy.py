@@ -361,6 +361,48 @@ async def _copy(
             conn, org_id, source_env, target_env, src_schema, dst_schema
         )
 
+    return await _copy_schemas(
+        conn,
+        src_schema,
+        dst_schema,
+        report,
+        mode,
+        removals,
+        seed,
+        strip_identities,
+        landing,
+        apply=apply,
+    )
+
+
+async def clone_model(
+    db: "Database", src_schema: str, dst_schema: str, *, landing: str
+) -> CopyReport:
+    """REQ-2006: carry the whole model of one org's schema into a new org's, as an environment's
+    creation does (REPLACE, with the seeded roles and assignments, and every source's connection
+    carried as it is). A demo sandbox is cloned from its demo's template org this way."""
+    if src_schema == dst_schema:
+        raise ValueError(f"a schema cannot be cloned onto itself ({src_schema})")
+    report = CopyReport(src_schema, dst_schema, REPLACE, True)
+    async with db.acquire() as conn, conn.transaction():
+        return await _copy_schemas(
+            conn, src_schema, dst_schema, report, REPLACE, True, True, False, landing, apply=True
+        )
+
+
+async def _copy_schemas(
+    conn: "Connection",
+    src_schema: str,
+    dst_schema: str,
+    report: CopyReport,
+    mode: str,
+    removals: bool,
+    seed: bool,
+    strip_identities: bool,
+    landing: str | None,
+    *,
+    apply: bool,
+) -> CopyReport:
     # REQ-1539: the seeded classes travel on a creation and never again. Who may do what is the
     # target environment's own answer once it has one, so a merge cannot carry prod's `developer`
     # row away and replace it with the branch's.

@@ -17,6 +17,8 @@ and yields one ChangeEvent per new item.
 
 from __future__ import annotations
 
+from provisa.security import sandbox_egress  # REQ-2006
+
 import asyncio
 import logging
 import xml.etree.ElementTree as ET
@@ -147,7 +149,9 @@ def iter_rows_spooled(url: str, spooled: Any) -> Iterator[dict]:  # REQ-1915
     spool file as it arrives and parsed from the file an item at a time."""
     import httpx
 
-    with httpx.Client(follow_redirects=True, timeout=30.0) as client:
+    with httpx.Client(
+        follow_redirects=True, timeout=30.0, event_hooks=sandbox_egress.http_sync_event_hooks()
+    ) as client:
         with spooled(lambda: client.stream("GET", url)) as body:
             for item in iter_feed_items(body):
                 yield stored_row(item)
@@ -195,7 +199,9 @@ class RSSNotificationProvider(NotificationProvider):  # REQ-342, REQ-343, REQ-34
         """Fetch raw bytes from *url*. Patched in tests."""
         import httpx
 
-        async with httpx.AsyncClient(follow_redirects=True, timeout=30.0) as client:
+        async with httpx.AsyncClient(
+            follow_redirects=True, timeout=30.0, event_hooks=sandbox_egress.http_event_hooks()
+        ) as client:
             resp = await client.get(url)
             resp.raise_for_status()
             return resp.content
@@ -234,7 +240,9 @@ class RSSNotificationProvider(NotificationProvider):  # REQ-342, REQ-343, REQ-34
         watermark = self._watermark or datetime.now(timezone.utc)
         log.info("RSSProvider: polling %s every %.0fs", self._url, self._poll_interval)
 
-        async with httpx.AsyncClient(follow_redirects=True, timeout=30.0) as client:
+        async with httpx.AsyncClient(
+            follow_redirects=True, timeout=30.0, event_hooks=sandbox_egress.http_event_hooks()
+        ) as client:
             while self._running:
                 try:
                     resp = await client.get(self._url)

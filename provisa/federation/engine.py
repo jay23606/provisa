@@ -167,6 +167,9 @@ class FederationEngine:  # REQ-840
         self._default_store_fn = default_materialize_store
         # REQ-1922: the store of the org lane this engine was built for (``pin_materialize_store``).
         self._pinned_store: str | None = None
+        # REQ-2006: the most memory an in-process engine built for one org may use, in bytes; None
+        # leaves the engine's own default. Set on a demo sandbox's engine before its first use.
+        self.memory_limit: int | None = None
         # The SQLAlchemy backend names (``make_url(dsn).get_backend_name()``) this engine's own
         # connector can actually write a materialization into — None means unrestricted (not yet
         # verified either way for this engine, so no check is asserted rather than guessed). Trino's
@@ -506,6 +509,12 @@ class FederationEngine:  # REQ-840
 
     def resolve(self, source: Source) -> CatalogEntry:
         """Expose a source by its connector's mechanism, or reject it as unreachable."""
+        from provisa.security.sandbox_egress import pinned_source
+
+        # REQ-2006: every engine attach of a source passes here, so a sandbox org's source is
+        # checked where the engine is about to connect to it, and connected to at the address the
+        # check resolved -- the engine never resolves its name again.
+        source = pinned_source(source)  # type: ignore[assignment]
         return self.connector_for_source(source).catalog_entry(source)
 
     def federate(self, source: Source, *, replicated: bool = False):

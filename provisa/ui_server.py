@@ -59,6 +59,30 @@ API_BASE_URL = os.environ.get("PROVISA_API_URL", "http://provisa:8000")
 # trust boundary (REQ-1226); verify is disabled only for this proxy leg — the
 # browser->UI leg is unaffected.
 _API_VERIFY = not API_BASE_URL.startswith("https://")
+# REQ-2006: the sandbox tier -- one single-worker API process that alone opens the demo sandboxes'
+# DuckDB files (provisa/api/sandbox_tier.py). A request for a sandbox-tier org, and a request to
+# open a demo, is proxied there. Unset, there is no sandbox tier, and the API refuses a sandbox org
+# by name.
+SANDBOX_API_URL = os.environ.get("PROVISA_SANDBOX_API_URL")
+#: The API paths a demo sandbox is opened by (provisa/api/demo_sandbox_router.py): a visitor's,
+#: with no sign-in, and a signed-in person's own.
+DEMO_OPEN_PREFIXES = ("public/demos/", "sandboxes/")
+
+
+def api_base_for(full_path: str, headers: Mapping[str, str]) -> str:
+    """The API process that serves this request: the sandbox tier for a sandbox-tier org (named by
+    the Host subdomain, or by ``x-org-provisa`` on the control-plane host, as the API binds it --
+    REQ-1276) and for opening a demo; the deployment's API for everything else."""
+    if SANDBOX_API_URL is None:
+        return API_BASE_URL
+    from provisa.api.sandbox_tier import is_sandbox_tier_org
+    from provisa.security.sni import org_from_host
+
+    org = org_from_host(headers.get("host")) or headers.get("x-org-provisa")
+    if full_path.startswith(DEMO_OPEN_PREFIXES) or (org is not None and is_sandbox_tier_org(org)):
+        return SANDBOX_API_URL
+    return API_BASE_URL
+
 
 # Upstream read budget for the proxy leg. A request that outlives it is reported as a 504
 # naming the method, path and elapsed seconds, so the offending endpoint is identifiable
@@ -279,7 +303,8 @@ async def handler(request: Request, full_path: str) -> Response:  # REQ-057, REQ
         return FileResponse(index, headers={"Cache-Control": "no-store"})
 
     # ── API proxy — forward to the provisa API, surfacing its real status ─────
-    target = f"{API_BASE_URL}/{full_path}"
+    base = api_base_for(full_path, request.headers)
+    target = f"{base}/{full_path}"
     if request.url.query:
         target = f"{target}?{request.url.query}"
 
@@ -293,7 +318,9 @@ async def handler(request: Request, full_path: str) -> Response:  # REQ-057, REQ
     except httpx.HTTPError:
         return HTMLResponse("API unavailable", status_code=502)
     started = time.monotonic()
-    async with httpx.AsyncClient(timeout=proxy_timeout, verify=_API_VERIFY) as client:
+    # The same internal-hop rule as _API_VERIFY, for whichever API process this request reaches.
+    verify = not base.startswith("https://")
+    async with httpx.AsyncClient(timeout=proxy_timeout, verify=verify) as client:
         try:
             upstream = await client.request(
                 method=request.method,

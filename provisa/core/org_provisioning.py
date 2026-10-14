@@ -206,12 +206,14 @@ async def deprovision_org(  # REQ-701
         if (
             getattr(pool, "dialect", "postgresql") == "postgresql"
         ):  # REQ-889: PG-only role hardening
-            if org_itself:
-                await conn.execute(f"DROP ROLE IF EXISTS role_{org_id}")
             # Schemas exist only on PostgreSQL. On a portable backend the org's tables are the
             # backend's own namespace, which this call does not own and must not drop.
             for schema in env_schemas(org_id, env):
                 await conn.execute(f"DROP SCHEMA IF EXISTS {schema} CASCADE")
+            # The role last: it holds privileges on those schemas, and PostgreSQL refuses to drop
+            # a role that something still depends on.
+            if org_itself:
+                await conn.execute(f"DROP ROLE IF EXISTS role_{org_id}")
 
     if org_itself:
         log.info("Org %r deprovisioned", org_id)

@@ -125,7 +125,7 @@ def _real_stale(tables, states, role, src=None):
     return is_stale_of([src or _src()], {"s": tables}, states, NOW, reader_role=role)("s")
 
 
-@pytest.mark.parametrize("signal", ["native", "debezium", "kafka", "probe"])
+@pytest.mark.parametrize("signal", ["native", "debezium", "kafka", "probe", "signal"])
 def test_a_change_fed_table_is_fresh_for_every_role_role_ttl_cannot_hold_back_the_feed(signal):
     """REQ-1907 (amended 2026-09-30): a pushed-change or probed table is kept current by the
     event loop's change path, so on the read path its replica counts as fresh for every reader --
@@ -192,7 +192,9 @@ def test_never_landed_or_failed_is_stale_for_every_reader_whatever_the_check():
 def test_push_and_probe_tables_are_kept_fresh_by_their_change_path():
     from provisa.federation.query_residency import freshness_verdict
 
-    for signal in ("debezium", "kafka", "native", "probe", "ttl_probe"):
+    # REQ-1149: a triggered table too -- it is re-pulled when its trigger fires, and may declare
+    # no cache_ttl (role_ttl.floor_ttl).
+    for signal in ("debezium", "kafka", "native", "probe", "ttl_probe", "signal"):
         t = _tbl("orders", change_signal=signal)
         assert freshness_verdict(_src(), t, NOW - 500, True, NOW) is True
     assert freshness_verdict(_src(), _tbl("orders"), NOW - 500, True, NOW) is None

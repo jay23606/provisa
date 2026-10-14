@@ -763,6 +763,24 @@
         "label": "Demos já configuradas",
         "help": "As demos nomeadas cuja configuração já foi executada nesta implantação. Uma demo listada aqui não é configurada de novo ao iniciar; remova-a para configurá-la de novo no próximo início."
       }
+    },
+    "sandbox": {
+      "max_concurrent": {
+        "label": "Sandboxes de demonstração abertos ao mesmo tempo",
+        "help": "Quantos sandboxes de demonstração podem estar abertos juntos. Acima disso, quem abre uma demonstração é convidado a tentar novamente em instantes."
+      },
+      "memory_limit": {
+        "label": "Memória por sandbox de demonstração",
+        "help": "A memória máxima que o motor de um sandbox de demonstração pode usar. Uma consulta que precise de mais é recusada."
+      },
+      "disk_limit": {
+        "label": "Disco por sandbox de demonstração",
+        "help": "O máximo que um sandbox de demonstração pode ocupar em disco: seus dados e seus arquivos enviados juntos. Uma gravação além disso é recusada."
+      },
+      "idle_ttl": {
+        "label": "Limite de inatividade de um sandbox de demonstração",
+        "help": "Um sandbox de demonstração que ninguém usou por esse tempo é excluído, com tudo o que contém."
+      }
     }
   }
 }

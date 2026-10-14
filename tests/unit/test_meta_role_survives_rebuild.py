@@ -94,8 +94,12 @@ def test_a_meta_role_no_request_can_still_be_using_is_removed(state, monkeypatch
 
 
 def test_every_use_is_recorded_not_only_the_first(state, monkeypatch):
+    from types import SimpleNamespace
+
     clock = iter([100.0, 200.0])
-    monkeypatch.setattr(meta_role.time, "monotonic", lambda: next(clock))
+    # meta_role's own clock only: patching the shared ``time`` module handed these two readings
+    # to any other thread of the worker that read the clock meanwhile.
+    monkeypatch.setattr(meta_role, "time", SimpleNamespace(monotonic=lambda: next(clock)))
     ensure_meta_role(state, ["a", "b"])
     assert state.meta_resolved_at[_META] == 100.0
     ensure_meta_role(state, ["b", "a"])  # the kept one: no build, but a use

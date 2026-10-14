@@ -228,7 +228,8 @@
       "platform_admin_required": "platform_admin erforderlich",
       "retry_not_failed": "Organisation '{{org}}' ist '{{state}}', nicht 'failed' — nichts zu wiederholen.",
       "self_role_change": "Ein Benutzer kann seine eigene Rolle nicht ändern. Bitten Sie einen anderen Administrator.",
-      "view_not_permitted": "Keine Berechtigung, diese Organisation anzuzeigen"
+      "view_not_permitted": "Keine Berechtigung, diese Organisation anzuzeigen",
+      "org_id_sandbox_prefix": "Org-IDs, die mit {{prefix}} beginnen, sind für Demo-Sandboxes reserviert."
     },
     "platform": {
       "control_plane_role_required": "Ein Plattformadministrator ist erforderlich.",
@@ -554,6 +555,22 @@
       "too_large": "Die Datei ist größer als die {{limit}} Bytes, die ein Upload haben darf.",
       "bad_name": "{{name}} kann nicht der Name einer hochgeladenen Datei sein: Verwenden Sie Buchstaben, Ziffern, '.', '_' und '-'.",
       "not_a_file_source": "Einer {{type}}-Quelle wird keine Datei per Upload gegeben."
+    },
+    "sources": {
+      "private_destination": "Die Quellen einer Sandbox dürfen nur öffentliche Adressen erreichen; {{host}} ist {{address}}, und das ist keine."
+    },
+    "sandbox": {
+      "wrong_tier": "Diese Sandbox wird anderswo bereitgestellt; öffnen Sie sie über ihre eigene Adresse.",
+      "unknown_demo": "Es gibt keine veröffentlichte Demo namens {{demo}}.",
+      "demo_not_ready": "Diese Demo wird noch vorbereitet. Versuchen Sie es gleich noch einmal.",
+      "at_capacity": "Alle Demo-Sandboxes sind belegt. Versuchen Sie es gleich noch einmal.",
+      "disk_full": "Diese Sandbox hat ihre Speichergrenze von {{limit}} Bytes erreicht; es kann nichts mehr hineingeschrieben werden.",
+      "sign_in_required": "Melden Sie sich an, um Ihre eigene Sandbox zu öffnen.",
+      "demo_unavailable": "Die neueste Version der Demo {{demo}} konnte nicht abgerufen werden. Versuchen Sie es in Kürze erneut.",
+      "demo_needs_newer_provisa": "Die neueste Version der Demo {{demo}} benötigt Provisa {{requires}} oder neuer; dies ist Provisa {{running}}."
+    },
+    "engine": {
+      "write_conflict": "Eine andere Änderung an denselben Daten wurde gleichzeitig geschrieben. Versuchen Sie es erneut."
     }
   }
 }

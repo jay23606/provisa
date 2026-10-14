@@ -228,7 +228,8 @@
       "platform_admin_required": "Se requiere platform_admin",
       "retry_not_failed": "La organización '{{org}}' está en estado '{{state}}', no 'failed' — no hay nada que reintentar.",
       "self_role_change": "Un usuario no puede cambiar su propio rol. Solicite a otro administrador.",
-      "view_not_permitted": "No tiene permiso para ver esta organización"
+      "view_not_permitted": "No tiene permiso para ver esta organización",
+      "org_id_sandbox_prefix": "Los identificadores de organización que empiezan por {{prefix}} están reservados para los sandboxes de demostración."
     },
     "platform": {
       "control_plane_role_required": "Se requiere un administrador de la plataforma.",
@@ -554,6 +555,22 @@
       "too_large": "El archivo supera los {{limit}} bytes que puede tener una subida.",
       "bad_name": "{{name}} no puede ser el nombre de un archivo subido: use letras, dígitos, '.', '_' y '-'.",
       "not_a_file_source": "A un origen {{type}} no se le da un archivo por subida."
+    },
+    "sources": {
+      "private_destination": "Las fuentes de un sandbox solo pueden llegar a direcciones públicas; {{host}} es {{address}}, que no lo es."
+    },
+    "sandbox": {
+      "wrong_tier": "Este sandbox se sirve en otro lugar; ábralo desde su propia dirección.",
+      "unknown_demo": "No hay ninguna demostración publicada llamada {{demo}}.",
+      "demo_not_ready": "Esta demostración todavía se está preparando. Inténtelo de nuevo en breve.",
+      "at_capacity": "Todos los sandboxes de demostración están en uso. Inténtelo de nuevo en breve.",
+      "disk_full": "Este sandbox ha agotado su límite de disco de {{limit}} bytes; no se puede escribir nada más en él.",
+      "sign_in_required": "Inicie sesión para abrir su propio sandbox.",
+      "demo_unavailable": "No se pudo obtener la última versión de la demo {{demo}}. Inténtelo de nuevo en breve.",
+      "demo_needs_newer_provisa": "La última versión de la demo {{demo}} necesita Provisa {{requires}} o posterior; esta es Provisa {{running}}."
+    },
+    "engine": {
+      "write_conflict": "Otro cambio en los mismos datos se escribió al mismo tiempo. Inténtelo de nuevo."
     }
   }
 }

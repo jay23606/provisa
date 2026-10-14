@@ -83,6 +83,10 @@ const DocsPage = lazy(() => import("./pages/DocsPage").then((m) => ({ default: m
 const OrgWelcomePage = lazy(() =>
   import("./pages/OrgWelcomePage").then((m) => ({ default: m.OrgWelcomePage })),
 );
+// REQ-2006: the live demos page's "Open live demo", served signed in or not.
+const DemoOpenPage = lazy(() =>
+  import("./pages/demos/DemoOpenPage").then((m) => ({ default: m.DemoOpenPage })),
+);
 const LandingPage = lazy(() =>
   import("./pages/LandingPage").then((m) => ({ default: m.LandingPage })),
 );
@@ -250,6 +254,7 @@ function App() {
             ) : authEnabled && !token ? (
               <Suspense fallback={<PageLoading />}>
                 <Routes>
+                  <Route path="/demos/:name" element={<DemoOpenPage />} />
                   <Route
                     path="*"
                     element={
@@ -292,6 +297,7 @@ function App() {
                                   <Suspense fallback={<PageLoading />}>
                                     <Routes>
                                       <Route path="/" element={<Navigate to="/query" replace />} />
+                                      <Route path="/demos/:name" element={<DemoOpenPage />} />
                                       <Route path="/setup" element={<Navigate to="/" replace />} />
                                       <Route
                                         path="/sources"

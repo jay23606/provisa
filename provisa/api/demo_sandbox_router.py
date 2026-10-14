@@ -1,0 +1,83 @@
+# Copyright (c) 2026 Kenneth Stott
+# Canary: 1a152f45-62b2-46e6-95f9-740fca277227
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+
+"""Opening a demo sandbox from the live demos page (REQ-2006).
+
+``POST /public/demos/{name}`` needs no sign-in: it opens a visitor's sandbox of the published demo
+``name`` and answers the sandbox's org and the visitor's token, which the page keeps and the
+sandbox's own address is then used with. Served by the sandbox tier only (the UI server routes the
+path there, ui_server.DEMO_OPEN_PREFIXES); every other process refuses it by name."""
+
+# Requirements: REQ-2006, REQ-1035
+
+from __future__ import annotations
+
+from fastapi import APIRouter, Request
+
+from provisa.api.errors import ApiError
+
+router = APIRouter(prefix="/public/demos", tags=["demo sandboxes"])
+#: A named ("Try it Out") sandbox, opened by a signed-in person (REQ-2006).
+named_router = APIRouter(prefix="/sandboxes", tags=["demo sandboxes"])
+
+
+def _require_tier() -> None:
+    from provisa.api.sandbox_tier import serves_sandboxes
+
+    if not serves_sandboxes():
+        raise ApiError(
+            421,
+            "sandbox.wrong_tier",
+            "Demo sandboxes are opened by the sandbox tier only",
+        )
+
+
+@router.post("/{name}")
+async def open_demo(name: str) -> dict:
+    from provisa.api.demo_sandbox import VISITOR, open_sandbox
+
+    _require_tier()
+    opened = await open_sandbox(name, kind=VISITOR)
+    return {"org_id": opened.org_id, "demo": opened.demo, "token": opened.token}
+
+
+@named_router.post("/{name}")
+async def open_named(name: str, request: Request) -> dict:
+    """The signed-in person's own sandbox of the published demo ``name``: the one they already
+    have open, from any of their devices, or a new one. Nobody else can be admitted to it -- the
+    sandbox role holds no user_management (REQ-1597)."""
+    from provisa.api.demo_sandbox import NAMED, named_sandbox_of, open_sandbox
+
+    _require_tier()
+    identity = getattr(request.state, "identity", None)
+    if identity is None or identity.user_id == "anonymous":
+        raise ApiError(401, "sandbox.sign_in_required", "Sign in to open your own sandbox")
+    existing = await named_sandbox_of(identity.user_id, name)
+    if existing is not None:
+        return {"org_id": existing, "demo": name}
+    opened = await open_sandbox(name, kind=NAMED, user_id=identity.user_id)
+    return {"org_id": opened.org_id, "demo": opened.demo}
+
+
+@named_router.get("/limits")
+async def limits() -> dict:
+    """The limits every demo sandbox runs under, read from the operator settings that enforce them
+    -- what the sandbox notice and the hosted-sandbox page tell a person, so the two cannot drift
+    apart."""
+    from provisa.core import settings_registry
+
+    _require_tier()
+    return {
+        "engine": "duckdb",
+        "memory_limit": int(settings_registry.value("sandbox.memory_limit")),
+        "disk_limit": int(settings_registry.value("sandbox.disk_limit")),
+        "idle_ttl": int(settings_registry.value("sandbox.idle_ttl")),
+        "max_concurrent": int(settings_registry.value("sandbox.max_concurrent")),
+    }

@@ -11,9 +11,10 @@
 """Load an OpenAPI spec from a local file or remote URL."""
 
 from __future__ import annotations
+
+from provisa.security import sandbox_egress  # REQ-2006
 import json
 import pathlib
-import httpx
 import yaml
 
 # Requirements: REQ-314, REQ-315
@@ -47,7 +48,7 @@ def load_spec(spec_path: str) -> dict:  # REQ-314, REQ-315
     if p.exists():
         text = p.read_text()
     elif spec_path.startswith("http://") or spec_path.startswith("https://"):
-        r = httpx.get(spec_path, timeout=30, follow_redirects=True)
+        r = sandbox_egress.checked_get(spec_path, timeout=30)
         r.raise_for_status()
         text = r.text
     else:

@@ -338,6 +338,27 @@ personal_access_tokens = Table(
     Column("revoked_at", DateTime(timezone=True)),
 )
 
+# REQ-2006: the demo sandboxes. Each is an org of its own (``orgs``, id ``sbx<hex>``) cloned from
+# its demo's template org; this row is what makes it a sandbox -- the demo it is a copy of, who it
+# was opened for, and when a request last reached it. A sandbox that no request has reached for
+# ``sandbox.idle_ttl`` seconds is deleted with its org (provisa/api/demo_sandbox.py), and its
+# visitor's token with it (personal_access_tokens cascades from orgs).
+#
+# kind: ``visitor`` -- opened by an anonymous visitor from the live demos page, whose identity is
+# a user minted for it and a token held by the browser; ``named`` -- a "Try it Out" sandbox opened
+# for a signed-in person, who may use it from several devices at once.
+demo_sandboxes = Table(
+    "demo_sandboxes",
+    metadata,
+    Column("org_id", Text, ForeignKey("orgs.id", ondelete="CASCADE"), primary_key=True),
+    Column("demo", Text, nullable=False),
+    Column("kind", Text, nullable=False),
+    Column("user_id", Text, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("last_active_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint("kind IN ('visitor','named')", name="demo_sandboxes_kind_check"),
+)
+
 # REQ-1394: SCRAM-SHA-256 verifiers, the credential PostgreSQL clients negotiate over pgwire.
 #
 # A separate table from ``local_users`` rather than another column on it, because the two are
@@ -895,6 +916,7 @@ REGISTRY_TABLES = [
     org_code_bundles,
     deployment_encryption_key,
     personal_access_tokens,
+    demo_sandboxes,
     scram_credentials,
     platform_notice,
     mail_events,

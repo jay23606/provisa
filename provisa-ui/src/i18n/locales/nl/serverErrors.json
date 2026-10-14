@@ -228,7 +228,8 @@
       "platform_admin_required": "platform_admin vereist",
       "retry_not_failed": "Organisatie '{{org}}' is '{{state}}', niet 'failed' — niets om opnieuw te proberen.",
       "self_role_change": "Een gebruiker kan de eigen rol niet wijzigen. Vraag een andere beheerder.",
-      "view_not_permitted": "Geen toestemming om deze organisatie te bekijken"
+      "view_not_permitted": "Geen toestemming om deze organisatie te bekijken",
+      "org_id_sandbox_prefix": "Organisatie-id's die met {{prefix}} beginnen, zijn gereserveerd voor demo-sandboxes."
     },
     "platform": {
       "control_plane_role_required": "Een platformbeheerder is vereist.",
@@ -554,6 +555,22 @@
       "too_large": "Het bestand is groter dan de {{limit}} bytes die een upload mag zijn.",
       "bad_name": "{{name}} kan niet de naam van een geüpload bestand zijn: gebruik letters, cijfers, '.', '_' en '-'.",
       "not_a_file_source": "Een {{type}}-bron krijgt geen bestand via upload."
+    },
+    "sources": {
+      "private_destination": "De bronnen van een sandbox mogen alleen openbare adressen bereiken; {{host}} is {{address}}, en dat is er geen."
+    },
+    "sandbox": {
+      "wrong_tier": "Deze sandbox wordt elders geserveerd; open hem via zijn eigen adres.",
+      "unknown_demo": "Er is geen gepubliceerde demo met de naam {{demo}}.",
+      "demo_not_ready": "Deze demo wordt nog voorbereid. Probeer het zo meteen opnieuw.",
+      "at_capacity": "Alle demo-sandboxes zijn in gebruik. Probeer het zo meteen opnieuw.",
+      "disk_full": "Deze sandbox heeft zijn schijflimiet van {{limit}} bytes bereikt; er kan niets meer in worden geschreven.",
+      "sign_in_required": "Meld u aan om uw eigen sandbox te openen.",
+      "demo_unavailable": "De nieuwste versie van de demo {{demo}} kon niet worden opgehaald. Probeer het zo opnieuw.",
+      "demo_needs_newer_provisa": "De nieuwste versie van de demo {{demo}} heeft Provisa {{requires}} of nieuwer nodig; dit is Provisa {{running}}."
+    },
+    "engine": {
+      "write_conflict": "Een andere wijziging van dezelfde gegevens werd tegelijk geschreven. Probeer het opnieuw."
     }
   }
 }

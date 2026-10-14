@@ -92,6 +92,19 @@ async def receive(
     if declared is not None and declared > limit:
         raise UploadTooLarge(limit)
     final = upload_dir(source_id, org_id) / _segment(name, "file name")
+    # REQ-2006: a demo sandbox's uploads count against its folder's disk cap.
+    from provisa.core.sandbox_limits import (
+        folder_bytes,
+        org_of_store,
+        require_room,
+        require_room_after,
+    )
+
+    owner = org_of_store(str(final))
+    # Measured once: what the folder held before this file, which the stream may not outgrow.
+    held = folder_bytes(owner) if owner is not None else 0
+    if owner is not None:
+        require_room(owner, declared or 0)
     temp = final.parent / f"{_TEMP}{uuid.uuid4().hex}"
     size = 0
     try:
@@ -100,6 +113,8 @@ async def receive(
                 size += len(chunk)
                 if size > limit:
                     raise UploadTooLarge(limit)
+                if owner is not None:
+                    require_room_after(owner, held, size)
                 await asyncio.to_thread(out.write, chunk)
             await asyncio.to_thread(out.flush)
             await asyncio.to_thread(os.fsync, out.fileno())

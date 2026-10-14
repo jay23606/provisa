@@ -12,6 +12,15 @@
     "sandboxHeldBack": "Ficam reservados os controles de toda a organização — alternar ou gerenciar ambientes, convidar pessoas e conceder papéis, configurações da organização e observabilidade de toda a organização. Essas páginas continuam visíveis, marcadas como parte do sistema de produção.",
     "sandboxTemporary": "Seu ambiente é temporário. Sair o apaga, e ele também é recuperado após um dia de inatividade. Nada do que você constrói aqui é para ser mantido.",
     "sandboxUpgrade": "Quando estiver pronto para uma organização que persiste, mude para um plano Starter.",
-    "sandboxAck": "Começar a explorar"
+    "sandboxAck": "Começar a explorar",
+    "demoSandboxTitle": "Bem-vindo ao seu sandbox de demonstração",
+    "demoSandboxIntro": "Este sandbox é a sua própria cópia da demonstração, e uma versão leve do Provisa. Estes são os seus limites:",
+    "demoSandboxEngine": "Ele roda em um motor DuckDB de processo único, não no motor que as organizações em produção usam.",
+    "demoSandboxMemory": "O seu motor pode usar no máximo {{memory}} de memória; uma consulta que precise de mais é recusada.",
+    "demoSandboxDisk": "Ele pode ocupar no máximo {{disk}} em disco, os seus dados e os arquivos que você enviou juntos; uma gravação além disso é recusada.",
+    "demoSandboxConflicts": "Alterações feitas ao mesmo tempo em vários dispositivos podem ser recusadas como conflito. Tente novamente.",
+    "demoSandboxExpires": "Ele é excluído, com tudo o que contém, após {{idle}} sem uso.",
+    "demoSandboxHeldBack": "Você não pode convidar pessoas, nem trocar ou gerenciar ambientes.",
+    "demoSandboxSources": "As fontes de exemplo são somente leitura: o que você grava fica dentro do sandbox."
   }
 }

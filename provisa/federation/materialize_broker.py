@@ -169,6 +169,13 @@ def _with_store(
 
     from provisa.core import request_deadline
 
+    if not read_only and not unseen:
+        # REQ-2006: a demo sandbox's store may not grow past its folder's disk cap.
+        from provisa.core.sandbox_limits import org_of_store, require_room
+
+        org = org_of_store(db_path)
+        if org is not None:
+            require_room(org)
     lock_path = db_path + _LOCK_SUFFIX
     mode = ", READ_ONLY" if read_only else ""
     with open(lock_path, "a+") as lockfile:
@@ -667,3 +674,42 @@ def get_broker(db_path: str) -> _SyncedStore:
     file (see `_SyncedStore`/`_with_store`) — cheap to call repeatedly; no state to share or
     reconnect, so every caller gets a fresh, equally-valid handle."""
     return _SyncedStore(db_path)
+
+
+def copy_schema(src_path: str, src_schema: str, dst_path: str, dst_schema: str) -> list[str]:
+    """Copy every table of ``src_schema`` in the store ``src_path`` into ``dst_schema`` of the
+    store ``dst_path``, rows and all, each replacing a table of its name there; the tables copied,
+    by name (REQ-2006: a demo's replicas -- its seed, its template's, a sandbox's -- copied from
+    rows already landed, never read from the demo's sources).
+
+    Both stores are held under their own locks for the whole copy: the source READ_ONLY, so a
+    template is never changed by being copied, and the target written as one operation."""
+
+    def _copy(con: Any) -> list[str]:
+        names = [
+            r[0]
+            for r in con.execute(
+                "SELECT table_name FROM duckdb_tables() WHERE database_name = ? AND schema_name = ? "
+                "ORDER BY table_name",
+                [_MAT_STORE_ALIAS, src_schema],
+            ).fetchall()
+        ]
+
+        def _into(target: Any) -> None:
+            target.execute(f"ATTACH '{src_path}' AS copy_source (TYPE duckdb, READ_ONLY)")
+            try:
+                target.execute(f'CREATE SCHEMA IF NOT EXISTS {_MAT_STORE_ALIAS}."{dst_schema}"')
+                for name in names:
+                    target.execute(
+                        f'CREATE OR REPLACE TABLE {_MAT_STORE_ALIAS}."{dst_schema}"."{name}" AS '
+                        f'SELECT * FROM copy_source."{src_schema}"."{name}"'
+                    )
+            finally:
+                target.execute("DETACH copy_source")
+
+        _with_store(dst_path, _into)
+        return names
+
+    # The source's lock is taken first and held across the target's: a writer of the template
+    # cannot land between the list of its tables and their copy.
+    return _with_store(src_path, _copy, read_only=True)

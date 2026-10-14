@@ -84,6 +84,10 @@ def _row_cache_ttls(table: Any, source: Any, reader_role: str | None) -> tuple[i
 # its freshness check, and the replica it keeps is current as of the last observed change.
 _PUSH_SIGNALS = frozenset({"native", "debezium", "kafka"})
 _PROBE_SIGNALS = frozenset({"probe", "ttl_probe"})
+# REQ-1149: a triggered table is re-pulled when its trigger fires, and fresh until then -- the
+# same as a probed one, whose verdict the trigger stands in for (core.change_signal: ``signal``
+# is "a change-detector (a probe verdict)"). It may declare no cache_ttl (role_ttl.floor_ttl).
+_TRIGGER_SIGNALS = frozenset({"signal"})
 
 
 def change_signal_of(table: Any, source: Any) -> str:
@@ -98,8 +102,9 @@ def freshness_verdict(
     fresh, None = the table has no freshness check (it replicates on its TTL alone).
 
     A ``freshness_gate`` source is judged by its own read-time predicate (REQ-860). A table whose
-    change signal is pushed or probed is kept current by the event loop's change path (the CDC
-    consumer / the poll node), so its replica is fresh as of the last observed change: role_ttl
+    change signal is pushed, probed or triggered (REQ-1149) is kept current by its change path
+    (the CDC consumer, the poll node, the trigger), so its replica is fresh as of the last observed
+    change: role_ttl
     limits only read-triggered refreshes and never holds back that feed. A ``ttl`` table has no
     check beyond its cache_ttl (None: the TTL alone decides). A ``ttl`` / ``ttl_probe`` table with
     no table or source cache_ttl is a configuration error and raises."""
@@ -110,7 +115,7 @@ def freshness_verdict(
         from provisa.freshness.source_gate import gate_source, source_subject
 
         return gate_source(source, source_subject(stamp, ok=ok), now).is_fresh
-    if change_signal_of(table, source) in _PUSH_SIGNALS | _PROBE_SIGNALS:
+    if change_signal_of(table, source) in _PUSH_SIGNALS | _PROBE_SIGNALS | _TRIGGER_SIGNALS:
         return True
     return None
 

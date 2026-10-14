@@ -296,3 +296,37 @@ def test_an_adapter_without_a_cursor_is_read_as_a_single_document(monkeypatch):
         state, SimpleNamespace(id="l", type="sqlite", path="/x.db"), _table(), [("id", "bigint")]
     )
     assert isinstance(cursor, BlockingCursorSource)
+
+
+def test_a_floored_source_with_no_driver_of_its_own_is_read_from_its_file(monkeypatch, tmp_path):
+    """A file source replicated always (``replicate: 0`` floors it) has no direct driver in the
+    pool: its replica is built from its file (#255), never by asking the pool for a cursor it does
+    not hold (that raised KeyError and failed every build)."""
+    from provisa.core import operator_floor
+    from provisa.executor.pool import SourcePool
+
+    monkeypatch.setattr(operator_floor, "floor_setting", lambda _source: "replicate")
+    loader = sl.SourceRowLoader(object())
+    state = SimpleNamespace(source_pools=SourcePool(), source_dialects={})
+    read = loader.replica_source(
+        state,
+        SimpleNamespace(id="birds", type="csv", path=str(tmp_path / "birds.csv")),
+        _table(),
+        [("id", "bigint")],
+    )
+    assert isinstance(read, BlockingCursorSource)
+
+
+def test_a_sqlite_source_whose_file_is_gone_is_refused_not_created(tmp_path):
+    """A source's file that is not there fails the read by name; it is never made, empty, at the
+    path (which then read as an empty table: REQ-2006, a demo's source gone after its seed)."""
+    import pytest
+
+    from provisa.federation import connector_sqlite
+
+    gone = tmp_path / "gone.sqlite"
+    with pytest.raises(sqlite3.OperationalError):
+        list(connector_sqlite.iter_row_batches(str(gone), "SELECT 1", 10))
+    with pytest.raises(sqlite3.OperationalError):
+        connector_sqlite.table_names(str(gone))
+    assert not gone.exists()

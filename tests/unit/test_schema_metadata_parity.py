@@ -63,6 +63,9 @@ REGISTRY_ONLY_TABLES = {
     # REQ-1263: personal access tokens, the cross-surface credential. Platform plane, so
     # portable metadata only.
     "personal_access_tokens",
+    # REQ-2006: the demo sandboxes, each an org of its own; beside ``orgs`` on the platform plane.
+    # Portable metadata only.
+    "demo_sandboxes",
     # REQ-1394: the SCRAM verifier pgwire's SASL exchange reads. Keyed to the platform user
     # registry it sits beside, so portable metadata only.
     "scram_credentials",

@@ -763,6 +763,24 @@
         "label": "Demo già configurate",
         "help": "Le demo con nome la cui configurazione è stata eseguita su questa installazione. Una demo elencata qui non viene riconfigurata all'avvio; rimuovila per configurarla di nuovo al prossimo avvio."
       }
+    },
+    "sandbox": {
+      "max_concurrent": {
+        "label": "Sandbox demo aperte contemporaneamente",
+        "help": "Quante sandbox demo possono essere aperte insieme. Oltre, a chi apre una demo viene chiesto di riprovare a breve."
+      },
+      "memory_limit": {
+        "label": "Memoria per sandbox demo",
+        "help": "La memoria massima che il motore di una sandbox demo può usare. Una query che ne richiede di più viene rifiutata."
+      },
+      "disk_limit": {
+        "label": "Disco per sandbox demo",
+        "help": "Il massimo che una sandbox demo può occupare su disco: i suoi dati e i suoi file caricati insieme. Una scrittura oltre viene rifiutata."
+      },
+      "idle_ttl": {
+        "label": "Limite di inattività di una sandbox demo",
+        "help": "Una sandbox demo che nessuno ha usato per questo tempo viene eliminata, con tutto ciò che contiene."
+      }
     }
   }
 }

@@ -15,6 +15,7 @@ from fastapi import APIRouter, Request
 from provisa.api.admin.capabilities import require_capability_request
 from provisa.api.errors import ApiError
 from provisa.core import source_uploads
+from provisa.core.sandbox_limits import SandboxDiskFull
 
 router = APIRouter(prefix="/admin/sources", tags=["admin", "sources"])
 
@@ -35,6 +36,8 @@ async def upload_file(request: Request, source_id: str, name: str, type: str) ->
         path, size = await source_uploads.receive(
             source_id, name, request.stream(), int(length) if length is not None else None
         )
+    except SandboxDiskFull as refused:
+        raise ApiError(507, refused.code, str(refused), None, **refused.params) from None
     except source_uploads.UploadTooLarge as refused:
         raise ApiError(413, refused.code, str(refused), None, **refused.params) from None
     except source_uploads.UploadRefused as refused:

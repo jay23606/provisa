@@ -32,7 +32,9 @@ The launcher reads `.env` in the repository root if one exists, and `.env` is no
 | Command | What starts |
 | --- | --- |
 | `./start-ui-install.sh --demo` | The standard demo: a pet store with four sources |
-| `./start-ui-install.sh --demo <name>` | A named demo from `demo/named/<name>/` |
+| `./start-ui-install.sh --demo <name>` | A named demo. A published one (`weblogs`) is pulled as a bundle; any other runs from `demo/named/<name>/` |
+| `./start-ui-install.sh --demo <name>@<version>` | A published demo, pinned to one version |
+| `./start-ui-install.sh --demo <name> --from-source` | A published demo, built from this checkout's `demo/named/<name>/` |
 
 The word after `--demo` is a name only if it does not start with `--`. So `--demo --source=redis` runs the standard demo, and `--demo perf --source=redis` runs the `perf` demo.
 
@@ -94,6 +96,24 @@ With `--keep-data`, step 1 is skipped. The seeder finds its marker file, prints 
 
 `perf` takes `--keep-data` because 20 million rows should not regenerate on every start. The first start also builds a custom PostgreSQL image, which compiles several extensions. For a customer demo, build a demo of your own, as below, and treat `perf` as a worked example of the layout.
 
+### A published demo
+
+```bash
+./start-ui-install.sh --demo weblogs
+```
+
+A published demo is not built on your laptop. Its authors built it once, with its data in it, and published the result as a bundle. The launcher pulls the latest bundle and unpacks it into `$PROVISA_HOME/demos/weblogs/<version>` (`~/.provisa` unless you set `PROVISA_HOME`). A version you already hold is not fetched again.
+
+- **Pin a version.** `./start-ui-install.sh --demo weblogs@<version>` pulls that version, and the same one every time.
+- **Build from the checkout.** `--from-source` runs the checkout's `demo/named/weblogs/` through the build-everything path described under [A named demo](#a-named-demo): the shop, nginx and the traffic generator all start. It is for demo authors. Combining it with `@<version>` is refused.
+- **Pull from another registry.** Set `PROVISA_DEMO_REGISTRY`. Bundles come from `ghcr.io/kenstott/provisa-demos` otherwise.
+
+A bundled demo runs only what reading it needs: its run-time compose file, `docker-compose.run.yml`. For `weblogs` that is the shop database, loaded from the dump in the bundle. The shop, nginx and the traffic generator do not run; the logs they wrote are in the bundle. Without `--keep-data`, a start removes and reloads the run-time database. The bundle's logs are never emptied.
+
+A bundle states the oldest Provisa it runs on (`requires_provisa`). If yours is older, the pull is refused by name, in the form `demo weblogs <version> needs Provisa <required> or newer; this is Provisa <yours>`. Update Provisa, or pin an older version.
+
+The hosted demos page works the same way: when a visitor opens a sandbox, the sandbox tier pulls the demo's latest bundle first.
+
 ### Add a toy source on top
 
 ```bash
@@ -130,7 +150,9 @@ These are the messages the scripts print, and what to do.
 
 | You see | Cause and fix |
 | --- | --- |
-| `Unknown option: ...` followed by a usage block | A flag the launcher does not know. The valid ones are `--demo [name]`, `--keep-data`, `--source=<name>`, `--native`, `--keep-docker`, `--fast` and `--idp=basic\|firebase`. |
+| `Unknown option: ...` followed by a usage block | A flag the launcher does not know. The valid ones are `--demo [name[@version]]`, `--from-source`, `--keep-data`, `--source=<name>`, `--native`, `--keep-docker`, `--fast` and `--idp=basic\|firebase`. |
+| `demo X <version> needs Provisa <required> or newer; this is Provisa <yours>` | The pulled bundle needs a newer Provisa. Update Provisa, or pin an older bundle with `--demo X@<version>`. |
+| `--demo X@<version> names a published version; --from-source runs the checkout's. Choose one.` | The two flags contradict. Drop one. |
 | `Unknown demo name: X. No demo/named/X/ directory.` | The name does not match a directory. Run `ls demo/named`. |
 | `--demo X has no config.yaml (and no fragment.yaml) in demo/named/X/ to register it with.` | The demo directory has neither file. Export the model into `config.yaml` (see [Create `config.yaml`](#4-create-configyaml)). |
 | `--demo X has both config.yaml and fragment.yaml in demo/named/X/. Keep one: ...` | A demo takes a whole config or a fragment, not both. Delete one. |
@@ -146,7 +168,7 @@ These are the messages the scripts print, and what to do.
 
 ## Build a new named demo
 
-A named demo is a directory, `demo/named/<name>/`. Create the directory and `./start-ui-install.sh --demo <name>` finds it. You do not edit the launcher, and no name is registered anywhere. The launcher refuses a missing directory, and a demo with neither `config.yaml` nor `fragment.yaml`, or with both.
+A named demo is a directory, `demo/named/<name>/`. Create the directory and `./start-ui-install.sh --demo <name>` finds it. (A demo marked `published: true` in its `demo.yaml` is pulled as a bundle instead; see [Publishing a demo](named-demos.md#publishing-a-demo). To run your own copy of it, pass `--from-source`.) You do not edit the launcher, and no name is registered anywhere. The launcher refuses a missing directory, and a demo with neither `config.yaml` nor `fragment.yaml`, or with both.
 
 The worked example is `retail`: a PostgreSQL database with customers and orders, plus a stores list loaded from a CSV file.
 

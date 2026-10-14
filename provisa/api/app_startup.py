@@ -115,8 +115,15 @@ def _scheduler_holders(state: Any) -> "Holders":  # REQ-1900, REQ-1922
         from provisa.core.environments import region_part
         from provisa.scheduler.holder import SchedulerHolder
 
+        from provisa.api.sandbox_tier import serves_sandboxes
+
         cp = load_control_plane(config_path_str())
         org_id = cp.resolved_org_id()
+        if serves_sandboxes():
+            # REQ-2006: the sandbox tier runs its own orgs' jobs and none of the deployment's, so
+            # it holds a claim of its own: on the deployment's it could take the deployment's
+            # jobs away from the API that serves every other org.
+            org_id = f"{org_id}:sandbox-tier"
         state._scheduler_holder = SchedulerHolder(cp.resolved_platform_url(), org_id)
         part = region_part(process_region.region())
         state._region_holder = (
@@ -570,6 +577,27 @@ def _start_scheduler(_log: logging.Logger) -> None:
         # view builds, source polls, row caches) run once per region, under its region's lock.
         # new_scheduler: a wakeup chain that never inherits a request's trace context -- see there.
         scheduler = new_scheduler(_scheduler_holders(state))
+        from provisa.api.sandbox_tier import serves_sandboxes
+
+        if serves_sandboxes():
+            # REQ-2006: the sandbox tier's scheduler holds its sandboxes' and templates' own jobs
+            # (each org's, wired when its runtime is built) and the sandbox reaper -- nothing of
+            # the deployment's, which the deployment's API runs.
+            from provisa.scheduler.jobs import reap_demo_sandboxes
+
+            scheduler.add_job(
+                reap_demo_sandboxes,
+                trigger=CronTrigger.from_crontab("* * * * *"),
+                id="sandbox_reap",
+                name="sandboxes:reap_idle",
+                replace_existing=True,
+                max_instances=1,
+                coalesce=True,
+            )
+            scheduler.start()
+            state._scheduler = scheduler
+            _log.info("APScheduler started (sandbox tier)")
+            return
         # REQ-1003: scheduled triggers are each org's, in its model store, scheduled per org by
         # register_org_triggers (the deployment org's once the boot has loaded its model, every
         # other org's when its runtime is built) -- never read from the config file here.
@@ -679,8 +707,13 @@ async def _seed_sandbox_org(_log: logging.Logger) -> None:  # REQ-1598
     on it, and no reason to carry a spare org's schema.
     """
     from provisa.api.app import state  # lazy: avoid app<->app_startup cycle
+    from provisa.api.sandbox_tier import serves_sandboxes
     from provisa.core.commerce import enabled as commerce_enabled
 
+    if serves_sandboxes():
+        # REQ-2006: the sandbox tier builds the demos' template orgs, and no ordinary org.
+        await _seed_demo_templates(_log)
+        return
     if not commerce_enabled():
         return
     if state.admin_db is None:
@@ -692,6 +725,18 @@ async def _seed_sandbox_org(_log: logging.Logger) -> None:  # REQ-1598
 
     outcome = await ensure_sandbox_org(state.admin_db)
     _log.info("sandbox org %s: %s", SANDBOX_ORG_ID, outcome)
+
+
+async def _seed_demo_templates(_log: logging.Logger) -> None:  # REQ-2006
+    """On the sandbox tier: the template org of every published demo, built at deploy time so a
+    visitor's sandbox is a copy of data landed before they arrived."""
+    from provisa.api.app import state  # lazy: avoid app<->app_startup cycle
+    from provisa.api.demo_templates import ensure_demo_templates
+
+    if state.admin_db is None:
+        raise RuntimeError("The demo templates need the control-plane registry, which is not bound")
+    for demo, outcome in (await ensure_demo_templates(state.admin_db)).items():
+        _log.info("demo template %s: %s", demo, outcome)
 
 
 # (rel_id, source_table, target_table, source_column, target_column, cardinality, alias).

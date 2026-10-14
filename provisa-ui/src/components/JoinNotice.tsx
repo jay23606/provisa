@@ -8,11 +8,12 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
-import { Alert, Button, List, Modal, Stack, Text } from "@mantine/core";
-import { useState } from "react";
+import { Alert, Button, List, Loader, Modal, Stack, Text } from "@mantine/core";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormFooter } from "./form/FormLayout";
 import { acknowledgeJoin, leaveOrg } from "../api/admin";
+import { fetchSandboxLimits, type SandboxLimits } from "../api/demoSandbox";
 import { useAuth } from "../context/AuthContext";
 
 // REQ-1478: memberships that need explaining. "created" is the user's own act and never announced;
@@ -22,6 +23,73 @@ const ANNOUNCED = ["auto_join", "invite", "admin"];
 // The two ways a membership can appear without the user asking for it. An invitee chose to accept,
 // so they are told what happened but not offered the exit.
 const UNASKED_FOR = ["auto_join", "admin"];
+
+// REQ-2006: a demo sandbox is an org of its own whose id begins "sbx" (provisa/core/org_ids.py).
+const DEMO_SANDBOX_PREFIX = "sbx";
+
+/** A byte count as the reader's language writes it, in megabytes or gigabytes. */
+function bytesText(bytes: number, locale: string): string {
+  const gb = bytes / 1024 ** 3;
+  const [value, unit] = gb >= 1 ? [gb, "gigabyte"] : [bytes / 1024 ** 2, "megabyte"];
+  return new Intl.NumberFormat(locale, { style: "unit", unit, maximumFractionDigits: 1 }).format(
+    value,
+  );
+}
+
+/** A span of seconds as the reader's language writes it, in days, hours or minutes. */
+function durationText(seconds: number, locale: string): string {
+  const [value, unit] =
+    seconds % 86400 === 0
+      ? [seconds / 86400, "day"]
+      : seconds % 3600 === 0
+        ? [seconds / 3600, "hour"]
+        : [Math.round(seconds / 60), "minute"];
+  return new Intl.NumberFormat(locale, { style: "unit", unit, unitDisplay: "long" }).format(value);
+}
+
+/** REQ-2006: what a demo sandbox is and every limit it runs under, each with its value read from
+ * the settings that enforce it (GET /sandboxes/limits), so the text cannot drift from them. */
+function DemoSandboxLimits() {
+  const { t, i18n } = useTranslation();
+  const [limits, setLimits] = useState<SandboxLimits | null>(null);
+  const [failed, setFailed] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchSandboxLimits()
+      .then(setLimits)
+      .catch((e: unknown) => setFailed(e instanceof Error ? e.message : String(e)));
+  }, []);
+
+  if (failed !== null) {
+    return (
+      <Alert color="red" data-testid="join-notice-limits-error">
+        {failed}
+      </Alert>
+    );
+  }
+  if (limits === null) return <Loader size="sm" />;
+  const locale = i18n.language;
+  return (
+    <Stack gap="sm" data-testid="join-notice-demo-sandbox">
+      <Text>{t("joinNotice.demoSandboxIntro")}</Text>
+      <List size="sm" spacing="xs">
+        <List.Item>{t("joinNotice.demoSandboxEngine")}</List.Item>
+        <List.Item data-testid="join-notice-limit-memory">
+          {t("joinNotice.demoSandboxMemory", { memory: bytesText(limits.memory_limit, locale) })}
+        </List.Item>
+        <List.Item data-testid="join-notice-limit-disk">
+          {t("joinNotice.demoSandboxDisk", { disk: bytesText(limits.disk_limit, locale) })}
+        </List.Item>
+        <List.Item>{t("joinNotice.demoSandboxConflicts")}</List.Item>
+        <List.Item data-testid="join-notice-limit-idle">
+          {t("joinNotice.demoSandboxExpires", { idle: durationText(limits.idle_ttl, locale) })}
+        </List.Item>
+        <List.Item>{t("joinNotice.demoSandboxHeldBack")}</List.Item>
+        <List.Item>{t("joinNotice.demoSandboxSources")}</List.Item>
+      </List>
+    </Stack>
+  );
+}
 
 export function JoinNotice() {
   const { t } = useTranslation();
@@ -33,6 +101,8 @@ export function JoinNotice() {
     (m) => m.acknowledged === false && ANNOUNCED.includes(m.joined_via ?? ""),
   );
   if (!pending) return null;
+
+  const isDemoSandbox = pending.org_id.startsWith(DEMO_SANDBOX_PREFIX);
 
   // A per_visitor ephemeral membership (sandbox invite) is not a choice to join an org -- it is a
   // throwaway environment minted for one visitor. "You were added to Sandbox" would explain the
@@ -69,9 +139,11 @@ export function JoinNotice() {
       opened
       onClose={() => {}}
       title={
-        isSandbox
-          ? "Welcome to the Provisa sandbox"
-          : t("joinNotice.title", { org: pending.org_name })
+        isDemoSandbox
+          ? t("joinNotice.demoSandboxTitle")
+          : isSandbox
+            ? "Welcome to the Provisa sandbox"
+            : t("joinNotice.title", { org: pending.org_name })
       }
       centered
       closeOnClickOutside={false}
@@ -84,7 +156,9 @@ export function JoinNotice() {
       data-testid="join-notice-modal"
     >
       <Stack gap="md">
-        {isSandbox ? (
+        {isDemoSandbox ? (
+          <DemoSandboxLimits />
+        ) : isSandbox ? (
           <Stack gap="sm" data-testid="join-notice-sandbox">
             <Text>{t("joinNotice.sandboxIntro")}</Text>
             <List size="sm" spacing="xs">
@@ -112,11 +186,11 @@ export function JoinNotice() {
               onClick={() => acknowledge(pending.org_id)}
               data-testid="join-notice-ack"
             >
-              {isSandbox ? t("joinNotice.sandboxAck") : t("joinNotice.ack")}
+              {isSandbox || isDemoSandbox ? t("joinNotice.sandboxAck") : t("joinNotice.ack")}
             </Button>
           }
         >
-          {!isSandbox && UNASKED_FOR.includes(pending.joined_via ?? "") && (
+          {!isSandbox && !isDemoSandbox && UNASKED_FOR.includes(pending.joined_via ?? "") && (
             <Button
               variant="subtle"
               color="red"
