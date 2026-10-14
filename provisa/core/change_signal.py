@@ -46,9 +46,10 @@ PUSH_SOURCE_TYPES = frozenset({"ingest", "websocket", "kafka"})
 
 
 # The source types whose own change feed Provisa receives for the ``native`` signal: the push
-# types (their listener or inbound endpoint) and the change-stream sources (REQ-1861: MongoDB change
-# streams, REQ-1982: the Cosmos DB change feed). On any other type nothing would receive it.
-NATIVE_RECEIVER_TYPES = PUSH_SOURCE_TYPES | frozenset({"mongodb", "cosmosdb"})
+# types (their listener or inbound endpoint) and the change-feed sources (REQ-1861: MongoDB change
+# streams, REQ-1982: the Cosmos DB change feed, PostgreSQL's logical replication). On any other
+# type nothing would receive it.
+NATIVE_RECEIVER_TYPES = PUSH_SOURCE_TYPES | frozenset({"mongodb", "cosmosdb", "postgresql"})
 
 
 def native_signal_refusal(source_type: str, signal: str | None) -> str | None:

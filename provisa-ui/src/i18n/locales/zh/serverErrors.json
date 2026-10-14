@@ -314,6 +314,7 @@
       "relationship_not_found": "未找到关系 '{{relationship}}'",
       "relationship_saved": "关系 '{{relationship}}' 已保存",
       "remigrated": "已重新迁移 {{source}}.{{table}}",
+      "logical_replication_refused": "数据源 '{{source}}' 的原生变更信号需要其数据库的逻辑复制，而 {{reason}}。",
       "change_signal_no_receiver": "Provisa 不会从 {{type}} 类型的数据源接收变更信号 {{signal}}，因此数据源 '{{source}}' 的表永远不会因此刷新。请使用 Debezium 捕获该数据源，并使用 debezium。",
       "change_signal_not_honoured": "类型为 {{type}} 的数据源尚不能检查是否有变更，因此变更信号 {{signal}} 永远不会被询问。请为数据源“{{source}}”使用 ttl。",
       "sentinel_path_not_applicable": "类型为 {{type}} 的数据源不能有哨兵路径：没有您自己的生产方可以标记其数据的变更，或者该数据源不被探测。请从数据源“{{source}}”中移除哨兵路径。",

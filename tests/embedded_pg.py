@@ -26,7 +26,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 ROLE = "provisa"
@@ -57,6 +57,8 @@ class LocalPostgres:
 
     port: int
     root: Path
+    # Server settings over the defaults this session's clusters run with (e.g. wal_level).
+    settings: dict[str, str] = field(default_factory=dict)
 
     @property
     def data(self) -> Path:
@@ -86,6 +88,7 @@ class LocalPostgres:
     def _start(self, preload: tuple[str, ...]) -> None:
         settings = {
             **_SETTINGS,
+            **self.settings,
             **({"shared_preload_libraries": ",".join(preload)} if preload else {}),
         }
         options = " ".join(f"-c {k}={v}" for k, v in settings.items())
@@ -113,14 +116,20 @@ class LocalPostgres:
 
 
 def start_local_postgres(
-    port: int | None = None, *, preload: tuple[str, ...] = ()
+    port: int | None = None,
+    *,
+    preload: tuple[str, ...] = (),
+    settings: dict[str, str] | None = None,
 ) -> LocalPostgres:
     """Init a fresh cluster in a directory of its own and start it on ``127.0.0.1:port`` (a
-    leased port when none is given), with ``preload`` as its ``shared_preload_libraries``."""
+    leased port when none is given), with ``preload`` as its ``shared_preload_libraries`` and
+    ``settings`` over the session's defaults."""
     from tests.port_lease import lease_port
 
     root = Path(tempfile.mkdtemp(prefix="pv-pg-"))
-    pg = LocalPostgres(port=lease_port() if port is None else port, root=root)
+    pg = LocalPostgres(
+        port=lease_port() if port is None else port, root=root, settings=dict(settings or {})
+    )
     subprocess.run(
         [_bin("initdb"), "-D", str(pg.data), "-U", "postgres", "--auth=trust", "-E", "UTF8"],
         check=True,

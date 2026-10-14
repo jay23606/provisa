@@ -106,6 +106,10 @@ OWNERS: dict[str, set[str]] = {
         # REQ-1915: the PostgreSQL store's replica write face — one COPY ... FROM STDIN held
         # open for a build (psycopg 3's ``cursor.copy``; psycopg2 has no row-wise COPY writer).
         "provisa/federation/replica_target.py",
+        # REQ-929: a PostgreSQL source's logical replication slot, read by its background
+        # listener on a connection of its own -- not a statement the source's pooled DIRECT
+        # driver runs under a request's deadline.
+        "provisa/subscriptions/pg_logical.py",
     },
     "psycopg_pool": {
         # The DIRECT postgres source driver's one shared, thread-safe pool per source.

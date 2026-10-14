@@ -1290,7 +1290,7 @@ async def _check_change_feeds(config) -> list[str]:  # REQ-1861
     reached is that source's ordinary unreachable failure, reported with the sources whose engine
     registration failed (the ids returned), never a pass."""
     from provisa.mongodb.change_feed import (
-        ChangeStreamsUnavailable,
+        FEED_REFUSALS,
         follows_change_feed,
         require_change_feed,
     )
@@ -1308,7 +1308,7 @@ async def _check_change_feeds(config) -> list[str]:  # REQ-1861
     for source_id in sorted(following):
         try:
             await require_change_feed(by_id[source_id])
-        except ChangeStreamsUnavailable:
+        except FEED_REFUSALS:
             raise
         except Exception:
             log.exception("source %r: its change-stream support could not be checked", source_id)

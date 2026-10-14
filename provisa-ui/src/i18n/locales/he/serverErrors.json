@@ -314,6 +314,7 @@
       "relationship_not_found": "הקשר '{{relationship}}' לא נמצא",
       "relationship_saved": "הקשר '{{relationship}}' נשמר",
       "remigrated": "בוצעה מיגרציה מחדש של {{source}}.{{table}}",
+      "logical_replication_refused": "אות השינוי המקורי של המקור '{{source}}' דורש את השכפול הלוגי של מסד הנתונים שלו, ו-{{reason}}.",
       "change_signal_no_receiver": "Provisa אינה מקבלת את אות השינוי {{signal}} ממקור מסוג {{type}}, ולכן טבלה של המקור '{{source}}' לעולם לא תתעדכן באמצעותו. לכדו את המקור באמצעות Debezium והשתמשו ב-debezium.",
       "change_signal_not_honoured": "מקור מסוג {{type}} עדיין אינו ניתן לבדיקת שינויים, ולכן אות השינוי {{signal}} לעולם לא יישאל. השתמשו ב-ttl עבור המקור '{{source}}'.",
       "sentinel_path_not_applicable": "למקור מסוג {{type}} לא יכול להיות נתיב זקיף: אין יצרן משלכם שיכול לסמן שינוי בנתוניו, או שהמקור אינו נבדק. הסירו את נתיב הזקיף מהמקור '{{source}}'.",

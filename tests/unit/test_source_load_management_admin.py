@@ -202,10 +202,10 @@ def test_a_probing_signal_on_another_kind_of_source_is_as_it_was():
 
 def test_a_native_signal_on_a_source_nothing_receives_is_refused_by_name():
     refused = _validate_source_load_management(
-        SourceInput(id="shop_pg", type="postgresql", change_signal="native", cache_ttl=300)
+        SourceInput(id="shop_db", type="mysql", change_signal="native", cache_ttl=300)
     )
     assert refused is not None and refused.code == "schema.change_signal_no_receiver"
-    assert refused.params == {"source": "shop_pg", "type": "postgresql", "signal": "native"}
+    assert refused.params == {"source": "shop_db", "type": "mysql", "signal": "native"}
     assert (
         _validate_source_load_management(
             SourceInput(id="orders", type="mongodb", change_signal="native", cache_ttl=300)

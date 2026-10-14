@@ -314,6 +314,7 @@
       "relationship_not_found": "Relation « {{relationship}} » introuvable",
       "relationship_saved": "Relation « {{relationship}} » enregistrée",
       "remigrated": "{{source}}.{{table}} re-migré",
+      "logical_replication_refused": "Le signal de changement natif de la source '{{source}}' a besoin de la réplication logique de sa base de données, et {{reason}}.",
       "change_signal_no_receiver": "Provisa ne reçoit pas le signal de changement {{signal}} d'une source de type {{type}} : une table de la source '{{source}}' ne serait donc jamais actualisée par celui-ci. Capturez la source avec Debezium et utilisez debezium.",
       "change_signal_not_honoured": "Une source de type {{type}} ne peut pas encore être vérifiée pour détecter des changements ; le signal de changement {{signal}} ne serait donc jamais interrogé. Utilisez ttl pour la source « {{source}} ».",
       "sentinel_path_not_applicable": "Une source de type {{type}} ne peut pas avoir de chemin sentinelle : aucun producteur à vous ne peut signaler un changement de ses données, ou la source n’est pas sondée. Retirez le chemin sentinelle de la source « {{source}} ».",

@@ -3967,6 +3967,7 @@
   "pt/serverErrors.json::serverErrors.schema.invalid_off_peak_window": "invalid off-peak window: {{error}}",
   "pt/serverErrors.json::serverErrors.schema.landing_ttl_required": "Table '{{table}}' is a replica refreshed on a Cache TTL, and neither it nor its source '{{source}}' has one. Set the Cache TTL under Load Management and Timeliness on the source, or on the table itself once it is registered.",
   "pt/serverErrors.json::serverErrors.schema.load_protection_gate_required": "{{who}}: load protection requires at least one refresh gate — set an off-peak window, a cache_ttl cadence, or a probing change_signal (probe/ttl_probe)",
+  "pt/serverErrors.json::serverErrors.schema.logical_replication_refused": "The native change signal on source '{{source}}' needs its database's logical replication, and {{reason}}.",
   "pt/serverErrors.json::serverErrors.schema.logs_invalid": "Logs source {{source}}: {{error}}",
   "pt/serverErrors.json::serverErrors.schema.logs_path_refused": "Logs source {{source}}: {{reason}}",
   "pt/serverErrors.json::serverErrors.schema.metric_deleted": "Metric '{{metric}}' deleted",

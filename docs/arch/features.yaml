@@ -734,8 +734,9 @@
       is bounded by a time-to-live, by a probe that checks whether the upstream changed, or by both. A
       probe can be a query, a version token, or a marker file that a producer writes when new data is
       ready. A Kafka or WebSocket source's tables apply its changes as they arrive, a table captured
-      by Debezium applies each change event from its topic after its first build, and a MongoDB or
-      Cosmos DB table that opts into its change stream is rebuilt on each burst of changes. For databases
+      by Debezium applies each change event from its topic after its first build, and a PostgreSQL,
+      MongoDB or Cosmos DB table that opts into its database's own change stream is rebuilt on each
+      burst of changes. For databases
       that cannot absorb heavy reads, a steward can mark a source load-sensitive, so queries never read it
       and only its scheduled refreshes, on a cadence or a change probe, do. The table's detail page shows
       the resulting policy in plain words.
