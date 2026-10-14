@@ -56,6 +56,10 @@
     },
     "data": {
       "approval_denied": "審批被拒：{{reason}}",
+      "signal_not_admitted": "角色 '{{role}}' 無法向此資料來源發出變更訊號：發出訊號需要寫入權限以及每張被通知表的網域。",
+      "signal_not_declared": "資料來源 '{{source}}' 沒有任何表使用 signal 變更訊號，因此訊號不會重新整理任何內容。",
+      "signal_source_not_found": "找不到資料來源 '{{source}}'。",
+      "signal_table_not_found": "資料來源 '{{source}}' 沒有已註冊的表 '{{table}}'。",
       "apq_hash_mismatch": "APQ 雜湊不符",
       "args_json_invalid": "args_json 不是有效的 JSON：{{error}}",
       "args_json_not_object": "args_json 必須是 JSON 物件",

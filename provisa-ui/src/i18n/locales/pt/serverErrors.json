@@ -56,6 +56,10 @@
     },
     "data": {
       "approval_denied": "Aprovação negada: {{reason}}",
+      "signal_not_admitted": "O papel '{{role}}' não pode sinalizar uma alteração a esta origem: um sinal exige o direito de escrita e o domínio de cada tabela sinalizada.",
+      "signal_not_declared": "Nenhuma tabela da origem '{{source}}' usa o sinal de alteração signal, então um sinal não atualiza nada.",
+      "signal_source_not_found": "Origem '{{source}}' não encontrada.",
+      "signal_table_not_found": "A origem '{{source}}' não tem nenhuma tabela registrada '{{table}}'.",
       "apq_hash_mismatch": "Hash APQ não corresponde",
       "args_json_invalid": "args_json não é JSON válido: {{error}}",
       "args_json_not_object": "args_json deve ser um objeto JSON",

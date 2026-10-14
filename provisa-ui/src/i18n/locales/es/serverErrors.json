@@ -56,6 +56,10 @@
     },
     "data": {
       "approval_denied": "Aprobación denegada: {{reason}}",
+      "signal_not_admitted": "El rol '{{role}}' no puede señalar un cambio a este origen: una señal necesita el permiso de escritura y el dominio de cada tabla señalada.",
+      "signal_not_declared": "Ninguna tabla del origen '{{source}}' usa la señal de cambio signal, así que una señal no actualiza nada.",
+      "signal_source_not_found": "Origen '{{source}}' no encontrado.",
+      "signal_table_not_found": "El origen '{{source}}' no tiene ninguna tabla registrada '{{table}}'.",
       "apq_hash_mismatch": "El hash de APQ no coincide",
       "args_json_invalid": "args_json no es JSON válido: {{error}}",
       "args_json_not_object": "args_json debe ser un objeto JSON",

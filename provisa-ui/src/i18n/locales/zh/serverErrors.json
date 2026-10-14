@@ -56,6 +56,10 @@
     },
     "data": {
       "approval_denied": "审批被拒绝：{{reason}}",
+      "signal_not_admitted": "角色 '{{role}}' 无法向此数据源发出变更信号：发出信号需要写入权限以及每张被通知表的域。",
+      "signal_not_declared": "数据源 '{{source}}' 没有任何表使用 signal 变更信号，因此信号不会刷新任何内容。",
+      "signal_source_not_found": "未找到数据源 '{{source}}'。",
+      "signal_table_not_found": "数据源 '{{source}}' 没有已注册的表 '{{table}}'。",
       "apq_hash_mismatch": "APQ 哈希不匹配",
       "args_json_invalid": "args_json 不是有效的 JSON：{{error}}",
       "args_json_not_object": "args_json 必须是 JSON 对象",

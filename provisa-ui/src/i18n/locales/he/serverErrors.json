@@ -56,6 +56,10 @@
     },
     "data": {
       "approval_denied": "האישור נדחה: {{reason}}",
+      "signal_not_admitted": "התפקיד '{{role}}' אינו רשאי לאותת על שינוי למקור זה: אות דורש הרשאת כתיבה ואת התחום של כל טבלה שמאותתת.",
+      "signal_not_declared": "אף טבלה של המקור '{{source}}' אינה משתמשת באות השינוי signal, ולכן אות אינו מרענן דבר.",
+      "signal_source_not_found": "המקור '{{source}}' לא נמצא.",
+      "signal_table_not_found": "למקור '{{source}}' אין טבלה רשומה '{{table}}'.",
       "apq_hash_mismatch": "אי-התאמה ב-hash של APQ",
       "args_json_invalid": "args_json אינו JSON תקין: {{error}}",
       "args_json_not_object": "args_json חייב להיות אובייקט JSON",

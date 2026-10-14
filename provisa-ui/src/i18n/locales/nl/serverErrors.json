@@ -56,6 +56,10 @@
     },
     "data": {
       "approval_denied": "Goedkeuring geweigerd: {{reason}}",
+      "signal_not_admitted": "Rol '{{role}}' mag geen wijziging aan deze bron signaleren: een signaal vereist het schrijfrecht en het domein van elke gesignaleerde tabel.",
+      "signal_not_declared": "Geen tabel van bron '{{source}}' gebruikt het wijzigingssignaal signal, dus een signaal vernieuwt niets.",
+      "signal_source_not_found": "Bron '{{source}}' niet gevonden.",
+      "signal_table_not_found": "Bron '{{source}}' heeft geen geregistreerde tabel '{{table}}'.",
       "apq_hash_mismatch": "APQ-hash komt niet overeen",
       "args_json_invalid": "args_json is geen geldige JSON: {{error}}",
       "args_json_not_object": "args_json moet een JSON-object zijn",

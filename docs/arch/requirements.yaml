@@ -35069,14 +35069,16 @@
   - provisa/core/models.py
   - provisa/federation/scheduled_refresh.py
   - provisa/federation/freshness_gate.py
-  - provisa/federation/scheduler.py
+  - provisa/federation/replica_builds.py
+  - provisa/federation/replica_runner.py
   - provisa/federation/read_through.py
   - provisa/core/operator_floor.py
   - provisa/transpiler/router.py
   tests:
   - tests/unit/test_scheduled_refresh.py
-  - tests/unit/test_scheduler_driver.py
+  - tests/unit/federation/test_off_peak_window_builds.py
   - tests/unit/test_operator_floor_routing.py
+  - tests/integration/test_off_peak_window_refresh_e2e.py
   - tests/integration/test_operator_floor_e2e.py
   target: 2026-Q4
   scenario: 'Given a load_protected_policy: scheduled_refresh source with window-only config (off-peak:
@@ -35547,11 +35549,13 @@
     into immediate source load.
   code:
   - provisa/core/change_signal.py
-  - provisa/federation/change_trigger.py
-  - provisa/federation/scheduled_refresh.py
-  - provisa/federation/scheduler.py
+  - provisa/api/data/signal.py
+  - provisa/api/data/table_written.py
+  - provisa/federation/replica_builds.py
   tests:
   - tests/unit/test_change_trigger_signal.py
+  - tests/unit/test_signal_webhook.py
+  - tests/integration/test_signal_webhook_e2e.py
   target: 2027-Q1
   competitive_position:
     status: ahead

@@ -56,6 +56,10 @@
     },
     "data": {
       "approval_denied": "承認が拒否されました：{{reason}}",
+      "signal_not_admitted": "ロール「{{role}}」はこのソースへの変更を通知できません。通知には書き込み権限と、通知する各テーブルのドメインが必要です。",
+      "signal_not_declared": "ソース「{{source}}」のテーブルはどれも変更シグナル signal を使用していないため、通知しても何も更新されません。",
+      "signal_source_not_found": "ソース「{{source}}」が見つかりません。",
+      "signal_table_not_found": "ソース「{{source}}」には登録済みのテーブル「{{table}}」がありません。",
       "apq_hash_mismatch": "APQ ハッシュが一致しません",
       "args_json_invalid": "args_json が有効な JSON ではありません：{{error}}",
       "args_json_not_object": "args_json は JSON オブジェクトである必要があります",

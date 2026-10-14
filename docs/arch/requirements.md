@@ -11258,9 +11258,9 @@ A steward can mark an operational database source as load-sensitive and configur
 
 **Use case:** Lets a steward protect an operational database by serving it entirely from scheduled snapshots, with fine-grained control over refresh timing (maintenance windows, periodic intervals, or change-driven). The probe signal avoids wasted re-pulls when the source is unchanged. Query traffic never touches the source — only predictable background refresh traffic, bounded by configured gates and staleness by scheduler policy, not query load.
 
-**Code:** `provisa/core/models.py`, `provisa/federation/scheduled_refresh.py`, `provisa/federation/freshness_gate.py`, `provisa/federation/scheduler.py`, `provisa/federation/read_through.py`, `provisa/core/operator_floor.py`, `provisa/transpiler/router.py`
+**Code:** `provisa/core/models.py`, `provisa/federation/scheduled_refresh.py`, `provisa/federation/freshness_gate.py`, `provisa/federation/replica_builds.py`, `provisa/federation/replica_runner.py`, `provisa/federation/read_through.py`, `provisa/core/operator_floor.py`, `provisa/transpiler/router.py`
 
-**Tests:** `tests/unit/test_scheduled_refresh.py`, `tests/unit/test_scheduler_driver.py`, `tests/unit/test_operator_floor_routing.py`, `tests/integration/test_operator_floor_e2e.py`
+**Tests:** `tests/unit/test_scheduled_refresh.py`, `tests/unit/federation/test_off_peak_window_builds.py`, `tests/unit/test_operator_floor_routing.py`, `tests/integration/test_off_peak_window_refresh_e2e.py`, `tests/integration/test_operator_floor_e2e.py`
 
 ## 11. Platform, Infrastructure & Delivery
 
@@ -11362,9 +11362,9 @@ A new change_signal PUSH variant, `signal`, for a DATA-LESS external trigger (a 
 
 **Use case:** Lets an upstream system announce a change over Kafka/webhook without Provisa polling or the message carrying data; Provisa invalidates and re-pulls from the source on its own schedule -- ideal for load-protected operational sources ([REQ-1141](#REQ-1141)) where a control-plane signal must not translate into immediate source load.
 
-**Code:** `provisa/core/change_signal.py`, `provisa/federation/change_trigger.py`, `provisa/federation/scheduled_refresh.py`, `provisa/federation/scheduler.py`
+**Code:** `provisa/core/change_signal.py`, `provisa/api/data/signal.py`, `provisa/api/data/table_written.py`, `provisa/federation/replica_builds.py`
 
-**Tests:** `tests/unit/test_change_trigger_signal.py`
+**Tests:** `tests/unit/test_change_trigger_signal.py`, `tests/unit/test_signal_webhook.py`, `tests/integration/test_signal_webhook_e2e.py`
 
 ## 8. Client Access & Protocols
 
