@@ -239,7 +239,10 @@ def semantic_statement(
             require_inputs_reached(view_sql, gov)
             bodies[view] = _with_own_rules(view, view_sql, gov)
     governed = expand_view_refs(sql, bodies)
-    return governed, expand_view_refs(governed, definitions, mark=True)
+    # Validated with every view marked where it is expanded, here and below, so the guard reads
+    # each as the view it is (provisa.compiler.join_guard).
+    marked = expand_view_refs(sql, bodies, mark=True)
+    return governed, expand_view_refs(marked, definitions, mark=True)
 
 
 def _definitions(view_sql_map: dict[str, str], state: Any) -> dict[str, str]:
