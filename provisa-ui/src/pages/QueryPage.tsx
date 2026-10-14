@@ -52,13 +52,7 @@ import { serverMessage } from "../i18n/serverMessage";
 import { domainGqlAlias } from "../types/admin";
 import { actingRoleHeader } from "../lib/actingRole";
 import { localizedStreamFrame } from "./streamErrors";
-import {
-  getStored,
-  removeStored,
-  scopedStorage,
-  setStored,
-  storedKeys,
-} from "../lib/browserStorage";
+import { getStored, scopedStorage, setStored, storageKey } from "../lib/browserStorage";
 import { useNamedDemo } from "../context/NamedDemoContext";
 import { operationNameOf } from "./graphqlOperationName";
 
@@ -557,6 +551,13 @@ function OpenFromNav({ query, autoRun }: { query: string; autoRun: boolean }) {
   return null;
 }
 
+/**
+ * The introspected schema of each role set and domain set, for this page load, keyed as browser
+ * storage would key it (per control plane and org). Kept in memory, never in browser storage: one
+ * org's schema for many roles and domains is larger than the storage quota.
+ */
+const introspectedSchemas = new Map<string, GraphQLSchema>();
+
 /** Query development page — embeds GraphiQL with Explorer (REQ-062). */
 export function QueryPage() {
   // REQ-2008: GraphiQL's tabs, history and headers are saved in this control plane's and org's
@@ -698,16 +699,14 @@ export function QueryPage() {
     }
     /* eslint-enable react-hooks/set-state-in-effect */
     const domain = [...checkedDomains].sort().join(",");
-    const cacheKey = `introspection:${roleHeader}:${domain}:${serverSchemaVersion}`;
-    const cached = getStored(cacheKey, { session: true });
+    const cacheKey = storageKey(`introspection:${roleHeader}:${domain}:${serverSchemaVersion}`, {
+      session: true,
+    });
+    const cached = introspectedSchemas.get(cacheKey);
     if (cached) {
-      try {
-        setDomainSchema(buildClientSchema(JSON.parse(cached)));
-        setSchemaError(null);
-        return;
-      } catch {
-        removeStored(cacheKey, { session: true });
-      }
+      setDomainSchema(cached);
+      setSchemaError(null);
+      return;
     }
     const controller = new AbortController();
     setSchemaError(null);
@@ -718,13 +717,14 @@ export function QueryPage() {
       .then((r) => r.json())
       .then((json) => {
         if (json.data) {
-          setStored(cacheKey, JSON.stringify(json.data), { session: true });
-          // Prune stale entries from prior schema versions
-          for (const k of storedKeys({ session: true })) {
-            if (k.startsWith("introspection:") && k !== cacheKey)
-              removeStored(k, { session: true });
+          const schema = buildClientSchema(json.data);
+          // One schema kept for this control plane and org: those of prior schema versions go.
+          const scope = storageKey("introspection:", { session: true });
+          for (const k of [...introspectedSchemas.keys()]) {
+            if (k.startsWith(scope)) introspectedSchemas.delete(k);
           }
-          setDomainSchema(buildClientSchema(json.data));
+          introspectedSchemas.set(cacheKey, schema);
+          setDomainSchema(schema);
           setSchemaError(null);
         } else {
           setSchemaError(serverMessage(json, "Schema unavailable"));
