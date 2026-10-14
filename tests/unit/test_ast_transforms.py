@@ -106,3 +106,39 @@ def test_build_values_cte_merges_into_existing_with_via_ast():
     # Both CTEs present; the original CTE is retained (no clobber).
     assert "pre" in cte_names
     assert "_hot_countries" in cte_names
+
+
+def test_every_hot_table_of_a_statement_is_inlined_in_one_rewrite(monkeypatch):
+    """A statement over several hot tables is parsed once and written once: each table rewritten
+    on its own re-parsed and re-wrote the whole statement, and a Cypher MATCH (n) over every label
+    (216 KB of SQL) spent most of a request doing it."""
+    from provisa.cache import values_cte
+
+    parses: list[str] = []
+    real_parse = sqlglot.parse_one
+
+    def _counted(sql, *args, **kwargs):
+        if not sql.startswith("WITH "):  # the CTE fragments themselves
+            parses.append(sql)
+        return real_parse(sql, *args, **kwargs)
+
+    monkeypatch.setattr(sqlglot, "parse_one", _counted)
+    countries = _entry("countries", [{"id": 1, "code": "US"}], ["id", "code"])
+    regions = _entry("customers", [{"id": 2, "name": "NA"}], ["id", "name"])
+    sql = (
+        'SELECT "c"."code", "r"."name" FROM "public"."countries" "c" '
+        'JOIN "public"."customers" "r" ON "c"."id" = "r"."id"'
+    )
+
+    out = values_cte.build_values_ctes_sql(sql, {"countries": countries, "customers": regions})
+
+    assert parses.count(sql) == 1
+    tree = real_parse(out, read="postgres")
+    assert sorted(c.alias for c in tree.args["with_"].expressions) == [
+        "_hot_countries",
+        "_hot_customers",
+    ]
+    assert {t.name for t in tree.find_all(sqlglot.exp.Table)} == {
+        "_hot_countries",
+        "_hot_customers",
+    }
