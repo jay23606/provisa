@@ -170,6 +170,9 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         # local copy target -> the store canary it was copied at (see _copy_store_table).
         self._store_copy_canary: dict[str, Any] = {}
         self._phys_catalogs: set[str] = set()  # in-memory catalogs holding the physical views
+        # The source each attach of this connection was made for -- raw remote databases and the
+        # in-memory catalogs its views stand in -- so a deleted source's attaches go with it.
+        self._attach_source: dict[str, str] = {}
         # REQ-899: ClickHouse tables read live over ClickHouse's HTTP interface — physical-name key
         # (lowercased catalog, schema, table) -> relation. No view stands at that name: every
         # statement naming one is rewritten to a read_parquet() of it (clickhouse_http_scan).
@@ -226,6 +229,7 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
             # DB is read-only and cannot host the schema/view the compiler references).
             self._con.execute(f"ATTACH ':memory:' AS \"{catalog}\"")
             self._phys_catalogs.add(catalog)
+            self._attach_source[catalog] = source.id
         self._con.execute(f'CREATE SCHEMA IF NOT EXISTS "{catalog}"."{source.schema_name}"')
         return f'"{catalog}"."{source.schema_name}"."{source.table_name}"'
 
@@ -288,6 +292,22 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         ).fetchone()
         if is_view is not None:
             self._con.execute(f'DROP VIEW "{parts[0]}"."{parts[1]}"."{parts[2]}"')
+
+    def drop_source(self, source_id: str) -> None:
+        """Let go of everything this connection attached for the deleted source ``source_id``:
+        its remote databases and the catalogs its views stand in. DuckDB reads every attached
+        database for any catalog listing (``information_schema``, ``duckdb_columns()``), so an
+        attach left behind to a server that has gone fails those listings for every other
+        source. Under the catalogue gate: a statement in flight finishes first."""
+        aliases = [a for a, sid in self._attach_source.items() if sid == source_id]
+        with self._catalog_gate.write():
+            for alias in aliases:
+                self._con.execute(f'DETACH "{alias}"')
+                del self._attach_source[alias]
+                self._raw_attached.discard(alias)
+                self._raw_attach_ddl.pop(alias, None)
+                self._phys_catalogs.discard(alias)
+                self._let_file_go(alias)
 
     def _attach_databricks(self, source: Any, scan_args: str, phys: str) -> None:
         """REQ-1867: register a Databricks table read in place, and point its view at the table's
@@ -536,6 +556,7 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
                 )
             self._raw_attached.add(raw_alias)
             self._raw_attach_ddl[raw_alias] = attach
+            self._attach_source[raw_alias] = source.id
             self._hold_file(source, raw_alias)
         return raw_alias
 
@@ -1103,15 +1124,10 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         ``FLOAT[]`` (``ir_types.Embedding``) and nothing else as a float list; the column is
         fixed at its vectors' length, and vectors of two lengths in one column fail the read,
         naming it. A column with no vector has nothing to index."""
-        local_schema, local_table = _LOCAL_STORE_SCHEMA, name
+        # DESCRIBE binds the one table: a catalog listing (information_schema) would read every
+        # attached database, and fail on any whose server is down.
         columns = [
-            column
-            for column, data_type in cur.execute(
-                "SELECT column_name, data_type FROM information_schema.columns "
-                "WHERE table_schema = ? AND table_name = ?",
-                [local_schema, local_table],
-            ).fetchall()
-            if data_type == "FLOAT[]"
+            row[0] for row in cur.execute(f"DESCRIBE {target}").fetchall() if row[1] == "FLOAT[]"
         ]
         if not columns:
             return

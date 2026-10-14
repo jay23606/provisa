@@ -192,6 +192,18 @@ class NativeEngineBackend(EngineBackend):
         if runtime is not None:
             runtime.close()
 
+    def drop_source(self, state: Any, source_id: str, catalog_name: str | None = None) -> None:
+        """A deleted source's attaches go with it: one left to a server that has gone fails every
+        catalog listing the runtime makes for other sources. Its tables are forgotten, so one
+        registered again under the same id is attached anew."""
+        del state, catalog_name
+        runtime = self._store_runtime()
+        if hasattr(runtime, "drop_source"):
+            runtime.drop_source(source_id)
+        with self._walk_lock:
+            for held in (self._attached, self._detached, self._refused):
+                held.difference_update({k for k in held if k[1] == source_id})
+
     # -- runtime (subclass hook) ----------------------------------------------
 
     def _new_runtime(self) -> Any:
