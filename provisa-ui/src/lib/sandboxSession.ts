@@ -10,19 +10,17 @@
 
 // REQ-2006: a demo sandbox's visitor holds no account. Opening a demo answers the sandbox's org and
 // a personal access token; the page that opened it hands both to the sandbox's own address in the
-// URL fragment (never sent to a server), and that address keeps the token as its bearer.
+// URL fragment (never sent to a server), and that address keeps them as the tab's own visitor
+// identity (browserStorage's visit), never in place of the browser's Provisa login.
 
-import { getStored, setStored } from "./browserStorage";
-
-/** Where the visitor's token is kept: one key of its own, beside the sign-in tokens. */
-export const SANDBOX_TOKEN_KEY = "provisa_sandbox_token";
+import { getStored, setStored, startVisit, visitorActive } from "./browserStorage";
 
 const TOKEN_PARAM = "provisa_sandbox";
 const ORG_PARAM = "provisa_sandbox_org";
 
-/** The demo sandbox token this browser holds, if any. */
+/** The demo sandbox token this tab's visitor holds, if any. */
 export function sandboxToken(): string | null {
-  return getStored(SANDBOX_TOKEN_KEY, { global: true });
+  return visitorActive() ? getStored("provisa_token", { global: true }) : null;
 }
 
 /**
@@ -30,11 +28,7 @@ export function sandboxToken(): string | null {
  * label, REQ-1276) with the token in the fragment; on a host that addresses no org by name
  * (`localhost`), this app's root, the org named in the fragment too.
  */
-export function sandboxDestination(
-  orgId: string,
-  token: string,
-  orgOrigin: string | null,
-): string {
+export function sandboxDestination(orgId: string, token: string, orgOrigin: string | null): string {
   const fragment = new URLSearchParams({ [TOKEN_PARAM]: token });
   if (orgOrigin === null) {
     fragment.set(ORG_PARAM, orgId);
@@ -51,7 +45,10 @@ export function adoptSandboxTokenFromLocation(location: Location = window.locati
   const fragment = new URLSearchParams(location.hash.replace(/^#/, ""));
   const token = fragment.get(TOKEN_PARAM);
   if (!token) return false;
-  setStored(SANDBOX_TOKEN_KEY, token, { global: true });
+  // The tab becomes the visitor's: its bearer and org are the visitor's own, beside -- never in
+  // place of -- a login the browser holds.
+  startVisit();
+  setStored("provisa_token", token, { global: true });
   const org = fragment.get(ORG_PARAM);
   if (org) setStored("provisa_org", org, { global: true });
   window.history.replaceState(null, "", `${location.pathname}${location.search}`);

@@ -12,7 +12,13 @@ import { clearPersistedAdminCache } from "../apolloClient";
 import { controlPlaneOrigin, isOrgSubdomainHost } from "./authHost";
 import { CHECKED_DOMAINS_KEY, KNOWN_DOMAINS_KEY } from "./domainFilterKeys";
 import { SUPERUSER_TOKEN_KEY } from "./sessionToken";
-import { removeStored, removeStoredEverywhere, setStored } from "./browserStorage";
+import {
+  endVisit,
+  removeStored,
+  removeStoredEverywhere,
+  setStored,
+  visitorActive,
+} from "./browserStorage";
 
 /**
  * Remembers the last submenu item visited within each nav group. Lives here rather than in NavBar
@@ -56,6 +62,13 @@ export const SESSION_SCOPED_KEYS = [
  * cleared it. Session-scoped state is cleared when the session starts, not patched around later.
  */
 export function clearSessionState(): void {
+  // REQ-2006: in a live demo's tab the session is the visitor's: it ends, and the browser's own
+  // signed-in session -- which the visit never touched -- is the one the tab has again.
+  if (visitorActive()) {
+    endVisit();
+    clearPersistedAdminCache();
+    return;
+  }
   for (const key of SESSION_KEYS) removeStored(key, { global: true });
   for (const key of SESSION_SCOPED_KEYS) removeStoredEverywhere(key);
   clearPersistedAdminCache();
@@ -110,12 +123,14 @@ export async function signOut(): Promise<void> {
 
 /** Begin a session for `token`: clear the prior identity's state first, then store the credential. */
 export function startSession(token: string): void {
+  if (visitorActive()) clearSessionState(); // a sign-in from a demo's tab ends the visit first
   clearSessionState();
   setStored("provisa_token", token, { global: true });
 }
 
 /** REQ-1472: begin a break-glass session — same clearing, stored under the key Firebase does not own. */
 export function startSuperuserSession(token: string): void {
+  if (visitorActive()) clearSessionState(); // a sign-in from a demo's tab ends the visit first
   clearSessionState();
   setStored(SUPERUSER_TOKEN_KEY, token, { global: true });
 }

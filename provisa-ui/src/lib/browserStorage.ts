@@ -65,16 +65,60 @@ function area(options?: StoredKeyOptions): Storage {
   return options?.session ? window.sessionStorage : window.localStorage;
 }
 
+/**
+ * REQ-2006: a live demo runs as its own anonymous visitor (the token opening its sandbox gave),
+ * never as a Provisa login the browser also holds. While a tab is a visitor's, the session's
+ * identity -- its bearer, org and role -- is the visitor's own: read and written in that tab's
+ * session storage, under its own names, so the signed-in session's keys are neither read nor
+ * changed. Closing the tab, or signing out of the demo, ends the visit and the browser's own
+ * session is as it was.
+ */
+const VISITOR_FLAG = "provisa_visitor";
+const IDENTITY_KEYS: ReadonlySet<string> = new Set([
+  "provisa_token",
+  "provisa_su_token",
+  "provisa_org",
+  "provisa_role",
+]);
+
+/** Whether this tab is a live demo's visitor. */
+export function visitorActive(): boolean {
+  return window.sessionStorage.getItem(VISITOR_FLAG) === "true";
+}
+
+/** Make this tab a live demo's visitor, with no identity of its own yet. */
+export function startVisit(): void {
+  for (const key of IDENTITY_KEYS) window.sessionStorage.removeItem(`visitor:${key}`);
+  window.sessionStorage.setItem(VISITOR_FLAG, "true");
+}
+
+/** End this tab's visit: the visitor's identity goes, and the browser's own session is back. */
+export function endVisit(): void {
+  for (const key of IDENTITY_KEYS) window.sessionStorage.removeItem(`visitor:${key}`);
+  window.sessionStorage.removeItem(VISITOR_FLAG);
+}
+
+/** The storage and key a value is held under: the visitor's own, for its identity. */
+function where(key: string, options?: StoredKeyOptions): [Storage, string] {
+  if (options?.global && !options.session && IDENTITY_KEYS.has(key) && visitorActive()) {
+    return [window.sessionStorage, `visitor:${key}`];
+  }
+  return [area(options), storageKey(key, options)];
+}
+
 export function getStored(key: string, options?: StoredKeyOptions): string | null {
-  return area(options).getItem(storageKey(key, options));
+  const [store, at] = where(key, options);
+  return store.getItem(at);
 }
 
 export function setStored(key: string, value: string, options?: StoredKeyOptions): void {
-  area(options).setItem(storageKey(key, options), value);
+  const [store, at] = where(key, options);
+  store.setItem(at, value);
 }
 
 export function removeStored(key: string, options?: StoredKeyOptions): void {
-  area(options).removeItem(storageKey(key, options));
+  const [store, at] = where(key, options);
+  store.removeItem(at);
 }
 
 /** The keys saved in the bound scope (as passed to `getStored`), in the area named. */
