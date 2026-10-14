@@ -122,6 +122,23 @@ def test_a_member_that_cannot_read_the_table_does_not_lift_its_filter():
     assert state.rls_contexts[meta].rules == {1: "(region = 'east')"}
 
 
+def test_a_member_with_no_data_surface_adds_nothing(_no_surface_build):
+    """A control-plane member (REQ-1327: platform_admin, the cross_org right) has no data surface
+    at all; building the set of held roles indexed it and the model rebuild failed with
+    KeyError 'platform_admin' (core e2e lane, 87d09e9c5: setTableDraft refused)."""
+    state, _ = _state(
+        rls={"east": RLSContext(rules={1: "region = 'east'"})},
+        reads={"east": [1]},
+        roles={
+            "east": _role("east"),
+            "platform_admin": _role("platform_admin", caps=["cross_org"], domains=["*"]),
+        },
+    )
+    assert "platform_admin" not in state.surfaces
+    meta = ensure_meta_role(state, ["east", "platform_admin"])
+    assert state.rls_contexts[meta].rules == {1: "(region = 'east')"}
+
+
 def test_each_members_role_constants_are_written_into_its_own_term():
     expr = "region = current_setting('provisa.region')"
     state, _ = _state(

@@ -513,11 +513,14 @@ async def _settle_nested_columns(pool, input, columns) -> "MutationResult | None
 
     A table a query produces (a query-API source's: neo4j, SPARQL, ...) has the columns its query
     returns, typed by its preview, which refuses a column that is not a scalar (REQ-1670/REQ-1683):
-    the source has no listing of them to settle against."""
+    the source has no listing of them to settle against. Nor has a data-quality checker's result
+    table (REQ-1443): its columns are the checker's result envelope, which Provisa defines and
+    writes (``dq.registration.derive_checker_table``), not anything the source holds."""
     from provisa.api.admin.types import MutationResult
     from provisa.core.repositories.table import stored_column_types
 
-    if input.query_template:
+    # A checker's result table is the one that carries its contract (derive_checker_table).
+    if input.query_template or getattr(input, "dq_contract", None):
         return None
 
     async with pool.acquire() as conn:

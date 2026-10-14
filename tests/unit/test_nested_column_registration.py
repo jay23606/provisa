@@ -196,3 +196,20 @@ async def test_a_table_its_query_produces_is_not_listed_from_the_source(monkeypa
 
     assert await _table_ops._settle_nested_columns(_Pool(), neo4j, columns) is None
     assert asked == []
+
+
+async def test_a_checkers_result_table_is_not_listed_from_its_source(monkeypatch):
+    """A Soda or Great Expectations result table's columns are the checker's result envelope
+    (REQ-1443), which Provisa writes; the checker source has no listing of them, and registering
+    one failed "cannot list the columns of source 'dq-soda'" (core e2e lane, 87d09e9c5)."""
+    asked = _source(monkeypatch, [], stored={})
+    checker = SimpleNamespace(
+        source_id="dq-soda",
+        schema_name="main",
+        table_name="orders_rows_soda_dq_dq",
+        query_template=None,
+        dq_contract="dataset: provisa/sales/orders\nchecks:\n  - row_count > 0\n",
+    )
+    columns = [Column(name="outcome", data_type="text", visible_to=[])]
+    assert await _table_ops._settle_nested_columns(_Pool(), checker, columns) is None
+    assert asked == []
