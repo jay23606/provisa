@@ -84,10 +84,12 @@ def test_a_join_on_a_constant_a_view_gives_relates_along_the_view_s_relationship
 
 
 def test_it_still_needs_the_view_s_relationship():
-    assert _v002(_READ, related=False) == [
+    # Refused for the join it makes; which further unrelated pair is also named depends on the
+    # order the statement's table instances are compared in.
+    assert (
         "Invalid JOIN: theme.id = evokes.theme_id — no approved relationship exists between "
         "these tables on these columns"
-    ]
+    ) in _v002(_READ, related=False)
 
 
 def test_a_derived_table_a_caller_writes_is_no_view():
@@ -119,3 +121,35 @@ def test_a_cross_join_inside_the_view_is_still_refused():
     validated = expand_view_refs(_READ, {"evokes": inside}, mark=True)
     messages = [v.message for v in validate_sql(validated, ctx, gov, _ROLE, []) if v.code == "V002"]
     assert any("line and theme are combined with no condition" in m for m in messages), messages
+
+
+def test_a_constant_a_view_reads_from_the_views_it_reads_is_its_own():
+    """``evokes`` is the union of two theme views, each giving its theme as a constant: the
+    join on ``evokes.theme_id`` is along ``evokes``' relationship."""
+    line, theme, evokes = _meta(1, "line"), _meta(2, "theme"), _meta(3, "evokes")
+    time_view, beauty_view = _meta(4, "theme_time"), _meta(5, "theme_beauty")
+    ctx = CompilationContext()
+    ctx.tables = {
+        "line": line,
+        "theme": theme,
+        "evokes": evokes,
+        "theme_time": time_view,
+        "theme_beauty": beauty_view,
+    }
+    ctx.joins = {
+        ("Evokes", "theme"): _join(theme, "theme_id", "id"),
+        ("Evokes", "line"): _join(line, "line_id", "id"),
+    }
+    gov = GovernanceContext()
+    gov.table_map = {"line": 1, "theme": 2, "evokes": 3, "theme_time": 4, "theme_beauty": 5}
+    columns = {**_COLUMNS, 4: _COLUMNS[3], 5: _COLUMNS[3]}
+    gov.all_columns = {tid: [(c, "varchar") for c in cols] for tid, cols in columns.items()}
+    views = {
+        "evokes": "SELECT line_id, theme_id FROM theme_time "
+        "UNION ALL SELECT line_id, theme_id FROM theme_beauty",
+        "theme_time": "SELECT l.id AS line_id, 'time' AS theme_id FROM line l",
+        "theme_beauty": "SELECT l.id AS line_id, 'beauty' AS theme_id FROM line l",
+    }
+    validated = expand_view_refs(_READ, views, mark=True)
+    messages = [v.message for v in validate_sql(validated, ctx, gov, _ROLE, []) if v.code == "V002"]
+    assert messages == []
