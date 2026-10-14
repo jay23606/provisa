@@ -3,6 +3,33 @@
 All notable changes to Provisa are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## v0.1.0-alpha.484
+
+Released 2026-10-14.
+
+### Changes
+
+#### demos
+
+- A demo template is landed when its source tables are, not its views
+- A sandbox is shown its own demo's example queries and tour
+- A sandbox's visitor sees what the demo shows its admin, and holds the demo's own roles
+
+#### freshness
+
+- A debezium table is kept current by its stream; native is refused where nothing receives it
+- A PostgreSQL table on the native signal follows its database's logical replication
+
+#### polly
+
+- Keep narration apart from answers, require graph relationships, confirm only what results show
+- Draw graphs in the chat and hand over results as files
+
+#### replica
+
+- A table's preflight check runs in its replica build, over the rows it streams
+- A checked build's abort and quarantine are the event loop's own events
+
 ## v0.1.0-alpha.483
 
 Released 2026-10-14.

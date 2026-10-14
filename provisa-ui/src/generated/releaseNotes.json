@@ -1,125 +1,36 @@
 {
-  "version": "v0.1.0-alpha.483",
-  "previous": "v0.1.0-alpha.482",
+  "version": "v0.1.0-alpha.484",
+  "previous": "v0.1.0-alpha.483",
   "date": "2026-10-14",
   "features": [],
   "changes": [
     {
-      "scope": "core",
-      "entries": [
-        "The host file lock works on Windows"
-      ]
-    },
-    {
-      "scope": "cypher",
-      "entries": [
-        "Two variables' same-named properties are two columns",
-        "Two variables' same-named properties are two columns"
-      ]
-    },
-    {
-      "scope": "demo",
-      "entries": [
-        "The sonnets named demo, and a demo's setup.yaml and extras",
-        "The weblogs columns' descriptions load whole",
-        "The sonnets tour, its integration test and its CI lane",
-        "The sonnets echo network returns its IN edges, so sonnets are drawn joined"
-      ]
-    },
-    {
       "scope": "demos",
       "entries": [
-        "Each published demo is a bundle published to GHCR and pulled where it runs",
-        "A bundle build's seeding run reads its demo's logs, and hands back what the stores wrote"
+        "A demo template is landed when its source tables are, not its views",
+        "A sandbox is shown its own demo's example queries and tour",
+        "A sandbox's visitor sees what the demo shows its admin, and holds the demo's own roles"
       ]
     },
     {
-      "scope": "elasticsearch",
+      "scope": "freshness",
       "entries": [
-        "A table registered from a native search"
+        "A debezium table is kept current by its stream; native is refused where nothing receives it",
+        "A PostgreSQL table on the native signal follows its database's logical replication"
       ]
     },
     {
-      "scope": "graph",
+      "scope": "polly",
       "entries": [
-        "graph-model holds no browser storage, so graph-render builds"
+        "Keep narration apart from answers, require graph relationships, confirm only what results show",
+        "Draw graphs in the chat and hand over results as files"
       ]
     },
     {
-      "scope": "guard",
+      "scope": "replica",
       "entries": [
-        "A join on a view's constant column relates along the view's relationship",
-        "A constant a view reads from a view it reads is its own",
-        "Mark the views the governed expansion inlines too",
-        "A view's mark reaches every branch of its union"
-      ]
-    },
-    {
-      "scope": "mv",
-      "entries": [
-        "Every view build and a stale view's read go through the one pipeline"
-      ]
-    },
-    {
-      "scope": "org-runtime",
-      "entries": [
-        "A retired org that owns its engine closes it"
-      ]
-    },
-    {
-      "scope": "registration",
-      "entries": [
-        "A table its native query produces is not listed from its source"
-      ]
-    },
-    {
-      "scope": "sandbox",
-      "entries": [
-        "The sandbox tier owns the demo sandboxes' DuckDB files",
-        "The cloud control plane runs the sandbox tier as its own single-worker service",
-        "Demo templates, opening a sandbox from one, its limits, and its reaper",
-        "A template is ready when every table has a landed replica, and ready hooks run then",
-        "Proven on a local test instance; the fixes the proof found",
-        "A signed-in person opens their own named sandbox of a demo",
-        "The ordinary API refuses a sandbox by name; a visitor lands a source of their own",
-        "/demos/<name> opens a demo sandbox, and its welcome names every limit it runs under",
-        "A demo is seeded when the release is built, and a deployment runs none of its sources"
-      ]
-    },
-    {
-      "scope": "security",
-      "entries": [
-        "A sandbox org's sources reach only its demo's own destinations and public addresses",
-        "A sandbox org connects to the address its check resolved; what cannot be pinned is refused"
-      ]
-    },
-    {
-      "scope": "sources",
-      "entries": [
-        "Two creates of one source id at once -- one is created, the other refused by name"
-      ]
-    },
-    {
-      "scope": "tour",
-      "entries": [
-        "Demo tours tell the scenario, how it fits, and one answer across surfaces",
-        "A step's anchor wait notices a mark set on an element already there",
-        "The weblogs payoff is SQL and REST over the demo's views",
-        "The weblogs track's summary names the answer it shows (SQL and REST), not Polly's"
-      ]
-    },
-    {
-      "scope": "types",
-      "entries": [
-        "An instant is timestamptz, carried as UTC with its zone",
-        "An interval is read as the duration it is, its months kept"
-      ]
-    },
-    {
-      "scope": "ui",
-      "entries": [
-        "Register Table offers an Elasticsearch native search, as a MongoDB pipeline",
-        "The IR vocabulary has timestamptz, an instant"
+        "A table's preflight check runs in its replica build, over the rows it streams",
+        "A checked build's abort and quarantine are the event loop's own events"
       ]
     }
   ]
