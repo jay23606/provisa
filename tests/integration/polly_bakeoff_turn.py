@@ -36,6 +36,8 @@ class Turn:
     error: str | None = None
     # Each tool the model called, its input, and whether it failed.
     tools: list[dict[str, Any]] = field(default_factory=list)
+    # What the model reasoned when it left its reply blank, as its provider returned it.
+    reasoning: str = ""
 
 
 def client_result(call: dict[str, Any]) -> dict[str, Any] | None:
@@ -82,6 +84,8 @@ def ask(stream: Callable[[list[dict[str, Any]]], Iterable[dict[str, Any]]], ques
             elif kind == "tool_result":
                 called = next(t for t in reversed(turn.tools) if t["name"] == event["name"])
                 called["is_error"] = event["is_error"]
+            elif kind == "reasoning":
+                turn.reasoning += event["text"]
             elif kind == "usage":
                 turn.usage = add_usage(turn.usage, event)
             elif kind == "error":

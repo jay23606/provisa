@@ -1407,3 +1407,56 @@ class TestTheLastRoundAnswers:
             ],
         )
         assert calls[1]["tools"] and calls[1]["tool_choice"] == {"type": "none"}
+
+
+@pytest.mark.asyncio
+class TestABlankAnswerIsNeverShownAsIs:
+    """REQ-1838: DeepSeek's final reply was blank twice in bake-off run 38635124027 ("\\n\\n" after
+    one call, "" after eight) and the user would have seen an empty turn."""
+
+    async def test_anthropic(self, monkeypatch):
+        _install_fake_anthropic(
+            monkeypatch,
+            [SimpleNamespace(content=[_block(type="text", text="\n\n")], stop_reason="end_turn")],
+        )
+        events = [
+            ev
+            async for ev in chat_mod.run_chat(
+                _state(), "analyst", [{"role": "user", "content": "q"}]
+            )
+        ]
+        assert [e for e in events if e["type"] == "text"] == [chat_mod._NO_ANSWER]
+
+    async def _aisuite(self, monkeypatch, tmp_path, message):
+        import os
+
+        cfg = tmp_path / "provisa.yaml"
+        cfg.write_text("sources: []\nai_models:\n  mcp_chat: {vendor: openai, model: gpt-5}\n")
+        monkeypatch.setitem(os.environ, "PROVISA_CONFIG", str(cfg))
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        _install_fake_aisuite(
+            monkeypatch,
+            [SimpleNamespace(choices=[SimpleNamespace(message=message, finish_reason="stop")])],
+        )
+        convo = [{"role": "user", "content": "q"}]
+        return [ev async for ev in chat_mod.run_chat(_state(), "analyst", convo)]
+
+    async def test_aisuite(self, monkeypatch, tmp_path):
+        events = await self._aisuite(
+            monkeypatch, tmp_path, SimpleNamespace(content="\n\n", tool_calls=None)
+        )
+        assert [e for e in events if e["type"] == "text"] == [chat_mod._NO_ANSWER]
+        assert not [e for e in events if e["type"] == "reasoning"]
+
+    async def test_aisuite_reasoning_goes_out_on_its_own_event(self, monkeypatch, tmp_path):
+        # OpenRouter returns a model's reasoning as the message's `reasoning`; it is recorded, not
+        # shown as the answer.
+        events = await self._aisuite(
+            monkeypatch,
+            tmp_path,
+            SimpleNamespace(content="", tool_calls=None, reasoning="The top path is /products."),
+        )
+        assert [e for e in events if e["type"] == "reasoning"] == [
+            {"type": "reasoning", "text": "The top path is /products."}
+        ]
+        assert [e for e in events if e["type"] == "text"] == [chat_mod._NO_ANSWER]

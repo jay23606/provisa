@@ -132,3 +132,12 @@ def test_a_failed_catalog_search_is_followed_by_browsing_the_catalog():
     s = _flat(chat_mod._SYSTEM)
     assert "A search that fails (no embedding model is enabled, say) is no answer either" in s
     assert "find the data with list_schemas, list_tables and describe_table instead" in s
+
+
+def test_a_page_is_opened_besides_the_answer_not_instead():
+    # GPT-5.4 mini opened the SQL page and said the top city was "the one returned by the SQL query
+    # at the top of the results" (bake-off run 38635124027).
+    s = _flat(chat_mod._SYSTEM)
+    assert (
+        "Answer in the chat: opening a page is in addition to the answer, never instead of it" in s
+    )

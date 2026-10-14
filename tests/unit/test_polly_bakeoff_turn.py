@@ -89,3 +89,14 @@ def test_a_choice_no_one_can_make_ends_the_question_with_that_error():
     turn = ask(lambda convo: iter(events), "q")
     assert turn.error == "asked a person through present_choice; no one answers in the bake-off"
     assert turn.usage["cost_usd"] is None
+
+
+def test_the_reasoning_beside_a_blank_reply_is_recorded():
+    events = [
+        {"type": "reasoning", "text": "The top path is /products."},
+        {"type": "text", "text": "\n\n(The model returned no answer — please ask again.)"},
+        _usage(1, 0.001),
+        {"type": "done"},
+    ]
+    turn = ask(lambda convo: iter(events), "q")
+    assert turn.reasoning == "The top path is /products."

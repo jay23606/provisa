@@ -696,7 +696,8 @@ _SYSTEM = (
     "see in full (dozens of rows or more) is summarized -- the count, how it splits, a few "
     "examples -- with an offer of the rest as a file (run_sql with file_format), or its rows "
     "are put in a table on the SQL page via navigate; never paste hundreds of lines into the "
-    "chat. State only what a tool result "
+    "chat. Answer in the chat: opening a page is in addition to the answer, never instead of "
+    "it. State only what a tool result "
     "confirms: when a result says only that something was requested or navigated to, say what "
     "you requested, never that it worked or how it now looks. Text you write in the same message "
     "as a tool call is written before that call's result exists, and the user never sees it: "
@@ -1406,6 +1407,13 @@ _MAX_TOKENS = 32000
 
 # REQ-1838: a turn whose rounds all ran out still calling tools (the last one is asked to call
 # none, but a provider may not honour that) ends saying so, never in silence.
+# REQ-1838: a final round that answered nothing -- blank text and no tool call -- ends saying so.
+# DeepSeek did, twice in bake-off run 38635124027, and the turn showed an empty reply.
+_NO_ANSWER = {
+    "type": "text",
+    "text": "\n\n(The model returned no answer — please ask again.)",
+}
+
 _STEPS_SPENT = {
     "type": "text",
     "text": (
@@ -1560,8 +1568,10 @@ async def _run_chat_anthropic(
             usage = usage + polly_usage.from_anthropic(resp.usage)
             if not any(b.type == "tool_use" for b in resp.content):
                 text = "".join(b.text for b in resp.content if b.type == "text" and b.text)
-                if text:
+                if text.strip():
                     yield {"type": "text", "text": text}
+                elif resp.stop_reason != "max_tokens":  # that ends with its own note below
+                    yield _NO_ANSWER
 
         if resp.stop_reason == "max_tokens":
             # REQ-1838: never end the turn silently on this — the user sees exactly the same
@@ -1860,8 +1870,18 @@ async def _run_chat_aisuite(
         )
         # Text beside a tool call is never shown (see the Anthropic loop); it stays in the
         # assistant content the model's history carries.
-        if message.content and not calls_tools:
-            yield {"type": "text", "text": message.content}
+        if not calls_tools:
+            if message.content and message.content.strip():
+                yield {"type": "text", "text": message.content}
+            else:
+                # A model that answers in its reasoning and leaves the reply blank: OpenRouter
+                # returns that reasoning as the message's `reasoning`. It is sent as its own
+                # event, which the chat panel does not show (a model's reasoning is not its
+                # answer) and the bake-off records, so a blank reply can be read against it.
+                reasoning = getattr(message, "reasoning", None)
+                if reasoning:
+                    yield {"type": "reasoning", "text": reasoning}
+                yield _NO_ANSWER
 
         if not calls_tools:
             break

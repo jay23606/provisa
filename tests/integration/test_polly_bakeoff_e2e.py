@@ -92,6 +92,7 @@ class Answer:
     # Each tool the model called, its input, and whether it failed: what a wrong answer is read
     # against.
     tools: list[dict[str, Any]] = field(default_factory=list)
+    reasoning: str = ""
 
 
 def _ask(server: Any, question: str) -> tuple[Turn, float]:
@@ -244,6 +245,7 @@ def test_polly_bakeoff(server, run):
                     usage=usage,
                     error=error,
                     tools=tools,
+                    reasoning=turn.reasoning,
                 )
             )
         report["models"].append(_summary(model, answers))
