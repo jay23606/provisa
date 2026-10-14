@@ -80,6 +80,12 @@ function provisionExtraSources(cmd: "up" | "down"): void {
 }
 
 test.describe("source to query through the UI (REQ-1671)", () => {
+  // Each test's source goes when the test ends, also after a failure: left to the next
+  // describe's afterAll, every source of this block was deleted inside that one hook's budget.
+  test.afterEach(async () => {
+    await removeTestSources();
+  });
+
   test("neo4j: add the source, register a Cypher table, query it on the SQL page", async ({
     page,
   }) => {

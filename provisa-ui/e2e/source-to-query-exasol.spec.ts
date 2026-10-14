@@ -126,7 +126,9 @@ test.describe("source to query through the UI: exasol (REQ-1731, REQ-1763)", () 
 
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "PROVISA", "WIDGETS");
-    await expectDiscoveredColumns(page, ["name"], 60000);
+    // Discovery names the columns as Exasol reports them, upper case; the query below reads
+    // them by their published names.
+    await expectDiscoveredColumns(page, ["NAME"], 60000);
     await submitRegister(page);
     const row = page.locator(".data-table tbody tr").filter({ hasText: sourceId }).first();
     await expect(row).toBeVisible({ timeout: 120000 });
