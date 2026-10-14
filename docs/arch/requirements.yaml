@@ -82406,3 +82406,54 @@
   notes: 'Maintainer 2026-10-14, via the lead: add native-query parameterized tables, after the MongoDB pipeline
     table (REQ-1980), for every source type with its own query language. Lead''s elaboration: the per-source query
     shape and row mapping in the description.'
+- id: REQ-2029
+  status: proposed
+  since: 2026-10
+  group: 4. Source Connectors
+  category: Source Connectors
+  feature: connector-catalog-nosql-search-and-graph
+  priority: SHOULD
+  type: behavioral
+  description: 'A Qdrant search table (REQ-1983) can be registered from the full Qdrant Query API request (query_points),
+    not only collection, query, using, filter, limit, score_threshold and model: prefetch with fusion (hybrid dense
+    and sparse search with rank fusion), recommend, discover and context queries (positive and negative examples),
+    group_by with group size, order_by, and formula rescoring. Each "@name" placeholder anywhere in the request
+    is a parameter of the table (query_arg, REQ-1986) with an IR type, optional unless a steward makes it required;
+    a text argument where a vector is expected is embedded by the table''s model. Values are bound into the parsed
+    request, never spliced into text. Output columns are fixed at registration (point id, score, the declared payload
+    fields, and the group key for a grouped request). The table stays live-only (REQ-2000), cached only by its arguments,
+    joins with any other table, and is governed on every surface like any registered table. A request that writes
+    is refused by name.'
+  use_case: A developer registers hybrid_docs from a query_points request that prefetches a dense search and a sparse
+    keyword search over the same text argument and fuses them with RRF, then joins its rows to the documents table
+    in SQL.
+  scenario: 'Given a Qdrant collection with dense and sparse vectors, and a search table registered from a prefetch+fusion
+    request whose text argument q is required
+
+
+    When a SQL query sets q by an equality condition on its parameter column
+
+
+    Then one query_points call runs with q embedded for the dense branch and bound for the sparse branch, and the
+    fused rows come back with id and score
+
+
+    When the query omits q
+
+
+    Then it is refused, naming the table and q
+
+
+    When a search table is registered from a recommend request with positive and negative example ids as arguments
+
+
+    Then each call binds the ids as values and returns the recommended points'
+  related_reqs:
+  - REQ-1983
+  - REQ-1986
+  - REQ-2000
+  - REQ-2002
+  - REQ-1980
+  notes: 'Maintainer 2026-10-14, via the lead: extend Qdrant search tables to the full Query API (today''s table
+    accepts only collection, query, using, filter, limit, score_threshold, model; provisa/qdrant/table.py _KEYS).
+    Lead''s elaboration: the list of request features and the text-to-vector rule.'

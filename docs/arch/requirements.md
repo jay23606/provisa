@@ -23367,3 +23367,15 @@ A table on a gRPC remote source can be registered from a native request message 
 **Code:** —
 
 **Tests:** —
+
+### REQ-2029 · Source Connectors {#REQ-2029}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+A Qdrant search table ([REQ-1983](#REQ-1983)) can be registered from the full Qdrant Query API request (query_points), not only collection, query, using, filter, limit, score_threshold and model: prefetch with fusion (hybrid dense and sparse search with rank fusion), recommend, discover and context queries (positive and negative examples), group_by with group size, order_by, and formula rescoring. Each "@name" placeholder anywhere in the request is a parameter of the table (query_arg, [REQ-1986](#REQ-1986)) with an IR type, optional unless a steward makes it required; a text argument where a vector is expected is embedded by the table's model. Values are bound into the parsed request, never spliced into text. Output columns are fixed at registration (point id, score, the declared payload fields, and the group key for a grouped request). The table stays live-only ([REQ-2000](#REQ-2000)), cached only by its arguments, joins with any other table, and is governed on every surface like any registered table. A request that writes is refused by name.
+
+**Use case:** A developer registers hybrid_docs from a query_points request that prefetches a dense search and a sparse keyword search over the same text argument and fuses them with RRF, then joins its rows to the documents table in SQL.
+
+**Code:** —
+
+**Tests:** —
