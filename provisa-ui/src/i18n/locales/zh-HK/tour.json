@@ -294,7 +294,7 @@
       },
       "weblogsSources": {
         "title": "這個示範是甚麼",
-        "description": "一家小型網店想知道哪些頁面慢，是哪些 SQL 令它們變慢。答案分散在 nginx 的存取日誌、資料庫的語句日誌和網店自己的資料庫中。本導覽展示 Provisa 如何把日誌檔案當作表讀取、跨資料來源關聯並按角色管控，然後把這個問題交給 Polly。"
+        "description": "一家小型網店想知道哪些頁面慢，是哪些 SQL 令它們變慢。答案分散在 nginx 的存取日誌、資料庫的語句日誌和網店自己的資料庫中。本導覽展示 Provisa 如何把日誌檔案當作表讀取、跨資料來源關聯並按角色管控，然後用 SQL 和 REST 回答這個問題。"
       },
       "weblogsLogFiles": {
         "title": "三個資料來源",
@@ -308,17 +308,17 @@
         "title": "一個請求，兩份日誌",
         "description": "nginx 為每個請求分配一個 id，網店用它為每個資料庫連線命名。<strong>LOGGED_FOR</strong> 關係告訴 Provisa 按這個 id 把語句關聯到它的請求，因此任何查詢都無需寫出關聯。"
       },
+      "weblogsStatements": {
+        "title": "慢頁面背後的 SQL",
+        "description": "把最慢的頁面與其請求執行的語句關聯起來，用普通 SQL 查詢示範的兩個檢視。檢視是已儲存的查詢，Provisa 在執行前把它展開進這條語句。這裏可以逐條語句看到時間花在了哪裏。"
+      },
       "weblogsRest": {
         "title": "透過 REST 問同一個問題",
         "description": "再次查看最慢的頁面，這次是一次 REST 呼叫：每個路徑及其請求數、平均耗時和最長耗時。Provisa 提供的每個介面都讀取同一個受管控的模型，因此在相同權限下，REST 給出的答案與 SQL 或 GraphQL 相同。"
       },
-      "weblogsAsk": {
-        "title": "問 Polly",
-        "description": "助手 Polly 以淺白的語言接收示範的問題：哪些頁面最慢，是哪些 SQL 令它們變慢？請留意它指出的頁面和它歸咎的語句；它是透過查詢你剛才看到的表和檢視找到的。"
-      },
       "weblogsDone": {
         "title": "你剛才看到的",
-        "description": "三個資料來源變成了表，一個關係按請求 id 關聯了兩份日誌，網店的問題據此由 REST 和 Polly 作答。「完成」會開啟其他導覽的選單。"
+        "description": "三個資料來源變成了表，一個關係按請求 id 關聯了兩份日誌，網店的問題據此在相同權限下由 SQL 和 REST 作答。「完成」會開啟其他導覽的選單。"
       }
     },
     "status": {

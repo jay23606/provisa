@@ -294,7 +294,7 @@
       },
       "weblogsSources": {
         "title": "Waar deze demo over gaat",
-        "description": "Een kleine webwinkel wil weten welke pagina's traag zijn, en welke SQL ze traag maakt. Het antwoord is verdeeld over het toegangslog van nginx, het opdrachtenlog van de database en de eigen database van de winkel. De rondleiding laat zien hoe Provisa logbestanden als tabellen leest, ze over bronnen heen koppelt en per rol beheert, en legt de vraag daarna aan Polly voor."
+        "description": "Een kleine webwinkel wil weten welke pagina's traag zijn, en welke SQL ze traag maakt. Het antwoord is verdeeld over het toegangslog van nginx, het opdrachtenlog van de database en de eigen database van de winkel. De rondleiding laat zien hoe Provisa logbestanden als tabellen leest, ze over bronnen heen koppelt en per rol beheert, en beantwoordt de vraag daarna in SQL en via REST."
       },
       "weblogsLogFiles": {
         "title": "Drie bronnen",
@@ -308,17 +308,17 @@
         "title": "Eén verzoek, twee logs",
         "description": "nginx geeft elk verzoek een id, en de winkel noemt elke databaseverbinding daarnaar. De relatie <strong>LOGGED_FOR</strong> laat Provisa een statement op dat id aan zijn verzoek koppelen, zodat geen enkele query de join hoeft uit te schrijven."
       },
+      "weblogsStatements": {
+        "title": "De SQL achter een trage pagina",
+        "description": "De traagste pagina's gekoppeld aan de statements die hun verzoeken uitvoerden, in gewone SQL over twee views van de demo. Een view is een opgeslagen query die Provisa in dit statement invult voordat het wordt uitgevoerd. Hier zie je waar de tijd heen ging, statement voor statement."
+      },
       "weblogsRest": {
         "title": "Dezelfde vraag via REST",
         "description": "Nog eens de traagste pagina's, als REST-aanroep: elk pad met zijn aantal aanvragen en zijn gemiddelde en langste tijd. Elk oppervlak dat Provisa bedient leest hetzelfde beheerde model, dus REST geeft het antwoord dat SQL of GraphQL zou geven, met dezelfde rechten."
       },
-      "weblogsAsk": {
-        "title": "Vraag het Polly",
-        "description": "Polly, de assistent, krijgt de vraag van de demo in gewone woorden: welke pagina's zijn het traagst, en welke SQL maakt ze traag? Let op de pagina's die ze noemt en de opdrachten die ze aanwijst; ze vond ze door de tabellen en views te bevragen die u net zag."
-      },
       "weblogsDone": {
         "title": "Wat u net zag",
-        "description": "Drie bronnen werden tabellen, een relatie koppelde de twee logs op een aanvraag-id, en de vraag van de winkel werd daarmee beantwoord via REST en door Polly. Klaar opent het menu met de andere rondleidingen."
+        "description": "Drie bronnen werden tabellen, een relatie koppelde de twee logs op een aanvraag-id, en de vraag van de winkel werd daarmee beantwoord in SQL en via REST, met dezelfde rechten. Klaar opent het menu met de andere rondleidingen."
       }
     },
     "status": {

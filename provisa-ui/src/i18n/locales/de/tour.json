@@ -294,7 +294,7 @@
       },
       "weblogsSources": {
         "title": "Worum es in dieser Demo geht",
-        "description": "Ein kleiner Webshop will wissen, welche Seiten langsam sind und welches SQL sie langsam macht. Die Antwort verteilt sich auf das Access-Log von nginx, das Anweisungs-Log der Datenbank und die eigene Datenbank des Shops. Die Tour zeigt, wie Provisa Logdateien als Tabellen liest, sie über Quellen hinweg verbindet und nach Rolle regelt, und stellt die Frage dann Polly."
+        "description": "Ein kleiner Webshop will wissen, welche Seiten langsam sind und welches SQL sie langsam macht. Die Antwort verteilt sich auf das Access-Log von nginx, das Anweisungs-Log der Datenbank und die eigene Datenbank des Shops. Die Tour zeigt, wie Provisa Logdateien als Tabellen liest, sie über Quellen hinweg verbindet und nach Rolle regelt, und beantwortet die Frage dann in SQL und über REST."
       },
       "weblogsLogFiles": {
         "title": "Drei Quellen",
@@ -308,17 +308,17 @@
         "title": "Eine Anfrage, zwei Logs",
         "description": "nginx gibt jeder Anfrage eine ID, und der Shop benennt jede Datenbankverbindung danach. Die Beziehung <strong>LOGGED_FOR</strong> sagt Provisa, eine Anweisung über diese ID mit ihrer Anfrage zu verknüpfen, sodass keine Abfrage den Join ausschreiben muss."
       },
+      "weblogsStatements": {
+        "title": "Das SQL hinter einer langsamen Seite",
+        "description": "Die langsamsten Seiten, verknüpft mit den Anweisungen, die ihre Anfragen ausgeführt haben, in einfachem SQL über zwei Views der Demo. Eine View ist eine gespeicherte Abfrage, die Provisa vor der Ausführung in diese Anweisung einsetzt. Hier ist zu sehen, wohin die Zeit ging, Anweisung für Anweisung."
+      },
       "weblogsRest": {
         "title": "Dieselbe Frage über REST",
         "description": "Noch einmal die langsamsten Seiten, als REST-Aufruf: jeder Pfad mit seiner Anzahl Anfragen und seiner durchschnittlichen und längsten Dauer. Jede Schnittstelle, die Provisa bedient, liest dasselbe geregelte Modell, also gibt REST die Antwort, die SQL oder GraphQL gäbe, mit denselben Rechten."
       },
-      "weblogsAsk": {
-        "title": "Polly fragen",
-        "description": "Polly, die Assistentin, bekommt die Frage der Demo in einfachen Worten: Welche Seiten sind am langsamsten, und welches SQL macht sie langsam? Achten Sie auf die Seiten, die sie nennt, und die Anweisungen, die sie verantwortlich macht; gefunden hat sie sie mit Abfragen der Tabellen und Views, die Sie gerade gesehen haben."
-      },
       "weblogsDone": {
         "title": "Was Sie gerade gesehen haben",
-        "description": "Drei Quellen wurden zu Tabellen, eine Beziehung verband die beiden Logs über eine Anfrage-ID, und die Frage des Shops wurde daraus über REST und von Polly beantwortet. „Fertig“ öffnet das Menü der weiteren Touren."
+        "description": "Drei Quellen wurden zu Tabellen, eine Beziehung verband die beiden Logs über eine Anfrage-ID, und die Frage des Shops wurde daraus in SQL und über REST beantwortet, mit denselben Rechten. „Fertig“ öffnet das Menü der weiteren Touren."
       }
     },
     "status": {

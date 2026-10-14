@@ -294,7 +294,7 @@
       },
       "weblogsSources": {
         "title": "De qué trata esta demo",
-        "description": "Una pequeña tienda web quiere saber qué páginas son lentas y qué SQL las hace lentas. La respuesta está repartida entre el registro de acceso de nginx, el registro de sentencias de la base de datos y la propia base de datos de la tienda. El recorrido muestra cómo Provisa lee archivos de registro como tablas, los une entre fuentes y los gobierna por rol, y luego le plantea la pregunta a Polly."
+        "description": "Una pequeña tienda web quiere saber qué páginas son lentas y qué SQL las hace lentas. La respuesta está repartida entre el registro de acceso de nginx, el registro de sentencias de la base de datos y la propia base de datos de la tienda. El recorrido muestra cómo Provisa lee archivos de registro como tablas, los une entre fuentes y los gobierna por rol, y luego responde la pregunta en SQL y por REST."
       },
       "weblogsLogFiles": {
         "title": "Tres fuentes",
@@ -308,17 +308,17 @@
         "title": "Una solicitud, dos registros",
         "description": "nginx da un id a cada solicitud, y la tienda nombra cada conexión a la base de datos con él. La relación <strong>LOGGED_FOR</strong> indica a Provisa que una cada sentencia con su solicitud por ese id, así que ninguna consulta tiene que escribir la unión."
       },
+      "weblogsStatements": {
+        "title": "El SQL detrás de una página lenta",
+        "description": "Las páginas más lentas unidas a las sentencias que ejecutaron sus solicitudes, en SQL simple sobre dos vistas de la demo. Una vista es una consulta guardada que Provisa expande en esta sentencia antes de ejecutarla. Aquí se ve adónde fue el tiempo, sentencia por sentencia."
+      },
       "weblogsRest": {
         "title": "La misma pregunta por REST",
         "description": "Otra vez las páginas más lentas, como llamada REST: cada ruta con su número de solicitudes y su tiempo medio y más largo. Cada superficie que sirve Provisa lee el mismo modelo gobernado, así que REST da la respuesta que darían SQL o GraphQL, con los mismos derechos."
       },
-      "weblogsAsk": {
-        "title": "Preguntar a Polly",
-        "description": "Polly, la asistente, recibe la pregunta de la demo en palabras sencillas: ¿qué páginas son las más lentas y qué SQL las hace lentas? Fíjese en las páginas que nombra y en las sentencias que señala; las encontró consultando las tablas y vistas que acaba de ver."
-      },
       "weblogsDone": {
         "title": "Lo que acaba de ver",
-        "description": "Tres fuentes se convirtieron en tablas, una relación unió los dos registros por un id de solicitud, y la pregunta de la tienda se respondió con ellas por REST y por Polly. Listo abre el menú de los demás recorridos."
+        "description": "Tres fuentes se convirtieron en tablas, una relación unió los dos registros por un id de solicitud, y la pregunta de la tienda se respondió con ellas en SQL y por REST, con los mismos derechos. Listo abre el menú de los demás recorridos."
       }
     },
     "status": {
