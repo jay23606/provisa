@@ -38,7 +38,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: "Branch or commit to test"
+        description: "Branch or commit to test (a short SHA is resolved to the full one)"
         required: false
         default: ""
       lanes:
@@ -83,8 +83,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # actions/checkout fetches a branch or a full SHA, not a short one (git exits 1 on it): a short
+  # SHA dispatched as `ref` is resolved here, once, and every lane checks out the full commit. A
+  # branch, a full SHA, or nothing passes through unchanged. Nothing is checked out.
+  resolve-ref:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      ref: ${{ steps.resolve.outputs.ref }}
+    steps:
+      - id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF: ${{ inputs.ref || '' }}
+        run: |
+          if [[ "$REF" =~ ^[0-9a-fA-F]{7,39}$ ]]; then
+            full=$(gh api "repos/$GITHUB_REPOSITORY/commits/$REF" --jq .sha)
+            echo "resolved $REF -> $full"
+            REF="$full"
+          fi
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+
   lanes:
     name: lanes
+    needs: resolve-ref
     uses: ./.github/workflows/integration-suite-lanes.yml
     # Passed by name; nothing is inherited.
     secrets:
@@ -157,7 +180,7 @@ jobs:
       SP_SITE_URL: ${{ secrets.SP_SITE_URL }}
       SP_TENANT_ID: ${{ secrets.SP_TENANT_ID }}
     with:
-      ref: ${{ inputs.ref || '' }}
+      ref: ${{ needs.resolve-ref.outputs.ref }}
       lanes: ${{ inputs.lanes || 'all' }}
       tests: ${{ inputs.tests || '' }}
       include_warehouse: ${{ inputs.include_warehouse || false }}
