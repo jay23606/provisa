@@ -55,7 +55,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from sqlalchemy import and_, case, func, insert, or_, select, update
+from sqlalchemy import and_, case, delete, func, insert, or_, select, update
 from sqlalchemy.exc import IntegrityError
 
 from provisa.core import config_stamp
@@ -1075,3 +1075,14 @@ async def progress(conn: "Connection") -> tuple[int, list[str]]:
     landed = sum(1 for r in rows if r[2] is not None)
     failed = [r[0] for r in rows if r[1] == FAILED and r[2] is None]
     return landed, failed
+
+
+async def record_adopted(conn: "Connection", rows: list[dict]) -> None:
+    """Record replicas adopted into this store from a seed (a demo template's, REQ-2006), over
+    whatever was recorded of them before: each is completed as the row says, idle."""
+    async with conn.transaction():
+        for row in rows:
+            key = (row["source_id"], row["schema_name"], row["table_name"])
+            await conn.execute_core(delete(replica_state).where(_is(key)))
+        if rows:
+            await conn.execute_core_many(insert(replica_state), rows)

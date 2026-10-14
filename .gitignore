@@ -191,3 +191,6 @@ None
 
 # The ssh key .github/actions/nixos-vm generates for one run's guest.
 /packaging/nixos/ci_authorized_key.pub
+
+# REQ-2006: a published demo's seed, written by scripts/build_demo_seeds.py when the release is built.
+demo/named/*/seeded/

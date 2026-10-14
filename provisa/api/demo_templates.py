@@ -28,6 +28,7 @@ demo's directory instead of read from one process-wide variable.
 
 from __future__ import annotations
 
+import asyncio
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -148,6 +149,34 @@ def on_template_ready(hook: TemplateHook) -> TemplateHook:
     return hook
 
 
+def seeding_release() -> bool:
+    """Whether this process is the release build's seeding run (``PROVISA_DEMO_SEED_EXPORT=true``):
+    each template is landed from its demo's own sources and written out as the demo's seed
+    (demo_replicas.export_seed). Otherwise a template is landed from the seed the image carries."""
+    value = os.environ.get("PROVISA_DEMO_SEED_EXPORT", "false")
+    if value not in ("true", "false"):
+        raise ValueError(f"PROVISA_DEMO_SEED_EXPORT must be true or false, got {value!r}")
+    return value == "true"
+
+
+async def land_from_seed(org_id: str) -> None:
+    """In the template org ``org_id``'s runtime build, with its model loaded and the org bound,
+    before its replica convergence is wired: land its replicas from the demo's seed when this
+    deployment's store does not hold them (demo_replicas.adopt_seed). The release build's seeding
+    run lands them from the demo's sources instead, and writes the seed."""
+    import logging
+
+    from provisa.api.demo_replicas import adopt_seed, landed_here
+
+    if seeding_release():
+        return
+    demo = demo_of_template(org_id)
+    if await landed_here(org_id) >= len(template_seed(org_id).tables):
+        return
+    if await adopt_seed(org_id, demo.directory):
+        logging.getLogger(__name__).info("demo template %s: landed from its seed", demo.name)
+
+
 async def ensure_demo_templates(pool) -> dict[str, str]:
     """Create and build the template org of every published demo that does not have a ready one,
     then wait for each template's replicas to land and run the ready hooks.
@@ -202,7 +231,6 @@ async def _prepare(demo: PublishedDemo, build: bool) -> None:
     """Build (or only load) the template, wait until every replica it declares has landed, then
     run the ready hooks. A replica whose build failed stops the wait: the template is not ready,
     and a visitor is told so by name (demo_sandbox._template_ready)."""
-    import asyncio
     import logging
 
     from provisa.api.admin.orgs_router import _provision_org_task
@@ -214,6 +242,9 @@ async def _prepare(demo: PublishedDemo, build: bool) -> None:
     if build:
         await _provision_org_task(org_id, True, None, False)
     rt = await ensure_org_runtime(org_id)
+    from provisa.api.demo_replicas import export_seed
+
+    exporting = seeding_release()
     while True:
         landed, failed, declared = await _replica_progress(rt)
         if failed:
@@ -225,6 +256,9 @@ async def _prepare(demo: PublishedDemo, build: bool) -> None:
             break
         await asyncio.sleep(_LANDED_POLL_S)
     log.info("demo template %s: every replica landed", demo.name)
+    if exporting:
+        await export_seed(org_id, demo.directory)
+        log.info("demo template %s: seed written to %s", demo.name, demo.directory)
     token = set_current_org(org_id)
     try:
         for hook in _ready_hooks:
@@ -242,9 +276,13 @@ async def _replica_progress(rt) -> tuple[int, list[str], int]:
     are not the demo's, and are not replicated)."""
     from provisa.federation import replica_state
 
+    from provisa.api.demo_replicas import landed_here
+
     declared = len(template_seed(rt.org_id).tables)
     async with rt.tenant_db.acquire() as conn:
-        landed, failed = await replica_state.progress(conn)
+        _recorded, failed = await replica_state.progress(conn)
+    # Landed: recorded as built for this store AND held by it, rows and all.
+    landed = await landed_here(rt.org_id)
     return landed, failed, declared
 
 

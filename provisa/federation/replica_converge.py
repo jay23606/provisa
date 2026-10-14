@@ -159,21 +159,50 @@ class Converged:
 last_error: dict[str | None, dict] = {}
 
 
+async def wanted_shapes(
+    state: Any, whole: set[ReplicaKey] | None = None, *, address_org: str | None = None
+) -> dict[ReplicaKey, tuple[str, list[tuple[str, str]]]]:
+    """What a build of each replica of the org ``state`` serves would record: its definition
+    (:func:`definition_hash`) and its columns, for each table whose columns are all resolved --
+    of ``whole`` when given. ``address_org`` names the org whose replica address the definition
+    is for, when it is not the bound one (REQ-2006: a demo sandbox's copy of its template's
+    replicas carries the definition the sandbox's own convergence will want)."""
+    from provisa.federation.replica_address import replica_address
+    from provisa.federation.replica_routing import draft_landing_worklist, landing_worklist
+
+    engine = state.federation_engine.engine
+    backend = engine.backend
+    shapes: dict[ReplicaKey, tuple[str, list[tuple[str, str]]]] = {}
+    worklist = [
+        *await landing_worklist(engine, state),
+        *await draft_landing_worklist(engine, state),
+    ]
+    for src, schema_name, table_name, columns, pk_columns in worklist:
+        key = (src.id, schema_name, table_name)
+        if whole is not None and key not in whole:
+            continue
+        address = (
+            backend.replica_address(
+                state, source_id=src.id, schema_name=schema_name, table_name=table_name
+            )
+            if address_org is None
+            else replica_address(
+                org_id=address_org, source_id=src.id, schema_name=schema_name, table_name=table_name
+            )
+        )
+        shapes[key] = (definition_hash(src, address, columns, pk_columns), columns)
+    return shapes
+
+
 async def converge_replicas(state: Any) -> Converged:
     """Bring the state store in line with what the model of the org ``state`` serves declares
     (see the module's docstring). Raises what fails; :func:`converge_logged` is the entry that
     records and logs a failure instead."""
     from provisa.federation import replica_builds
-    from provisa.federation.replica_routing import (
-        draft_landing_worklist,
-        draft_replica_tables,
-        landing_worklist,
-        replica_tables,
-    )
+    from provisa.federation.replica_routing import draft_replica_tables, replica_tables
     from provisa.federation.replica_state_view import view_for
 
     engine = state.federation_engine.engine
-    backend = engine.backend
     stamp = state.model_stamp
     store = replica_builds.store_identity(state)
     org_id = _org()
@@ -201,25 +230,7 @@ async def converge_replicas(state: Any) -> Converged:
     whole = {key for key, src, reg in served if whole_copy(src, reg, engine)}
     # The tables of those whose columns are all resolved: what a build needs. One whose type
     # is not resolved yet is declared (never retired) and built once it is.
-    shapes: dict[ReplicaKey, tuple[str, list[tuple[str, str]]]] = {}
-    for src, schema_name, table_name, columns, pk_columns in await landing_worklist(engine, state):
-        key = (src.id, schema_name, table_name)
-        if key not in whole:
-            continue
-        address = backend.replica_address(
-            state, source_id=src.id, schema_name=schema_name, table_name=table_name
-        )
-        shapes[key] = (definition_hash(src, address, columns, pk_columns), columns)
-    for src, schema_name, table_name, columns, pk_columns in await draft_landing_worklist(
-        engine, state
-    ):
-        key = (src.id, schema_name, table_name)
-        if key not in whole:
-            continue
-        address = backend.replica_address(
-            state, source_id=src.id, schema_name=schema_name, table_name=table_name
-        )
-        shapes[key] = (definition_hash(src, address, columns, pk_columns), columns)
+    shapes = await wanted_shapes(state, whole)
 
     done = Converged()
     now = datetime.now(UTC)

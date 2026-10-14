@@ -678,9 +678,9 @@ def get_broker(db_path: str) -> _SyncedStore:
 
 def copy_schema(src_path: str, src_schema: str, dst_path: str, dst_schema: str) -> list[str]:
     """Copy every table of ``src_schema`` in the store ``src_path`` into ``dst_schema`` of the
-    store ``dst_path``, rows and all; the tables copied, by name (REQ-2006: a demo sandbox's
-    replicas, copied from its demo's template store at its opening -- a copy of rows already
-    landed, never a read of the demo's sources).
+    store ``dst_path``, rows and all, each replacing a table of its name there; the tables copied,
+    by name (REQ-2006: a demo's replicas -- its seed, its template's, a sandbox's -- copied from
+    rows already landed, never read from the demo's sources).
 
     Both stores are held under their own locks for the whole copy: the source READ_ONLY, so a
     template is never changed by being copied, and the target written as one operation."""
@@ -701,7 +701,7 @@ def copy_schema(src_path: str, src_schema: str, dst_path: str, dst_schema: str) 
                 target.execute(f'CREATE SCHEMA IF NOT EXISTS {_MAT_STORE_ALIAS}."{dst_schema}"')
                 for name in names:
                     target.execute(
-                        f'CREATE TABLE {_MAT_STORE_ALIAS}."{dst_schema}"."{name}" AS '
+                        f'CREATE OR REPLACE TABLE {_MAT_STORE_ALIAS}."{dst_schema}"."{name}" AS '
                         f'SELECT * FROM copy_source."{src_schema}"."{name}"'
                     )
             finally:

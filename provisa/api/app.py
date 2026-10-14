@@ -2246,6 +2246,14 @@ async def _build_org_runtime(
             )
 
         await _rebuild_schemas()
+        from provisa.api.sandbox_tier import is_template_org
+
+        if is_template_org(org_id) and env == PROD:
+            # REQ-2006: a demo template lands its replicas from the seed the image carries,
+            # before the wiring below starts its replica convergence.
+            from provisa.api.demo_templates import land_from_seed
+
+            await land_from_seed(org_id)
 
         # REQ-1882 (amended 2026-09-29): the wiring below starts process-lifetime scheduler jobs and
         # listener tasks. Inline on the process loop; from a connection-thread loop (this org built

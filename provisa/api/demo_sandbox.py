@@ -202,7 +202,9 @@ async def _build(demo: PublishedDemo, org_id: str, person: str, kind: str) -> st
     # for none.
     await clone_model(_pool(), org_schema(demo.template_org), org_schema(org_id), landing=COPIED)
     await org_files.prepare(org_id, state.admin_db, _stop_org_servers)
-    await _copy_replicas(demo.template_org, org_id)
+    from provisa.api.demo_replicas import copy_to_sandbox
+
+    await copy_to_sandbox(demo.template_org, org_id)
 
     rt = await state.org_registry.rebuild(org_id, lambda oid: build_org_runtime(oid))
     assert rt.model_db is not None
@@ -233,116 +235,6 @@ async def _build(demo: PublishedDemo, org_id: str, person: str, kind: str) -> st
         user_id=person, org_id=org_id, name=_TOKEN_NAME, role_id=SANDBOX_ROLE
     )
     return secret
-
-
-def _store_identity(org_id: str) -> str:
-    """What a replica built by ``org_id``'s own engine records as its store: the build's own
-    reading (replica_builds.store_identity) of the engine the sandbox runtime builds."""
-    from types import SimpleNamespace
-
-    from provisa.federation.engine import build_engine, embedded_store_dsn
-    from provisa.federation.replica_builds import store_identity
-
-    engine = build_engine("duckdb")
-    engine.pin_materialize_store(embedded_store_dsn(org_id))
-    return store_identity(SimpleNamespace(federation_engine=SimpleNamespace(engine=engine)))
-
-
-async def _copy_replicas(template_org: str, org_id: str) -> None:
-    """The template's landed replicas, into the sandbox's own store and its own record."""
-    from provisa.api.admin.orgs_router import _pool
-    from provisa.core import process_region
-    from provisa.core.environments import org_schema
-    from provisa.core.regions import DEFAULT_REGION
-    from provisa.core.database import Database
-    from provisa.federation import replica_state
-    from provisa.federation.engine import embedded_store_dsn
-    from provisa.federation.materialize_broker import copy_schema
-    from provisa.federation.replica_address import REPLICAS_SUFFIX
-
-    if process_region.region() != DEFAULT_REGION:
-        # A region keeps its replicas' record in a store of its own (REQ-1922); the sandbox tier
-        # runs where there are no platform regions.
-        raise RuntimeError("demo sandboxes run on a deployment without platform regions")
-    template_store = embedded_store_dsn(template_org).removeprefix("duckdb:///")
-    store = embedded_store_dsn(org_id).removeprefix("duckdb:///")
-    await asyncio.to_thread(
-        copy_schema,
-        template_store,
-        org_schema(template_org, None, REPLICAS_SUFFIX),
-        store,
-        org_schema(org_id, None, REPLICAS_SUFFIX),
-    )
-    # The record of each replica is the org's STATE (its own handle, REQ-1920): read from the
-    # template's, written into the sandbox's, each scoped to its org's schema.
-    engine = _pool().engine
-    template_state = Database(
-        engine, name="org-state", search_path=org_schema(template_org), holds="state"
-    )
-    sandbox_state = Database(
-        engine, name="org-state", search_path=org_schema(org_id), holds="state"
-    )
-    async with template_state.acquire() as conn:
-        rows = await replica_state.completed_rows(conn)
-    built = _store_identity(org_id)
-    definitions = await _sandbox_definitions(template_org, org_id, rows)
-    for row in rows:
-        row.update(
-            built_store=built,
-            definition_hash=definitions[(row["source_id"], row["schema_name"], row["table_name"])],
-            build_state="idle",
-            build_holder=None,
-            build_started_at=None,
-            requested_at=None,
-            requested_reason=None,
-            build_wait=None,
-            build_progress=None,
-        )
-    async with sandbox_state.acquire() as conn:
-        await replica_state.record_copied(conn, rows)
-
-
-async def _sandbox_definitions(
-    template_org: str, org_id: str, rows: list[dict]
-) -> dict[tuple[str, str, str], str]:
-    """Each copied replica's definition, as the sandbox's own convergence will compute it
-    (replica_converge.definition_hash): the template's source, columns and key, at the sandbox's
-    replica address. The address names the org, so the template's recorded digest is not the
-    sandbox's; a copy recorded under it would be rebuilt from the demo's sources at once. Each
-    template digest is checked first: a replica not built from the template's own model is refused
-    by name rather than handed to a visitor."""
-    from provisa.api.app import ensure_org_runtime, state
-    from provisa.core.request_context import reset_current_org, set_current_org
-    from provisa.federation.replica_address import replica_address
-    from provisa.federation.replica_builds import _model_row
-    from provisa.federation.replica_converge import definition_hash
-    from provisa.federation.residency import resolve_landing_args
-
-    rt = await ensure_org_runtime(template_org)
-    dialect = rt.federation_engine.engine.backend.dialect
-    definitions: dict[tuple[str, str, str], str] = {}
-    token = set_current_org(template_org)
-    try:
-        for row in rows:
-            key = (row["source_id"], row["schema_name"], row["table_name"])
-            source, table, _sources = await _model_row(state, key)
-            args = resolve_landing_args(source, table, platform=dialect)
-
-            def at(org: str) -> str:
-                address = replica_address(
-                    org_id=org, source_id=key[0], schema_name=key[1], table_name=key[2]
-                )
-                return definition_hash(source, address, args.columns, args.pk_columns)
-
-            if at(template_org) != row["definition_hash"]:
-                raise RuntimeError(
-                    f"the {template_org} replica of {'.'.join(key)} was not built from the "
-                    "template's model; the template is rebuilt at the sandbox tier's next start"
-                )
-            definitions[key] = at(org_id)
-    finally:
-        reset_current_org(token)
-    return definitions
 
 
 _touched: dict[str, float] = {}

@@ -313,3 +313,18 @@ def test_a_floored_source_with_no_driver_of_its_own_is_read_by_the_engine(monkey
         state, SimpleNamespace(id="birds", type="csv"), _table(), [("id", "bigint")]
     )
     assert isinstance(read, EngineTableSource)
+
+
+def test_a_sqlite_source_whose_file_is_gone_is_refused_not_created(tmp_path):
+    """A source's file that is not there fails the read by name; it is never made, empty, at the
+    path (which then read as an empty table: REQ-2006, a demo's source gone after its seed)."""
+    import pytest
+
+    from provisa.federation import connector_sqlite
+
+    gone = tmp_path / "gone.sqlite"
+    with pytest.raises(sqlite3.OperationalError):
+        list(connector_sqlite.iter_row_batches(str(gone), "SELECT 1", 10))
+    with pytest.raises(sqlite3.OperationalError):
+        connector_sqlite.table_names(str(gone))
+    assert not gone.exists()
