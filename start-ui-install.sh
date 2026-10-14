@@ -309,6 +309,29 @@ fi
 # is idempotent, and the `seeder` service is too (a marker file on the bind-mounted data volume —
 # see seed.py), so a restart never re-seeds data meant to survive — what a demo too large to
 # regenerate each time (perf) needs. This start fails fast if the fragment doesn't exist.
+# stop_other_demo_stores <this demo's compose file>: stop every named demo's stores compose project
+# (provisa-demo-*) but this demo's own -- containers stopped and removed, volumes kept, so a later
+# --keep-data start of that demo still finds its data. A bundle build's own stack
+# (provisa-demo-bundle-*, scripts/demo_bundle.py) is not a demo's stores, and is left to finish.
+stop_other_demo_stores() {
+  local own="" project
+  if [ -f "$1" ]; then
+    own="$(docker compose -f "$1" config --format json | python3 -c 'import json,sys; print(json.load(sys.stdin)["name"])')"
+  fi
+  for project in $(docker compose ls -a --format json \
+      | python3 -c 'import json,sys; print("\n".join(p["Name"] for p in json.load(sys.stdin)))'); do
+    case "$project" in
+      provisa-demo-bundle-*) ;;
+      provisa-demo-*)
+        if [ "$project" != "$own" ]; then
+          echo "Named demo '$DEMO_NAME': stopping another demo's stores ($project)..."
+          docker compose -p "$project" down
+        fi
+        ;;
+    esac
+  done
+}
+
 if [ -n "$DEMO_NAME" ]; then
   _NAMED_DIR="$_DEMO_DIR"
   _NAMED_FRAGMENT="$_NAMED_DIR/fragment.yaml"
@@ -323,6 +346,14 @@ if [ -n "$DEMO_NAME" ]; then
     if [ "$KEEP_DATA" = false ] && [ "$_DEMO_BUNDLED" = false ]; then
       find "$_NAMED_DIR/logs" -type f ! -name .gitignore -delete
     fi
+  fi
+  # Exactly one demo's stores run here: whatever another named demo left up -- a bundle's run-time
+  # stores or a checkout-built stack -- is stopped first (its volumes kept), or the next one cannot
+  # bind the ports they hold (28432: weblogs' shop database, bundled or not).
+  if [ "$_DEMO_BUNDLED" = true ]; then
+    stop_other_demo_stores "$_NAMED_DIR/docker-compose.run.yml"
+  else
+    stop_other_demo_stores "$_NAMED_DIR/docker-compose.yml"
   fi
   if [ "$_DEMO_BUNDLED" = true ]; then
     # Only what reading the bundle needs: its run-time compose file (a database loaded from the

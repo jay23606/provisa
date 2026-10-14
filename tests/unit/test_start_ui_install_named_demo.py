@@ -226,6 +226,85 @@ def test_a_version_and_from_source_together_are_refused(tmp_path: Path) -> None:
 def test_a_bundles_logs_are_never_emptied_and_its_builders_never_run() -> None:
     block = TEXT[TEXT.index('if [ -n "$DEMO_NAME" ]; then\n  _NAMED_DIR') :]
     assert 'if [ "$KEEP_DATA" = false ] && [ "$_DEMO_BUNDLED" = false ]; then' in block
-    bundled = block[block.index('if [ "$_DEMO_BUNDLED" = true ]; then') : block.index("elif [ -f")]
+    bundled = block[block.index("# Only what reading the bundle needs") : block.index("elif [ -f")]
     assert 'docker compose -f "$_NAMED_DIR/docker-compose.run.yml" up -d --wait' in bundled
     assert "seeder" not in bundled and "docker-compose.yml" not in bundled
+
+
+def _stop_others(tmp_path: Path, own: str | None, running: list[str]) -> tuple[int, list[str]]:
+    """Run only stop_other_demo_stores, with a stand-in for docker: ``running`` the compose
+    projects it lists, ``own`` the name this demo's compose file gives (None: it has none). The
+    projects it was told to take down, in order."""
+    import json
+
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    downs = tmp_path / "downs"
+    docker = bin_dir / "docker"
+    docker.write_text(
+        "#!/usr/bin/env bash\n"
+        'case "$*" in\n'
+        f"  *'ls -a --format json'*) echo '{json.dumps([{'Name': n} for n in running])}' ;;\n"
+        f"  *'config --format json'*) echo '{json.dumps({'name': own})}' ;;\n"
+        f'  *down*) echo "$3" >> "{downs}" ;;\n'
+        '  *) echo "unexpected docker $*" >&2; exit 9 ;;\n'
+        "esac\n"
+    )
+    docker.chmod(0o755)
+    compose = tmp_path / "docker-compose.run.yml"
+    if own is not None:
+        compose.write_text("services: {}\n")
+    start = TEXT.index("stop_other_demo_stores() {")
+    end = TEXT.index("\n}\n", start) + 3
+    program = (
+        "set -euo pipefail\nDEMO_NAME=weblogs\n"
+        + TEXT[start:end]
+        + f'stop_other_demo_stores "{compose}"\n'
+    )
+    done = subprocess.run(
+        ["bash", "-c", program],
+        capture_output=True,
+        text=True,
+        env={"PATH": f"{bin_dir}:/usr/bin:/bin"},
+    )
+    return done.returncode, downs.read_text().split() if downs.exists() else []
+
+
+def test_starting_a_demo_stops_every_other_demos_stores(tmp_path: Path) -> None:
+    """The maintainer's report: the checkout-built weblogs stack and sonnets were still up, and the
+    bundled weblogs could not bind 28432. Only this demo's own project is left, and a bundle build's
+    stack is not a demo's stores."""
+    code, downs = _stop_others(
+        tmp_path,
+        "provisa-demo-weblogs-run",
+        [
+            "provisa-demo-weblogs",
+            "provisa-demo-weblogs-run",
+            "provisa-demo-sonnets",
+            "provisa-demo-bundle-weblogs-4242",
+            "compose",
+        ],
+    )
+    assert code == 0
+    assert downs == ["provisa-demo-weblogs", "provisa-demo-sonnets"]
+
+
+def test_a_demo_with_no_stores_stops_every_demos_stores(tmp_path: Path) -> None:
+    code, downs = _stop_others(tmp_path, None, ["provisa-demo-weblogs-run", "provisa-demo-perf"])
+    assert code == 0
+    assert downs == ["provisa-demo-weblogs-run", "provisa-demo-perf"]
+
+
+def test_both_ways_a_demo_starts_stop_the_others_first() -> None:
+    block = TEXT[TEXT.index('if [ -n "$DEMO_NAME" ]; then\n  _NAMED_DIR') :]
+    bundled = block.index('stop_other_demo_stores "$_NAMED_DIR/docker-compose.run.yml"')
+    checkout = block.index('stop_other_demo_stores "$_NAMED_DIR/docker-compose.yml"')
+    assert bundled < block.index('docker compose -f "$_NAMED_DIR/docker-compose.run.yml" up -d')
+    assert checkout < block.index(
+        'docker compose -f "$_NAMED_DIR/docker-compose.yml" up -d --build'
+    )
+    # No volume is removed: a later --keep-data start of that demo still has its data.
+    function = TEXT[TEXT.index("stop_other_demo_stores() {") :]
+    function = function[: function.index("\n}\n")]
+    assert 'docker compose -p "$project" down\n' in function + "\n"
+    assert "-v" not in function.split("docker compose -p")[1].split("\n")[0]
