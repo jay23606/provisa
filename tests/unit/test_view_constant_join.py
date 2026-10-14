@@ -153,3 +153,33 @@ def test_a_constant_a_view_reads_from_the_views_it_reads_is_its_own():
     validated = expand_view_refs(_READ, views, mark=True)
     messages = [v.message for v in validate_sql(validated, ctx, gov, _ROLE, []) if v.code == "V002"]
     assert messages == []
+
+
+def test_the_statement_governance_validates_reads_each_view_as_itself():
+    """Through view_read.semantic_statement, as the pipeline calls it: views the statement reads
+    are expanded twice there (governed, then validated), and both expansions are marked."""
+    from types import SimpleNamespace
+
+    from provisa.mv.registry import MVRegistry
+    from provisa.mv.view_read import semantic_statement
+
+    line, theme, evokes = _meta(1, "line"), _meta(2, "theme"), _meta(3, "evokes")
+    time_view = _meta(4, "theme_time")
+    ctx = CompilationContext()
+    ctx.tables = {"line": line, "theme": theme, "evokes": evokes, "theme_time": time_view}
+    ctx.joins = {
+        ("Evokes", "theme"): _join(theme, "theme_id", "id"),
+        ("Evokes", "line"): _join(line, "line_id", "id"),
+    }
+    gov = GovernanceContext()
+    gov.table_map = {"line": 1, "theme": 2, "evokes": 3, "theme_time": 4}
+    columns = {**_COLUMNS, 4: _COLUMNS[3]}
+    gov.all_columns = {tid: [(c, "varchar") for c in cols] for tid, cols in columns.items()}
+    views = {
+        "evokes": "SELECT line_id, theme_id FROM theme_time",
+        "theme_time": "SELECT l.id AS line_id, 'time' AS theme_id FROM line l",
+    }
+    state = SimpleNamespace(mv_registry=MVRegistry(), role_build_inputs={"draft_tables": []})
+    _governed, validated = semantic_statement(_READ, views, state, gov)
+    messages = [v.message for v in validate_sql(validated, ctx, gov, _ROLE, []) if v.code == "V002"]
+    assert messages == []
