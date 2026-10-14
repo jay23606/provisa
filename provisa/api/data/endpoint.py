@@ -666,6 +666,7 @@ async def _execute_one_field(  # REQ-027, REQ-028, REQ-029, REQ-137, REQ-140, RE
         _n_rows,
         ctx,
         state,
+        compiled.canonical_field,
         RouteDecision(
             route=route,
             source_id=plan.source_id or None,
