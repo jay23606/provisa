@@ -55,6 +55,7 @@ async def test_the_setup_status_carries_them(tmp_path, monkeypatch):
         "named_demo": tmp_path.name,
         "example_queries": [{"name": "1-a", "query": "query A { a }"}],
         "demo_tour": [],
+        "demo_landing": None,
     }
 
 

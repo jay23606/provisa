@@ -10,4 +10,4 @@ Requires=docker.service
 [Service]
 Type=oneshot
 EnvironmentFile=/root/.provisa/demo-stores.env
-ExecStart=/opt/provisa/scripts/demo_stores_sync.sh
+ExecStart=/root/.provisa/bin/demo_stores_sync.sh

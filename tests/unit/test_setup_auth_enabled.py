@@ -43,6 +43,7 @@ async def test_status_demo_no_auth_is_unsecured(monkeypatch):
         "named_demo": None,  # REQ-2010
         "example_queries": [],  # REQ-2009: no named demo was started
         "demo_tour": [],  # REQ-2010
+        "demo_landing": None,  # REQ-2010: no tour, no landing
     }
 
 
@@ -64,6 +65,7 @@ async def test_status_demo_firebase_config_is_enforced(monkeypatch):
         "named_demo": None,  # REQ-2010
         "example_queries": [],  # REQ-2009: no named demo was started
         "demo_tour": [],  # REQ-2010
+        "demo_landing": None,  # REQ-2010: no tour, no landing
     }
 
 
@@ -82,6 +84,7 @@ async def test_status_non_demo_no_auth_needs_setup(monkeypatch):
         "named_demo": None,  # REQ-2010
         "example_queries": [],  # REQ-2009: no named demo was started
         "demo_tour": [],  # REQ-2010
+        "demo_landing": None,  # REQ-2010: no tour, no landing
     }
 
 

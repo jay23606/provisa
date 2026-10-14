@@ -466,3 +466,46 @@ def stores_env(directory: Path) -> dict[str, str]:
             key, _, value = line.partition("=")
             values[key.strip()] = value.strip()
     return values
+
+
+def pull_into(spec: str, into: Path, registry_url: str) -> Path:
+    """Pull ``<name>[@<version>]`` (its latest when no version is named) into
+    ``into/<name>/<version>``, unless that version is there already -- a version names one bundle
+    forever -- and return the directory. The pull ``start-ui-install.sh --demo`` and the sandbox
+    tier's node run (scripts/demo_bundle.py pull; python -m provisa.core.demo_bundles pull)."""
+    name, _, version = spec.partition("@")
+    registry = Registry(registry_url)
+    if not version:
+        _digest, oci_manifest = registry.resolve(name, LATEST)
+        version = registry.manifest_of(name, oci_manifest).version
+    target = into.expanduser() / name / version
+    if not target.exists():
+        target.parent.mkdir(parents=True, exist_ok=True)
+        registry.pull(name, version, target, running_provisa())
+    return target
+
+
+def _main(argv: list[str] | None = None) -> int:
+    """``python -m provisa.core.demo_bundles pull <name>[@<version>] --into DIR``: the pull, where
+    only the package is installed (the app image, which the sandbox tier's node runs it in)."""
+    import argparse
+    import os
+    import sys
+
+    parser = argparse.ArgumentParser(description="Pull a named demo's bundle (REQ-2049).")
+    sub = parser.add_subparsers(dest="command", required=True)
+    q = sub.add_parser("pull", help="pull a demo's bundle and print its directory")
+    q.add_argument("spec", help="<name> or <name>@<version>")
+    q.add_argument("--into", type=Path, required=True)
+    q.add_argument("--registry", default=os.environ.get("PROVISA_DEMO_REGISTRY", PUBLISHED_AT))
+    args = parser.parse_args(argv)
+    try:
+        print(pull_into(args.spec, args.into, args.registry))
+    except BundleError as refused:
+        print(f"ERROR: {refused}", file=sys.stderr)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(_main())

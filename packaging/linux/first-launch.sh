@@ -910,16 +910,19 @@ services:
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--ssl-certfile", "/app/certs/provisa.crt", "--ssl-keyfile", "/app/certs/provisa.key", "--timeout-keep-alive", "620", "--workers", "1"]
     volumes:
       - ${CERT_DIR}:/app/certs:ro
-      - provisa_sandbox_data:/var/lib/provisa
+      # A host directory, not a named volume: the node's demo stores sync
+      # (scripts/demo_stores_sync.sh) reads and writes demo-bundles/ under it.
+      - ${PROVISA_HOME}/sandbox-data:/var/lib/provisa
     environment:
       <<: *provisa_env
       PROVISA_SANDBOX_TIER: "true"
       PROVISA_DATA_DIR: /var/lib/provisa
       # Its own engine is DuckDB (each sandbox's is anyway): it never wakes a Trino shard.
       PROVISA_ENGINE: "duckdb"
-      # REQ-2049: the demos it offers, each pulled as its published bundle -- at start and again
-      # whenever a sandbox of it is opened, so a newly published demo needs no redeploy -- into
-      # its data directory (demo-bundles/), where the bundles' logs are read.
+      # REQ-2049: the demos it offers. The node's sync (provisa-demo-stores units) pulls each
+      # one's bundle into demo-bundles/ and runs its stores; the tier serves the ready version
+      # and, at each sandbox opened, asks for a newer published one -- no redeploy. A demo's
+      # logs are read live from its bundle there.
       PROVISA_DEMO_BUNDLES: "weblogs"
       PROVISA_DEMO_REGISTRY: "https://ghcr.io/kenstott"
       PROVISA_LOGS_ALLOWED_ROOTS: /var/lib/provisa/demo-bundles
@@ -1002,7 +1005,6 @@ services:
 
 volumes:
   redis_data:
-  provisa_sandbox_data:
 YAML
   ok "Control-plane base compose written: ${file}"
 }

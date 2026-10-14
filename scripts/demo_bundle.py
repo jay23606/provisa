@@ -454,16 +454,7 @@ def push(args: argparse.Namespace) -> int:
 
 
 def pull(args: argparse.Namespace) -> int:
-    name, _, version = args.spec.partition("@")
-    registry = bundles.Registry(args.registry)
-    if not version:
-        _digest, oci_manifest = registry.resolve(name, bundles.LATEST)
-        version = registry.manifest_of(name, oci_manifest).version
-    target = args.into.expanduser() / name / version
-    if not target.exists():
-        target.parent.mkdir(parents=True, exist_ok=True)
-        registry.pull(name, version, target, bundles.running_provisa())
-    print(target)
+    print(bundles.pull_into(args.spec, args.into, args.registry))
     return 0
 
 
