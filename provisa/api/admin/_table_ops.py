@@ -575,11 +575,16 @@ async def _settle_nested_columns(pool, input, columns) -> "MutationResult | None
     on the bound engine to list them through (REQ-1912: a query-API source's table, which its
     query produces; a Data Profiler source's, which a scan lands; a data-quality checker's, whose
     result envelope Provisa defines and writes, REQ-1443) -- has nothing to settle a column
-    against: its columns are what its registration supplies."""
+    against: its columns are what its registration supplies. Nor has a table its native query
+    produces on a source that does list (a MongoDB pipeline, REQ-1980; an Elasticsearch search,
+    REQ-2017): it is no relation of the source, and its columns are what its query answers, typed
+    by its preview -- asked, Elasticsearch looked up an index of the table's name and failed 404."""
     from provisa.api.admin.introspect import SourceNotListable
     from provisa.api.admin.types import MutationResult
     from provisa.core.repositories.table import stored_column_types
 
+    if input.query_template:
+        return None
     async with pool.acquire() as conn:
         stored = await stored_column_types(
             conn, input.source_id, input.schema_name, input.table_name
