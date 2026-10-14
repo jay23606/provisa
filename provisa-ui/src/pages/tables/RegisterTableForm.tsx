@@ -12,7 +12,12 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { UntypedColumns } from "./UntypedColumns";
 import { ProfilerRowRulesField } from "./ProfilerRowRulesField";
 import { QueryTableFields } from "./QueryTableFields";
-import { argumentName, isPipelineArgument, previewedColumn } from "./queryTables";
+import {
+  argumentName,
+  isPipelineArgument,
+  NATIVE_QUERY_MODES,
+  previewedColumn,
+} from "./queryTables";
 import { QDRANT, QDRANT_SCHEMA, offeredUnselected, searchQueryArgument } from "../sources/qdrant";
 import { QdrantVectorsNote } from "./QdrantVectorsNote";
 import { RegisterColumnsField } from "./RegisterColumnsField";
@@ -205,9 +210,13 @@ export function RegisterTableForm({
   const isFilesSource = isFilesSourceType(sourceType); // REQ-788
   // REQ-1670/REQ-1683: a query-API source has no tables to list — its table IS a query projection.
   // REQ-1980/REQ-1982: a document source's table is a collection or container, or a native query.
-  // REQ-1983: a Qdrant table is a collection, or a search.
+  // REQ-1983: a Qdrant table is a collection, or a search. REQ-2017: an Elasticsearch table is an
+  // index, or a native search.
   const isNativeQuerySource =
-    sourceType === "mongodb" || sourceType === "cosmosdb" || sourceType === QDRANT;
+    sourceType === "mongodb" ||
+    sourceType === "cosmosdb" ||
+    sourceType === QDRANT ||
+    sourceType === "elasticsearch";
   const isPipeline = isNativeQuerySource && mongoMode === "pipeline";
   const isQueryApi = (QUERY_API_TYPES as readonly string[]).includes(sourceType) || isPipeline;
   const pipelineArgs = columns.filter(isPipelineArgument);
@@ -278,8 +287,8 @@ export function RegisterTableForm({
     if (isQueryApi)
       setSchemaName(
         isPipeline
-          ? sourceType === QDRANT
-            ? QDRANT_SCHEMA
+          ? sourceType === QDRANT || sourceType === "elasticsearch"
+            ? QDRANT_SCHEMA // the source's one schema, "default"
             : (chosenSource?.database ?? "")
           : sourceType,
       );
@@ -459,7 +468,7 @@ export function RegisterTableForm({
     try {
       const res = await previewQuery({
         sourceType: isPipeline
-          ? (sourceType as "mongodb" | "cosmosdb" | "qdrant")
+          ? (sourceType as "mongodb" | "cosmosdb" | "qdrant" | "elasticsearch")
           : isSparql
             ? "sparql"
             : "neo4j",
@@ -802,22 +811,9 @@ export function RegisterTableForm({
               aria-label={t("registerTableForm.mongoModeLabel")}
               value={mongoMode}
               onChange={(v) => setMongoMode(v as "collection" | "pipeline")}
-              data={
-                sourceType === QDRANT
-                  ? [
-                      { value: "collection", label: t("registerTableForm.qdrantModeCollection") },
-                      { value: "pipeline", label: t("registerTableForm.qdrantModeSearch") },
-                    ]
-                  : sourceType === "cosmosdb"
-                    ? [
-                        { value: "collection", label: t("registerTableForm.cosmosModeContainer") },
-                        { value: "pipeline", label: t("registerTableForm.cosmosModeQuery") },
-                      ]
-                    : [
-                        { value: "collection", label: t("registerTableForm.mongoModeCollection") },
-                        { value: "pipeline", label: t("registerTableForm.mongoModePipeline") },
-                      ]
-              }
+              data={NATIVE_QUERY_MODES[sourceType as keyof typeof NATIVE_QUERY_MODES].map(
+                ([value, key]) => ({ value, label: t(`registerTableForm.${key}`) }),
+              )}
               data-testid={`register-table-${sourceType}-mode`}
             />
           </FormField>

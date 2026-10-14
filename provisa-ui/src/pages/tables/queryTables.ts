@@ -16,6 +16,28 @@ import type { ColumnForm } from "./types";
 
 /** How a pipeline argument reaches the source (REQ-1986). */
 export const QUERY_ARG = "query_arg";
+
+/** A native-query source's two kinds of table, each mode's i18n key: its relation, and a table
+ * its native query produces (REQ-1980 MongoDB, REQ-1982 Cosmos DB, REQ-1983 Qdrant, REQ-2017
+ * Elasticsearch). */
+export const NATIVE_QUERY_MODES = {
+  mongodb: [
+    ["collection", "mongoModeCollection"],
+    ["pipeline", "mongoModePipeline"],
+  ],
+  cosmosdb: [
+    ["collection", "cosmosModeContainer"],
+    ["pipeline", "cosmosModeQuery"],
+  ],
+  qdrant: [
+    ["collection", "qdrantModeCollection"],
+    ["pipeline", "qdrantModeSearch"],
+  ],
+  elasticsearch: [
+    ["collection", "esModeIndex"],
+    ["pipeline", "esModeSearch"],
+  ],
+} as const;
 const NF_PREFIX = "_nf_";
 
 /** A column the preview suggests, granted to every role, as the steward then edits it. */

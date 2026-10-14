@@ -50,12 +50,13 @@ interface Props {
 }
 
 // A native query's placeholders are written {{name}}: the texts that show one keep it as written.
-const LITERAL = { name: "{{name}}", query_vector: "{{query_vector}}" };
+const LITERAL = { name: "{{name}}", query_vector: "{{query_vector}}", phrase: "{{phrase}}" };
 
 const KEYS = {
   sparql: ["sparqlQueryLabel", "sparqlQueryHint", "sparqlQueryPlaceholder"],
   mongodb: ["pipelineQueryLabel", "pipelineQueryHint", "pipelineQueryPlaceholder"],
   cosmosdb: ["cosmosQueryLabel", "cosmosQueryHint", "cosmosQueryPlaceholder"],
+  elasticsearch: ["esSearchLabel", "esSearchHint", "esSearchPlaceholder"],
   qdrant: ["qdrantSearchLabel", "qdrantSearchHint", "qdrantSearchPlaceholder"],
   neo4j: ["neo4jCypherLabel", "neo4jCypherHint", "neo4jCypherPlaceholder"],
 } as const;
@@ -170,7 +171,7 @@ export function QueryTableFields(props: Props) {
   const [label, hint, placeholder] =
     KEYS[
       pipeline
-        ? sourceType === "cosmosdb" || sourceType === "qdrant"
+        ? sourceType === "cosmosdb" || sourceType === "qdrant" || sourceType === "elasticsearch"
           ? sourceType
           : "mongodb"
         : sourceType === "sparql"

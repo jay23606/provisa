@@ -81906,6 +81906,79 @@
     local copy, so join indexes there do not speed joins (ruling (a): index the store file, leave the copy).
     Measured: a 2,000,000-row DuckDB replica takes 0.87 s for its key and 0.55 s for a join index (one broker
     operation each).'
+- id: REQ-2017
+  status: in-progress
+  since: 2026-10
+  group: 4. Source Connectors
+  category: Source Connectors
+  feature: connector-catalog-nosql-search-and-graph
+  priority: SHOULD
+  type: behavioral
+  description: 'A table on an Elasticsearch source can be registered from a native search instead of an index: one
+    JSON document, {"index": ..., "query": {...}}, the Query DSL of a _search request, optionally with aggs, sort
+    and highlight. The table stores it in query_template. Each "{{name}}" placeholder string anywhere in the request
+    is a parameter of the table (query_arg, REQ-1986) with an IR type, optional unless a steward makes it required; a
+    caller passes it as a GraphQL field argument or an equality condition on the parameter column in SQL. Each
+    value is checked against its type and bound by replacing the placeholder node of the parsed request with the
+    value, never written into the request text. The request is sent to _search and nowhere else: an index that names
+    another endpoint, and any key that is not part of a search or that pages it (from, search_after, pit, scroll),
+    is refused by name. A search with aggregations answers one row per bucket, nested buckets flattened with one
+    column per key, doc count and metric; otherwise one row per hit, read in a point in time with search_after,
+    with the hit''s id, score and highlighted fragments beside its fields. Output columns are fixed at registration,
+    from the index mapping restricted to the fields the hits hold, or from the aggregations for a bucket search,
+    found by one preview run with sample arguments, and every row is checked against them. Like a MongoDB pipeline
+    table (REQ-1980), it is read per statement by Provisa itself on every federation engine and landed for the
+    engine; with no arguments it behaves as a view. It is registered on the Register Table form as a pipeline table
+    is, and joins and is governed like any registered table.'
+  use_case: A support analyst registers reviews_matching from a match_phrase search with a highlight and a required
+    phrase argument, and joins its hits to the product catalog to see which products draw a complaint.
+  scenario: 'Given an Elasticsearch source and a table reviews_matching registered from a match_phrase search whose
+    phrase is a required argument
+
+
+    When a SQL query sets the phrase by an equality condition on its parameter column and joins the products table
+
+
+    Then the search runs with the phrase bound as a value, and each matching review is joined to its product with
+    its highlighted fragments
+
+
+    When the query omits the phrase
+
+
+    Then it is refused, naming reviews_matching and phrase
+
+
+    When the phrase holds Query DSL syntax
+
+
+    Then it is searched for as text, and nothing else runs at the source'
+  related_reqs:
+  - REQ-1980
+  - REQ-1986
+  - REQ-1672
+  - REQ-2018
+  - REQ-2019
+  - REQ-2020
+  - REQ-2021
+  - REQ-2022
+  - REQ-2023
+  - REQ-2024
+  - REQ-2025
+  - REQ-2026
+  - REQ-2027
+  - REQ-2028
+  notes: 'Maintainer 2026-10-14, via the lead: Elasticsearch native-query tables, modelled on the MongoDB pipeline
+    table (REQ-1980); approved. Lead''s elaboration: the request shape, the bucket and hit rows, point in time with
+    search_after, read live or landed as the MongoDB table is.'
+  code:
+  - provisa/elasticsearch/native_query.py
+  - provisa/elasticsearch/native_table.py
+  - provisa/elasticsearch/fetch.py
+  tests:
+  - tests/unit/test_es_native_query.py
+  - tests/integration/test_elasticsearch_native_search_e2e.py
+  - provisa-ui/e2e/source-to-query.spec.ts
 - id: REQ-2018
   status: proposed
   since: 2026-10
@@ -81947,6 +82020,7 @@
 
     Then it is bound as a value only, and nothing else runs at the source'
   related_reqs:
+  - REQ-2017
   - REQ-1980
   - REQ-1986
   notes: 'Maintainer 2026-10-14, via the lead: add native-query parameterized tables, after the MongoDB pipeline
@@ -81992,6 +82066,7 @@
 
     Then it is bound as a value only, and nothing else runs at the source'
   related_reqs:
+  - REQ-2017
   - REQ-1980
   - REQ-1986
   notes: 'Maintainer 2026-10-14, via the lead: add native-query parameterized tables, after the MongoDB pipeline
@@ -82037,6 +82112,7 @@
 
     Then it is bound as a value only, and nothing else runs at the source'
   related_reqs:
+  - REQ-2017
   - REQ-1980
   - REQ-1986
   notes: 'Maintainer 2026-10-14, via the lead: add native-query parameterized tables, after the MongoDB pipeline
@@ -82082,6 +82158,7 @@
 
     Then it is bound as a value only, and nothing else runs at the source'
   related_reqs:
+  - REQ-2017
   - REQ-1980
   - REQ-1986
   notes: 'Maintainer 2026-10-14, via the lead: add native-query parameterized tables, after the MongoDB pipeline
@@ -82128,6 +82205,7 @@
 
     Then it is bound as a value only, and nothing else runs at the source'
   related_reqs:
+  - REQ-2017
   - REQ-1980
   - REQ-1986
   notes: 'Maintainer 2026-10-14, via the lead: add native-query parameterized tables, after the MongoDB pipeline
@@ -82174,6 +82252,7 @@
 
     Then it is bound as a value only, and nothing else runs at the source'
   related_reqs:
+  - REQ-2017
   - REQ-1980
   - REQ-1986
   notes: 'Maintainer 2026-10-14, via the lead: add native-query parameterized tables, after the MongoDB pipeline
@@ -82219,6 +82298,7 @@
 
     Then it is bound as a value only, and nothing else runs at the source'
   related_reqs:
+  - REQ-2017
   - REQ-1980
   - REQ-1986
   notes: 'Maintainer 2026-10-14, via the lead: add native-query parameterized tables, after the MongoDB pipeline
@@ -82265,6 +82345,7 @@
 
     Then it is bound as a value only, and nothing else runs at the source'
   related_reqs:
+  - REQ-2017
   - REQ-1980
   - REQ-1986
   notes: 'Maintainer 2026-10-14, via the lead: add native-query parameterized tables, after the MongoDB pipeline
@@ -82309,6 +82390,7 @@
 
     Then it is bound as a value only, and nothing else runs at the source'
   related_reqs:
+  - REQ-2017
   - REQ-1980
   - REQ-1986
   notes: 'Maintainer 2026-10-14, via the lead: add native-query parameterized tables, after the MongoDB pipeline
@@ -82355,6 +82437,7 @@
 
     Then it is bound as a value only, and nothing else runs at the source'
   related_reqs:
+  - REQ-2017
   - REQ-1980
   - REQ-1986
   notes: 'Maintainer 2026-10-14, via the lead: add native-query parameterized tables, after the MongoDB pipeline
@@ -82401,6 +82484,7 @@
 
     Then it is bound as a value only, and nothing else runs at the source'
   related_reqs:
+  - REQ-2017
   - REQ-1980
   - REQ-1986
   notes: 'Maintainer 2026-10-14, via the lead: add native-query parameterized tables, after the MongoDB pipeline
