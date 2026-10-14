@@ -6,7 +6,13 @@
 ``logs.allowed_roots``, by default ``["/var/log"]``, lists the directories a glob may resolve
 into; a glob, or a file it matches, that resolves outside them after following symlinks is
 refused by name; on the multi-organisation SaaS plane a server-local log path is refused
-entirely, by name."""
+entirely, by name.
+
+The one many-organisation server that reads log files of its own is a demo bundle's seeding run
+(REQ-2049): a throwaway sandbox tier the bundle build starts, holding only the demos' templates,
+which lands a demo's Logs sources from the files the demo's traffic wrote into the build's copy
+of the demo -- still only inside the allowed roots the build lists (that copy). A deployment's
+sandbox tier lands them from the bundle's seed and reads no log file."""
 
 from __future__ import annotations
 
@@ -36,7 +42,9 @@ def _inside(path: str, roots: list[str]) -> bool:
 
 
 def _refuse_on_saas(path: str) -> None:
-    if many_organisations():
+    from provisa.core.demo_bundles import seeding_run
+
+    if many_organisations() and not seeding_run():
         raise LogPathRefused(
             f"{path}: a server that holds many organizations reads no log file of its own"
         )

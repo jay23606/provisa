@@ -120,6 +120,24 @@ def test_a_server_of_many_organizations_reads_no_log_file_of_its_own(root, monke
         checked_file(str(root / "system.log"))
 
 
+def test_a_demo_bundles_seeding_run_reads_its_demos_logs_inside_the_allowed_roots_only(
+    root, monkeypatch, tmp_path
+):
+    """REQ-2049: the bundle build's throwaway sandbox tier lands a demo's Logs sources from the
+    files its traffic wrote; the roots still bound it, and no other server of many organizations
+    reads a log file."""
+    monkeypatch.setattr(secrets_providers, "_many_organisations", lambda: True)
+    monkeypatch.setenv("PROVISA_DEMO_SEED_EXPORT", "true")
+    assert checked_glob(f"{root}/system.log*") == f"{root}/system.log*"
+    (root / "system.log").write_text("x\n")
+    assert checked_file(str(root / "system.log")) == os.path.realpath(root / "system.log")
+    with pytest.raises(LogPathRefused, match="outside the directories log files may be read"):
+        checked_glob(f"{tmp_path}/*.log")
+    monkeypatch.setenv("PROVISA_DEMO_SEED_EXPORT", "false")
+    with pytest.raises(LogPathRefused, match="many organizations reads no log file of its own"):
+        checked_glob(f"{root}/system.log*")
+
+
 def test_the_save_refuses_a_logs_source_by_name_and_on_the_saas_plane(root, monkeypatch, tmp_path):
     from provisa.api.admin.schema_common import logs_refusal
 
