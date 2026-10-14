@@ -26927,7 +26927,7 @@
   - REQ-879
   - REQ-847
 - id: REQ-882
-  status: complete
+  status: in-progress
   since: 2026-07
   group: 4. Source Connectors
   category: Materialization Store

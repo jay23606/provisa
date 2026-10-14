@@ -8308,7 +8308,7 @@ Probe-based freshness gate on the MV REFRESH path, opt-in per MV — the refresh
 
 ### REQ-882 · Materialization Store {#REQ-882}
 
-**Status:** ✅ complete · **Priority:** SHOULD · **Type:** behavioral
+**Status:** ⚙ in-progress · **Priority:** SHOULD · **Type:** behavioral
 
 Wire the aggregate MV rewrite path into the live query execution path. Populate AggregateMVCatalog from MVRegistry on startup, invoke aggregate rewrite in the endpoint query path, and enforce filter subset-safety before rewriting. DONE (2026-07): (1) POPULATE — MVRegistry.register/unregister now sync the process aggregate-MV catalog (provisa/mv/aggregate_catalog.get_aggregate_catalog()), so every MV registered at startup is visible to rewriting; register() is a no-op for non-aggregate MVs. (2) INVOKE — the endpoint query path calls rewrite_if_aggregate_match after the join-MV rewriter (provisa/mv/rewriter.py); only when the join rewrite did not already fire. It extracts a single-table aggregate query via sqlglot (base table, columns inside aggregate functions, top-level AND filter fragments; queries with a JOIN, multiple tables, or no aggregate are left alone) and, on a covering MV, rewrites FROM to the MV target and sets sources to the MV catalog. (3) SUBSET-SAFETY — find_aggregate_mv now enforces it (the prior code skipped the check its docstring promised): a new MVDefinition.filters records the predicates the aggregate MV was pre-computed with, and an MV is usable only when set(mv.filters) is a SUBSET of the query's filters (an unfiltered MV is always safe); the query's remaining filters (query − MV) are re-applied on the MV at rewrite so no rows the query wants are silently dropped.
 
