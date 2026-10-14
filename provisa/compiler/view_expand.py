@@ -68,7 +68,9 @@ def _expand_one(sql: str, view_table: str, view_sql: str, mark: bool = False) ->
     # user-typed semantic SQL — never quoted/catalog-rewritten like the outer query is
     # before this runs. Nested view chains inline that raw text as-is, so a second (or
     # deeper) level of view reference only ever appears in this unquoted form.
-    sql = re.sub(rf'(?<![\w."])(?P<kw>FROM\s+|JOIN\s+)?[A-Za-z_]\w*\.{vt}\b{_ALIAS}', repl, sql)
+    # Never inside a string literal: a compiled read names its table there (``'city.view_x' AS
+    # "_name_"``), which is a value, not a reference.
+    sql = re.sub(rf'(?<![\w."\'])(?P<kw>FROM\s+|JOIN\s+)?[A-Za-z_]\w*\.{vt}\b{_ALIAS}', repl, sql)
     # Unquoted bare reference (no schema prefix), only directly after FROM/JOIN so a
     # same-named column or alias elsewhere in the query is never mistaken for the table.
     sql = re.sub(rf"\b(?P<kw>FROM\s+|JOIN\s+){vt}\b{_ALIAS}", repl, sql)
