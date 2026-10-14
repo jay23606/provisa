@@ -799,12 +799,10 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
         const [fresh] = await reload();
         // The draft just registered is selected and its detail opens in edit on Identity, with
         // everything the short step did not ask for at its default.
-        const made = fresh?.data?.tables.find(
-          (tb) =>
-            tb.sourceId === registered.sourceId &&
-            tb.schemaName === registered.schemaName &&
-            tb.tableName === registered.tableName,
-        );
+        const made =
+          registered === null
+            ? undefined
+            : fresh?.data?.tables.find((tb) => tb.id === registered.id);
         if (made) {
           setExpanded(made.id);
           setSection("identity");

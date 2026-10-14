@@ -32,7 +32,12 @@ vi.mock("../../../hooks/useAdminQueries", async (importOriginal) => ({
 const { RegisterTableForm } = await import("../RegisterTableForm");
 
 function renderForm(domainHints: string[]) {
-  const registerTable = vi.fn().mockResolvedValue({ success: true, message: "" });
+  const registerTable = vi.fn().mockResolvedValue({
+    success: true,
+    message: "Table 'getStore' registered (id=42)",
+    code: "schema.table_registered",
+    params: { table: "getStore", id: 42 },
+  });
   const onSuccess = vi.fn();
   render(
     <RegisterTableForm
@@ -105,10 +110,6 @@ describe("RegisterTableForm — the short step", () => {
       ["id", "integer"],
       ["name", "varchar"],
     ]);
-    expect(onSuccess).toHaveBeenCalledWith({
-      sourceId: "petstore",
-      schemaName: "openapi",
-      tableName: "getStore",
-    });
+    expect(onSuccess).toHaveBeenCalledWith({ id: 42 }); // the table, by the id the server gave it
   });
 });

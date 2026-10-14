@@ -218,18 +218,11 @@ vi.mock("../tables/ViewDefinitionForm", () => ({
   ),
 }));
 
-// The short register step, as the page sees it: it reports the table it registered.
+// The short register step, as the page sees it: it reports the table it registered, by the id the
+// server gave it.
 vi.mock("../tables/RegisterTableForm", () => ({
-  RegisterTableForm: (props: {
-    onSuccess: (registered: { sourceId: string; schemaName: string; tableName: string }) => void;
-  }) => (
-    <button
-      onClick={() =>
-        props.onSuccess({ sourceId: "sales-pg", schemaName: "sales", tableName: "returns" })
-      }
-    >
-      registered
-    </button>
+  RegisterTableForm: (props: { onSuccess: (registered: { id: number } | null) => void }) => (
+    <button onClick={() => props.onSuccess({ id: 10 })}>registered</button>
   ),
 }));
 
@@ -306,7 +299,8 @@ describe("the Tables page's short register step", () => {
     await userEvent.click(await screen.findByTestId("tables-add-toggle"));
     // The list as the server has it once the table exists: a draft, as every new table is.
     refetchTables.mockImplementation(async () => {
-      TABLES = [...TABLES, table(10, "returns", [], { draft: true })];
+      // Stored under another schema than the form sent, as an ingest table is: found by its id.
+      TABLES = [...TABLES, table(10, "returns", [], { draft: true, schemaName: "org_default" })];
       return { data: { tables: TABLES } };
     });
     await userEvent.click(screen.getByText("registered"));

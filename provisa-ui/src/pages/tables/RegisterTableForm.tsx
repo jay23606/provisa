@@ -36,7 +36,14 @@ import {
 } from "../../api/profiler";
 import { useUpsertRlsRule } from "../../hooks/useSecurityQueries";
 import { DQ_CHECKERS } from "../../types/admin";
-import type { Paging, RegisteredTable, Source, UniqueConstraint } from "../../types/admin";
+import { registeredTable } from "./registeredTable";
+import type {
+  MutationResult,
+  Paging,
+  RegisteredTable,
+  Source,
+  UniqueConstraint,
+} from "../../types/admin";
 import type { Role } from "../../types/auth";
 import type { ColumnForm } from "./types";
 import { CDC_TYPES } from "./constants";
@@ -97,9 +104,13 @@ interface RegisterTableFormProps {
     }[]
   >;
   suggestTableAlias: (tableName: string, domainId: string, sourceId: string) => Promise<string>;
-  registerTable: (input: Record<string, unknown>) => Promise<{ success: boolean; message: string }>;
-  /** The table just registered, by its address: the page opens it in edit. */
-  onSuccess: (registered: { sourceId: string; schemaName: string; tableName: string }) => void;
+  registerTable: (input: Record<string, unknown>) => Promise<MutationResult>;
+  /**
+   * The registered table, by the id the server gave it -- not by the address the form sent, which
+   * the server may store otherwise (an ingest table's schema is the org's control-plane schema).
+   * Null when nothing is registered yet (a request queued for approval).
+   */
+  onSuccess: (registered: { id: number } | null) => void;
   /** Closes the form without registering anything. */
   onCancel: () => void;
   setError: (e: string | null) => void;
@@ -624,7 +635,7 @@ export function RegisterTableForm({
         }
       }
       resetForm();
-      onSuccess({ sourceId, schemaName, tableName });
+      onSuccess(registeredTable(result));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -700,11 +711,7 @@ export function RegisterTableForm({
       // would otherwise stay hidden from the tables list until a reload.
       ensureDomainChecked(domainId);
       resetForm();
-      onSuccess({
-        sourceId,
-        schemaName: domainId ? domainToSqlName(domainId) : schemaName,
-        tableName,
-      });
+      onSuccess(registeredTable(result));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
