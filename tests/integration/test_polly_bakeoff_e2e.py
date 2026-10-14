@@ -20,7 +20,7 @@ Each question has a known answer, read from the demo with SQL on the same instan
 right when Polly's reply names it. Each question is its own conversation, so its usage is
 everything that question cost: every call, tool round trips included. For each model the report
 gives accuracy, the cost of a question (median and p90; OpenRouter's billed cost when it is the
-gateway, else tokens at the price table's price), how many questions $0.25 buys at the median and
+gateway, else tokens at the price table's price), how many questions $0.50 buys at the median and
 at the p90, the median latency and the share of input read from the prompt cache. It is written to
 ``POLLY_BAKEOFF_REPORT`` (JSON) and printed. The run fails only when a model cannot be asked at all.
 """
@@ -58,7 +58,7 @@ pytestmark = [
 ]
 
 _ROLE = "org_admin"
-_BUDGET_USD = 0.25
+_BUDGET_USD = 0.50
 
 
 def _expected(server: Any, question: Question) -> list[str]:

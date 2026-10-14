@@ -3,7 +3,7 @@ name: Polly bake-off
 # REQ-2012: what a free-form Polly question costs, per model, on the weblogs demo. Asks paid models
 # real questions, so it runs only when dispatched. tests/integration/test_polly_bakeoff_e2e.py
 # brings the demo up on an isolated instance, asks each model the same ten questions with known
-# answers, and reports accuracy, cost per question (median, p90), questions per $0.25 and
+# answers, and reports accuracy, cost per question (median, p90), questions per $0.50 and
 # latency. The report is the job's artifact.
 
 on:
@@ -91,7 +91,7 @@ jobs:
               f"### Polly bake-off via {report['via']}, {report['questions']} questions, "
               f"budget ${report['budget_usd']}",
               "",
-              "| model | right | errors | median $ | p90 $ | questions / $0.25 (median, p90) "
+              "| model | right | errors | median $ | p90 $ | questions / $0.50 (median, p90) "
               "| 5 at p90 $ | latency s | cached input |",
               "|---|---|---|---|---|---|---|---|---|",
           ]
