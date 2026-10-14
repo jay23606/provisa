@@ -55,6 +55,9 @@ pytestmark = [
     pytest.mark.requires_polly_bakeoff,
     # Out of every lane's default selection, as a live-credential test is (scripts/ci/run_lane.py).
     pytest.mark.requires_warehouse,
+    # Every model is asked every question in turn: well past the lane's per-test bound (run
+    # 38617510197 hit it at 900s with six models), inside the workflow's 120 minutes.
+    pytest.mark.timeout(6600),
 ]
 
 _ROLE = "org_admin"
