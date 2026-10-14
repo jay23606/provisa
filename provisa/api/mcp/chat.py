@@ -679,7 +679,12 @@ _SYSTEM = (
     "engines, one governed catalog. You answer questions about a governed data catalog, run SQL on "
     "the user's behalf, and can navigate the app or trigger admin actions, using ONLY the provided "
     "tools. Every tool call runs under the user's role and its domain access + row/column "
-    "governance — you cannot see or change the role. Prefer search_catalog to find relevant "
+    "governance — you cannot see or change the role. A question about the organisation's own "
+    "systems, traffic, logs, performance, costs or people is a catalog question until a search "
+    "says otherwise: call search_catalog with the question's own words (and list_glossary_terms "
+    "for its business terms) before answering, and never answer that you have no tool or data "
+    "for something you have not searched the catalog for in this turn. Prefer search_catalog to "
+    "find relevant "
     "datasets, describe_table to confirm structure, and explain_sql before run_sql on non-trivial "
     "queries. Never invent table, column, or schema names — discover them with the tools. If a "
     "tool returns an error or empty result, say so plainly. Keep answers concise and lead with the "
@@ -1388,6 +1393,31 @@ def _split_tool_calls(calls: list[dict]) -> tuple[list[dict], list[dict]]:
 
 _EPHEMERAL = {"type": "ephemeral"}
 
+# REQ-1838: the most one model call may generate, thinking included, on every vendor. A call
+# with no cap lets a gateway reserve the model's whole output limit against the account's credit
+# (OpenRouter refuses the call with 402 when that reservation exceeds it) and puts no bound on
+# what one call can spend.
+_MAX_TOKENS = 32000
+
+
+def _output_cap(provider_key: str, custom_endpoint: bool) -> dict[str, Any]:
+    """_MAX_TOKENS as the aisuite provider's own call takes it. OpenAI's own API takes
+    ``max_completion_tokens`` (its reasoning models refuse ``max_tokens``); an OpenAI-wire
+    endpoint (OpenRouter, LiteLLM, vLLM) and Anthropic take ``max_tokens``; Ollama's own API takes
+    ``options.num_predict``. aisuite's Google provider passes no generation limit on to Google
+    (it builds its GenerationConfig from the temperature alone), so a cap for it is refused by
+    name rather than sent to be dropped."""
+    if provider_key == "openai" and not custom_endpoint:
+        return {"max_completion_tokens": _MAX_TOKENS}
+    if provider_key == "ollama":
+        return {"options": {"num_predict": _MAX_TOKENS}}
+    if provider_key == "google":
+        raise ValueError(
+            "Polly cannot cap a Google model's output through aisuite's Google provider; "
+            "reach the model through an OpenAI-wire endpoint (e.g. OpenRouter) instead"
+        )
+    return {"max_tokens": _MAX_TOKENS}
+
 
 def _cached_tools() -> list[Any]:
     """REQ-2012: the tool definitions, Anthropic's hosted tools first, with a prompt-cache
@@ -1465,7 +1495,7 @@ async def _run_chat_anthropic(
         # .create() returned, rather than switching the rest of this loop to consume raw events.
         async with client.messages.stream(
             model=model,
-            max_tokens=32000,
+            max_tokens=_MAX_TOKENS,
             system=_cached_system(system),
             tools=_cached_tools(),
             thinking={"type": "adaptive"},
@@ -1782,6 +1812,7 @@ async def _run_chat_aisuite(
     model_id, provider_configs = await _resolve_aisuite_routing(state, vendor, model)
     provider_key, model_name = model_id.split(":", 1)
     provider = ProviderFactory.create_provider(provider_key, provider_configs.get(provider_key, {}))
+    cap = _output_cap(provider_key, custom_endpoint=bool(provider_configs))
     openai_tools = [_to_openai_tool(t) for t in _TOOLS + _CLIENT_TOOLS]
     system_text = _system_prompt(current_route)
     # REQ-2012: an Anthropic model behind an OpenAI-wire gateway (OpenRouter) caches only where a
@@ -1809,7 +1840,12 @@ async def _run_chat_aisuite(
         # aisuite providers are synchronous (no async client) — off the event loop, same reasoning
         # as every other sync-SDK call in this codebase (e.g. provisa/llm/client.py).
         resp = await asyncio.to_thread(
-            provider.chat_completions_create, model_name, oa_messages, tools=openai_tools, **extra
+            provider.chat_completions_create,
+            model_name,
+            oa_messages,
+            tools=openai_tools,
+            **cap,
+            **extra,
         )
         usage = usage + polly_usage.from_openai(resp.usage)
         call_cost = getattr(resp.usage, "cost", None)
