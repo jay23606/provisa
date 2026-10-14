@@ -19,10 +19,17 @@ synchronous_commit, full_page_writes).
 
 A test that needs Postgres gets its own server here rather than whatever listens on the machine's
 5432, which other jobs start and stop.
+
+A server does not outlive the process that started it. A session ended by a signal (a stopped job,
+a runner's timeout) runs no teardown, and its server kept running, holding the machine's shared
+memory until no further one could start. Each server's directory records its starter's pid
+(``owner.pid``), and every start first stops the servers whose starter is gone; a running
+session's is left alone.
 """
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import tempfile
@@ -32,6 +39,9 @@ from pathlib import Path
 ROLE = "provisa"
 PASSWORD = "provisa"
 DATABASE = "provisa"
+
+_PREFIX = "pv-pg-"
+_OWNER = "owner.pid"
 
 _SETTINGS = {
     "fsync": "off",
@@ -115,6 +125,32 @@ class LocalPostgres:
             )
 
 
+def _running(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True  # another user's process: running, and not this one's to judge
+    return True
+
+
+def _stop_orphans() -> None:
+    """Stop every embedded server whose starter is gone, and remove its directory. One without a
+    recorded starter, or whose starter runs, is left alone."""
+    for root in Path(tempfile.gettempdir()).glob(f"{_PREFIX}*"):
+        owner = root / _OWNER
+        if not owner.is_file() or _running(int(owner.read_text())):
+            continue
+        if (root / "data" / "postmaster.pid").exists():
+            subprocess.run(
+                [_bin("pg_ctl"), "-D", str(root / "data"), "-w", "stop", "-m", "immediate"],
+                check=True,
+                capture_output=True,
+            )
+        shutil.rmtree(root)
+
+
 def start_local_postgres(
     port: int | None = None,
     *,
@@ -126,7 +162,9 @@ def start_local_postgres(
     ``settings`` over the session's defaults."""
     from tests.port_lease import lease_port
 
-    root = Path(tempfile.mkdtemp(prefix="pv-pg-"))
+    _stop_orphans()
+    root = Path(tempfile.mkdtemp(prefix=_PREFIX))
+    (root / _OWNER).write_text(str(os.getpid()))
     pg = LocalPostgres(
         port=lease_port() if port is None else port, root=root, settings=dict(settings or {})
     )
