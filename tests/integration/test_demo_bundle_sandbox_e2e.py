@@ -176,3 +176,56 @@ def test_a_sandbox_is_shown_the_example_queries_of_the_bundle_it_was_opened_from
         ]
     finally:
         tier.stop_process()
+
+
+def test_a_visitor_reads_what_the_demo_shows_its_admin_and_runs_as_its_own_roles(
+    tmp_path_factory, registry
+):
+    """A demo names its own roles (org_admin, a keeper), never the sandbox role. Its visitor holds
+    the sandbox role, which sees what org_admin sees (REQ-1597), and the demo's own roles, so its
+    tour can run as each (weblogs: analyst; test_weblogs_bundle_e2e, run 38596957161)."""
+    import yaml
+
+    work = tmp_path_factory.mktemp("bundle_roles")
+    named = work / "named"
+    demo = published_demo(named, "alpha")
+    config = yaml.safe_load((demo / "config.yaml").read_text())
+    config["roles"] = [
+        {"id": "keeper", "capabilities": ["query_development"], "domain_access": ["zoo"]}
+    ]
+    for column in config["tables"][0]["columns"]:
+        column["visible_to"] = (
+            ["org_admin", "keeper"] if column["name"] == "name" else ["org_admin"]
+        )
+    (demo / "config.yaml").write_text(yaml.safe_dump(config))
+    _publish(registry, named, work / "out", "e" * 40, ["ant", "ape"])
+    tier = _tier(work, registry)
+    tier.start(timeout=240)
+    try:
+        sandbox = _open(tier)
+        assert _names(tier, sandbox) == ["ant", "ape"]
+        as_keeper = httpx.post(
+            f"{tier.base_url}/data/sql",
+            json={"sql": "SELECT name FROM animals"},
+            headers={
+                "Authorization": f"Bearer {sandbox['token']}",
+                "x-org-provisa": sandbox["org_id"],
+                "X-Provisa-Role": "keeper",
+            },
+            timeout=120,
+        )
+        assert as_keeper.status_code == 200, as_keeper.text
+        assert sorted(r["name"] for r in as_keeper.json()["data"]["sql"]) == ["ant", "ape"]
+        as_admin = httpx.post(
+            f"{tier.base_url}/data/sql",
+            json={"sql": "SELECT name FROM animals"},
+            headers={
+                "Authorization": f"Bearer {sandbox['token']}",
+                "x-org-provisa": sandbox["org_id"],
+                "X-Provisa-Role": "org_admin",
+            },
+            timeout=120,
+        )
+        assert as_admin.status_code == 403, as_admin.text  # REQ-1597: never org_admin itself
+    finally:
+        tier.stop_process()

@@ -222,6 +222,12 @@ async def _build(demo: PublishedDemo, org_id: str, person: str, kind: str) -> st
             )
     await grant_membership(_admin_pool(), person, org_id, joined_via=JOINED_VIA_ADMIN)
     await grant_org_role(rt.model_db, person, SANDBOX_ROLE, granter_capabilities=DEPLOYMENT_GRANTER)
+    # And the demo's own roles (an analyst, say), so its tour can run as each of them; never a
+    # built-in role, which would carry what the sandbox role withholds (REQ-1597).
+    from provisa.api.demo_templates import demo_roles
+
+    for role_id in demo_roles(demo.template_org):
+        await grant_org_role(rt.model_db, person, role_id, granter_capabilities=DEPLOYMENT_GRANTER)
     ensure_repo(org_id)
     async with rt.model_db.acquire() as conn:
         await write_through(

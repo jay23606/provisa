@@ -134,6 +134,8 @@ _SANDBOX_DENIED: frozenset[str] = frozenset(
         "org_glossary_rw",
     }
 )
+#: The rights a sandbox's person never holds, by any role (a demo's own roles included).
+SANDBOX_DENIED = _SANDBOX_DENIED
 
 # What the reconcile seam subtracts when it re-derives ``sandbox`` from the org_admin row it has
 # just re-asserted: REQ-1597's denylist, plus ``platform_settings``, which is not an org_admin
@@ -231,6 +233,10 @@ _DEMONSTRATED_ROLES: dict[str, list[str]] = {
 # REQ-1919: what the deployment seeds into every model store. A seeded role is a system role and
 # is never deleted; none of these counts as the org's own catalog.
 SEEDED_ROLE_IDS: frozenset[str] = frozenset(role_id for role_id, _caps in _SEED_ROLES)
+#: Each seeded role's rights, by id.
+SEEDED_ROLE_RIGHTS: dict[str, frozenset[str]] = {
+    role_id: frozenset(caps) for role_id, caps in _SEED_ROLES
+}
 SEEDED_DOMAIN_IDS: frozenset[str] = frozenset(domain_id for domain_id, _d, _s in _SEED_DOMAINS)
 #: The built-in sources and the demo's GraphQL source (provisa.api.app_startup).
 SEEDED_SOURCE_IDS: frozenset[str] = BUILT_IN_SOURCE_IDS | {"graphql-demo"}

@@ -193,6 +193,7 @@ def template_seed(org_id: str) -> Any:  # a ProvisaConfig
     raw = _with_directory(
         read_config_with_includes(demo.directory / "config.yaml"), str(demo.directory)
     )
+    _sandbox_sees_what_its_rights_cover(raw, _role_rights(raw))
     for source in raw.get("sources", []):
         # Pre-seeded: every table of the demo is read from its replica (REQ-826 ``replicate: 0``,
         # always), landed into the template's file once, and copied into each sandbox's file. A
@@ -203,6 +204,60 @@ def template_seed(org_id: str) -> Any:  # a ProvisaConfig
         # and not by a sandbox, which carries the template's model.
         source["change_signal"] = "signal"
     return parse_config_dict(raw)
+
+
+def _role_rights(raw: dict) -> dict[str, frozenset[str]]:
+    """Each role a demo's configuration can name, with its rights: the seeded roles, and the
+    demo's own (flattened, inheritance included), which stand in for a seeded one of the same id."""
+    from provisa.core.db import SEEDED_ROLE_RIGHTS
+    from provisa.core.models import Role, flatten_roles
+
+    rights = dict(SEEDED_ROLE_RIGHTS)
+    own = flatten_roles([Role(**role) for role in raw.get("roles", [])])
+    rights.update({role.id: frozenset(role.capabilities) for role in own})
+    return rights
+
+
+def _sandbox_sees_what_its_rights_cover(node: Any, rights: dict[str, frozenset[str]]) -> None:
+    """A demo names who sees each column and table as it would anywhere (its admin, its own
+    roles). Its sandbox's person holds the sandbox role (REQ-1597): wherever a role holding every
+    right the sandbox role holds is named, the sandbox role is named with it."""
+    from provisa.api.demo_sandbox import SANDBOX_ROLE
+
+    covered = rights[SANDBOX_ROLE]
+    if isinstance(node, list):
+        for item in node:
+            _sandbox_sees_what_its_rights_cover(item, rights)
+    elif isinstance(node, dict):
+        visible = node.get("visible_to")
+        if (
+            isinstance(visible, list)
+            and SANDBOX_ROLE not in visible
+            and any(covered <= rights.get(role_id, frozenset()) for role_id in visible)
+        ):
+            visible.append(SANDBOX_ROLE)
+        for value in node.values():
+            _sandbox_sees_what_its_rights_cover(value, rights)
+
+
+def demo_roles(template_org: str) -> list[str]:
+    """The roles a demo's configuration defines for itself (its analyst, say), which a sandbox's
+    person also holds so the demo's tour can run as each. One that would carry a right the sandbox
+    role withholds (REQ-1597), on its own or by inheritance, is refused by name rather than
+    granted."""
+    from provisa.core.db import SANDBOX_DENIED
+    from provisa.core.models import flatten_roles
+
+    out = []
+    for role in flatten_roles(list(template_seed(template_org).roles)):
+        withheld = sorted(set(role.capabilities) & SANDBOX_DENIED)
+        if withheld:
+            raise ValueError(
+                f"demo role {role.id!r} of {template_org} holds {', '.join(withheld)}, which a "
+                "sandbox's person may not (REQ-1597)"
+            )
+        out.append(role.id)
+    return out
 
 
 def replicated_tables(config: Any) -> list[Any]:
