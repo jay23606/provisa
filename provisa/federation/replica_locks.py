@@ -46,6 +46,7 @@ log = logging.getLogger(__name__)
 # First halves of the two-key advisory locks; the second half is the hash of the name.
 _REPLICA_LOCK_CLASS = 0x50565242  # "PVRB"
 _ENGINE_JOBS_LOCK_CLASS = 0x5056454A  # "PVEJ"
+_INDEX_LOCK_CLASS = 0x50564958  # "PVIX"
 
 #: A replica's lock name: the org it belongs to and the table's registered identity.
 ReplicaKey = tuple[str, str, str]
@@ -93,6 +94,12 @@ class BuildClaim:
     def try_replica(self, org_id: str, key: ReplicaKey) -> bool:
         """Take the lock of one replica, if no build holds it."""
         return self._try_advisory(_REPLICA_LOCK_CLASS, replica_lock_name(org_id, key))
+
+    def try_indexes(self, org_id: str, key: ReplicaKey) -> bool:
+        """Take the lock of one replica's index builds (REQ-2015), if no process holds it. Not
+        the build's lock: a landing never waits on its indexes, and the indexes of the landing
+        it replaced stop when they see it."""
+        return self._try_advisory(_INDEX_LOCK_CLASS, replica_lock_name(org_id, key))
 
     def release_replica(self, org_id: str, key: ReplicaKey) -> None:
         """Give back a replica lock taken on this claim (the build did not start)."""

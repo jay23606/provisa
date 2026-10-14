@@ -23221,3 +23221,17 @@ The control plane is PostgreSQL only, in every tier and every test: embedded Pos
 **Code:** —
 
 **Tests:** —
+
+## 4. Source Connectors
+
+### REQ-2015 · Materialization Store {#REQ-2015}
+
+**Status:** ✅ complete · **Priority:** MUST · **Type:** behavioral
+
+A replica is indexed as its table is used: its declared primary key, enforced as the key, and the columns its declared relationships join on -- the foreign key of each relationship whose source is the table, the target column of one whose target it is when that column is not the key, and both foreign keys of a junction table a relationship traverses. The indexes are built after the replica lands, never in its landing: the replica is read from its swap, and its indexes follow, built by the replica runner under a per-replica index lock that a landing never waits on. PostgreSQL stores build each with CREATE INDEX CONCURRENTLY outside the swap, the key as a unique index made the primary key (ADD CONSTRAINT ... PRIMARY KEY USING INDEX); other SQLAlchemy stores by the dialect's DDL; the embedded DuckDB store file through its broker. ClickHouse keeps its sorting key (the declared key) and warehouse stores build none. What a landing asked for, what was built and what failed is kept by name on the replica's record (replica_state.index_state); a failed index is logged with its cause and asked for again by the next landing, never failing the landing. Rows that repeat a declared key are a named failure carrying the key's columns. A landing that replaces the table while the last one's indexes are being built leaves them behind (a PostgreSQL swap cancels a build still running on the table it replaces), and the new table gets its own. Index names are fixed by the replica and the columns.
+
+**Use case:** An operator declares orders.customer_id -> customers.id; the replica of orders is readable at once and carries an index on customer_id shortly after, so a join on it reads the index in a PostgreSQL store.
+
+**Code:** `provisa/federation/replica_indexes.py`, `provisa/federation/replica_state.py`, `provisa/federation/replica_runner.py`, `provisa/federation/replica_builds.py`, `provisa/federation/replica_target.py`, `provisa/federation/materialize_broker.py`
+
+**Tests:** `tests/unit/federation/test_replica_indexes.py`, `tests/unit/federation/test_replica_index_stores.py`

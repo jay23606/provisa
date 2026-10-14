@@ -982,6 +982,8 @@ Only Always is a guarantee. Never and the Hot values are best effort. `load_prot
 
 The floor is judged by the tables a statement reads. A statement that reads no replica-served table keeps its direct route even when its source has other replicated tables. [tool-verified: `provisa/federation/registry_view.py` `operator_floor`]
 
+A replica is indexed on its declared primary key and on the columns its declared relationships join on, built after it lands. Where those indexes speed up joins, where to keep replicas and how to choose their freshness are in [Replicas](replicas.md). (REQ-2015) [tool-verified: `provisa/federation/replica_indexes.py`]
+
 ### Hot replication
 
 A table whose `replicate` is not set, or is `N` above 0, is read live until it is busy.
@@ -1472,6 +1474,8 @@ Materialization store defaults to `TENANT_DATABASE_URL`.
 When a source cannot attach live (no ATTACH connector for the selected engine), it lands into the engine's materialization store. Resolution order: explicit `PROVISA_MATERIALIZE_URL` → engine's declared default → hard error (no silent fallback). [tool-verified: `engine.py` `materialize_store`]
 
 DuckDB declares its embedded file (`~/.provisa/materialize.duckdb`) as its default. All other engines default to `TENANT_DATABASE_URL` (PostgreSQL). Override any engine with `PROVISA_MATERIALIZE_URL`.
+
+The store decides what a replica's indexes do for joins: a PostgreSQL store indexes replicas and an engine that runs SQL in it reads those indexes, while DuckDB joins its embedded file's replicas over a per-statement copy. See [Replicas](replicas.md#use-a-relational-database-as-the-replica-store-where-the-engine-runs-sql-in-it). (REQ-2015)
 
 ### Per-source federation hints
 

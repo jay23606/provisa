@@ -51,6 +51,7 @@
       "mailboxes_at_quota": "Boîtes aux lettres laissées de côté, car elles ont atteint leur quota de stockage et Microsoft ne suivra pas leurs modifications tant que de l’espace n’aura pas été libéré : {{total}}. Ce sont : {{accounts}}",
       "mailboxes_failed": "Boîtes aux lettres dont la lecture a échoué en cours de route : {{total}}. Ce qui en a été lu est conservé et leur lecture reprend à la prochaine actualisation. Ce sont : {{accounts}}",
       "place_not_kept": "Cette copie est complète, mais l’endroit où sa lecture s’est arrêtée n’a pas pu être conservé ; la prochaine vérification des changements redemandera donc la lecture : {{reason}}",
+      "indexes_not_planned": "Cette copie est complète et lisible, mais ses index n'ont pas pu être planifiés ; elle est donc lue sans eux jusqu'à sa prochaine construction : {{reason}}",
       "andMore": "{{ids}} et {{more}} autres",
       "other": "Le dernier build a noté : {{code}}"
     },

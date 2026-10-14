@@ -724,7 +724,11 @@
     text: A landed replica carries the shape of the model it came from. Column names, types, primary keys,
       descriptions and steward tags travel with it, and the landing step reconciles an existing table
       instead of blindly recreating it. Incoming rows are matched to target columns by name, and bulk-load
-      paths are used wherever the target store has them.
+      paths are used wherever the target store has them. Once a replica lands it is indexed on its primary
+      key, enforced as a key, and on the columns its declared relationships join on, so joins in a relational
+      store read an index. The indexes are built after the landing, so the replica is readable at once.
+      An index that fails is recorded by name and tried again at the next landing, and rows that repeat
+      a declared key are reported as such.
   - id: replicas-and-freshness-freshness-gate
     text: Freshness is judged in one place for every replica and view. You choose per table whether staleness
       is bounded by a time-to-live, by a probe that checks whether the upstream changed, or by both. A

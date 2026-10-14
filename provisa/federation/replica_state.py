@@ -938,3 +938,108 @@ async def forget(conn: "Connection", key: ReplicaKey) -> bool:
         replica_state.delete().where(_is(key), _t.retired_at.is_not(None))
     )
     return (result.rowcount or 0) > 0
+
+
+# -- REQ-2015: the indexes of the standing replica -----------------------------------------
+
+
+def _spec(rec: dict[str, Any]) -> Any:
+    from provisa.federation.replica_indexes import IndexSpec
+
+    return IndexSpec.from_record(rec)
+
+
+def _landing(landed_at: datetime) -> str:
+    return landed_at.isoformat()
+
+
+async def record_index_plan(
+    conn: "Connection", key: ReplicaKey, landed_at: datetime, specs: list[Any]
+) -> None:
+    """REQ-2015: the landing completed at ``landed_at`` asks for ``specs`` (its indexes,
+    ``replica_indexes.IndexSpec``). Whatever an earlier landing
+    asked for, built or failed is replaced: those indexes were on the table this landing
+    replaced."""
+    state = (
+        {
+            "for": _landing(landed_at),
+            "wanted": [s.as_record() for s in specs],
+            "built": [],
+            "failed": {},
+        }
+        if specs
+        else None
+    )
+    await conn.execute_core(
+        update(replica_state)
+        .where(
+            and_(_t.source_id == key[0], _t.schema_name == key[1], _t.table_name == key[2]),
+            _t.completed_at == landed_at,
+        )
+        .values(index_state=state)
+    )
+
+
+@dataclass(frozen=True)
+class DueIndexes:
+    key: ReplicaKey
+    landed_at: str
+    specs: tuple[Any, ...]
+
+
+async def due_indexes(conn: "Connection") -> list[DueIndexes]:
+    """Each replica whose standing landing asked for an index that is neither built nor failed."""
+    rows = (
+        await conn.execute_core(
+            select(_t.source_id, _t.schema_name, _t.table_name, _t.index_state).where(
+                _t.index_state.is_not(None), _t.retired_at.is_(None)
+            )
+        )
+    ).fetchall()
+    out: list[DueIndexes] = []
+    for row in rows:
+        state = row.index_state
+        settled = set(state["built"]) | set(state["failed"])
+        left = tuple(_spec(s) for s in state["wanted"] if s["name"] not in settled)
+        if left:
+            out.append(
+                DueIndexes((row.source_id, row.schema_name, row.table_name), state["for"], left)
+            )
+    return out
+
+
+async def settle_index_state(
+    conn: "Connection", key: ReplicaKey, landed_at: str, change: "Callable[[dict], None]"
+) -> bool:
+    """Apply ``change`` to ``key``'s index state if it still belongs to the landing
+    ``landed_at``. False: a later landing replaced the table, and this index belonged to the
+    one before it."""
+    async with conn.transaction():
+        state = (
+            await conn.execute_core(
+                select(_t.index_state)
+                .where(_t.source_id == key[0], _t.schema_name == key[1], _t.table_name == key[2])
+                .with_for_update()
+            )
+        ).scalar_one_or_none()
+        if state is None or state["for"] != landed_at:
+            return False
+        change(state)
+        await conn.execute_core(
+            update(replica_state)
+            .where(_t.source_id == key[0], _t.schema_name == key[1], _t.table_name == key[2])
+            .values(index_state=state)
+        )
+    return True
+
+
+async def index_state_current(conn: "Connection", key: ReplicaKey, landed_at: str) -> bool:
+    """Whether ``key``'s index state still belongs to the landing ``landed_at``."""
+    state = (
+        await conn.execute_core(
+            select(_t.index_state).where(
+                _t.source_id == key[0], _t.schema_name == key[1], _t.table_name == key[2]
+            )
+        )
+    ).scalar_one_or_none()
+    return state is not None and state["for"] == landed_at

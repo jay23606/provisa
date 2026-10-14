@@ -129,6 +129,7 @@ nav:
   - Data Sources:
       - Sources: sources.md
       - Federation Engines: engines.md
+      - Replicas: replicas.md
       - Remote Schemas: remote-schemas.md
       - Import (Hasura / DDN): import.md
   - Modeling, Commands & Lineage:

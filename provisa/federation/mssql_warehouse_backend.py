@@ -47,6 +47,12 @@ class _MssqlWarehouseBackend(NativeEngineBackend):
             engine_name=self._engine_name,
         )
 
+    def replica_indexer(self, state: Any, *, address: Any) -> Any:
+        """REQ-2015: none. This engine's replicas live in its own warehouse (``replica_target``):
+        a Fabric or Synapse warehouse table has no secondary index to build."""
+        del state, address
+        return None
+
     def replica_target(self, state: Any, *, address: Any, args: Any, engine: Any) -> Any:
         """A replica in this warehouse's own database: bulk inserts into a build table on a
         connection of the build's own, then the replica's rows replaced from it in one

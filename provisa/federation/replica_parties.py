@@ -76,7 +76,6 @@ class PgStatementCopy:
         *,
         address: ReplicaAddress,
         columns: list[tuple[str, str]],
-        pk_columns: list[str],
         projection: str = "*",
     ) -> None:
         self._backend = backend
@@ -84,7 +83,6 @@ class PgStatementCopy:
         self._source = merged_source
         self._address = address
         self._columns = columns
-        self._pk = pk_columns
         self._projection = projection
 
     async def copy(self, prior_hash: str | None) -> BuildOutcome:
@@ -121,7 +119,6 @@ class PgStatementCopy:
                 schema=self._address.schema,
                 table=self._address.table,
                 columns=self._columns,
-                pk_columns=self._pk,
                 prior_hash=prior_hash,
                 projection=self._projection,
             )
@@ -140,7 +137,6 @@ def store_target(
     *,
     address: ReplicaAddress,
     columns: list[tuple[str, str]],
-    pk_columns: list[str],
     engine_writes_store: bool,
     native_vectors: bool,
 ) -> Any:
@@ -155,7 +151,6 @@ def store_target(
             schema=address.schema,
             table=address.table,
             columns=columns,
-            pk_columns=pk_columns,
             native_vectors=native_vectors,
         )
         if engine_writes_store:

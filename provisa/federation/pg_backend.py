@@ -69,7 +69,6 @@ class PgBackend(NativeEngineBackend):
             merged,
             address=address,
             columns=args.columns,
-            pk_columns=list(args.pk_columns or ()),
             # REQ-1965: a natively array/struct/map column is copied as PostgreSQL's own JSON.
             projection=source_projection(table.columns, "postgres"),
         )
@@ -85,9 +84,17 @@ class PgBackend(NativeEngineBackend):
             self._runtime_for(state)._engine_dsn,
             address=address,
             columns=args.columns,
-            pk_columns=list(args.pk_columns or ()),
             engine_writes_store=EngineRun.STATEMENT in engine.caps.runs,
             native_vectors=True,  # REQ-424: the engine reads its replicas in its own database
+        )
+
+    def replica_indexer(self, state: Any, *, address: Any) -> Any:
+        """REQ-2015: a replica in this engine's own database is indexed there, and read through
+        its indexes."""
+        from provisa.federation.replica_target import PostgresIndexer
+
+        return PostgresIndexer(
+            self._runtime_for(state)._engine_dsn, schema=address.schema, table=address.table
         )
 
     def indexes_replica_vectors(self, state: Any) -> bool:

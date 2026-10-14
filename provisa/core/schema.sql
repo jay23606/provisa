@@ -1658,6 +1658,10 @@ CREATE TABLE IF NOT EXISTS replica_state (
     feed_error       TEXT,           -- REQ-1861: the server's reason while the listener is down
     delta_cursor     JSONB,          -- REQ-874: the stored delta cursor
     delta_skipped    TEXT,           -- REQ-874: why the last build was a whole rebuild, not a delta
+    -- REQ-2015: the indexes of the standing replica, built after it lands: {"for": the landing
+    -- (completed_at) they belong to, "wanted": [{name, columns, primary}], "built": [name],
+    -- "failed": {name: {error, code, columns}}}. NULL: no landing has asked for any.
+    index_state      JSONB,
     PRIMARY KEY (source_id, schema_name, table_name)
 );
 

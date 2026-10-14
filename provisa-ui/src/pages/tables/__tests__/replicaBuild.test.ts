@@ -423,6 +423,17 @@ describe("replicaNoteLines", () => {
     ]);
   });
 
+  it("says a completed copy's indexes could not be planned, with the reason", () => {
+    const noted = build({
+      buildNotes: [
+        { code: "replication.indexes_not_planned", params: { reason: "model read failed" } },
+      ],
+    });
+    expect(replicaNoteLines(noted, t)).toEqual([
+      'replicaBuild.note.indexes_not_planned {"reason":"model read failed"}',
+    ]);
+  });
+
   it("gives a line for each thing the build had to say, in the order it said them", () => {
     const noted = build({
       buildNotes: [

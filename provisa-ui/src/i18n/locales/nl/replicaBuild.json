@@ -51,6 +51,7 @@
       "mailboxes_at_quota": "Weggelaten postvakken, omdat ze hun opslagquotum hebben bereikt en Microsoft hun wijzigingen pas weer volgt als er ruimte is vrijgemaakt: {{total}}. Het zijn: {{accounts}}",
       "mailboxes_failed": "Postvakken waarvan het lezen halverwege is mislukt: {{total}}. Wat ervan is gelezen blijft bewaard en het lezen gaat verder bij de volgende vernieuwing. Het zijn: {{accounts}}",
       "place_not_kept": "Deze kopie is volledig, maar er kon niet worden vastgehouden tot waar de leesactie kwam, dus de volgende controle op wijzigingen vraagt de leesactie opnieuw aan: {{reason}}",
+      "indexes_not_planned": "Deze kopie is volledig en leesbaar, maar de indexen ervan konden niet worden gepland; ze wordt dus zonder indexen gelezen tot ze opnieuw wordt opgebouwd: {{reason}}",
       "andMore": "{{ids}} en nog {{more}}",
       "other": "De laatste build meldde: {{code}}"
     },

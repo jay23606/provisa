@@ -156,6 +156,17 @@ async def _replace_is_atomic(url: str, *, expect: tuple[str, str] | None = None,
         await target.write(_batch(_rows(2, "c")), _rows(2, "c"))
         await target.abort()
         assert _names(sa) == new
+        if sa.dialect.name == "postgresql":
+            # REQ-2015: a PostgreSQL replica's key is built after it lands, by its index builds.
+            from provisa.federation import replica_indexes
+            from provisa.federation.replica_target import PostgresIndexer
+
+            (pk,) = replica_indexes.plan(
+                f"{_SCHEMA}.{_TABLE}", [n for n, _ in _COLUMNS], ["id"], []
+            )
+            await PostgresIndexer(
+                sa.url.render_as_string(hide_password=False), schema=_SCHEMA, table=_TABLE
+            ).build(pk)
         with sa.connect() as conn:
             assert not inspect(conn).has_table(_Q(build_table_name(_TABLE)), schema=_Q(_SCHEMA))
             assert inspect(conn).get_pk_constraint(_Q(_TABLE), schema=_Q(_SCHEMA))[

@@ -810,6 +810,49 @@ async def _land_units(
     return built
 
 
+async def _indexed_replica(state: Any, key: ReplicaKey) -> tuple[Any, Any, Any, Any]:
+    """The replica ``key`` names as its indexes see it: its source, table, address and the
+    store's indexer (None: the store keeps no secondary index)."""
+    source, table, _sources = await _model_row(state, key)
+    backend = state.federation_engine.engine.backend
+    address = backend.replica_address(
+        state, source_id=source.id, schema_name=table.schema_name, table_name=table.table_name
+    )
+    return source, table, address, backend.replica_indexer(state, address=address)
+
+
+async def plan_indexes(state: Any, key: ReplicaKey, landed_at: datetime) -> None:
+    """REQ-2015: record the indexes the replica that landed at ``landed_at`` is to carry -- its
+    key and the columns its declared relationships join on, as the model has them now -- for
+    the runner to build after the landing."""
+    from provisa.federation import replica_indexes
+    from provisa.federation.residency import resolve_landing_args
+
+    source, table, address, indexer = await _indexed_replica(state, key)
+    if indexer is None:
+        return
+    args = resolve_landing_args(
+        source, table, platform=state.federation_engine.engine.backend.dialect
+    )
+    pk = list(args.pk_columns or ())
+    async with state.tenant_db.acquire() as conn:
+        joins = await replica_indexes.join_columns(conn, key, pk)
+        specs = replica_indexes.plan(
+            f"{address.schema}.{address.table}", [name for name, _ in args.columns], pk, joins
+        )
+        await replica_indexes.record_plan(conn, key, landed_at, specs)
+
+
+async def build_indexes(state: Any, item: Any) -> None:
+    """REQ-2015: build the indexes ``item`` names on the standing replica."""
+    from provisa.federation import replica_indexes
+
+    _source, _table, _address, indexer = await _indexed_replica(state, item.key)
+    if indexer is None:
+        return
+    await replica_indexes.build_due(state.tenant_db, item, indexer)
+
+
 def make_runner(state: Any, org_id: str, platform_url: str) -> ReplicaRunner:
     """This process's runner for the org ``state`` serves."""
     from provisa.core import settings_registry
@@ -839,6 +882,8 @@ def make_runner(state: Any, org_id: str, platform_url: str) -> ReplicaRunner:
         spawn=spawn_background,
         group_of=lambda key: group_of(state, key),
         build_group=lambda keys, progress: build_group(state, keys, progress),
+        plan_indexes=lambda key, landed_at: plan_indexes(state, key, landed_at),
+        build_indexes=lambda item: build_indexes(state, item),
     )
 
 

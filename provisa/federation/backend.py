@@ -238,11 +238,27 @@ class EngineBackend:
             dsn,
             address=address,
             columns=args.columns,
-            pk_columns=list(args.pk_columns or ()),
             engine_writes_store=EngineRun.STATEMENT in engine.caps.runs,
             # REQ-424: this engine reads the store through its own connector, not the store's SQL.
             native_vectors=False,
         )
+
+    def replica_indexer(self, state: Any, *, address: ReplicaAddress) -> Any:
+        """How the replica at ``address`` gets its key and join indexes after it lands
+        (REQ-2015), or None for a store that keeps no secondary index (a warehouse orders a
+        table by its own clustering).
+
+        The base engine's replicas are in its materialization store: a PostgreSQL store indexes
+        them (Trino reading replicas in PostgreSQL reads them through those indexes)."""
+        del state
+        from sqlalchemy import make_url
+
+        from provisa.federation.replica_target import PostgresIndexer
+
+        dsn = self.engine.materialize_store()
+        if make_url(dsn).get_backend_name() != "postgresql":
+            return None
+        return PostgresIndexer(dsn, schema=address.schema, table=address.table)
 
     def indexes_replica_vectors(self, state: Any) -> bool:
         """Whether this engine reads its replicas through its store's own SQL, so a top-k

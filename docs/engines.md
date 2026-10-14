@@ -104,6 +104,11 @@ running system rather than inferring it: `reachable_source_types(engine_key)` re
 engine can federate, and `live_source_types(engine_key)` returns the subset it queries without
 materializing. [tool-verified: `provisa/federation/engine.py:1215`, `:1234`]
 
+The engine also decides what a replica's indexes buy. The `pg` engine and the relational engines
+run joins in a database that indexes replicas. Trino's PostgreSQL store is indexed too, and serves
+the work Trino pushes down to it. DuckDB joins its embedded store's replicas over a per-statement
+copy, where join indexes do not help. See [Replicas](replicas.md). (REQ-2015)
+
 ## Engine lifecycle (hosted deployment only)
 
 On the hosted cloud deployment, engine shards scale to zero replicas when idle — no pod means no

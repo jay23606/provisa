@@ -31,6 +31,20 @@ class SqlAlchemyBackend(NativeEngineBackend):
             raise RuntimeError("sqlalchemy engine requires a URL ($PROVISA_ENGINE_URL)")
         return SqlAlchemyFederationRuntime(url=url, catalog_qualified=self.engine.catalog_qualified)
 
+    def replica_indexer(self, state: Any, *, address: Any) -> Any:
+        """REQ-2015: a replica in this engine's own store is indexed by that store's DDL -- a
+        PostgreSQL store as every PostgreSQL store is."""
+        from provisa.federation.replica_target import PostgresIndexer, SqlAlchemyIndexer
+
+        sa = self._runtime_for(state)._sa
+        if sa.dialect.name == "postgresql":
+            return PostgresIndexer(
+                sa.url.render_as_string(hide_password=False),
+                schema=address.schema,
+                table=address.table,
+            )
+        return SqlAlchemyIndexer(sa, schema=address.schema, table=address.table)
+
     def replica_target(self, state: Any, *, address: Any, args: Any, engine: Any) -> Any:
         """A replica in this engine's own store, written on the store driver's own connection
         by its bulk call and replaced atomically by the dialect's method (REQ-1915)."""

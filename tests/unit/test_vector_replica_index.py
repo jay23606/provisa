@@ -126,7 +126,6 @@ def _target(native: bool) -> PostgresStoreTarget:
         schema=_REPLICAS,
         table="src__public__docs",
         columns=[("id", "integer"), ("vec", "vector")],
-        pk_columns=["id"],
         native_vectors=native,
     )
 
@@ -157,7 +156,7 @@ async def test_an_indexed_embedding_is_written_as_its_floats_and_one_held_as_tex
 
 def test_the_swap_indexes_each_vector_through_its_cast_at_its_length_for_cosine_distance():
     cur = _Cursor(dims=3)
-    _pg_swap(cur, _REPLICAS, "src__public__docs", "build__x", ["id"], ["vec"])
+    _pg_swap(cur, _REPLICAS, "src__public__docs", "build__x", ["vec"])
     replica = f'"{_REPLICAS}"."src__public__docs"'
     (index,) = [s for s in cur.statements if s.startswith("CREATE INDEX")]
     assert index.endswith(f'ON {replica} USING hnsw ((CAST("vec" AS vector(3))) vector_cosine_ops)')
@@ -165,7 +164,7 @@ def test_the_swap_indexes_each_vector_through_its_cast_at_its_length_for_cosine_
 
 def test_a_replica_with_no_vector_has_nothing_to_index():
     cur = _Cursor(dims=None)
-    _pg_swap(cur, _REPLICAS, "src__public__docs", "build__x", ["id"], ["vec"])
+    _pg_swap(cur, _REPLICAS, "src__public__docs", "build__x", ["vec"])
     assert not [s for s in cur.statements if "CREATE INDEX" in s]
 
 
@@ -180,7 +179,6 @@ def test_the_engine_statement_copy_brings_up_pgvector_and_indexes_the_replica(mo
         schema=_REPLICAS,
         table="src__public__docs",
         columns=[("id", "integer"), ("vec", "vector")],
-        pk_columns=["id"],
         prior_hash=None,
     )
     assert "CREATE EXTENSION IF NOT EXISTS vector" in cur.statements

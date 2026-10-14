@@ -508,6 +508,38 @@ class _SyncedStore:
 
         self._run(_do)
 
+    def replica_index(
+        self, schema: str, table: str, name: str, columns: list[str], *, primary: bool
+    ) -> None:
+        """Build one index of the standing replica (REQ-2015), unless it is there: its primary
+        key (DuckDB names a table's key itself), or the index ``name`` on ``columns``. Rows the
+        key repeats raise ``replica_indexes.DuplicateKey``. No row changes, so no reader's copy
+        is made stale (``unseen``)."""
+        import duckdb
+
+        from provisa.federation.replica_indexes import DuplicateKey
+        from provisa.federation.store_connection import _qualified
+
+        replica = _qualified(_MAT_STORE_ALIAS, schema, table)
+        cols = ", ".join('"' + c.replace('"', '""') + '"' for c in columns)
+
+        def _do(con: Any) -> None:
+            if primary:
+                held = con.execute(
+                    "SELECT 1 FROM duckdb_constraints() WHERE database_name = ? "
+                    "AND schema_name = ? AND table_name = ? AND constraint_type = 'PRIMARY KEY'",
+                    [_MAT_STORE_ALIAS, schema, table],
+                ).fetchone()
+                if held is None:
+                    try:
+                        con.execute(f"ALTER TABLE {replica} ADD PRIMARY KEY ({cols})")
+                    except duckdb.ConstraintException as exc:
+                        raise DuplicateKey(columns, str(exc).splitlines()[0]) from exc
+                return
+            con.execute(f'CREATE INDEX IF NOT EXISTS "{name}" ON {replica} ({cols})')
+
+        self._run(_do, unseen=True)
+
     def replica_abort(self, schema: str, build: str) -> None:
         """Discard the build table."""
         from provisa.federation.store_connection import _qualified

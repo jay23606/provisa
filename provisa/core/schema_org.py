@@ -1550,6 +1550,10 @@ replica_state = Table(
     Column(
         "delta_skipped", Text
     ),  # REQ-874: why the last build was a whole rebuild, not a delta; NULL = delta applied
+    # REQ-2015: the indexes of the standing replica, built after it lands: {"for": the landing
+    # (completed_at) they belong to, "wanted": [{name, columns, primary}], "built": [name],
+    # "failed": {name: {error, code, columns}}}. NULL: no landing has asked for any.
+    Column("index_state", JSON(none_as_null=True)),
     CheckConstraint(
         "build_state IN ('idle','requested','building','failed')",
         name="replica_state_build_state_check",

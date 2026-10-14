@@ -55,6 +55,17 @@ class DuckDBBackend(NativeEngineBackend):
             runtime._store_broker, schema=address.schema, table=address.table, columns=args.columns
         )
 
+    def replica_indexer(self, state: Any, *, address: Any) -> Any:
+        """REQ-2015: a replica in the embedded DuckDB store file is indexed through the store
+        broker; one in any other store by that store's own way."""
+        runtime = self._runtime_for(state)
+        if not runtime._store_is_duckdb():
+            return super().replica_indexer(state, address=address)
+        from provisa.federation.replica_target import DuckDBStoreIndexer
+
+        runtime.ensure_materialize_attached()  # resolves the store broker (REQ-1901)
+        return DuckDBStoreIndexer(runtime._store_broker, schema=address.schema, table=address.table)
+
     def indexes_replica_vectors(self, state: Any) -> bool:
         """REQ-424: a replica in the embedded DuckDB store is read through this engine's own
         copy of it, which indexes its vectors (``_index_replica_vectors``); a replica in any

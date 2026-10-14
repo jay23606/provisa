@@ -25,7 +25,12 @@ from provisa.federation.data_replicator import EngineCaps, Method, data_replicat
 from provisa.federation.replica_address import replica_schema
 from provisa.federation.replica_guard import ReplicaTargetError
 from provisa.federation.replica_source import CursorSource
-from provisa.federation.replica_target import PostgresStoreTarget, build_table_name
+from provisa.federation import replica_indexes
+from provisa.federation.replica_target import (
+    PostgresIndexer,
+    PostgresStoreTarget,
+    build_table_name,
+)
 
 pytestmark = [pytest.mark.integration]
 
@@ -96,13 +101,12 @@ class _ReadsStore:
         self.swaps += 1
 
 
-def _target(dsn, pk=("id",)):
+def _target(dsn):
     return PostgresStoreTarget(
         dsn,
         schema=SCHEMA,
         table=TABLE,
         columns=COLUMNS,
-        pk_columns=list(pk),
         native_vectors=True,
     )
 
@@ -123,7 +127,7 @@ def _count(look) -> int:
     return look.execute(f'SELECT count(*) FROM "{SCHEMA}"."{TABLE}"').fetchone()[0]
 
 
-async def test_rows_stream_into_a_build_table_and_are_swapped_in_with_their_key(store):
+async def test_rows_stream_into_a_build_table_and_are_swapped_in_then_keyed(store):
     dsn, look = store
     engine = _ReadsStore()
     job = data_replicator(_source(_rows(1_000)), _target(dsn), engine, batch_rows=200)
@@ -142,12 +146,19 @@ async def test_rows_stream_into_a_build_table_and_are_swapped_in_with_their_key(
     assert look.execute(
         f'SELECT doc IS NULL, name FROM "{SCHEMA}"."{TABLE}" WHERE id = 1'
     ).fetchone() == (True, "a1")
-    key = look.execute(
-        "SELECT a.attname FROM pg_index i JOIN pg_attribute a ON a.attrelid = i.indrelid "
-        "AND a.attnum = ANY(i.indkey) WHERE i.indisprimary AND i.indrelid = %s::regclass",
-        (f'"{SCHEMA}"."{TABLE}"',),
-    ).fetchall()
-    assert key == [("id",)]
+
+    def key():
+        return look.execute(
+            "SELECT a.attname FROM pg_index i JOIN pg_attribute a ON a.attrelid = i.indrelid "
+            "AND a.attnum = ANY(i.indkey) WHERE i.indisprimary AND i.indrelid = %s::regclass",
+            (f'"{SCHEMA}"."{TABLE}"',),
+        ).fetchall()
+
+    # REQ-2015: read as it lands; its key is built after, by its index builds.
+    assert key() == []
+    (pk,) = replica_indexes.plan(f"{SCHEMA}.{TABLE}", [n for n, _ in COLUMNS], ["id"], [])
+    await PostgresIndexer(dsn, schema=SCHEMA, table=TABLE).build(pk)
+    assert key() == [("id",)]
     # Nothing is left beside the replica.
     tables = look.execute(
         "SELECT tablename FROM pg_tables WHERE schemaname = %s", (SCHEMA,)
@@ -268,7 +279,6 @@ async def test_the_engines_own_copy_fills_a_build_table_hashes_it_and_swaps_it_i
             schema=SCHEMA,
             table=TABLE,
             columns=COLUMNS,
-            pk_columns=["id"],
         )
         copied, first_hash, changed = pg_statement_copy(cur, prior_hash=None, **args)
         assert (copied, changed) == (500, True) and first_hash.startswith("pg:1f4:")
