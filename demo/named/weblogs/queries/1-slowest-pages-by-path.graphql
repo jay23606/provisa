@@ -1,4 +1,4 @@
-# The slowest pages: each path the shop served, with how many requests and their average and
+# The slowest pages by path: each path the shop served, with how many requests and their average and
 # longest time in milliseconds, the ten slowest by average first.
 query SlowestPagesByPath {
   s__viewSlowestPagesGroupBy(
