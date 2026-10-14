@@ -50,6 +50,19 @@ def _is_file(database: str) -> bool:
     return database not in ("", ":memory:") and not database.startswith(":memory:")
 
 
+def fetch_rows(result: Any) -> list[tuple]:  # noqa: ANN401 — a DuckDB result relation
+    """A DuckDB result's rows, each interval the IR interval it is.
+    DuckDB's own Python rows fold an interval's months into days, 30 to a month (``1 year 2
+    months`` reads as 420 days); its Arrow export keeps them, so a result with an interval column
+    is read through Arrow (ir_arrow.column_values)."""
+    if not any(str(d[1]) == "INTERVAL" for d in result.description):
+        return result.fetchall()
+    from provisa.core.ir_arrow import column_values
+
+    columns = [column_values(c) for c in result.to_arrow_table().columns]
+    return list(zip(*columns))
+
+
 class DuckDBDriver(DirectDriver):  # REQ-027, REQ-068, REQ-1997
     """A DuckDB connection holds one current result and is not shareable between threads (the
     module declares threadsafety 1). Every request runs on its own thread (REQ-1882), so each
@@ -158,7 +171,7 @@ class DuckDBDriver(DirectDriver):  # REQ-027, REQ-068, REQ-1997
             with request_deadline.cancel_on_deadline(conn.interrupt):
                 result = conn.execute(sql, params) if params else conn.execute(sql)
                 columns = [desc[0] for desc in result.description] if result.description else []
-                rows = result.fetchall() if result.description else []
+                rows = fetch_rows(result) if result.description else []
         return QueryResult(rows=rows, column_names=columns)
 
     def _write(self, sql: str, params: list | None) -> QueryResult:
@@ -176,7 +189,7 @@ class DuckDBDriver(DirectDriver):  # REQ-027, REQ-068, REQ-1997
                 with request_deadline.cancel_on_deadline(conn.interrupt):
                     result = conn.execute(sql, params) if params else conn.execute(sql)
                     columns = [d[0] for d in result.description] if result.description else []
-                    rows = result.fetchall() if result.description else []
+                    rows = fetch_rows(result) if result.description else []
             finally:
                 conn.close()
         return QueryResult(rows=rows, column_names=columns)

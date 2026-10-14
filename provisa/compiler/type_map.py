@@ -87,14 +87,16 @@ JSONScalar: GraphQLScalarType = cast(
 
 
 def _serialize_interval(value: object) -> str:  # object-ok: an engine's interval value, typed below
-    """A driver hands an interval back as a ``timedelta``; an engine that renders it as text (a JSON
+    """A driver hands an interval back as a ``timedelta`` (a ``relativedelta`` when it has months); an engine that renders it as text (a JSON
     result, a text-format column) has already produced its canonical ISO 8601 form. Anything else is
     a wrong type for this column and raises (graphql-core reports it as a field error)."""
     from datetime import timedelta
 
+    from dateutil.relativedelta import relativedelta
+
     from provisa.core.ir_types import iso8601_duration
 
-    if isinstance(value, timedelta):
+    if isinstance(value, (timedelta, relativedelta)):
         return iso8601_duration(value)
     if isinstance(value, str):
         return value

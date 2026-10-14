@@ -169,6 +169,36 @@ class ClientCommand:
     TERMINATE = b"X"
 
 
+def _interval_parts(v):
+    """(months, days, microseconds) of an interval value: a timedelta, or a relativedelta when it
+    has months (a year-month interval)."""
+    if isinstance(v, datetime.timedelta):
+        micros = v // datetime.timedelta(microseconds=1)
+        days = int(micros / 86_400_000_000)
+        return 0, days, micros - days * 86_400_000_000
+    seconds = (v.hours * 60 + v.minutes) * 60 + v.seconds
+    return v.years * 12 + v.months, v.days, seconds * 1_000_000 + v.microseconds
+
+
+def _interval_text(v) -> str:
+    """An interval as Postgres writes it under IntervalStyle postgres (1 year 2 mons 3 days
+    04:05:06.5), the text a client's interval parser reads."""
+    months, days, micros = _interval_parts(v)
+    years, months = int(months / 12), months - int(months / 12) * 12
+    parts = [
+        f"{n} {unit}{'' if n == 1 else plural}"
+        for n, unit, plural in ((years, "year", "s"), (months, "mon", "s"), (days, "day", "s"))
+        if n
+    ]
+    if micros or not parts:
+        hours, rem = divmod(abs(micros), 3_600_000_000)
+        minutes, rem = divmod(rem, 60_000_000)
+        secs, frac = divmod(rem, 1_000_000)
+        clock = f"{'-' if micros < 0 else ''}{hours:02d}:{minutes:02d}:{secs:02d}"
+        parts.append(clock + (f".{frac:06d}".rstrip("0") if frac else ""))
+    return " ".join(parts)
+
+
 def _time_to_microseconds(t):
     hours_to_microseconds = t.hour * 60 * 60 * 1e6
     minutes_to_microseconds = t.minute * 60 * 1e6
@@ -309,10 +339,10 @@ BVTYPE_TO_PGTYPE = {
     ),
     BVType.INTERVAL: (
         1186,
-        lambda v: f"{v.days} days {v.seconds} seconds {v.microseconds} microseconds",
+        _interval_text,
         # interval binary = int64 time-of-day microseconds, int32 days, int32 months (16 bytes);
         # the former "!qih" wrote 14 bytes, which no binary client can decode.
-        lambda r: struct.pack("!qii", r.seconds * 1_000_000 + r.microseconds, r.days, 0),
+        lambda r: struct.pack("!qii", *reversed(_interval_parts(r))),
     ),
     BVType.JSON: (
         114,

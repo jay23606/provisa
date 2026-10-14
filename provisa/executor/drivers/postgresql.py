@@ -35,6 +35,7 @@ the request's deadline fires.
 from __future__ import annotations
 
 import re
+import struct
 import threading
 import weakref
 from collections.abc import Generator
@@ -43,11 +44,15 @@ from typing import TYPE_CHECKING, Any, cast
 
 import psycopg
 from psycopg.abc import QueryNoTemplate
+from psycopg.adapt import Buffer, Loader
+from psycopg.pq import Format
 from psycopg.rows import dict_row
+from psycopg.types.datetime import IntervalLoader
 from psycopg.types.string import TextLoader
 from psycopg_pool import ConnectionPool
 
 from provisa.core import request_deadline
+from provisa.core.ir_types import interval_value
 from provisa.executor.drivers.base import DirectDriver, DirectResultStream
 from provisa.executor.result import QueryResult
 
@@ -72,12 +77,47 @@ def _exec_args(sql: str, params: list | None) -> tuple[str, dict[str, Any] | Non
     return converted, {f"p{i + 1}": v for i, v in enumerate(params)}
 
 
+class _PgIntervalLoader(IntervalLoader):
+    """An interval as the IR interval it is (ir_types.interval_value): psycopg's own loader folds
+    its months into days, 30 to a month, so ``1 year 2 mons`` would read as 420 days. Text in the
+    ``postgres`` IntervalStyle, as psycopg's loader reads it (it refuses any other)."""
+
+    @staticmethod
+    def _load_postgres(self: IntervalLoader, data: Buffer) -> Any:  # noqa: ANN401 — timedelta | relativedelta
+        if not (m := IntervalLoader._re_interval.match(data)):
+            raise psycopg.DataError(
+                f"can't parse interval {bytes(data).decode('utf8', 'replace')!r}"
+            )
+        years, months, days, sign, hours, minutes, seconds = m.groups()
+        micros = 0
+        if hours:
+            whole, _, frac = seconds.partition(b".")
+            micros = ((int(hours) * 60 + int(minutes)) * 60 + int(whole)) * 1_000_000 + int(
+                frac.ljust(6, b"0")[:6]
+            )
+            if sign == b"-":
+                micros = -micros
+        return interval_value(12 * int(years or 0) + int(months or 0), int(days or 0), micros)
+
+
+class _PgIntervalBinaryLoader(Loader):
+    """An interval's binary form (microseconds, days, months) as the IR interval it is."""
+
+    format = Format.BINARY
+
+    def load(self, data: Buffer) -> Any:  # noqa: ANN401 — timedelta | relativedelta
+        micros, days, months = struct.unpack("!qii", data)
+        return interval_value(months, days, micros)
+
+
 def _configure(conn: psycopg.Connection[Any]) -> None:
     """Match the value types the asyncpg driver returned: json/jsonb as text (uuid as UUID, inet as
-    ipaddress objects, bytea as bytes and numeric as Decimal are psycopg's own defaults), and bound
-    the per-connection prepared-statement cache."""
+    ipaddress objects, bytea as bytes and numeric as Decimal are psycopg's own defaults), read an
+    interval with its months, and bound the per-connection prepared-statement cache."""
     conn.adapters.register_loader("json", TextLoader)
     conn.adapters.register_loader("jsonb", TextLoader)
+    conn.adapters.register_loader("interval", _PgIntervalLoader)
+    conn.adapters.register_loader("interval", _PgIntervalBinaryLoader)
     conn.prepared_max = _PREPARED_MAX
 
 

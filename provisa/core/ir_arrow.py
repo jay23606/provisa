@@ -28,8 +28,9 @@ from decimal import Decimal
 from typing import Any
 
 import pyarrow as pa
+from dateutil.relativedelta import relativedelta
 
-from provisa.core.ir_types import to_ir
+from provisa.core.ir_types import interval_parts, interval_value, to_ir
 
 # Canonical IR name → the pyarrow factory name, or one of the two spellings decided below.
 _IR_TO_ARROW: dict[str, str] = {
@@ -45,7 +46,7 @@ _IR_TO_ARROW: dict[str, str] = {
     "timestamp": "timestamp",
     "timestamptz": "timestamptz",  # REQ-2050: an instant, in UTC with its zone marked
     "time": "string",
-    "interval": "string",  # its text form: days, seconds and microseconds, which a store parses
+    "interval": "string",  # its text form: months, days and microseconds, which a store parses
     "uuid": "string",
     "bytea": "binary",
     "json": "string",
@@ -88,8 +89,9 @@ def arrow_value(value: Any, ir_type: str, *, decimal: pa.DataType | None = None)
         return json.dumps(value)
     if canonical == "numeric":
         return Decimal(str(value)) if decimal is not None else str(value)
-    if canonical == "interval" and isinstance(value, timedelta):
-        return f"{value.days} days {value.seconds} seconds {value.microseconds} microseconds"
+    if canonical == "interval" and isinstance(value, (timedelta, relativedelta)):
+        months, days, micros = interval_parts(value)
+        return f"{months} months {days} days {micros} microseconds"
     if canonical in ("time", "uuid", "interval") and not isinstance(value, str):
         return str(value)
     # A JSON source (Elasticsearch) gives a date as its ISO-8601 text; Arrow does not parse text.
@@ -116,6 +118,17 @@ def arrow_value(value: Any, ir_type: str, *, decimal: pa.DataType | None = None)
     if canonical == "vector" and isinstance(value, str):
         return json.loads(value)
     return value
+
+
+def column_values(column: pa.Array | pa.ChunkedArray) -> list[Any]:
+    """An Arrow column's values as row values: ``to_pylist``, an interval column's each the IR
+    interval it is (ir_types.interval_value) rather than Arrow's own ``MonthDayNano``."""
+    if not pa.types.is_interval(column.type):
+        return column.to_pylist()
+    return [
+        None if v is None else interval_value(v.months, v.days, v.nanoseconds // 1000)
+        for v in column.to_pylist()
+    ]
 
 
 def rows_to_batch(

@@ -72,6 +72,9 @@ def test_the_body_matches_what_jsonable_encoder_would_produce():
         }
     }
     expected = json.loads(json.dumps(jsonable_encoder(body)))
+    # Except an interval: its ISO 8601 duration, as on every surface, not jsonable_encoder's total
+    # seconds (test_interval_bytea_types).
+    expected["data"]["pets"][0]["wait"] = "PT1M30S"
     assert json.loads(OrjsonResponse(body).body) == expected
 
 

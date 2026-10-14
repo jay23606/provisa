@@ -228,7 +228,7 @@ def test_every_ir_type_has_an_arrow_type_and_booleans_and_intervals_travel():
         arrow_schema(columns),
     )
     assert batch.to_pylist() == [
-        {"open": True, "wait": "1 days 5 seconds 0 microseconds"},
+        {"open": True, "wait": "0 months 1 days 5000000 microseconds"},
         {"open": None, "wait": "2 days"},
     ]
 

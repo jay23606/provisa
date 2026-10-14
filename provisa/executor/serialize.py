@@ -21,6 +21,8 @@ from __future__ import annotations
 
 import json
 from datetime import timedelta
+
+from dateutil.relativedelta import relativedelta
 from decimal import Decimal
 
 from provisa.compiler.cursor import encode_cursor
@@ -53,7 +55,7 @@ def _convert_value(
         if f == int(f) and "." not in str(val):
             return int(f)
         return f
-    if isinstance(val, timedelta):
+    if isinstance(val, (timedelta, relativedelta)):
         return iso8601_duration(val)  # an IR interval's canonical text form
     if isinstance(val, (bytes, bytearray, memoryview)):
         return bytea_hex(val)  # an IR bytea's canonical text form
