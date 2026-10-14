@@ -15,11 +15,13 @@ swap. ABORT (or a hook that raises) and QUARANTINE leave the replica as it was."
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from types import SimpleNamespace
 
 import pyarrow as pa
 import pytest
 
+from provisa.events.nodes import source_node
 from provisa.events.processor import PreflightQuarantine, PreprocessError
 from provisa.federation.data_replicator import (
     EngineCaps,
@@ -258,3 +260,120 @@ async def test_a_checked_table_is_copied_whole_not_kept_in_place_part_by_part():
     checked = SimpleNamespace(table_name="syslog", mv_preprocess="def preflight(s, c): return None")
     prepared = {("syslog", "default", "syslog"): (None, checked, None, None)}
     assert await _kept_in_place(SimpleNamespace(), loader, prepared) is False
+
+
+# --- what the event loop sees: the events land() posted ------------------------------------------
+
+KEY = ("syslog", "default", "syslog")
+NODE = source_node(*KEY)
+AUTH_KEY = ("syslog", "default", "auth")
+AUTH = source_node(*AUTH_KEY)
+
+
+class _Conn:
+    pass
+
+
+class _Db:
+    @asynccontextmanager
+    async def acquire(self):
+        yield _Conn()
+
+
+@pytest.fixture
+def posted(monkeypatch):
+    """The event loop's queue as the build runner writes it: each event posted and where it was
+    fanned, and each freshness stamp."""
+    from provisa.events import queue
+
+    log: dict = {"events": [], "fanned": [], "refresh": []}
+
+    async def post_event(_conn, *, source_table, event_type, payload):
+        log["events"].append((source_table, event_type, payload))
+        return len(log["events"])
+
+    async def fan_out(_conn, event_id, targets):
+        log["fanned"].append((event_id, list(targets)))
+
+    async def record_refresh(_conn, node, *, at, ok):
+        log["refresh"].append((node, ok))
+
+    monkeypatch.setattr(queue, "post_event", post_event)
+    monkeypatch.setattr(queue, "fan_out", fan_out)
+    monkeypatch.setattr(queue, "record_refresh", record_refresh)
+    return log
+
+
+def _state():
+    return SimpleNamespace(
+        tenant_db=_Db(),
+        replica_nodes={KEY: NODE},
+        replica_dependents_of=lambda node: ["shop.mv_errors"] if node == NODE else [],
+    )
+
+
+async def test_a_checked_build_s_abort_is_the_loop_s_error_event_fanned_to_its_readers(
+    posted, monkeypatch
+):
+    from provisa.federation import replica_builds
+
+    async def aborted(_state, _key, _progress):
+        raise PreprocessError("row 75 is not ok")
+
+    monkeypatch.setattr(replica_builds, "build_replica", aborted)
+    with pytest.raises(PreprocessError):
+        await replica_builds.run_build(_state(), KEY, _noop)
+    # As land() posted it: the node's error, its reason, fanned to the views that read it.
+    assert posted["events"] == [(NODE, "error", {"error": "row 75 is not ok"})]
+    assert posted["fanned"] == [(1, ["shop.mv_errors"])]
+    assert posted["refresh"] == [(NODE, False)]
+
+
+async def test_a_checked_build_s_quarantine_is_the_loop_s_quarantine_event_not_fanned(
+    posted, monkeypatch
+):
+    from provisa.federation import replica_builds
+
+    async def held(_state, _key, _progress):
+        raise PreflightQuarantine("too few rows today")
+
+    monkeypatch.setattr(replica_builds, "build_replica", held)
+    with pytest.raises(PreflightQuarantine):
+        await replica_builds.run_build(_state(), KEY, _noop)
+    assert posted["events"] == [(NODE, "quarantine", {"reason": "too few rows today"})]
+    assert posted["fanned"] == []  # a hold poisons nothing downstream
+    assert posted["refresh"] == [(NODE, False)]
+
+
+async def test_a_build_that_fails_for_another_reason_posts_no_check_event(posted, monkeypatch):
+    from provisa.federation import replica_builds
+
+    async def broken(_state, _key, _progress):
+        raise ConnectionError("the store refused the connection")
+
+    monkeypatch.setattr(replica_builds, "build_replica", broken)
+    with pytest.raises(ConnectionError):
+        await replica_builds.run_build(_state(), KEY, _noop)
+    assert posted["events"] == [] and posted["refresh"] == [(NODE, False)]
+
+
+async def test_a_group_build_posts_each_checked_table_s_verdict(posted):
+    from provisa.federation.replica_builds import _group_results
+
+    other = AUTH_KEY
+    state = _state()
+    state.replica_nodes[other] = AUTH
+    table = SimpleNamespace(table_name="syslog")
+    auth = SimpleNamespace(table_name="auth")
+    prepared = {KEY: (None, table, None, None), other: (None, auth, None, None)}
+    nodes = {KEY: NODE, other: AUTH}
+    built = {"syslog": PreprocessError("bad host"), "auth": PreflightQuarantine("held")}
+    results = await _group_results(state, prepared, nodes, built, {})
+    assert isinstance(results[KEY], PreprocessError) and isinstance(
+        results[other], PreflightQuarantine
+    )
+    assert posted["events"] == [
+        (NODE, "error", {"error": "bad host"}),
+        (AUTH, "quarantine", {"reason": "held"}),
+    ]
+    assert posted["fanned"] == [(1, ["shop.mv_errors"])]

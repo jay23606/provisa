@@ -424,6 +424,29 @@ def _source_cap(state: Any) -> Any:
     return cap
 
 
+async def _post_check_verdict(
+    state: Any, conn: Any, key: ReplicaKey, node: str, failure: BaseException
+) -> None:
+    """REQ-1165: a checked build's ABORT and QUARANTINE are the event loop's own events about the
+    table's node, as land() posted them when the loop checked the rows itself: ``error`` (the
+    reason, fanned to the views that read the table, which it poisons) and ``quarantine`` (the
+    reason, a hold, not fanned). Any other failure is the build's, recorded on its own record."""
+    from provisa.events import queue
+    from provisa.events.processor import PreflightQuarantine, PreprocessError
+
+    if key not in (getattr(state, "replica_nodes", None) or {}):
+        return  # the table's node is not in this process's event loop: nothing watches it here
+    if isinstance(failure, PreprocessError):
+        event_id = await queue.post_event(
+            conn, source_table=node, event_type="error", payload={"error": str(failure)}
+        )
+        await queue.fan_out(conn, event_id, state.replica_dependents_of(node))
+    elif isinstance(failure, PreflightQuarantine):
+        await queue.post_event(
+            conn, source_table=node, event_type="quarantine", payload={"reason": failure.reason}
+        )
+
+
 async def run_build(state: Any, key: ReplicaKey, progress: Progress) -> BuildOutcome:
     """One build as the runner runs it: the build itself, its outcome stamped on the table's
     node in the event loop's freshness state (a materialized view that reads this table judges
@@ -435,9 +458,10 @@ async def run_build(state: Any, key: ReplicaKey, progress: Progress) -> BuildOut
     node = source_node(*key)
     try:
         outcome = await build_replica(state, key, progress)
-    except BaseException:
+    except BaseException as failed:
         async with state.tenant_db.acquire() as conn:
             await queue.record_refresh(conn, node, at=datetime.now(UTC), ok=False)
+            await _post_check_verdict(state, conn, key, node, failed)
         raise
     async with state.tenant_db.acquire() as conn:
         await queue.record_refresh(conn, node, at=datetime.now(UTC), ok=True)
@@ -640,6 +664,7 @@ async def _group_results(
             node = nodes[key]
             if isinstance(outcome, BaseException):
                 await queue.record_refresh(conn, node, at=datetime.now(UTC), ok=False)
+                await _post_check_verdict(state, conn, key, node, outcome)
                 results[key] = outcome
                 continue
             await queue.record_refresh(conn, node, at=datetime.now(UTC), ok=True)

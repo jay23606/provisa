@@ -715,6 +715,9 @@ async def wire_event_loop(scheduler: Any, *, state: Any, log: Any, seed: bool = 
         # mechanism's job) — wire_new_poll_jobs skips anything in this set, mirroring
         # wire_push_listeners' own state.push_listener_disconnects idempotency.
         state.replica_nodes = _replica_nodes(specs)
+        # REQ-1165: a checked build's ABORT is fanned to the views that read its table, as land()
+        # fanned it; the build runner reads them here.
+        state.replica_dependents_of = dependents_of
         state.poll_jobs_registered = {
             spec.node
             for spec in specs
@@ -865,6 +868,7 @@ async def wire_new_poll_jobs(*, state: Any, log: Any) -> int:
                 if getattr(state, "replica_nodes", None) is None:
                     state.replica_nodes = {}
                 state.replica_nodes[replica_key] = node
+                state.replica_dependents_of = dependents_of  # REQ-1165, as wire_event_loop
             if spec.poll_seconds is None or spec.probe_factory is None:
                 # push node (owned by wire_push_listeners) or no cadence configured yet.
                 continue
