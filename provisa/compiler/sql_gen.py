@@ -562,14 +562,14 @@ def rewrite_hot_joins(  # REQ-230, REQ-232
     each under the name the SQL carries for it.
 
     REQ-913: structural, AST-only. The set of hot tables is read from the parsed
-    tree and each rewrite is delegated to ``build_values_cte_sql``, which renames
+    tree and the rewrite is delegated to ``build_values_ctes_sql``, which renames
     the table node and attaches the CTE on the AST — no regex over the SQL text
     derives the JOIN structure, alias binding, or WITH injection point.
     """
     import sqlglot
     import sqlglot.expressions as exp
 
-    from provisa.cache.values_cte import build_values_cte_sql
+    from provisa.cache.values_cte import build_values_ctes_sql
 
     hot = hot_manager.entries_for(compiled.table_ids)
     tree = sqlglot.parse_one(compiled.sql, read="postgres")
@@ -578,9 +578,7 @@ def rewrite_hot_joins(  # REQ-230, REQ-232
         if tbl.name in hot and tbl.name not in hot_names:
             hot_names.append(tbl.name)
 
-    sql = compiled.sql
-    for name in hot_names:
-        sql = build_values_cte_sql(sql, name, hot[name])
+    sql = build_values_ctes_sql(compiled.sql, {name: hot[name] for name in hot_names})
 
     if sql != compiled.sql:
         return CompiledQuery(

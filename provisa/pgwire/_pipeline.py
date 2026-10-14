@@ -349,7 +349,7 @@ async def _optimize_and_route(
     (REQ-826), so a statement that reads no replica-served table keeps its direct route."""
     from provisa.api.data.materialization import _materialize_api_to_engine_cache
     from provisa.api_source.engine_cache import rewrite_all_from_cache
-    from provisa.cache.values_cte import build_values_cte_sql
+    from provisa.cache.values_cte import build_values_ctes_sql
     from provisa.compiler.stage2 import extract_sources, reduce_sources_for_routing
     from provisa.fakes.read_sql import reads_fakes
     from provisa.transpiler.router import Route, decide_route
@@ -381,8 +381,7 @@ async def _optimize_and_route(
                 # exec_sql untouched and routes as an ordinary live API source below.
                 continue
             _actually_dropped.add(_dtn)
-    for _tn, _entry in _values_ctes.items():
-        exec_sql = build_values_cte_sql(exec_sql, _tn, _entry)
+    exec_sql = build_values_ctes_sql(exec_sql, _values_ctes)
     if _rewrites:
         exec_sql = rewrite_all_from_cache(exec_sql, _rewrites)
 
@@ -495,8 +494,7 @@ async def _optimize_and_route(
         # REQ-2000: a live-only table the engine reads is read live for this statement -- its
         # part of it -- and handed to the engine; it has no replica.
         _live, _live_inline = await _read_live_parts(exec_sql, governed_sql, ctx, state, table_ids)
-        for _tn, _entry in _live_inline.items():
-            exec_sql = build_values_cte_sql(exec_sql, _tn, _entry)
+        exec_sql = build_values_ctes_sql(exec_sql, _live_inline)
         if _live:
             exec_sql = rewrite_all_from_cache(exec_sql, _live)
             _rewrites.update(_live)

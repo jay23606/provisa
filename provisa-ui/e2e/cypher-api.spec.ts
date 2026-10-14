@@ -63,8 +63,10 @@ test("REQ-345: POST /data/cypher applies RLS and column masking governance", asy
   request,
 }) => {
   const resp = await request.post(`${BACKEND_URL}/data/cypher`, {
+    // One label: what is under test is that a governed read answers, not a statement over every
+    // label (216 KB of SQL), which on a CI runner outran the request deadline (504).
     data: {
-      query: "MATCH (n) RETURN n LIMIT 5",
+      query: "MATCH (n:Pets) RETURN n LIMIT 5",
     },
     headers: {
       "Content-Type": "application/json",
@@ -334,7 +336,9 @@ test("REQ-750: Cypher edges returned with identity, start, end, type, and proper
 }) => {
   const resp = await request.post(`${BACKEND_URL}/data/cypher`, {
     data: {
-      query: "MATCH (n)-[r]->(m) RETURN r LIMIT 1",
+      // One relationship type is enough for an edge's shape; every label's pairing outran the
+      // request deadline on a CI runner (504).
+      query: "MATCH (n:Inquiries)-[r]->(m) RETURN r LIMIT 1",
     },
     headers: { "Content-Type": "application/json" },
   });
