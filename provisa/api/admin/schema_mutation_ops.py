@@ -36,7 +36,7 @@ from provisa.api.admin.schema_helpers import (
     _get_pool,
     _rebuild_schemas,
 )
-from provisa.api.admin._table_ops import _build_columns_for_input
+from provisa.api.admin._table_ops import _build_columns_for_input, column_field_refusal
 from provisa.api.admin._live_mappers import table_model_from_input as _table_model_from_input
 from provisa.api.admin.schema_common import (
     _queue_creation_request,
@@ -271,6 +271,10 @@ async def register_table(
 
     async with pool.acquire() as _conn:
         await require_current_domain(info, cast("Connection", _conn), input)
+    # Before the columns are settled: settling them may reach the source.
+    _field_refusal = await column_field_refusal(pool, input, input.columns)
+    if _field_refusal is not None:
+        return _field_refusal
     columns, _col_err = await _build_columns_for_input(pool, input)
     if _col_err is not None:
         return _col_err

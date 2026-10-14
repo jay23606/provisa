@@ -392,6 +392,8 @@
       "registry_field_required": "מקור '{{source}}': שיטת האימות '{{method}}' של רישום הסכמות דורשת {{field}}",
       "registry_path_not_absolute": "מקור '{{source}}': {{field}} חייב להיות נתיב מוחלט, התקבל '{{path}}'",
       "column_scope_invalid": "לעמודה '{{column}}' יש היקף '{{scope}}'; היקף של עמודה הוא אחד מ-{{scopes}}",
+      "column_alias_taken": "לעמודות {{columns}} בטבלה '{{table}}' יש כולן את הכינוי '{{alias}}'; כינוי של עמודה הוא ייחודי בטבלה שלה",
+      "column_field_name_taken": "העמודות {{columns}} בטבלה '{{table}}' יהיו כולן שדה ה-GraphQL '{{field}}'; תנו לאחת מהן כינוי משלה",
       "microsoft_365_invalid": "מקור Microsoft 365 {{source}}: {{error}}",
       "parameter_set_by_source": "פרמטר של '{{table}}' שומר על מה שהמקור שלו אומר עליו: לא ניתן לשנות איך הוא מגיע למקור ואם המקור דורש אותו. אחראי נתונים הופך פרמטר לנדרש באמצעות מתג הנדרש שלו.",
       "logs_invalid": "מקור Logs {{source}}: {{error}}",

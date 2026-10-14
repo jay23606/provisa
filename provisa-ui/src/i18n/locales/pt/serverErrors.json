@@ -392,6 +392,8 @@
       "registry_field_required": "Origem '{{source}}': a autenticação do registro de esquemas '{{method}}' exige {{field}}",
       "registry_path_not_absolute": "Origem '{{source}}': {{field}} deve ser um caminho absoluto, recebido '{{path}}'",
       "column_scope_invalid": "A coluna '{{column}}' tem o escopo '{{scope}}'; o escopo de uma coluna é um de {{scopes}}",
+      "column_alias_taken": "As colunas {{columns}} da tabela '{{table}}' têm todas o alias '{{alias}}'; um alias de coluna é único na sua tabela",
+      "column_field_name_taken": "As colunas {{columns}} da tabela '{{table}}' seriam todas o campo GraphQL '{{field}}'; dê a uma delas um alias próprio",
       "microsoft_365_invalid": "Fonte do Microsoft 365 {{source}}: {{error}}",
       "parameter_set_by_source": "Um parâmetro de '{{table}}' mantém o que sua origem diz dele: não é possível mudar como ele chega à origem nem se a origem o exige. Um responsável torna um parâmetro obrigatório com o seu interruptor de obrigatório.",
       "logs_invalid": "Fonte Logs {{source}}: {{error}}",
