@@ -35,8 +35,9 @@ services:
       POSTGRES_DB: shop
     ports:
       # Unset: 28432, as start-ui-install.sh --demo weblogs reads it. Set empty (the node, which
-      # runs several versions at once): a port docker picks.
-      - "${WEBLOGS_PG_PORT-28432}:5432"
+      # runs several versions at once): a port docker picks. On the loopback only: whatever reads
+      # it from outside the compose network runs on this host.
+      - "127.0.0.1:${WEBLOGS_PG_PORT-28432}:5432"
     volumes:
       - weblogs_run_pg:/var/lib/postgresql/data
       - ./dump/postgres.sql:/docker-entrypoint-initdb.d/10-shop.sql:ro
