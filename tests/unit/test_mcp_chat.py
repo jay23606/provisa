@@ -1460,3 +1460,82 @@ class TestABlankAnswerIsNeverShownAsIs:
             {"type": "reasoning", "text": "The top path is /products."}
         ]
         assert [e for e in events if e["type"] == "text"] == [chat_mod._NO_ANSWER]
+
+
+@pytest.mark.asyncio
+class TestTheGatewayCachesTheConversation:
+    """REQ-2012: an Anthropic or Google model behind OpenRouter caches only where a block says so;
+    each round's last message carries a breakpoint, as the direct Anthropic path's does, beside
+    the system prompt's."""
+
+    async def _calls(self, monkeypatch, tmp_path, model: str) -> list[dict]:
+        import os
+
+        cfg = tmp_path / "provisa.yaml"
+        cfg.write_text(
+            yaml.safe_dump(
+                {
+                    "sources": [],
+                    "ai_endpoints": [
+                        {
+                            "id": "openrouter",
+                            "style": "openai",
+                            "base_url": "https://openrouter.ai/api/v1",
+                            "api_key_env": "OPENROUTER_API_KEY",
+                        }
+                    ],
+                    "ai_models": {"mcp_chat": {"vendor": "openrouter", "model": model}},
+                }
+            )
+        )
+        monkeypatch.setitem(os.environ, "PROVISA_CONFIG", str(cfg))
+        monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test")
+        monkeypatch.setattr(mcp_tools, "list_schemas", lambda *_a, **_k: _async_result(["sales"]))
+        call = SimpleNamespace(
+            id="c1", function=SimpleNamespace(name="list_schemas", arguments="{}")
+        )
+        holder = _install_fake_aisuite(
+            monkeypatch,
+            [
+                SimpleNamespace(
+                    choices=[
+                        SimpleNamespace(
+                            message=SimpleNamespace(content=None, tool_calls=[call]),
+                            finish_reason="tool_calls",
+                        )
+                    ]
+                ),
+                _stop_reply(),
+            ],
+        )
+        convo = [{"role": "user", "content": "what schemas?"}]
+        async for _ in chat_mod.run_chat(_state(), "analyst", convo):
+            pass
+        return holder["provider"].calls
+
+    @pytest.mark.parametrize("model", ["anthropic/claude-haiku-5.5", "google/gemini-3.8-flash"])
+    async def test_each_rounds_last_message_is_a_breakpoint(self, monkeypatch, tmp_path, model):
+        first, second = await self._calls(monkeypatch, tmp_path, model)
+        assert first["messages"][-1] == {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "what schemas?", "cache_control": {"type": "ephemeral"}}
+            ],
+        }
+        tool_result = second["messages"][-1]
+        assert tool_result["role"] == "tool"
+        assert tool_result["content"][-1]["cache_control"] == {"type": "ephemeral"}
+        # One on the conversation, beside the system prompt's where it has one: within four.
+        marks = [
+            part
+            for m in second["messages"]
+            if isinstance(m["content"], list)
+            for part in m["content"]
+            if "cache_control" in part
+        ]
+        assert 1 <= len(marks) <= 2
+
+    async def test_a_model_that_caches_by_itself_gets_none(self, monkeypatch, tmp_path):
+        first, second = await self._calls(monkeypatch, tmp_path, "qwen/qwen3.8-flash")
+        assert first["messages"][-1] == {"role": "user", "content": "what schemas?"}
+        assert isinstance(second["messages"][-1]["content"], str)

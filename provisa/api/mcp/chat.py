@@ -1450,6 +1450,30 @@ def _cached_tools() -> list[Any]:
     return [*tools[:-1], {**tools[-1], "cache_control": _EPHEMERAL}]
 
 
+# REQ-2012: the models an OpenAI-wire gateway (OpenRouter) caches only where a block says so.
+# Each round's conversation gets a breakpoint on its last message, as the Anthropic path's does
+# (_with_cache_breakpoint), so the next round reads the turn so far from the cache: with the
+# system prompt's, two of the four breakpoints a request may carry. Gemini uses the last one.
+_GATEWAY_CACHED_MODELS = ("anthropic/", "google/")
+
+
+def _with_openai_cache_breakpoint(messages: list[dict]) -> list[dict]:
+    """``messages`` (OpenAI wire) with a prompt-cache breakpoint on the last one that has content:
+    its text as a content part carrying cache_control. A copy; the conversation is unchanged."""
+    for i in range(len(messages) - 1, -1, -1):
+        content = messages[i].get("content")
+        if not content:
+            continue  # an assistant turn that only called tools carries no text to mark
+        parts = (
+            [{"type": "text", "text": content}]
+            if isinstance(content, str)
+            else [dict(part) for part in content]
+        )
+        parts[-1] = {**parts[-1], "cache_control": _EPHEMERAL}
+        return [*messages[:i], {**messages[i], "content": parts}, *messages[i + 1 :]]
+    raise ValueError("a conversation with no message that has content has nothing to cache")
+
+
 def _cached_system(system: str) -> list[Any]:
     """REQ-2012: the system prompt as one cached block, read from the cache after the first call."""
     return [{"type": "text", "text": system, "cache_control": _EPHEMERAL}]
@@ -1837,6 +1861,8 @@ async def _run_chat_aisuite(
 
     for round_no in range(max_iterations):
         oa_messages = [system_message, *_wire_convo_to_openai_messages(convo)]
+        if model_name.startswith(_GATEWAY_CACHED_MODELS):
+            oa_messages = _with_openai_cache_breakpoint(oa_messages)
         # REQ-1838: the last round calls no tool (see the Anthropic loop). It is sent with no
         # tools at all: OpenRouter's Gemini and Qwen routes answered tool_choice "none" with more
         # tool calls (bake-off run 38630859730), and an OpenAI-wire call takes a history of tool
