@@ -190,14 +190,16 @@ def _answered_after_governance(
 ) -> bool:
     """Whether ``view`` keeps its reference through governance, its body put in at optimization:
     its region's copy; a bitemporal view, current or as of a time -- its rows are what its own
-    append log reconstructs, never a reading of its inputs; or a materialized view the reader sees
-    whole (for that reader, governing its SQL changes nothing)."""
+    append log reconstructs, never a reading of its inputs; or a materialized view whose build is
+    fresh and which the reader sees whole (for that reader, governing its SQL changes nothing)."""
     if _home_copy(view, state) is not None:
         return True
     if view in _bitemporal_reads(state):
         return True
-    mv = state.mv_registry.get(f"view-{view}")
-    return mv is not None and mv.enabled and sees_everything(view, view_sql_map, gov)
+    # Only while its stored rows are fresh: a view whose build is not is read through its own
+    # SQL, expanded into the statement and governed with it, so every table it reads is read as
+    # a direct statement reads it (a search table under its arguments among them).
+    return _stored_rows(view, state) is not None and sees_everything(view, view_sql_map, gov)
 
 
 def views_read(sql: str, view_sql_map: dict[str, str]) -> dict[str, str]:
@@ -237,7 +239,10 @@ def semantic_statement(
             require_inputs_reached(view_sql, gov)
             bodies[view] = _with_own_rules(view, view_sql, gov)
     governed = expand_view_refs(sql, bodies)
-    return governed, expand_view_refs(governed, definitions)
+    # Validated with every view marked where it is expanded, here and below, so the guard reads
+    # each as the view it is (provisa.compiler.join_guard).
+    marked = expand_view_refs(sql, bodies, mark=True)
+    return governed, expand_view_refs(marked, definitions, mark=True)
 
 
 def _definitions(view_sql_map: dict[str, str], state: Any) -> dict[str, str]:

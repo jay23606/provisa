@@ -30,6 +30,12 @@ column equality. The statement checked is the ONE semantic statement: every view
 replaced by its SQL first (provisa.mv.view_read), so every join any view makes is held to the
 reader's relationships. A materialized view the reader sees whole keeps its reference through
 governance and is answered from its stored rows at optimization; its SQL is checked all the same.
+
+A view's SQL is marked where it is expanded for this check (``view_expand.VIEW_MARK``), and the
+marked derived table is also an instance of the view's own registered table, combined with every
+instance its SQL reads. A column the view's SQL gives as a constant is a column of that instance:
+an equality on it relates the other side to the view along the view's registered relationships,
+as an equality on any other column of it does.
 """
 
 # Requirements: REQ-603
@@ -107,6 +113,15 @@ def _selects(scope: Scope) -> list[exp.Expr]:
     return query.selects
 
 
+def _bodies(scope: Scope) -> list[Scope]:
+    """``scope`` and every branch of it, at any depth: a UNION of more than two branches is a
+    tree of two-branch unions."""
+    found = [scope]
+    for branch in scope.union_scopes:
+        found += _bodies(branch)
+    return found
+
+
 class _Resolver:
     def __init__(self, resolve_table_id: Any, columns_of: Any) -> None:
         self._table_id = resolve_table_id
@@ -115,13 +130,34 @@ class _Resolver:
         # first branch's query -> (that branch's scope, the union's scope), for every union
         self._unions: dict[int, tuple[Scope, Scope]] = {}
         self.table_of: dict[int, int] = {}  # instance -> table id
+        # a marked view's derived table, and each branch of its SQL -> (its instance, view id)
+        self._view_scopes: dict[int, tuple[int, int]] = {}
+        self._view_sources: set[int] = set()  # the marked derived tables themselves
+        self._view_instances: set[int] = set()  # each marked view's own instance
+        self.view_edges: set[frozenset[int]] = set()  # a view's instance and its SQL's instances
 
     def unions_of(self, scopes: list[Scope]) -> None:
-        """Note the statement's unions, so a recursive CTE's reading of itself is known."""
+        """Note the statement's unions, so a recursive CTE's reading of itself is known, and its
+        marked views, each an instance of the view's registered table."""
+        from provisa.compiler.view_expand import marked_view
+
         for scope in scopes:
             if scope.union_scopes:
                 first = scope.union_scopes[0]
                 self._unions[id(first.expression)] = (first, scope)
+            for name, (_node, source) in scope.selected_sources.items():
+                view = marked_view(name)
+                if view is None or not isinstance(source, Scope):
+                    continue
+                view_id = self._table_id(exp.Table(this=exp.to_identifier(view)))
+                if view_id is None:
+                    continue
+                instance = id(source.expression)
+                self.table_of[instance] = view_id
+                self._view_instances.add(instance)
+                self._view_sources.add(id(source))
+                for body in _bodies(source):
+                    self._view_scopes[id(body)] = (instance, view_id)
 
     def _rows_of(self, source: Any) -> Any:
         """``source`` as the scope whose instances a reader of it combines with. A recursive CTE
@@ -165,7 +201,15 @@ class _Resolver:
                     base = self._base(source)
                     per_source.append([frozenset({base.instance})] if base else [frozenset()])
                 elif isinstance(source, Scope):
-                    per_source.append(self.alternatives(self._rows_of(source)))
+                    alts = self.alternatives(self._rows_of(source))
+                    if id(source) in self._view_sources:
+                        # Read as the view: its own instance beside what its SQL reads. Only
+                        # here, where it is read -- inside, its SQL is checked as written.
+                        instance, _view_id = self._view_scopes[id(source)]
+                        for alt in alts:
+                            self.view_edges.update(frozenset({instance, i}) for i in alt)
+                        alts = [alt | {instance} for alt in alts]
+                    per_source.append(alts)
             found = [frozenset().union(*choice) for choice in product(*per_source)]
         self._instances[key] = found
         return found
@@ -260,6 +304,23 @@ class _Resolver:
                 out |= self.resolve(scope, exp.column(name, table=table or None), seen)
             elif select.alias_or_name == name and isinstance(inner, exp.Column):
                 out |= self.resolve(scope, inner, seen)
+            elif (
+                select.alias_or_name == name
+                and isinstance(inner, exp.Literal)
+                and id(scope) in self._view_scopes
+            ):
+                # A constant a view gives: a column of the view itself.
+                instance, view_id = self._view_scopes[id(scope)]
+                out.add(_Base(instance, view_id, name))
+        if (
+            out
+            and id(scope) in self._view_scopes
+            and all(b.instance in self._view_instances for b in out)
+        ):
+            # A constant a view reads from a view it reads is a constant it gives: a column of
+            # the outermost view that gives it.
+            instance, view_id = self._view_scopes[id(scope)]
+            return {_Base(instance, view_id, name)}
         return out
 
 
@@ -561,6 +622,8 @@ def _unrelated_in(
                     if alt:
                         groups.append(alt | {instance})
 
+    # A view is combined with the instances its own SQL reads (that SQL is checked as written).
+    edges |= resolver.view_edges
     # A table joined to itself on its whole registered primary key is the same row read again;
     # on part of the key it is a pairing of different rows, and no relationship registers it.
     for instances, columns in same_row.items():

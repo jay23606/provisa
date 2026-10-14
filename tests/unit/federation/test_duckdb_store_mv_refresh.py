@@ -20,6 +20,8 @@ import asyncio
 
 import pytest
 
+from tests.helpers import build_through_a_stand_in_pipeline
+
 from provisa.federation.duckdb_runtime import DuckDBFederationRuntime
 from provisa.mv.bitemporal import MODE_DELTA, BitemporalSpec
 from provisa.mv.models import MVDefinition
@@ -54,6 +56,13 @@ class _Engine:
 
     def mv_store_broker(self):
         return self.rt.mv_store_broker()
+
+
+@pytest.fixture(autouse=True)
+def _built_through_a_stand_in_pipeline(monkeypatch):
+    """These are about what a refresh does with the rows it reads, not how its SELECT is
+    governed (REQ-1922): the one pipeline is stood in for."""
+    build_through_a_stand_in_pipeline(monkeypatch)
 
 
 @pytest.fixture(autouse=True)

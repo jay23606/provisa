@@ -14,8 +14,10 @@ Where the platform declares regions, what a region keeps — each copy of a view
 row it fetches by key into its store — is governed as the organisation's administrator with that
 region as its region attribute: the ``org_admin`` role's rules, resolved against the role's own
 session constants and this node's region, never against the values of whichever caller's request
-happened to set the work off. That is one identity, used by every such piece of work; with no
-platform regions none of it applies and the work is done as before.
+happened to set the work off. That is one identity, used by every such piece of work. A view's
+build is governed as it with no platform regions too, in the one default region, so its
+definition is read as a direct statement reads it (``mv.governed_build``); the rows a region
+fetches by key are governed only where the platform declares regions.
 """
 
 # Requirements: REQ-1921, REQ-1922
@@ -31,8 +33,8 @@ ROLE = ORG_ADMIN_ROLE
 
 
 def governs_region_work() -> bool:
-    """Whether the platform declares regions: only then is a region's work governed as its
-    administrator (REQ-1922)."""
+    """Whether the platform declares regions: only then are the rows a region fetches by key
+    governed as its administrator (REQ-1922)."""
     from provisa.core import process_region
     from provisa.core.regions import DEFAULT_REGION
 

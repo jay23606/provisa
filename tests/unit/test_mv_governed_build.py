@@ -5,7 +5,8 @@
 # found in the LICENSE file in the root directory of this source tree.
 
 """REQ-1921/1922: a view's build reads its inputs through the one pipeline, governed as the
-region's administrator with the building region as its region attribute."""
+region's administrator with the building region as its region attribute -- the one default
+region where the platform declares none."""
 
 from __future__ import annotations
 
@@ -147,13 +148,26 @@ async def test_a_view_the_pipeline_cannot_govern_is_refused_never_built_physical
 
 
 @pytest.mark.asyncio
-async def test_with_no_platform_regions_a_build_reads_as_before(pipeline, node_in):
-    from provisa.mv.governed_build import view_build_sql
+async def test_with_no_platform_regions_a_build_is_governed_the_same_way(pipeline, node_in):
+    """With no platform regions a build still goes through the one pipeline as the
+    administrator, in the one default region: its definition is read as a direct statement
+    reads it, never its precompiled physical SQL straight to the engine."""
+    from provisa.core.regions import DEFAULT_REGION
+    from provisa.mv.governed_build import view_build_rows, view_build_sql
 
     node_in(None)
     sql = await view_build_sql(_view(), _Engine())
-    assert pipeline.routed == [] and pipeline.resident == []
-    assert sql == '/*as the engine executes it*/ SELECT "id", "home" FROM "pg"."public"."orders"'
+    assert pipeline.routed == [
+        (
+            "SELECT id, home FROM sales.orders",
+            "org_admin",
+            {"session_vars": {"tier": "gold", "region": DEFAULT_REGION}, "route_hint": "engine"},
+        )
+    ]
+    assert pipeline.resident == ["SELECT id, home FROM governed"]
+    assert sql == "SELECT id, home FROM governed"
+    assert await view_build_rows(_view(), _Engine()) == [{"id": 1, "home": "us"}]
+    assert pipeline.executed == ["SELECT id, home FROM governed"]
 
 
 def _join_view() -> MVDefinition:

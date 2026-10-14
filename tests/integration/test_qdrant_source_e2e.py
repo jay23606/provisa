@@ -18,10 +18,14 @@ and an isolated DuckDB server. Tables:
   ``stub`` model; a statement on it alone runs in Qdrant, and it is written there;
 * ``docs_search``: a search over ``docs``' named vector ``text``, its query a required argument,
   ``lang`` an optional argument in its filter, ``k`` its limit;
-* ``docs_by_text``: the same search with an embedding model, so a text query is embedded first.
+* ``docs_by_text``: the same search with an embedding model, so a text query is embedded first;
+* views over that search with its arguments fixed: ``dogs_inline`` (not materialized),
+  ``dogs_alone`` and ``dogs_joined`` (materialized; the latter joined back to ``docs``). Each is
+  read through its definition as a direct statement reads it, the search under its arguments
+  (REQ-1922): never its physical SQL straight to the engine, which names Qdrant's catalog.
 """
 
-# Requirements: REQ-1983, REQ-2000
+# Requirements: REQ-1983, REQ-2000, REQ-1922
 from __future__ import annotations
 
 import json
@@ -180,6 +184,19 @@ _RESULT = [
 ]
 
 
+_DOGS = "WHERE _nf_q = 'dogs'"
+_VIEWS = [
+    ("dogs_inline", False, f"SELECT id, score, title FROM docs_by_text {_DOGS}"),
+    ("dogs_alone", True, f"SELECT id, score, title FROM docs_by_text {_DOGS}"),
+    (
+        "dogs_joined",
+        True,
+        "SELECT s.id, s.score, d.title FROM docs_by_text s JOIN docs d ON d.id = s.id "
+        "WHERE s._nf_q = 'dogs' AND d.lang = 'en'",
+    ),
+]
+
+
 @pytest.fixture(scope="module")
 def server(qdrant, embeddings, tmp_path_factory):
     from tests.integration.isolated_server import IsolatedServer
@@ -253,6 +270,20 @@ def server(qdrant, embeddings, tmp_path_factory):
                 ),
                 "columns": [*_RESULT, _arg("q", "array(double)", required=True)],
             },
+        ],
+        "views": [
+            {
+                "id": view,
+                "domain_id": "kb",
+                "materialize": materialize,
+                "sql": sql,
+                "columns": [
+                    _col("id", "bigint"),
+                    _col("score", "double"),
+                    _col("title", "varchar"),
+                ],
+            }
+            for view, materialize, sql in _VIEWS
         ],
         # The join the tests make is a registered relationship: a join outside the registered
         # ones is refused to a role that may not ignore them (REQ-603).
@@ -386,6 +417,44 @@ def test_a_join_that_would_read_the_whole_collection_is_refused_naming_it(server
     )
     assert resp.status_code != 200
     assert "'docs' is read live" in resp.text and "whole table" in resp.text
+
+
+def _admin(server, query: str) -> dict:
+    resp = httpx.post(
+        f"{server.base_url}/admin/graphql",
+        json={"query": query},
+        headers={"X-Provisa-Role": _ROLE},
+        timeout=server.request_timeout + 30,
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert not body.get("errors"), body
+    return body["data"]
+
+
+def test_a_view_over_a_search_reads_it_under_its_arguments(server):
+    rows = _rows(_sql(server, "SELECT id, title FROM view_dogs_inline ORDER BY score DESC"))
+    assert rows[0] == {"id": 1, "title": "Dogs at the beach"}
+
+
+@pytest.mark.parametrize("view", ["dogs_alone", "dogs_joined"])
+def test_a_materialized_view_over_a_search_is_read_before_and_after_its_build(server, view):
+    """Before its build is fresh it is read through its definition; its build is that definition
+    through the one pipeline; after it, its stored rows answer."""
+    before = _rows(_sql(server, f"SELECT id, title FROM view_{view} ORDER BY score DESC"))
+    assert before[0] == {"id": 1, "title": "Dogs at the beach"}
+    refreshed = _admin(
+        server, f'mutation {{ refreshMv(mvId: "view-view_{view}") {{ success message }} }}'
+    )["refreshMv"]
+    assert refreshed["success"], refreshed["message"]
+    [built] = [
+        mv
+        for mv in _admin(server, "{ mvList { id status rowCount lastError } }")["mvList"]
+        if mv["id"] == f"view-view_{view}"
+    ]
+    assert built["status"] == "fresh" and built["lastError"] is None, built
+    after = _rows(_sql(server, f"SELECT id, title FROM view_{view} ORDER BY score DESC"))
+    assert after == before
 
 
 # --- writes, in Qdrant (REQ-2000); last, since they change the collection ---

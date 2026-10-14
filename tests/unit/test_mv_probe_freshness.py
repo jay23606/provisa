@@ -21,7 +21,7 @@ from provisa.mv.input_signals import input_token
 from provisa.mv.models import MVDefinition, MVStatus
 from provisa.mv.refresh import refresh_mv
 from provisa.mv.registry import MVRegistry
-from tests.helpers import hold_registered_tables, RegisteredNames
+from tests.helpers import hold_registered_tables, RegisteredNames, build_through_a_stand_in_pipeline
 
 
 # ---- input_token ------------------------------------------------------------
@@ -41,6 +41,13 @@ def test_input_token_is_order_independent():
 
 
 # ---- registry gate ----------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _built_through_a_stand_in_pipeline(monkeypatch):
+    """These are about what a refresh does with the rows it reads, not how its SELECT is
+    governed (REQ-1922): the one pipeline is stood in for."""
+    build_through_a_stand_in_pipeline(monkeypatch)
 
 
 @pytest.fixture(autouse=True)

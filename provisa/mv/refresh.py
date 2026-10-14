@@ -320,63 +320,14 @@ async def _build_refresh_sql(
 ) -> str:
     """Build the SELECT SQL for an MV refresh.
 
-    For join-pattern MVs, builds a SELECT from the source tables with the join.
-    Prefixes right-table columns to avoid duplicate column names.
-    For custom SQL MVs, uses the provided SQL directly. That SQL is already a
-    catalog-qualified physical plan — the semantic→physical rewrite happens once at
-    schema-rebuild time (app_rebuild._compile_view_sqls), the same point the query
-    path compiles view SQL, so the engine never sees an unresolved semantic schema.
+    A SQL-defined or join-pattern view is a view: its definition in the model's terms is built
+    through the one pipeline (REQ-1921/1922, ``mv.governed_build``), so every table it reads is
+    read as a direct statement reads it.
     """
-    if mv.sql:
-        # REQ-1921/1922: the one statement every build of a SQL-defined view reads with.
+    if mv.sql or mv.join_pattern:
         from provisa.mv.governed_build import view_build_sql
 
         return await view_build_sql(mv, engine)
-
-    if mv.join_pattern:
-        # Prefix all right-table columns as "right_table__col" to avoid
-        # duplicate column names when both tables share column names like "id".
-        if engine is None:
-            raise ValueError(f"MV {mv.id}: engine required to introspect right-table columns")
-        from provisa.core import region_admin
-
-        if region_admin.governs_region_work():
-            # REQ-1921/1922: a join-pattern view is a view: built through the one pipeline.
-            from provisa.mv.governed_build import view_build_sql
-
-            return await view_build_sql(mv, engine)
-
-        # A join pattern names its tables by registered name, which is no engine address. Each
-        # is the registered table the view was bound to when it was declared (``mv.inputs``,
-        # REQ-939), resolved to where the bound engine reads it — its catalog-physical name from
-        # the registry, then the address seam, so a table served from its replica is read there
-        # (REQ-1912) — and aliased to its registered name, which is what the columns below and
-        # the "{table}__{col}" convention are written against.
-        bound = dict(zip(mv.source_tables, mv.inputs, strict=True))
-        refs: dict[str, str] = {}
-
-        async def _ref(table: str) -> str:
-            if table not in refs:
-                refs[table] = await engine.read_ref(bound[table])
-            return refs[table]
-
-        async def _columns_of(table: str) -> list[str]:
-            try:
-                # The table's shape, read with a zero-row SELECT: every engine answers it, and it
-                # names the table the same way the refresh's own SELECT does.
-                result = await engine.execute_engine(
-                    f'SELECT * FROM {await _ref(table)} AS "{table}" LIMIT 0',
-                    authorization=authorization,
-                )
-            except Exception as exc:
-                # Falling back to left.* silently drops the table's columns — fail loud.
-                raise RuntimeError(
-                    f"MV {mv.id}: could not introspect columns for {table!r}: {exc}"
-                ) from exc
-            return list(result.column_names)
-
-        return await join_pattern_sql(mv, _ref, _columns_of)
-
     raise ValueError(f"MV {mv.id} has neither sql nor join_pattern defined")
 
 

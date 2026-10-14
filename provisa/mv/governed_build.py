@@ -21,7 +21,9 @@ region's copy holds what an administrator in that region may see. Its inputs are
 readable exactly as a read's are (``query_residency.ensure_resident``): an input another region
 keeps a replica of is read from that replica there, one it reads in place is read in place under
 the same governance, and one that cannot be read is refused naming its region — never fetched
-here unfiltered. With no platform regions the build reads its inputs as before.
+here unfiltered. With no platform regions the build is governed the same way, as the
+administrator in the one default region: its definition is read as a direct statement reads it,
+so a search table it reads is read under its arguments (REQ-1922).
 """
 
 # Requirements: REQ-133, REQ-1912, REQ-1921, REQ-1922
@@ -35,71 +37,29 @@ if TYPE_CHECKING:
 
 
 async def view_build_sql(mv: "MVDefinition", engine: Any) -> str:
-    """The engine statement a build of SQL-defined ``mv`` lands from (the landing itself is the
-    system's write). ``engine`` is the FederationEngine; None returns the view's lowered SQL
-    unaddressed (no engine to address it for)."""
+    """The engine statement a build of ``mv`` lands from (the landing itself is the system's
+    write): its definition through the one pipeline as the administrator, its inputs made readable
+    as the administrator's read's are. ``engine`` is the FederationEngine it lands through."""
     from provisa.api.app import state
-    from provisa.core import region_admin
+    from provisa.federation.query_residency import prepare_engine_residency
 
     require_built_here(mv)
-    if engine is not None and region_admin.governs_region_work():
-        from provisa.federation.query_residency import prepare_engine_residency
-
-        plan = await _governed_plan(state, mv)
-        # Its inputs are made readable as the administrator's read's are, before it runs.
-        await prepare_engine_residency(state, plan)
-        assert plan.physical_sql is not None  # an ENGINE plan always carries it
-        return plan.physical_sql
-    assert mv.sql is not None
-    return _lowered(state, mv.sql, engine)
+    plan = await _governed_plan(state, mv)
+    # Its inputs are made readable as the administrator's read's are, before it runs.
+    await prepare_engine_residency(state, plan)
+    assert plan.physical_sql is not None  # an ENGINE plan always carries it
+    return plan.physical_sql
 
 
 async def view_build_rows(mv: "MVDefinition", engine: Any) -> list[dict]:
-    """The rows a build of SQL-defined ``mv`` holds, read with :func:`view_build_sql`'s
-    governance: through the one pipeline's terminal where the platform declares regions."""
+    """The rows a build of ``mv`` holds, read with :func:`view_build_sql`'s governance through
+    the one pipeline's terminal."""
     from provisa.api.app import state
-    from provisa.core import region_admin
+    from provisa.pgwire._pipeline import _execute_plan
 
     require_built_here(mv)
-    if region_admin.governs_region_work():
-        from provisa.pgwire._pipeline import _execute_plan
-
-        result = await _execute_plan(await _governed_plan(state, mv))
-    else:
-        from provisa.federation.execution_auth import system_auth
-
-        result = await engine.execute_engine(
-            await view_build_sql(mv, engine), authorization=system_auth("event signal")
-        )
+    result = await _execute_plan(await _governed_plan(state, mv))
     return [dict(zip(result.column_names, row)) for row in result.rows]
-
-
-def _expanded(state: Any, physical: str) -> str:
-    """``physical`` (a view's SQL lowered to the engine's catalogs) with each view it reads
-    expanded. REQ-133/REQ-135: such a view (pets -> A -> B) is lowered to the __derived__
-    sentinel, which is no engine catalog; each is read by the one view rule with nothing narrowed:
-    its stored rows when fresh, else its own SQL."""
-    from provisa.compiler.view_expand import expand_view_refs
-    from provisa.mv.view_read import unnarrowed_view_bodies
-
-    return expand_view_refs(physical, unnarrowed_view_bodies(physical, state.view_sql_map, state))
-
-
-def _lowered(state: Any, physical: str, engine: Any) -> str:
-    """``physical`` as the engine reads it in a deployment with no regions."""
-    sql = _expanded(state, physical)
-    if engine is None:
-        return sql
-    # As the engine executes it (REQ-1730): a table the view reads that is served from its
-    # replica is addressed there (REQ-1912), an engine with no cross-catalog names reads a
-    # source's table with its catalog folded into the schema, and the engine's dialect.
-    sql = engine.engine_physical(sql)
-    # A view's ``current_setting('provisa.<var>')`` is resolved as every statement bound for the
-    # engine is (the engine has no such function); any name the build is not given is NULL.
-    from provisa.core.request_context import session_vars_for
-    from provisa.pgwire._pipeline import _resolve_session_settings
-
-    return _resolve_session_settings(sql, session_vars_for(None), engine.dialect)
 
 
 class ViewNotBuildable(RuntimeError):

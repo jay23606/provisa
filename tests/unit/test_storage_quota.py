@@ -34,7 +34,7 @@ from provisa.storage.quota import (
     storage_ceiling,
     storage_report,
 )
-from tests.helpers import RegisteredNames
+from tests.helpers import RegisteredNames, build_through_a_stand_in_pipeline
 from tests.role_state import RoleState
 
 _GB = 1024**3
@@ -49,6 +49,13 @@ def _registry(**storage_urls: str | None) -> OrgRegistry:
         runtime.storage_url = url
         registry.set(org_id, runtime)
     return registry
+
+
+@pytest.fixture(autouse=True)
+def _built_through_a_stand_in_pipeline(monkeypatch):
+    """These are about what a refresh does with the rows it reads, not how its SELECT is
+    governed (REQ-1922): the one pipeline is stood in for."""
+    build_through_a_stand_in_pipeline(monkeypatch)
 
 
 @pytest.fixture

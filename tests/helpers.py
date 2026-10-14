@@ -183,6 +183,31 @@ def serve_surfaces(state) -> None:
         )
 
 
+def build_through_a_stand_in_pipeline(monkeypatch, physical=None) -> list:
+    """Stand in for the one pipeline a view's build is governed through (REQ-1922,
+    ``provisa.mv.governed_build``), for a test of what a refresh does with the rows it reads --
+    landing, size guard, preflight, coordination -- not of how its SELECT is governed. The plan's
+    engine SQL is ``physical(mv)``, the view's own SQL when not given. Returns the views built."""
+    from provisa.federation import query_residency
+    from provisa.mv import governed_build
+    from provisa.transpiler.router import Route
+
+    built: list = []
+
+    async def _plan(_state, mv):
+        built.append(mv)
+        sql = physical(mv) if physical is not None else mv.sql
+        assert sql is not None, f"{mv.id}: a stand-in plan needs the engine SQL it would run"
+        return SimpleNamespace(route=Route.ENGINE, physical_sql=sql, exec_params=None)
+
+    async def _resident(_state, _plan):
+        return None
+
+    monkeypatch.setattr(governed_build, "_governed_plan", _plan)
+    monkeypatch.setattr(query_residency, "prepare_engine_residency", _resident)
+    return built
+
+
 def stub_materialization_noop(state) -> None:
     """Pin the post-governance materialization inputs on a MagicMock AppState.
 
