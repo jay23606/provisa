@@ -29,7 +29,13 @@ import yaml
 from provisa.api.mcp import chat as chat_mod
 from provisa.api.mcp import polly_usage
 from provisa.api.mcp.polly_usage import Price, PriceTableError, Usage
-from tests.unit.test_mcp_chat import _block, _install_fake_aisuite, _install_fake_anthropic, _state
+from tests.unit.test_mcp_chat import (  # the chat's fakes, and the key its vendor is configured with
+    _block,
+    _install_fake_aisuite,
+    _install_fake_anthropic,
+    _state,
+    _a_configured_vendor_key,  # noqa: F401  (autouse fixture: the readiness check needs a key)
+)
 
 
 def test_the_price_table_reads_each_entry_and_refuses_one_that_does_not():
