@@ -46,6 +46,9 @@ _LEGS = {
     "linux": "release-linux.yml",
     "publish": "release-publish.yml",
 }
+# PyPI's own jobs are the orchestrator's: PyPI trusted publishing does not accept a token issued
+# to a reusable workflow (pypa/gh-action-pypi-publish#166), which every leg is.
+_PYPI = ("publish-pypi", "publish-provisa-pypi")
 
 
 def _load(name: str) -> dict:
@@ -59,9 +62,10 @@ def _publish_job() -> dict:
 def test_build_dmg_publish_job_exists():
     """The release has a publish-release job, in the leg the orchestrator calls `publish`."""
     orchestrator = _load("build-dmg.yml")["jobs"]
-    assert {job: body["uses"] for job, body in orchestrator.items()} == {
+    assert {job: body["uses"] for job, body in orchestrator.items() if "uses" in body} == {
         job: f"./.github/workflows/{leg}" for job, leg in _LEGS.items()
     }
+    assert set(orchestrator) == set(_LEGS) | set(_PYPI)
     assert "publish-release" in _load("release-publish.yml")["jobs"]
 
 
@@ -69,7 +73,9 @@ def test_build_dmg_publish_job_depends_on_all_builds():
     """Publishing waits for every build: the orchestrator's `publish` job needs every other leg,
     and each build job is a job of one of those legs."""
     orchestrator = _load("build-dmg.yml")["jobs"]
-    assert set(orchestrator["publish"]["needs"]) == set(_LEGS) - {"publish"}
+    assert set(orchestrator["publish"]["needs"]) == (set(_LEGS) - {"publish"}) | set(_PYPI)
+    for job in _PYPI:
+        assert set(orchestrator[job]["needs"]) == set(_LEGS) - {"publish"}, job
     built = {job for leg in set(_LEGS) - {"publish"} for job in _load(_LEGS[leg])["jobs"]}
     required = {
         "build-macos-core",
@@ -219,7 +225,7 @@ def test_no_publication_is_reachable_without_every_build():
     )
     where: dict[str, str] = {}
     builds: dict[str, str] = {}
-    for leg, name in _LEGS.items():
+    for leg, name in {**_LEGS, "orchestrator": "build-dmg.yml"}.items():
         for job, body in _load(name)["jobs"].items():
             if job.startswith(("build-", "package-")):
                 builds[job] = leg
@@ -229,24 +235,52 @@ def test_no_publication_is_reachable_without_every_build():
                 if publishes.search(text) or pushes:
                     where[job] = leg
     assert where == {
-        "publish-pypi": "publish",
-        "publish-provisa-pypi": "publish",
+        "publish-pypi": "orchestrator",
+        "publish-provisa-pypi": "orchestrator",
         "publish-release": "publish",
         "publish-engine-image": "publish",
         "publish-zaychik-image": "publish",
     }
     assert len(builds) >= 15 and "publish" not in builds.values(), builds
     orchestrator = _load("build-dmg.yml")["jobs"]
-    assert set(orchestrator["publish"]["needs"]) == set(builds.values()) == set(_LEGS) - {"publish"}
-    # Inside the leg: undrafted only after both PyPI publications; the engine image, whose build
-    # downloads the release's public assets, only after the release.
-    leg = _load("release-publish.yml")["jobs"]
-    assert {"publish-pypi", "publish-provisa-pypi"} <= set(leg["publish-release"]["needs"])
-    assert "publish-release" in leg["publish-engine-image"]["needs"]
-    # A dry run skips the two publications; the release job (the asset check) still runs, and
+    legs_built = set(builds.values())
+    assert legs_built == set(_LEGS) - {"publish"}
+    # Both PyPI publications need every build; the publish leg needs them too, so the release is
+    # undrafted only after both wheels are on PyPI.
+    for job in _PYPI:
+        assert set(orchestrator[job]["needs"]) == legs_built, job
+    assert set(orchestrator["publish"]["needs"]) == legs_built | set(_PYPI)
+    # A dry run skips the two publications; the publish leg (the asset check) still runs, and
     # never after one that failed.
+    ran = orchestrator["publish"]["if"]
+    assert "!cancelled()" in ran and "contains(needs.*.result, 'failure')" in ran
+    # Inside the leg the engine image, whose build downloads the release's public assets, only
+    # after the release; and the release job runs on a dry run, never after a failed need.
+    leg = _load("release-publish.yml")["jobs"]
+    assert "publish-release" in leg["publish-engine-image"]["needs"]
     ran = leg["publish-release"]["if"]
     assert "!cancelled()" in ran and "contains(needs.*.result, 'failure')" in ran
+
+
+def test_pypi_is_published_from_the_orchestrator_never_a_reusable_workflow():
+    """PyPI trusted publishing does not accept a token whose job_workflow_ref is a reusable
+    workflow: alpha.483's PyPI jobs, then in release-publish.yml, failed with invalid-publisher
+    (run 38588660256). Every PyPI upload is a job of build-dmg.yml itself, gated as its other
+    publications are and holding the OIDC token."""
+    for path in sorted(_WORKFLOWS.glob("*.yml")):
+        workflow = yaml.safe_load(path.read_text())
+        reusable = "workflow_call" in (workflow.get(True) or {})
+        for job, body in (workflow.get("jobs") or {}).items():
+            uploads = any(
+                "pypi-publish" in str(step.get("uses", "")) for step in body.get("steps") or []
+            )
+            if uploads:
+                assert not reusable, f"{path.name}:{job} publishes to PyPI from a reusable workflow"
+    orchestrator = _load("build-dmg.yml")["jobs"]
+    gate = orchestrator["publish"]["with"]["publish"]
+    for job in _PYPI:
+        assert orchestrator[job]["permissions"] == {"id-token": "write"}, job
+        assert orchestrator[job]["if"] == gate, job
 
 
 if __name__ == "__main__":

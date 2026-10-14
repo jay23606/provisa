@@ -482,11 +482,24 @@ jobs:
 
   # ── the release's control flow, through a stand-in leg ─────────────────────────────────────
 
+  # As the orchestrator's PyPI jobs: a publication of the caller's own, skipped whole on a dry
+  # run (PyPI trusted publishing takes no reusable workflow's token, so they are not a leg's).
+  release-publication:
+    name: release / publication (skipped on a dry run)
+    needs: [scope, level-0]
+    if: ${{ inputs.publish == true && github.ref_type == 'tag' && github.ref_name == inputs.version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: echo "a publication would happen here"
+
   # A dry run as the orchestrator starts a leg: `inputs.version || github.ref_name` (no input
-  # on a push, so the ref's name) and publish false.
+  # on a push, so the ref's name) and publish false. It needs the publication a dry run skips,
+  # and still runs, as build-dmg.yml's `publish` does.
   release-dry-run:
     name: release / dry run
-    needs: [scope, level-0]
+    needs: [scope, level-0, release-publication]
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
     uses: ./.github/workflows/ci-leaf-stub-leg.yml
     with:
       version: ${{ inputs.version || github.ref_name }}
@@ -509,7 +522,7 @@ jobs:
 
           dry = json.loads(os.environ["DRY"])
           print("dry run:", dry)
-          # The job that needs a SKIPPED publication still ran.
+          # The leg that needs a SKIPPED publication still ran, and its release job with it.
           assert dry.get("release-ran") == "true", dry
           # `inputs.version || github.ref_name` with no input is the ref's name.
           assert dry.get("version") == os.environ["REF_NAME"], dry
@@ -548,6 +561,7 @@ jobs:
       - lane
       - lane-fails
       - lane-results
+      - release-publication
       - release-dry-run
       - release-results
       - level-1

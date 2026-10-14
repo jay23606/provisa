@@ -360,34 +360,53 @@ _LEAVES_THE_RUN = re.compile(
 )
 
 
+#: The orchestrator's own jobs, not legs: PyPI trusted publishing does not accept a token issued
+#: to a reusable workflow (pypa/gh-action-pypi-publish#166).
+_RELEASE_PYPI = ("publish-pypi", "publish-provisa-pypi")
+_RELEASE_PUBLISH = (
+    "${{ github.event_name == 'push' || (inputs.publish == true && github.ref_type == 'tag' "
+    "&& github.ref_name == inputs.version) }}"
+)
+
+
 def _release_legs() -> dict[str, tuple[str, dict]]:
     """{orchestrator job: (leg file, parsed leg)}."""
     jobs = yaml.safe_load(_RELEASE.read_text())["jobs"]
     legs = {}
     for job, body in jobs.items():
+        if job in _RELEASE_PYPI:
+            continue
         assert body["uses"].startswith("./.github/workflows/release-"), f"{job} is not a leg"
         name = body["uses"].rsplit("/", 1)[-1]
         legs[job] = (name, yaml.safe_load((REPO / ".github" / "workflows" / name).read_text()))
     return legs
 
 
-def test_the_release_orchestrator_only_calls_legs_and_gives_each_the_same_version_and_publish():
+def test_the_release_orchestrator_calls_legs_and_publishes_to_pypi_itself():
     jobs = yaml.safe_load(_RELEASE.read_text())["jobs"]
+    pypi = {job: jobs.pop(job) for job in _RELEASE_PYPI}
     given = {job: body["with"] for job, body in jobs.items()}
     first = next(iter(given.values()))
     assert set(first) == {"version", "publish"}
     assert all(w == first for w in given.values()), "the legs are not built for one version"
     assert first["version"] == "${{ inputs.version || github.ref_name }}"
     # A tag push publishes. A manual run publishes only when started on the tag it names.
-    assert first["publish"] == (
-        "${{ github.event_name == 'push' || (inputs.publish == true && github.ref_type == 'tag' "
-        "&& github.ref_name == inputs.version) }}"
-    )
+    assert first["publish"] == _RELEASE_PUBLISH
     trigger = yaml.safe_load(_RELEASE.read_text())[True]
     assert trigger["push"] == {"tags": ["v*"]}
     assert trigger["workflow_dispatch"]["inputs"]["publish"]["default"] is False
     for body in jobs.values():
         assert "steps" not in body and body.get("secrets") != "inherit"
+    # PyPI's two jobs: a download of the run's wheel and the upload, gated as the legs'
+    # publications are, holding only the OIDC token, after every build leg.
+    builds = set(jobs) - {"publish"}
+    for job, body in pypi.items():
+        assert body["if"] == _RELEASE_PUBLISH, job
+        assert set(body["needs"]) == builds, job
+        assert body["permissions"] == {"id-token": "write"}, job
+        uses = [str(step.get("uses", "")) for step in body["steps"]]
+        assert uses == ["actions/download-artifact@v4", "pypa/gh-action-pypi-publish@release/v1"]
+    assert set(jobs["publish"]["needs"]) == builds | set(pypi)
 
 
 def test_every_step_of_the_release_that_leaves_the_run_waits_for_publish():
@@ -408,6 +427,11 @@ def test_every_step_of_the_release_that_leaves_the_run_waits_for_publish():
                 if push is not None:
                     seen += 1
                     assert job_gated or push == "${{ inputs.publish }}", where
+    # PyPI's uploads are the orchestrator's own jobs, gated as a whole by the publish expression.
+    for job, body in yaml.safe_load(_RELEASE.read_text())["jobs"].items():
+        if job in _RELEASE_PYPI:
+            assert body["if"] == _RELEASE_PUBLISH, job
+            seen += sum("pypi-publish" in str(s.get("uses", "")) for s in body["steps"])
     assert seen >= 14, f"only {seen} publishing steps found: the pattern no longer matches them"
 
 
@@ -453,8 +477,10 @@ def test_a_leg_that_reads_another_legs_artifact_starts_after_it():
 
     uploads: dict[str, set[str]] = {}
     downloads: dict[str, set[str]] = {}
-    for job, (_name, leg) in _release_legs().items():
-        for body in leg["jobs"].values():
+    jobs = {job: [body] for job, body in orchestrator.items() if job in _RELEASE_PYPI}
+    jobs.update({job: list(leg["jobs"].values()) for job, (_n, leg) in _release_legs().items()})
+    for job, bodies in jobs.items():
+        for body in bodies:
             for step in body.get("steps") or []:
                 artifact = (step.get("with") or {}).get("name")
                 if not artifact:
@@ -727,9 +753,14 @@ def test_the_reusable_workflows_are_checked_only_after_every_action_is():
     action is reported as itself, not as a lane that failed for an unclear reason."""
     _text, workflow = _leaf_check()
     jobs = workflow["jobs"]
-    for job in ("lane", "lane-fails", "release-dry-run"):
+    for job in ("lane", "lane-fails", "release-publication"):
         assert jobs[job]["needs"] == ["scope", "level-0"], job
+    for job in ("lane", "lane-fails"):
         assert "if" not in jobs[job], job
+    # The stand-in leg also needs the publication a dry run skips, and still runs (as the
+    # release's `publish` needs its PyPI jobs).
+    assert jobs["release-dry-run"]["needs"] == ["scope", "level-0", "release-publication"]
+    assert "!cancelled()" in jobs["release-dry-run"]["if"]
     level_zero = set(jobs["level-0"]["needs"])
     assert level_zero == {
         job for job, body in jobs.items() if str(body.get("name", "")).startswith("action / ")
