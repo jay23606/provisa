@@ -43,7 +43,7 @@ import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
-from provisa.api.mcp import model_tool_specs, polly_usage
+from provisa.api.mcp import model_tool_specs, polly_usage, vertex_chat
 from provisa.api.mcp import tools as mcp_tools
 from provisa.api.mcp.sql_quoting import quote_identifiers
 
@@ -1404,18 +1404,14 @@ def _output_cap(provider_key: str, custom_endpoint: bool) -> dict[str, Any]:
     """_MAX_TOKENS as the aisuite provider's own call takes it. OpenAI's own API takes
     ``max_completion_tokens`` (its reasoning models refuse ``max_tokens``); an OpenAI-wire
     endpoint (OpenRouter, LiteLLM, vLLM) and Anthropic take ``max_tokens``; Ollama's own API takes
-    ``options.num_predict``. aisuite's Google provider passes no generation limit on to Google
-    (it builds its GenerationConfig from the temperature alone), so a cap for it is refused by
-    name rather than sent to be dropped."""
+    ``options.num_predict``; Vertex AI (vertex_chat, which a Google model is reached through)
+    takes ``max_output_tokens``."""
     if provider_key == "openai" and not custom_endpoint:
         return {"max_completion_tokens": _MAX_TOKENS}
     if provider_key == "ollama":
         return {"options": {"num_predict": _MAX_TOKENS}}
     if provider_key == "google":
-        raise ValueError(
-            "Polly cannot cap a Google model's output through aisuite's Google provider; "
-            "reach the model through an OpenAI-wire endpoint (e.g. OpenRouter) instead"
-        )
+        return {"max_output_tokens": _MAX_TOKENS}
     return {"max_tokens": _MAX_TOKENS}
 
 
@@ -1811,7 +1807,13 @@ async def _run_chat_aisuite(
     assert model is not None  # _llm_configured() guarantees this
     model_id, provider_configs = await _resolve_aisuite_routing(state, vendor, model)
     provider_key, model_name = model_id.split(":", 1)
-    provider = ProviderFactory.create_provider(provider_key, provider_configs.get(provider_key, {}))
+    # A Google model is reached through Vertex AI directly: aisuite's Google provider drops the
+    # output cap (see vertex_chat).
+    provider = (
+        vertex_chat.VertexChat.from_env()
+        if provider_key == "google"
+        else ProviderFactory.create_provider(provider_key, provider_configs.get(provider_key, {}))
+    )
     cap = _output_cap(provider_key, custom_endpoint=bool(provider_configs))
     openai_tools = [_to_openai_tool(t) for t in _TOOLS + _CLIENT_TOOLS]
     system_text = _system_prompt(current_route)
