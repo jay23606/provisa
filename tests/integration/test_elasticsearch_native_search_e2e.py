@@ -12,7 +12,7 @@
 table parameters (REQ-1986).
 
 Everything here is the ``test`` instance: an Elasticsearch node this module starts on a leased
-port and removes, and an isolated server on DuckDB. Tables:
+port and removes, and an isolated server on DuckDB and on Trino. Tables:
 
 * ``reviews_matching``: a match_phrase search with a highlight, its phrase a required argument;
 * ``ratings_by_product``: a terms aggregation with an average under it, a row per bucket, its
@@ -27,6 +27,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 import time
 
 import httpx
@@ -59,12 +60,24 @@ class _Elastic:
 
         (self.port,) = lease_ports(1)
         self._name = f"provisa-itest-es-native-{os.getpid()}"
-        self.base = f"http://localhost:{self.port}"
+        # This process reads the node on the host's loopback. Trino, in the test stack's
+        # container, reads the plain index through its Elasticsearch connector and cannot dial
+        # the host's loopback: it reads the default bridge's gateway, a host address on Linux
+        # (CI). Docker Desktop's gateway is inside its VM, so it is bound only where it is one.
+        self.gateway = subprocess.run(
+            ["docker", "network", "inspect", "bridge"]
+            + ["--format", "{{(index .IPAM.Config 0).Gateway}}"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        self.base = f"http://127.0.0.1:{self.port}"
 
     def start(self) -> None:
         subprocess.run(
             ["docker", "run", "-d", "--rm", "--memory", "1g", "--name", self._name]
             + ["-p", f"127.0.0.1:{self.port}:9200"]
+            + ([] if sys.platform == "darwin" else ["-p", f"{self.gateway}:{self.port}:9200"])
             + ["-e", "discovery.type=single-node", "-e", "xpack.security.enabled=false"]
             + ["-e", "ES_JAVA_OPTS=-Xms512m -Xmx512m", _IMAGE],
             check=True,
@@ -145,7 +158,7 @@ def _out(name: str, data_type: str, path: str | None = None) -> dict:
     return col
 
 
-def _config(elastic: _Elastic) -> dict:
+def _config(elastic: _Elastic, engine: str) -> dict:
     matching = {
         "index": "reviews",
         "query": {"match_phrase": {"text": "{{phrase}}"}},
@@ -163,7 +176,7 @@ def _config(elastic: _Elastic) -> dict:
     }
     low = {"index": "reviews", "query": {"range": {"rating": {"lte": 2}}}, "sort": ["review_id"]}
     return {
-        "federation_engine": "duckdb",
+        "federation_engine": engine,
         "auth": {
             "provider": "none",
             "assignments_source": "provisa",
@@ -174,7 +187,12 @@ def _config(elastic: _Elastic) -> dict:
         "domains": [{"id": "store", "description": "native search e2e"}],
         "roles": [],
         "sources": [
-            {"id": "es", "type": "elasticsearch", "host": "localhost", "port": elastic.port}
+            {
+                "id": "es",
+                "type": "elasticsearch",
+                "host": "127.0.0.1" if engine == "duckdb" else elastic.gateway,
+                "port": elastic.port,
+            }
         ],
         "tables": [
             {
@@ -243,20 +261,31 @@ def _config(elastic: _Elastic) -> dict:
     }
 
 
-@pytest.fixture(scope="module")
-def server(elastic, tmp_path_factory):
+@pytest.fixture(
+    scope="module",
+    params=["duckdb", pytest.param("trino", marks=pytest.mark.requires_trino)],
+)
+def server(elastic, tmp_path_factory, request):
+    """An isolated server on each engine: a native search is run by Provisa's own reader on every
+    engine, and the engine reads its landed rows (REQ-2017); on Trino the plain index is read by
+    Trino's own Elasticsearch connector."""
     from tests.integration.isolated_server import IsolatedServer
 
-    work = tmp_path_factory.mktemp("es_native_search")
+    engine = request.param
+    work = tmp_path_factory.mktemp(f"es_native_search_{engine}")
     path = work / "config.yaml"
-    path.write_text(yaml.safe_dump(_config(elastic)))
-    srv = IsolatedServer(
-        "es_native_search",
-        engine="duckdb",
-        config=str(path),
-        control_plane="own",
-        materialize_store_url=f"duckdb:///{work / 'store.duckdb'}",
-    )
+    path.write_text(yaml.safe_dump(_config(elastic, engine)))
+    if engine == "duckdb":
+        srv = IsolatedServer(
+            "es_native_search",
+            engine="duckdb",
+            config=str(path),
+            control_plane="own",
+            materialize_store_url=f"duckdb:///{work / 'store.duckdb'}",
+        )
+    else:
+        # Trino from the test stack, with its Postgres control plane.
+        srv = IsolatedServer("es_native_search_trino", engine="trino", config=str(path))
     srv.start(timeout=240)
     try:
         yield srv
