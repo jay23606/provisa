@@ -1,0 +1,12 @@
+# The demo stores sync at boot and every quarter hour: a demo published since is pulled and its
+# stores brought up even before a visitor's sandbox asks for it (REQ-2049).
+[Unit]
+Description=Provisa sandbox tier: demo stores sync, at boot and periodically
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=15min
+Unit=provisa-demo-stores.service
+
+[Install]
+WantedBy=timers.target

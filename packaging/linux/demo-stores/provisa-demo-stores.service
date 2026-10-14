@@ -1,0 +1,13 @@
+# The sandbox tier's demo stores (REQ-2049): scripts/demo_stores_sync.sh, run on the node that
+# runs the tier. Its settings are in /root/.provisa/demo-stores.env (PROVISA_DEMO_BUNDLES,
+# DEMO_BUNDLES_DIR, DEMO_PULL, DEMO_PULL_INTO, DEMO_STORES_NETWORK); started at boot by its timer
+# and whenever the tier asks for a version (provisa-demo-stores.path).
+[Unit]
+Description=Provisa sandbox tier: pull demo bundles and run their stores
+After=docker.service provisa.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/root/.provisa/demo-stores.env
+ExecStart=/opt/provisa/scripts/demo_stores_sync.sh

@@ -171,6 +171,7 @@ async def open_sandbox(name: str, *, kind: str, user_id: str | None = None) -> O
         await reap(org_id)
         raise
     log.info("demo sandbox %s of %s opened (%s)", org_id, demo.name, kind)
+    await note_in_use(demo.name)
     return OpenedSandbox(org_id=org_id, demo=demo.name, user_id=person, token=token)
 
 
@@ -206,10 +207,15 @@ async def _build(demo: PublishedDemo, org_id: str, person: str, kind: str) -> st
     await org_files.prepare(org_id, state.admin_db, _stop_org_servers)
     # The demo version it is opened from: its examples and tour are that version's, whatever is
     # published after (demo_directory_of).
-    (org_files.folder(org_id) / _DEMO_DIRECTORY_FILE).write_text(str(demo.directory))
-    from provisa.api.demo_replicas import copy_to_sandbox
+    from provisa.core.demo_bundles import SANDBOX_DEMO_DIRECTORY
 
-    await copy_to_sandbox(demo.template_org, org_id)
+    (org_files.folder(org_id) / SANDBOX_DEMO_DIRECTORY).write_text(str(demo.directory))
+    from provisa.api.demo_replicas import copy_to_sandbox
+    from provisa.api.demo_templates import replicated_tables, template_seed
+
+    # Only what the demo serves from replicas is copied (REQ-2049): its own sources are read live.
+    if replicated_tables(template_seed(demo.template_org)):
+        await copy_to_sandbox(demo.template_org, org_id)
 
     rt = await state.org_registry.rebuild(org_id, lambda oid: build_org_runtime(oid))
     assert rt.model_db is not None
@@ -248,25 +254,47 @@ async def _build(demo: PublishedDemo, org_id: str, person: str, kind: str) -> st
     return secret
 
 
-_DEMO_DIRECTORY_FILE = "demo-directory"
-
-
 async def demo_directory_of(org_id: str) -> Path | None:
     """The directory of the demo version a sandbox-tier org serves: a template's, the version its
     demo is served at; a sandbox's, the one it was opened from. None for an org that is neither
-    (the demos' examples and tour are shown to nobody else)."""
+    (the demos' examples and tour are shown to nobody else), and for a sandbox no longer open."""
     from provisa.api.demo_templates import demo_of_template
-    from provisa.core import org_files
-    from provisa.core.org_ids import is_sandbox_tier_org, is_template_org
+    from provisa.core.demo_bundles import own_demo_directory
+    from provisa.core.org_ids import is_template_org
 
     if is_template_org(org_id):
         return demo_of_template(org_id).directory
-    if not is_sandbox_tier_org(org_id):
-        return None
-    recorded = org_files.folder(org_id) / _DEMO_DIRECTORY_FILE
-    if not recorded.is_file():
-        return None  # no sandbox of that id is open: nothing to show
-    return Path(recorded.read_text())
+    return own_demo_directory(org_id)
+
+
+async def note_in_use(name: str) -> None:
+    """Tell the node which versions of bundled demo ``name`` are still read: the ready one (its
+    template's) and each its open sandboxes were opened from (REQ-2049)."""
+    from provisa.api.admin.orgs_router import _admin_pool
+    from provisa.core.demo_bundles import (
+        bundled_demos,
+        own_demo_directory,
+        ready_version,
+        record_in_use,
+    )
+
+    if name not in bundled_demos():
+        return
+    async with _admin_pool().acquire() as conn:
+        orgs_open = [
+            row[0]
+            for row in (
+                await conn.execute_core(
+                    select(demo_sandboxes.c.org_id).where(demo_sandboxes.c.demo == name)
+                )
+            ).fetchall()
+        ]
+    versions = {ready_version(name)} - {None}
+    for org_id in orgs_open:
+        directory = own_demo_directory(org_id)
+        if directory is not None:
+            versions.add(directory.name)
+    await asyncio.to_thread(record_in_use, name, versions)  # type: ignore[arg-type]
 
 
 _touched: dict[str, float] = {}
@@ -319,9 +347,9 @@ async def reap(org_id: str) -> None:
     async with _admin_pool().acquire() as conn:
         row = (
             await conn.execute_core(
-                select(demo_sandboxes.c.kind, demo_sandboxes.c.user_id).where(
-                    demo_sandboxes.c.org_id == org_id
-                )
+                select(
+                    demo_sandboxes.c.kind, demo_sandboxes.c.user_id, demo_sandboxes.c.demo
+                ).where(demo_sandboxes.c.org_id == org_id)
             )
         ).fetchone()
     # The deployment's registry view names every org, and dropping this one is a change to it,
@@ -339,6 +367,8 @@ async def reap(org_id: str) -> None:
     if folder.exists():
         await asyncio.to_thread(shutil.rmtree, folder)
     log.info("demo sandbox %s reaped", org_id)
+    if row is not None:
+        await note_in_use(row[2])
 
 
 async def reap_expired() -> list[str]:

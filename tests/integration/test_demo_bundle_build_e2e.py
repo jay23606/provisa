@@ -46,6 +46,17 @@ def published_demo(named: Path, name: str, requires: str = "0.1.0") -> Path:
     return named / name
 
 
+def replicated(demo: Path) -> Path:
+    """``demo`` with its source served from a replica (``replicate: 0``), as a SaaS-account
+    source's is: what a bundle's seed carries. A demo's own sources are read live instead."""
+    config = yaml.safe_load((demo / "config.yaml").read_text())
+    for source in config["sources"]:
+        source["replicate"] = 0
+        source["change_signal"] = "signal"  # landed once, refreshed only when told
+    (demo / "config.yaml").write_text(yaml.safe_dump(config))
+    return demo
+
+
 def build(named: Path, name: str, out: Path, commit: str) -> Path:
     done = subprocess.run(
         [
@@ -79,7 +90,7 @@ def _json(tar: tarfile.TarFile, name: str) -> dict:
 
 def test_a_bundle_holds_its_demo_and_the_seed_landed_from_it(tmp_path):
     named = tmp_path / "named"
-    demo = published_demo(named, "alpha")
+    demo = replicated(published_demo(named, "alpha"))
     before = sorted(p.name for p in demo.iterdir())
     commit = "0123456789abcdef0123456789abcdef01234567"
     bundle = build(named, "alpha", tmp_path / "out", commit)
@@ -98,6 +109,17 @@ def test_a_bundle_holds_its_demo_and_the_seed_landed_from_it(tmp_path):
     }
     assert [r["table_name"] for r in record["replicas"]] == ["animals"]
     assert sorted(p.name for p in demo.iterdir()) == before  # built in a copy
+
+
+def test_a_demo_of_its_own_sources_only_has_no_seed(tmp_path):
+    """REQ-2049: a demo's own sources are read live where it runs, so nothing is landed for it."""
+    named = tmp_path / "named"
+    published_demo(named, "alpha")
+    bundle = build(named, "alpha", tmp_path / "out", "1" * 40)
+    with tarfile.open(fileobj=io.BytesIO(gzip.decompress(bundle.read_bytes()))) as tar:
+        names = set(tar.getnames())
+    assert {"config.yaml", "demo.yaml", "animals.sqlite", "bundle.json"} <= names
+    assert not [n for n in names if n.startswith("seeded/")]
 
 
 def test_a_demo_that_does_not_say_which_provisa_it_needs_is_not_built(tmp_path):

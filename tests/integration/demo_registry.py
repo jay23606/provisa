@@ -28,6 +28,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 _SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "demo_bundle.py"
+_SYNC = Path(__file__).resolve().parents[2] / "scripts" / "demo_stores_sync.sh"
 _PREFIX = "/v2/test/provisa-demos/"
 
 
@@ -155,4 +156,24 @@ class DemoRegistry:
             capture_output=True,
             text=True,
             timeout=300,
+        )
+
+    def sync(self, demos: str, bundles: Path) -> subprocess.CompletedProcess:
+        """The node's sync (scripts/demo_stores_sync.sh) for ``demos`` into ``bundles``, run as
+        the node runs it, its stores named by 127.0.0.1 and the port docker picked: the tier is a
+        process on this host."""
+        return subprocess.run(
+            ["bash", str(_SYNC)],
+            capture_output=True,
+            text=True,
+            timeout=900,
+            env={
+                **os.environ,
+                "PROVISA_DEMO_BUNDLES": demos,
+                "PROVISA_DEMO_REGISTRY": self.url,
+                "DEMO_BUNDLES_DIR": str(bundles),
+                "DEMO_PULL": f"{sys.executable} {_SCRIPT}",
+                "DEMO_PULL_INTO": str(bundles),
+                "DEMO_STORES_NETWORK": "",
+            },
         )

@@ -28,6 +28,7 @@ import time
 import httpx
 import pytest
 
+from tests.integration.test_demo_bundle_build_e2e import replicated
 from tests.integration.test_demo_sandboxes_e2e import _JWT_SECRET, _ROWS, _demo, _deployment_config
 
 pytestmark = [pytest.mark.integration, pytest.mark.local_platform]
@@ -58,6 +59,7 @@ def test_a_demo_seeded_at_release_serves_its_sandboxes_with_its_source_gone(tmp_
     work = tmp_path_factory.mktemp("demo_seed")
     demos = work / "named"
     _demo(demos, "alpha", published=True)
+    replicated(demos / "alpha")  # what a seed carries: a source served from its replica
     record = demos / "alpha" / "seeded" / "replicas.json"
 
     release = _tier(work, demos, work / "release-data", seeding=True)

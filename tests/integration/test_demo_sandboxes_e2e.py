@@ -136,6 +136,7 @@ def tier(tmp_path_factory):
         },
     )
     srv.data_dir = work / "data"
+    srv.demos = demos
     srv.start(timeout=240)
     try:
         yield srv
@@ -203,10 +204,20 @@ def test_a_sandboxs_token_reaches_no_other_sandbox(tier, alpha, beta):
     assert crossed.status_code in (401, 403), crossed.text
 
 
-def test_a_sandbox_reads_its_own_copy_of_the_demo(tier, alpha):
-    """The rows are the sandbox's own replica, in the file in its own folder."""
-    store = tier.data_dir / "orgs" / alpha["org_id"] / "materialize.duckdb"
-    assert store.is_file()
+def test_a_sandbox_reads_its_demos_own_source_live(tier, alpha):
+    """REQ-2049 (the maintainer's ruling): a demo's own sources are read live, as the demo
+    defines them -- a row the demo's source holds now is a row its sandbox reads now."""
+    source = sqlite3.connect(tier.demos / "alpha" / "animals.sqlite")
+    try:
+        source.execute("INSERT INTO animals VALUES (99, 'auk')")
+        source.commit()
+        assert _names(_sql(tier, alpha, "SELECT name FROM animals")) == sorted(
+            [*_ROWS["alpha"], "auk"]
+        )
+    finally:
+        source.execute("DELETE FROM animals WHERE id = 99")
+        source.commit()
+        source.close()
 
 
 def test_an_unknown_or_unpublished_demo_is_refused_by_name(tier):

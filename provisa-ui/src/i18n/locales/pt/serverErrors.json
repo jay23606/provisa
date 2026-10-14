@@ -568,9 +568,7 @@
       "demo_not_ready": "Esta demonstração ainda está sendo preparada. Tente novamente em instantes.",
       "at_capacity": "Todos os sandboxes de demonstração estão em uso. Tente novamente em instantes.",
       "disk_full": "Este sandbox atingiu seu limite de disco de {{limit}} bytes; nada mais pode ser gravado nele.",
-      "sign_in_required": "Entre para abrir o seu próprio sandbox.",
-      "demo_unavailable": "Não foi possível obter a versão mais recente da demo {{demo}}. Tente novamente em breve.",
-      "demo_needs_newer_provisa": "A versão mais recente da demo {{demo}} precisa do Provisa {{requires}} ou mais recente; este é o Provisa {{running}}."
+      "sign_in_required": "Entre para abrir o seu próprio sandbox."
     },
     "engine": {
       "write_conflict": "Outra alteração nos mesmos dados foi gravada ao mesmo tempo. Tente novamente."

@@ -358,3 +358,111 @@ def _digest(data: bytes) -> str:
 def _ok(response: httpx.Response, what: str) -> None:
     if response.status_code >= 300:
         raise BundleError(f"{what}: HTTP {response.status_code} {response.text[:300]}")
+
+
+# -- where a deployment's demos are (REQ-2049) ----------------------------------------------------
+#
+# A deployment offering demos as bundles (the sandbox tier) names them in PROVISA_DEMO_BUNDLES. The
+# node runs each demo's own stores (scripts/demo_stores_sync.sh): it pulls the version the tier
+# wants, brings up the bundle's docker-compose.run.yml, writes the bundle's stores.env (where the
+# stores are) and marks the version ready. The tier serves the ready version; it asks for a newer
+# one by writing <name>/wanted, and records in <name>/in-use the versions its open sandboxes and
+# template read, which the node keeps running.
+
+_PKG_NAMED = Path(__file__).resolve().parents[1] / "_config" / "demo" / "named"
+_REPO_NAMED = Path(__file__).resolve().parents[2] / "demo" / "named"
+#: Touched whenever a demo's wanted version is written: the node's path unit watches this one file.
+WANTED_SIGNAL = ".wanted"
+
+
+def named_demos_dir() -> Path:
+    """Where the named demos are when a deployment serves their directories rather than bundles:
+    ``$PROVISA_NAMED_DEMOS_DIR`` when the deployment says, else the wheel-staged copy (REQ-1127),
+    else the source checkout's ``demo/named``."""
+    import os
+
+    configured = os.environ.get("PROVISA_NAMED_DEMOS_DIR")
+    if configured:
+        return Path(configured)
+    return _PKG_NAMED if _PKG_NAMED.is_dir() else _REPO_NAMED
+
+
+def bundled_demos() -> tuple[str, ...]:
+    """The demos this deployment serves as bundles (``PROVISA_DEMO_BUNDLES``, comma-separated);
+    none when it serves the directories under ``named_demos_dir()`` instead."""
+    import os
+
+    listed = os.environ.get("PROVISA_DEMO_BUNDLES", "")
+    return tuple(name.strip() for name in listed.split(",") if name.strip())
+
+
+def bundles_root() -> Path:
+    """Where the node unpacks the bundles: ``<data dir>/demo-bundles/<name>/<version>``."""
+    from provisa.core.org_files import data_dir
+
+    return data_dir() / "demo-bundles"
+
+
+def _read(path: Path) -> str | None:
+    return path.read_text().strip() or None if path.is_file() else None
+
+
+def _write(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    staged = path.with_name(f".{path.name}.writing")
+    staged.write_text(text + "\n")
+    staged.replace(path)
+
+
+def ready_version(name: str) -> str | None:
+    """The version of demo ``name`` whose stores the node has up: the one served."""
+    return _read(bundles_root() / name / "ready")
+
+
+def want(name: str, version: str) -> None:
+    """Ask the node for ``version`` of demo ``name``: its stores are brought up, and it is served
+    once marked ready."""
+    _write(bundles_root() / name / "wanted", version)
+    (bundles_root() / WANTED_SIGNAL).touch()
+
+
+def record_in_use(name: str, versions: set[str]) -> None:
+    """The versions of demo ``name`` something on the tier still reads (its template's, its open
+    sandboxes'), so the node keeps their stores up."""
+    _write(bundles_root() / name / "in-use", "\n".join(sorted(versions)))
+
+
+def own_demo_directory(org_id: str | None) -> Path | None:
+    """The directory of the demo a sandbox-tier org is: a template's, its demo's (every version,
+    when bundled); a sandbox's, the version it was opened from. None for any other org."""
+    from provisa.core import org_files
+    from provisa.core.org_ids import TEMPLATE_PREFIX, is_sandbox_tier_org, is_template_org
+
+    if org_id is None or not is_sandbox_tier_org(org_id):
+        return None
+    if is_template_org(org_id):
+        name = org_id[len(TEMPLATE_PREFIX) :]
+        return (bundles_root() if bundled_demos() else named_demos_dir()) / name
+    recorded = org_files.folder(org_id) / SANDBOX_DEMO_DIRECTORY
+    return Path(recorded.read_text()) if recorded.is_file() else None
+
+
+#: Where a sandbox records the demo directory (version) it was opened from, in its org folder.
+SANDBOX_DEMO_DIRECTORY = "demo-directory"
+
+
+def stores_env(directory: Path) -> dict[str, str]:
+    """Where a bundle's stores are, as the node wrote it: ``stores.env`` (NAME=value lines), the
+    values its configuration's ``${env:NAME}`` references take. None of them when the bundle runs
+    no stores."""
+    path = directory / "stores.env"
+    if not path.is_file():
+        if (directory / "docker-compose.run.yml").is_file():
+            raise BundleError(f"{directory} runs stores but the node wrote no stores.env for them")
+        return {}
+    values = {}
+    for line in path.read_text().splitlines():
+        if line.strip():
+            key, _, value = line.partition("=")
+            values[key.strip()] = value.strip()
+    return values

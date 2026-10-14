@@ -1,0 +1,12 @@
+# Runs the demo stores sync as soon as the sandbox tier asks for a newer demo version: the tier
+# touches <bundles>/.wanted after writing <bundles>/<name>/wanted (REQ-2049). The path is the
+# host's view of the tier's data directory; set it to DEMO_BUNDLES_DIR/.wanted.
+[Unit]
+Description=Provisa sandbox tier: a demo version was asked for
+
+[Path]
+PathChanged=/var/lib/docker/volumes/compose_provisa_sandbox_data/_data/demo-bundles/.wanted
+Unit=provisa-demo-stores.service
+
+[Install]
+WantedBy=multi-user.target
