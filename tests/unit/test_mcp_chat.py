@@ -1539,3 +1539,94 @@ class TestTheGatewayCachesTheConversation:
         first, second = await self._calls(monkeypatch, tmp_path, "qwen/qwen3.8-flash")
         assert first["messages"][-1] == {"role": "user", "content": "what schemas?"}
         assert isinstance(second["messages"][-1]["content"], str)
+
+
+def _openai_call_reply(name: str = "list_schemas"):
+    call = SimpleNamespace(id="c1", function=SimpleNamespace(name=name, arguments="{}"))
+    return SimpleNamespace(
+        choices=[
+            SimpleNamespace(
+                message=SimpleNamespace(content=None, tool_calls=[call]), finish_reason="tool_calls"
+            )
+        ]
+    )
+
+
+@pytest.mark.asyncio
+class TestTheLastRoundIsToldToAnswer:
+    """Bake-off run 38639158659: on a last round sent with no tools, OpenRouter's Gemini and Qwen
+    routes still returned tool calls (and the server ran them), and Kimi wrote one out as text,
+    which went out as its answer."""
+
+    async def _run(self, monkeypatch, tmp_path, replies):
+        import os
+
+        cfg = tmp_path / "provisa.yaml"
+        cfg.write_text("sources: []\nai_models:\n  mcp_chat: {vendor: openai, model: gpt-5}\n")
+        monkeypatch.setitem(os.environ, "PROVISA_CONFIG", str(cfg))
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        ran: list[str] = []
+
+        async def _list_schemas(*_a, **_k):
+            ran.append("list_schemas")
+            return []
+
+        monkeypatch.setattr(mcp_tools, "list_schemas", _list_schemas)
+        holder = _install_fake_aisuite(monkeypatch, replies)
+        convo = [{"role": "user", "content": "go"}]
+        events = [
+            ev async for ev in chat_mod.run_chat(_state(), "analyst", convo, max_iterations=2)
+        ]
+        return holder["provider"].calls, events, ran
+
+    async def test_the_last_round_carries_the_instruction(self, monkeypatch, tmp_path):
+        calls, events, _ = await self._run(
+            monkeypatch, tmp_path, [_openai_call_reply(), _stop_reply()]
+        )
+        assert calls[0]["messages"][-1] != chat_mod._LAST_ROUND_INSTRUCTION
+        assert calls[1]["messages"][-1] == chat_mod._LAST_ROUND_INSTRUCTION
+        assert [e["text"] for e in events if e["type"] == "text"] == ["hi"]
+
+    async def test_a_call_made_on_the_last_round_is_not_run(self, monkeypatch, tmp_path):
+        _calls, events, ran = await self._run(
+            monkeypatch, tmp_path, [_openai_call_reply(), _openai_call_reply()]
+        )
+        assert ran == ["list_schemas"]  # the first round's call only
+        assert [e for e in events if e["type"] == "text"] == [chat_mod._STEPS_SPENT]
+
+    async def test_a_tool_call_written_as_text_is_no_answer(self, monkeypatch, tmp_path):
+        kimi = SimpleNamespace(
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(
+                        content=' tool="run_sql" index="1" key="sql" type="string"SELECT 1',
+                        tool_calls=None,
+                    ),
+                    finish_reason="stop",
+                )
+            ]
+        )
+        _calls, events, _ = await self._run(monkeypatch, tmp_path, [_openai_call_reply(), kimi])
+        assert [e for e in events if e["type"] == "text"] == [chat_mod._NO_ANSWER]
+
+    async def test_an_anthropic_call_made_on_the_last_round_is_not_run(self, monkeypatch):
+        _install_fake_anthropic(monkeypatch, [_schemas_call("tu1"), _schemas_call("tu2")])
+        ran: list[str] = []
+
+        async def _list_schemas(*_a, **_k):
+            ran.append("list_schemas")
+            return []
+
+        monkeypatch.setattr(mcp_tools, "list_schemas", _list_schemas)
+        convo = [{"role": "user", "content": "go"}]
+        events = [
+            ev async for ev in chat_mod.run_chat(_state(), "analyst", convo, max_iterations=2)
+        ]
+        assert ran == ["list_schemas"]
+        assert [e for e in events if e["type"] == "text"] == [chat_mod._STEPS_SPENT]
+
+
+def test_an_answer_naming_a_tool_is_still_an_answer():
+    assert chat_mod._is_answer("I ran `run_sql` over view_slowest_pages: /reports/top is slowest.")
+    assert not chat_mod._is_answer("<tool_call>{}</tool_call>")
+    assert not chat_mod._is_answer('{"name": "run_sql", "arguments": {"sql": "SELECT 1"}}')

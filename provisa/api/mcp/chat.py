@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -1414,6 +1415,33 @@ _NO_ANSWER = {
     "text": "\n\n(The model returned no answer — please ask again.)",
 }
 
+# REQ-1838: the last round is told why it has no tools, so it answers instead of reaching for one:
+# OpenRouter's Gemini and Qwen routes returned tool calls on a round sent with none, and Kimi wrote
+# one out as text (bake-off run 38639158659).
+_LAST_ROUND_INSTRUCTION = {
+    "role": "user",
+    "content": (
+        "You have no tool calls left: answer the question now from the results above, in plain "
+        "text."
+    ),
+}
+
+# A tool call written as text instead of made -- Kimi's ` tool="run_sql" index="1" key="sql"
+# type="string"SELECT ...`, or a model's own call markup -- is not an answer.
+_TOOL_NAMES_PATTERN = "|".join(re.escape(t["name"]) for t in [*_TOOLS, *_CLIENT_TOOLS])
+_TEXT_TOOL_CALL = re.compile(
+    rf'tool="(?:{_TOOL_NAMES_PATTERN})"|<\|?tool_calls?\b|<function[=\s(]'
+    rf'|"name"\s*:\s*"(?:{_TOOL_NAMES_PATTERN})"\s*,\s*"(?:arguments|parameters)"'
+)
+
+
+def _is_answer(text: str | None) -> bool:
+    """Whether a final round's text answers: not blank, and not a tool call written as text."""
+    if text is None or not text.strip():
+        return False
+    return _TEXT_TOOL_CALL.search(text) is None
+
+
 _STEPS_SPENT = {
     "type": "text",
     "text": (
@@ -1592,7 +1620,7 @@ async def _run_chat_anthropic(
             usage = usage + polly_usage.from_anthropic(resp.usage)
             if not any(b.type == "tool_use" for b in resp.content):
                 text = "".join(b.text for b in resp.content if b.type == "text" and b.text)
-                if text.strip():
+                if _is_answer(text):
                     yield {"type": "text", "text": text}
                 elif resp.stop_reason != "max_tokens":  # that ends with its own note below
                     yield _NO_ANSWER
@@ -1610,6 +1638,10 @@ async def _run_chat_anthropic(
             }
             break
         if resp.stop_reason != "tool_use":
+            break
+        if round_no == max_iterations - 1:
+            # The last round was asked to call none; a call it made anyway is not run.
+            yield _STEPS_SPENT
             break
 
         tool_use_blocks = [b for b in resp.content if b.type == "tool_use"]
@@ -1716,8 +1748,6 @@ async def _run_chat_anthropic(
             }
         )
         prior_messages.append({"role": "user", "content": tool_results})
-    else:
-        yield _STEPS_SPENT
 
     yield polly_usage.usage_event(model, usage)
     yield {"type": "done"}
@@ -1860,7 +1890,10 @@ async def _run_chat_aisuite(
     billed: float | None = None
 
     for round_no in range(max_iterations):
+        last_round = round_no == max_iterations - 1
         oa_messages = [system_message, *_wire_convo_to_openai_messages(convo)]
+        if last_round:
+            oa_messages.append(_LAST_ROUND_INSTRUCTION)
         if model_name.startswith(_GATEWAY_CACHED_MODELS):
             oa_messages = _with_openai_cache_breakpoint(oa_messages)
         # REQ-1838: the last round calls no tool (see the Anthropic loop). It is sent with no
@@ -1871,7 +1904,7 @@ async def _run_chat_aisuite(
         # tool_choice none.
         tooling: dict[str, Any] = (
             {"tools": openai_tools}
-            if round_no < max_iterations - 1
+            if not last_round
             else {"tools": openai_tools, "tool_choice": {"type": "none"}}
             if provider_key == "anthropic"
             else {}
@@ -1897,7 +1930,7 @@ async def _run_chat_aisuite(
         # Text beside a tool call is never shown (see the Anthropic loop); it stays in the
         # assistant content the model's history carries.
         if not calls_tools:
-            if message.content and message.content.strip():
+            if _is_answer(message.content):
                 yield {"type": "text", "text": message.content}
             else:
                 # A model that answers in its reasoning and leaves the reply blank: OpenRouter
@@ -1908,8 +1941,10 @@ async def _run_chat_aisuite(
                 if reasoning:
                     yield {"type": "reasoning", "text": reasoning}
                 yield _NO_ANSWER
-
-        if not calls_tools:
+            break
+        if last_round:
+            # The last round had no tools to call; a call it made anyway is not run.
+            yield _STEPS_SPENT
             break
 
         wire_blocks = _openai_message_to_wire_blocks(message)
@@ -1982,8 +2017,6 @@ async def _run_chat_aisuite(
         convo.append({"role": "user", "content": tool_results})
         prior_messages.append({"role": "assistant", "content": wire_blocks})
         prior_messages.append({"role": "user", "content": tool_results})
-    else:
-        yield _STEPS_SPENT
 
     yield polly_usage.usage_event(model_name, usage, billed)
     yield {"type": "done"}
