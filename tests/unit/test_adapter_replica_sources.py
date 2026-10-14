@@ -298,21 +298,23 @@ def test_an_adapter_without_a_cursor_is_read_as_a_single_document(monkeypatch):
     assert isinstance(cursor, BlockingCursorSource)
 
 
-def test_a_floored_source_with_no_driver_of_its_own_is_read_by_the_engine(monkeypatch):
+def test_a_floored_source_with_no_driver_of_its_own_is_read_from_its_file(monkeypatch, tmp_path):
     """A file source replicated always (``replicate: 0`` floors it) has no direct driver in the
-    pool: its replica is built by the engine, never by asking the pool for a cursor it does not
-    hold (that raised KeyError and failed every build)."""
+    pool: its replica is built from its file (#255), never by asking the pool for a cursor it does
+    not hold (that raised KeyError and failed every build)."""
     from provisa.core import operator_floor
     from provisa.executor.pool import SourcePool
-    from provisa.federation.replica_source import EngineTableSource
 
     monkeypatch.setattr(operator_floor, "floor_setting", lambda _source: "replicate")
     loader = sl.SourceRowLoader(object())
     state = SimpleNamespace(source_pools=SourcePool(), source_dialects={})
     read = loader.replica_source(
-        state, SimpleNamespace(id="birds", type="csv"), _table(), [("id", "bigint")]
+        state,
+        SimpleNamespace(id="birds", type="csv", path=str(tmp_path / "birds.csv")),
+        _table(),
+        [("id", "bigint")],
     )
-    assert isinstance(read, EngineTableSource)
+    assert isinstance(read, BlockingCursorSource)
 
 
 def test_a_sqlite_source_whose_file_is_gone_is_refused_not_created(tmp_path):
