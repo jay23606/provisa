@@ -2249,7 +2249,7 @@ async def _build_org_runtime(
         from provisa.api.sandbox_tier import is_template_org
 
         if is_template_org(org_id) and env == PROD:
-            # REQ-2006: a demo template lands its replicas from the seed the image carries,
+            # REQ-2006: a demo template lands its replicas from the seed its bundle carries,
             # before the wiring below starts its replica convergence.
             from provisa.api.demo_templates import land_from_seed
 

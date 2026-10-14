@@ -1,0 +1,32 @@
+name: Build a named demo's bundle
+description: >-
+  REQ-2049: a named demo's bundle, built once with its data in it (scripts/demo_bundle.py build:
+  the demo's own data stores come up on ports of the build's own, its seeder runs, a sandbox tier
+  on a throwaway embedded control plane lands its template and writes the seed, its Postgres
+  stores are dumped, and everything is taken down). The bundle is written to dist/demos/; its path
+  is the `bundle` output. The caller sets up Python first (setup-python, extras dev); publishing
+  is the caller's step too, with the registry credentials.
+inputs:
+  demo:
+    description: The named demo to build (a directory of demo/named).
+    required: true
+outputs:
+  bundle:
+    description: The built bundle, dist/demos/<demo>-<version>.tar.gz.
+    value: ${{ steps.build.outputs.bundle }}
+runs:
+  using: composite
+  steps:
+    - name: Build the bundle
+      id: build
+      shell: bash
+      env:
+        DEMO: ${{ inputs.demo }}
+        COMMIT: ${{ github.sha }}
+      run: |
+        set -euo pipefail
+        rm -rf dist/demos
+        uv run python scripts/demo_bundle.py build "$DEMO" --out dist/demos --commit "$COMMIT"
+        built=(dist/demos/"$DEMO"-*.tar.gz)
+        test "${#built[@]}" -eq 1 && test -s "${built[0]}"
+        echo "bundle=${built[0]}" >> "$GITHUB_OUTPUT"

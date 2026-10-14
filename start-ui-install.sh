@@ -10,6 +10,7 @@ FAST=false
 KEEP_DATA=false  # --keep-data: a named demo reuses its seeded data instead of reseeding from empty
 DEMO=false
 DEMO_NAME=""  # "" = standard demo; a name (e.g. "perf") selects a named demo variant
+DEMO_FROM_SOURCE=false  # --from-source: a published demo is run from this checkout's demo/named/<name>/
 NATIVE=false
 IDP=""
 SOURCES=()  # optional demo sources (demo/sources/<name>): --source=neo4j --source=mongodb ...
@@ -34,10 +35,11 @@ while [ "$_i" -lt "${#_ARGV[@]}" ]; do
       fi
       ;;
     --keep-data) KEEP_DATA=true ;;
+    --from-source) DEMO_FROM_SOURCE=true ;;
     --native) NATIVE=true ;;
     --idp=*) IDP="${arg#--idp=}" ;;
     --source=*) SOURCES+=("${arg#--source=}") ;;
-    *) echo "Unknown option: $arg"; echo "Usage: $0 [--keep-docker] [--fast] [--keep-data] [--demo [name]] [--native] [--idp=basic|firebase] [--source=<name>]..."; echo "  --demo [name]: standard demo, or a named demo variant (e.g. 'perf' — see demo/named/<name>/)"; echo "  --keep-data: with a named demo, reuse its seeded data; without it the demo is reseeded from empty on every start"; echo "  --source=<name>: provision demo/sources/<name> (a Docker container, primed with data) and include its config fragment"; exit 1 ;;
+    *) echo "Unknown option: $arg"; echo "Usage: $0 [--keep-docker] [--fast] [--keep-data] [--demo [name[@version]]] [--from-source] [--native] [--idp=basic|firebase] [--source=<name>]..."; echo "  --demo [name[@version]]: standard demo, or a named demo variant (e.g. 'perf' — see demo/named/<name>/). A published demo is pulled as its bundle: its latest, or the version named"; echo "  --from-source: run a published demo from this checkout's demo/named/<name>/, built here (development)"; echo "  --keep-data: with a named demo, reuse its seeded data; without it the demo is reseeded from empty on every start"; echo "  --source=<name>: provision demo/sources/<name> (a Docker container, primed with data) and include its config fragment"; exit 1 ;;
   esac
   _i=$((_i + 1))
 done
@@ -46,7 +48,36 @@ if [ -n "$IDP" ] && [ "$IDP" != "basic" ] && [ "$IDP" != "firebase" ]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-if [ -n "$DEMO_NAME" ] && [ ! -d "$SCRIPT_DIR/demo/named/$DEMO_NAME" ]; then
+# A named demo's directory: this checkout's demo/named/<name>/, or -- for a published demo (REQ-2049)
+# -- its bundle, pulled from where the project publishes demos (PROVISA_DEMO_REGISTRY names another)
+# into $PROVISA_HOME/demos/<name>/<version>: `--demo weblogs` pulls its latest, `--demo
+# weblogs@<version>` that version. A bundle was built once, with its data in it, so its data stores'
+# builders (seeder, traffic) do not run here; --from-source builds the demo from the checkout instead.
+_DEMO_VERSION=""
+case "$DEMO_NAME" in *@*) _DEMO_VERSION="${DEMO_NAME#*@}"; DEMO_NAME="${DEMO_NAME%%@*}" ;; esac
+_DEMO_BUNDLED=false
+_DEMO_DIR=""
+if [ -n "$DEMO_NAME" ]; then
+  if [ "$DEMO_FROM_SOURCE" = true ] && [ -n "$_DEMO_VERSION" ]; then
+    echo "--demo $DEMO_NAME@$_DEMO_VERSION names a published version; --from-source runs the checkout's. Choose one."; exit 1
+  fi
+  if [ -n "$_DEMO_VERSION" ]; then
+    _DEMO_BUNDLED=true
+  elif [ "$DEMO_FROM_SOURCE" = false ] && [ -f "$SCRIPT_DIR/demo/named/$DEMO_NAME/demo.yaml" ] \
+      && grep -qx 'published: true' "$SCRIPT_DIR/demo/named/$DEMO_NAME/demo.yaml"; then
+    _DEMO_BUNDLED=true
+  fi
+  if [ "$_DEMO_BUNDLED" = true ]; then
+    _PULL_SPEC="$DEMO_NAME${_DEMO_VERSION:+@$_DEMO_VERSION}"
+    echo "Named demo '$DEMO_NAME': pulling its bundle ($_PULL_SPEC)..."
+    _DEMO_DIR="$("$SCRIPT_DIR/.venv/bin/python" "$SCRIPT_DIR/scripts/demo_bundle.py" pull "$_PULL_SPEC" \
+      --into "${PROVISA_HOME:-$HOME/.provisa}/demos" ${PROVISA_DEMO_REGISTRY:+--registry "$PROVISA_DEMO_REGISTRY"})"
+    echo "Named demo '$DEMO_NAME': bundle $(basename "$_DEMO_DIR") at $_DEMO_DIR"
+  else
+    _DEMO_DIR="$SCRIPT_DIR/demo/named/$DEMO_NAME"
+  fi
+fi
+if [ -n "$DEMO_NAME" ] && [ ! -d "$_DEMO_DIR" ]; then
   echo "Unknown demo name: $DEMO_NAME. No demo/named/$DEMO_NAME/ directory."; exit 1
 fi
 # A named demo's configuration is demo/named/<name>/config.yaml, a WHOLE config used in place of the
@@ -54,8 +85,8 @@ fi
 # fragment.yaml, which is overlaid on the standard demo config. Exactly one of the two.
 _NAMED_WHOLE=false
 if [ -n "$DEMO_NAME" ]; then
-  _NC="$SCRIPT_DIR/demo/named/$DEMO_NAME/config.yaml"
-  _NF="$SCRIPT_DIR/demo/named/$DEMO_NAME/fragment.yaml"
+  _NC="$_DEMO_DIR/config.yaml"
+  _NF="$_DEMO_DIR/fragment.yaml"
   if [ -f "$_NC" ] && [ -f "$_NF" ]; then
     echo "--demo $DEMO_NAME has both config.yaml and fragment.yaml in demo/named/$DEMO_NAME/. Keep one: config.yaml (a whole config) or fragment.yaml (an overlay on the standard demo config)."; exit 1
   fi
@@ -213,7 +244,7 @@ export PROVISA_IDP="${IDP}"
 if [ "$_NAMED_WHOLE" = true ]; then
   # The named demo's own whole config, relative to the repository root like the standard one. A
   # --source fragment below overlays it exactly as it would the standard config.
-  export PROVISA_CONFIG="demo/named/$DEMO_NAME/config.yaml"
+  export PROVISA_CONFIG="$_DEMO_DIR/config.yaml"
 elif [ "$DEMO" = true ]; then
   export PROVISA_CONFIG="config/provisa-install.yaml"
 else
@@ -279,7 +310,7 @@ fi
 # see seed.py), so a restart never re-seeds data meant to survive — what a demo too large to
 # regenerate each time (perf) needs. This start fails fast if the fragment doesn't exist.
 if [ -n "$DEMO_NAME" ]; then
-  _NAMED_DIR="$SCRIPT_DIR/demo/named/$DEMO_NAME"
+  _NAMED_DIR="$_DEMO_DIR"
   _NAMED_FRAGMENT="$_NAMED_DIR/fragment.yaml"
   # The demo's directory, for its config and compose file to name paths under (a Logs source's
   # glob must be a full path). A demo with a logs/ directory writes its containers' logs there for
@@ -288,11 +319,22 @@ if [ -n "$DEMO_NAME" ]; then
   export PROVISA_NAMED_DEMO_DIR="$_NAMED_DIR"
   if [ -d "$_NAMED_DIR/logs" ]; then
     export PROVISA_LOGS_ALLOWED_ROOTS="${PROVISA_LOGS_ALLOWED_ROOTS:+$PROVISA_LOGS_ALLOWED_ROOTS,}$_NAMED_DIR/logs"
-    if [ "$KEEP_DATA" = false ]; then
+    # A bundle's logs are its data, written once by its build: never emptied here.
+    if [ "$KEEP_DATA" = false ] && [ "$_DEMO_BUNDLED" = false ]; then
       find "$_NAMED_DIR/logs" -type f ! -name .gitignore -delete
     fi
   fi
-  if [ -f "$_NAMED_DIR/docker-compose.yml" ]; then
+  if [ "$_DEMO_BUNDLED" = true ]; then
+    # Only what reading the bundle needs: its run-time compose file (a database loaded from the
+    # dump its build wrote), when it has one. Pristine unless --keep-data, as below.
+    if [ -f "$_NAMED_DIR/docker-compose.run.yml" ]; then
+      if [ "$KEEP_DATA" = false ]; then
+        docker compose -f "$_NAMED_DIR/docker-compose.run.yml" down -v
+      fi
+      echo "Named demo '$DEMO_NAME': bringing up its run-time stores (docker compose -f $_NAMED_DIR/docker-compose.run.yml up -d --wait)..."
+      docker compose -f "$_NAMED_DIR/docker-compose.run.yml" up -d --wait
+    fi
+  elif [ -f "$_NAMED_DIR/docker-compose.yml" ]; then
     # A pristine start is the default, as it is for the control plane below: the stack's containers
     # and volumes are removed and its bind-mounted ./data directory (databases and the seeder's
     # marker) deleted, so the seeder runs from empty. --keep-data skips this and keeps the marker,

@@ -19,6 +19,7 @@ its setup from the action and never repeats the commands.
 | `trino-plugins` | the pinned Trino plugin jars, restored or saved under one key | `phase` (`restore`, `save`), `cache-hit`, `key-suffix` |
 | `mssql-odbc` | ODBC Driver 18, registered | none |
 | `docs-site-deps` | MkDocs and its plugins | none |
+| `demo-bundle` | a named demo's bundle in `dist/demos/` (its seed, logs and database dump), its data stores down again | `demo`; output `bundle` |
 | `release-metadata` | the channel, the PEP 440 version, every asset name (18 outputs) | `version` |
 | `ensure-release` | the draft GitHub release for a tag | `tag` |
 | `apple-signing` | a keychain holding the Developer ID certificate | `p12-base64`, `p12-password` |

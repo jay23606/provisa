@@ -915,6 +915,14 @@ services:
       <<: *provisa_env
       PROVISA_SANDBOX_TIER: "true"
       PROVISA_DATA_DIR: /var/lib/provisa
+      # Its own engine is DuckDB (each sandbox's is anyway): it never wakes a Trino shard.
+      PROVISA_ENGINE: "duckdb"
+      # REQ-2049: the demos it offers, each pulled as its published bundle -- at start and again
+      # whenever a sandbox of it is opened, so a newly published demo needs no redeploy -- into
+      # its data directory (demo-bundles/), where the bundles' logs are read.
+      PROVISA_DEMO_BUNDLES: "weblogs"
+      PROVISA_DEMO_REGISTRY: "https://ghcr.io/kenstott"
+      PROVISA_LOGS_ALLOWED_ROOTS: /var/lib/provisa/demo-bundles
     depends_on: *provisa_depends
   provisa-ui:
     restart: unless-stopped

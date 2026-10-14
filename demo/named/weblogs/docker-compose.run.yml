@@ -1,0 +1,44 @@
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+#
+# The weblogs demo where it runs from its bundle (start-ui-install.sh --demo weblogs; REQ-2049):
+# only the shop's database, loaded from the dump the bundle build wrote (dump/postgres.sql). The
+# shop, nginx and the seeder ran once, in the build; their logs are the bundle's logs/. The shop
+# database is read live (config.yaml shop-db), so it runs here.
+
+x-demo-labels: &demo-labels
+  com.provisa.demo: weblogs
+
+name: provisa-demo-weblogs-run
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    labels:
+      <<: *demo-labels
+      com.provisa.demo.role: rdb
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: shop
+    ports:
+      - "${WEBLOGS_PG_PORT:-28432}:5432"
+    volumes:
+      - weblogs_run_pg:/var/lib/postgresql/data
+      - ./dump/postgres.sql:/docker-entrypoint-initdb.d/10-shop.sql:ro
+      - ./db/reader.sql:/docker-entrypoint-initdb.d/20-reader.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d shop"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+
+volumes:
+  weblogs_run_pg:

@@ -10,10 +10,10 @@
 
 """A demo's replicas, landed once and copied everywhere else (REQ-2006).
 
-A demo is seeded when the release is built, never at a visitor's request and never on the
-deployment: the release build lands the demo's template once, against the demo's own sources, and
-writes the template's replicas out as the demo's SEED -- ``seeded/replicas.duckdb`` beside its
-demo.yaml, and ``seeded/replicas.json``, the record of each replica. The image carries the seed.
+A demo is seeded when its bundle is built (REQ-2049), never at a visitor's request and never on
+the deployment: the bundle build lands the demo's template once, against the demo's own sources,
+and writes the template's replicas out as the demo's SEED -- ``seeded/replicas.duckdb`` beside its
+demo.yaml, and ``seeded/replicas.json``, the record of each replica. The bundle carries the seed.
 
 When the sandbox tier starts, a template whose replicas are not landed ADOPTS the seed: the
 tables are copied into the template's own store and recorded as built for that store and for the
@@ -185,7 +185,7 @@ def seed_paths(demo_directory: Path) -> tuple[Path, Path]:
 
 
 async def export_seed(template_org: str, demo_directory: Path) -> None:
-    """Write the template's landed replicas out as the demo's seed (the release build)."""
+    """Write the template's landed replicas out as the demo's seed (the bundle build)."""
     from provisa.federation import replica_state
     from provisa.federation.materialize_broker import copy_schema
 
@@ -254,7 +254,7 @@ def _held_rows(org_id: str, tables: list[str]) -> dict[str, int]:
 
 
 async def adopt_seed(template_org: str, demo_directory: Path) -> bool:
-    """Land the template's replicas from the demo's seed, when the image carries one: copied into
+    """Land the template's replicas from the demo's seed, when its bundle carries one: copied into
     the template's store, and recorded as built for it, over anything recorded before. Run within
     the template's runtime build (app._build_org_runtime), before its replica convergence is
     wired, so convergence finds them built and asks for no build -- a build would read a source

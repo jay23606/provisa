@@ -27,7 +27,7 @@ to try again shortly. A sandbox no request has reached for ``sandbox.idle_ttl`` 
 whole -- its org, its folder and its file, its engine, and its visitor's token.
 """
 
-# Requirements: REQ-2006, REQ-1597, REQ-1263, REQ-1035, REQ-1600
+# Requirements: REQ-2006, REQ-1597, REQ-1263, REQ-1035, REQ-1600, REQ-2049
 
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ from typing import Any
 
 from sqlalchemy import delete, func, insert, select, update
 
-from provisa.api.demo_templates import PublishedDemo, published_demo
+from provisa.api.demo_templates import PublishedDemo, follow_latest, published_demo
 from provisa.api.errors import ApiError
 from provisa.api.sandbox_tier import new_sandbox_org_id
 from provisa.core import model_change, settings_registry
@@ -133,6 +133,8 @@ async def open_sandbox(name: str, *, kind: str, user_id: str | None = None) -> O
         raise ValueError(f"unknown sandbox kind {kind!r}")
     if (kind == NAMED) != (user_id is not None):
         raise ValueError("a named sandbox is opened for a signed-in user, a visitor's for none")
+    # REQ-2049: a demo published since is served first, its template rebuilt from it.
+    await follow_latest(name)
     demo = published_demo(name)
     await _template_ready(demo)
     admin = _admin_pool()

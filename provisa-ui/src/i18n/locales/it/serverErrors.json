@@ -565,7 +565,9 @@
       "demo_not_ready": "Questa demo è ancora in preparazione. Riprova a breve.",
       "at_capacity": "Tutte le sandbox demo sono in uso. Riprova a breve.",
       "disk_full": "Questa sandbox ha esaurito il suo limite di disco di {{limit}} byte; non vi si può scrivere altro.",
-      "sign_in_required": "Accedi per aprire la tua sandbox."
+      "sign_in_required": "Accedi per aprire la tua sandbox.",
+      "demo_unavailable": "Non è stato possibile recuperare l'ultima versione della demo {{demo}}. Riprova tra poco.",
+      "demo_needs_newer_provisa": "L'ultima versione della demo {{demo}} richiede Provisa {{requires}} o successivo; questo è Provisa {{running}}."
     },
     "engine": {
       "write_conflict": "Un'altra modifica agli stessi dati è stata scritta nello stesso momento. Riprova."

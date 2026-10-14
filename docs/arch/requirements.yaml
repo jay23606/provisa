@@ -81521,7 +81521,7 @@
   feature: product-tour-and-demos-sandbox
   priority: SHOULD
   type: behavioral
-  description: 'provisa.dev has a live demos page with one card for each published named demo: its title, description and screenshot, and an "Open live demo" button. The button opens a cloud.provisa.dev sandbox of that demo that needs no signup, with the demo''s example queries and the product tour. A named demo says whether it is published, and what its card shows, in demo/named/<name>/demo.yaml (title, description, screenshot, published: true or false); the site build generates the page from those files, as it generates the source picker, and CI fails when the page is out of step with them. Every published demo is lightweight, and its data is seeded ahead of time: never at a visitor''s request, and never by a live traffic generator. Opening the page warms the cloud coordinator in the background through the front door''s wake-on-hit, so that a visitor''s click rarely meets the waking page. The cloud side: each published demo has a template organization on the sandbox tier, built when the tier starts, with every source replicated always and its data landed into the template''s DuckDB file then -- the deploy is when a demo is seeded. Opening the demo (cloud.provisa.dev/demos/<name>, no account) opens a sandbox: an organization of its own (id sbx<hex>) whose model is copied from the template and whose replicas are copied from the template''s file into its own, recorded as built, so nothing is seeded at the visitor''s request. The visitor is a user minted for the sandbox with the sandbox role and a personal access token the browser keeps (REQ-1035: no identity-provider sign-in). A signed-in person''s "Try it Out" sandbox (POST /sandboxes/<name>) is the same organization model under their own identity, the same one from every device they use. Every sandbox runs on an in-process DuckDB engine of its own, pinned to the file in its folder (REQ-1992); real organizations stay on their own engine. Exactly one process ever opens a sandbox''s file: the sandbox tier, a single-worker API of its own (PROVISA_SANDBOX_TIER), which serves only sandbox and template organizations; the UI server sends a sandbox''s requests there by its address, and every other process refuses a sandbox by name (421 sandbox.wrong_tier). Inside it, concurrent requests share the one engine; a write-write conflict DuckDB raises is refused by name (engine.write_conflict), never retried, and two creates of one source id leave one created and the other refused (schema.source_id_taken). Model edits go through the model store''s guards as any organization''s do. Nobody else can join a sandbox of either kind: the sandbox role holds no user_management (REQ-1597), so no one can be invited into it. Limits, each an operator setting with a settings UI: sandbox.max_concurrent (past it, a visitor is asked to try again shortly, sandbox.at_capacity), sandbox.memory_limit (the sandbox engine''s DuckDB memory_limit), sandbox.disk_limit (the sandbox''s folder, its DuckDB file and uploads together; a write past it is refused, sandbox.disk_full), and sandbox.idle_ttl (a sandbox no request has reached for that long is deleted whole: its organization, engine, folder and token). A sandbox''s sources may reach only the destinations its demo declares and public addresses, checked at registration and again at each connection, each connection made to the checked address (sources.private_destination, sources.unpinnable_destination). A named sandbox''s person is told plainly that this is a lightweight version with limits, each named with its value read from the settings, in the sandbox''s welcome notice and on the hosted-sandbox docs page: it runs on a single-process DuckDB engine, not the engine production organizations use; the memory cap and the disk cap (DuckDB file plus uploads); concurrent writes from several devices can be refused with a conflict, to retry; it expires after the inactivity period; its person can''t invite people, or switch or manage environments; the sample sources are read-only and writes stay inside the sandbox. All of it is translated in every locale, with no requirement ids in the UI.'
+  description: 'provisa.dev has a live demos page with one card for each published named demo: its title, description and screenshot, and an "Open live demo" button. The button opens a cloud.provisa.dev sandbox of that demo that needs no signup, with the demo''s example queries and the product tour. A named demo says whether it is published, and what its card shows, in demo/named/<name>/demo.yaml (title, description, screenshot, published: true or false); the site build generates the page from those files, as it generates the source picker, and CI fails when the page is out of step with them. Every published demo is lightweight, and its data is seeded ahead of time: never at a visitor''s request, and never by a live traffic generator. Opening the page warms the cloud coordinator in the background through the front door''s wake-on-hit, so that a visitor''s click rarely meets the waking page. The cloud side: each published demo has a template organization on the sandbox tier, built when the tier starts, with every source replicated always and its data landed into the template''s DuckDB file from the demo''s published bundle (REQ-2049) -- a demo is seeded when its bundle is built. Opening the demo (cloud.provisa.dev/demos/<name>, no account) opens a sandbox: an organization of its own (id sbx<hex>) whose model is copied from the template and whose replicas are copied from the template''s file into its own, recorded as built, so nothing is seeded at the visitor''s request. The visitor is a user minted for the sandbox with the sandbox role and a personal access token the browser keeps (REQ-1035: no identity-provider sign-in). A signed-in person''s "Try it Out" sandbox (POST /sandboxes/<name>) is the same organization model under their own identity, the same one from every device they use. Every sandbox runs on an in-process DuckDB engine of its own, pinned to the file in its folder (REQ-1992); real organizations stay on their own engine. Exactly one process ever opens a sandbox''s file: the sandbox tier, a single-worker API of its own (PROVISA_SANDBOX_TIER), which serves only sandbox and template organizations; the UI server sends a sandbox''s requests there by its address, and every other process refuses a sandbox by name (421 sandbox.wrong_tier). Inside it, concurrent requests share the one engine; a write-write conflict DuckDB raises is refused by name (engine.write_conflict), never retried, and two creates of one source id leave one created and the other refused (schema.source_id_taken). Model edits go through the model store''s guards as any organization''s do. Nobody else can join a sandbox of either kind: the sandbox role holds no user_management (REQ-1597), so no one can be invited into it. Limits, each an operator setting with a settings UI: sandbox.max_concurrent (past it, a visitor is asked to try again shortly, sandbox.at_capacity), sandbox.memory_limit (the sandbox engine''s DuckDB memory_limit), sandbox.disk_limit (the sandbox''s folder, its DuckDB file and uploads together; a write past it is refused, sandbox.disk_full), and sandbox.idle_ttl (a sandbox no request has reached for that long is deleted whole: its organization, engine, folder and token). A sandbox''s sources may reach only the destinations its demo declares and public addresses, checked at registration and again at each connection, each connection made to the checked address (sources.private_destination, sources.unpinnable_destination). A named sandbox''s person is told plainly that this is a lightweight version with limits, each named with its value read from the settings, in the sandbox''s welcome notice and on the hosted-sandbox docs page: it runs on a single-process DuckDB engine, not the engine production organizations use; the memory cap and the disk cap (DuckDB file plus uploads); concurrent writes from several devices can be refused with a conflict, to retry; it expires after the inactivity period; its person can''t invite people, or switch or manage environments; the sample sources are read-only and writes stay inside the sandbox. All of it is translated in every locale, with no requirement ids in the UI.'
   use_case: 'A visitor to provisa.dev picks a scenario close to their own (a web shop''s logs, say) and is querying it in Provisa a few seconds later, without an account.'
   scenario: 'Given demo/named/weblogs/demo.yaml says published: true
 
@@ -83250,3 +83250,67 @@
     audit firms, tax firms, local governments). SHOULD = the first experiment set (insurance, pharma, agriculture,
     audit, tax, local government), measured by sandbox events before others are built. Lead''s elaboration: the
     questions and table choices.'
+- id: REQ-2049
+  status: in-progress
+  since: 2026-10
+  group: 11. Platform, Infrastructure & Delivery
+  category: Demo Provisioning
+  feature: product-tour-and-demos-sandbox
+  priority: SHOULD
+  type: behavioral
+  description: 'Each published named demo is its own bundle, built and published on its own and never part of a release or
+    the app image. A bundle holds the demo''s model (config.yaml), its data landed once at build (the seed the sandbox tier
+    lands its template from, the files its traffic generator wrote, and a dump of each of its databases a run-time compose
+    file loads), its tour and example queries, and the oldest Provisa version it runs on (requires_provisa in demo.yaml).
+    The Demo bundles workflow builds a demo when a push to main changes demo/named/<name>/, or on a dispatch naming it, and
+    publishes it as an OCI artifact to one package every demo shares, ghcr.io/<owner>/provisa-demos, tagged <name>-<version>
+    and <name>-latest; the version is the build''s UTC minute and commit, and a version is never published twice. Whoever
+    runs a demo pulls its bundle: the sandbox tier pulls each demo it offers (PROVISA_DEMO_BUNDLES) at start and again whenever
+    a sandbox of it is opened, so a newly published version is served with no release and no redeploy -- the demo''s template
+    is replaced from the new bundle before the sandbox is cloned, and a sandbox already open keeps its own copy; start-ui-install.sh
+    --demo <name> pulls <name>-latest, --demo <name>@<version> that version, and runs it with only what reading it needs (the
+    weblogs demo: its shop database, loaded from the bundle''s dump; no shop, web server or traffic generator), while --from-source
+    runs a demo from the checkout''s own directory for development. A bundle that needs a newer Provisa than the one pulling
+    it is refused by name (sandbox.demo_needs_newer_provisa), and a sandbox whose demo''s latest version cannot be fetched
+    is refused by name (sandbox.demo_unavailable) rather than served a version that was not checked. Only the OCI distribution
+    API is spoken, so no registry client is needed where a demo runs.'
+  use_case: The maintainer changes an example query of the weblogs demo and merges it; minutes later the live demos page's
+    next sandbox and a solution engineer's next start-ui-install.sh --demo weblogs both have the change, with no release cut.
+  scenario: 'Given the weblogs bundle is published
+
+
+    When a solution engineer runs start-ui-install.sh --demo weblogs
+
+
+    Then the bundle is pulled, only its database comes up, and every step of its tour finds what it names and every query
+    it runs answers with rows
+
+
+    Given a sandbox of weblogs is open
+
+
+    When a change to demo/named/weblogs is merged and the Demo bundles workflow publishes a new version
+
+
+    Then the next sandbox opened reads the new version, the open one keeps its own, and --demo weblogs pulls the new version,
+    with no release
+
+
+    Given a bundle that needs a newer Provisa than the one pulling it
+
+
+    When it is pulled
+
+
+    Then it is refused, naming the version it needs and the one running'
+  related_reqs:
+  - REQ-2006
+  - REQ-1858
+  - REQ-2010
+  - REQ-2031
+  notes: 'Maintainer 2026-10-14, via the lead: per-demo bundles in GitHub Container Registry, one package for all demos (public
+    visibility set once), consumers pull latest; nothing in releases or the app image; weblogs is the first demo on it, end
+    to end. TTL -1 (REQ-2031) is for enterprise SaaS demos and does not apply to weblogs, whose shop database is its own and
+    runs where the demo runs. requires_provisa for weblogs is a placeholder (0.1.0a483) until the first release carrying this
+    code is cut. A demo with a setup.yaml is not bundled until the setup runner (scripts/run_demo_setup.py) is on the build''s
+    branch.'

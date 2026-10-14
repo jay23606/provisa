@@ -8,11 +8,11 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 
-"""E2E: a demo is seeded when the release is built, and a deployment needs none of its sources
+"""E2E: a demo is seeded when its bundle is built, and a deployment needs none of its sources
 (REQ-2006).
 
 Everything here is the ``test`` instance on the local test platform. A seeding run of the sandbox
-tier (``PROVISA_DEMO_SEED_EXPORT=true``, the release build's step) lands the demo's template from
+tier (``PROVISA_DEMO_SEED_EXPORT=true``, the bundle build's step) lands the demo's template from
 its own source -- a SQLite file -- and writes the demo's seed beside its demo.yaml. The source is
 then deleted. A sandbox tier started afterwards, on a data directory of its own (a new
 deployment's volume), lands the template from the seed, and a visitor's sandbox reads the demo's

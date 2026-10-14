@@ -565,7 +565,9 @@
       "demo_not_ready": "此示範仍在準備中。請稍後再試。",
       "at_capacity": "所有示範沙盒都在使用中。請稍後再試。",
       "disk_full": "此沙盒已用完 {{limit}} 位元組的磁碟上限；無法再寫入任何內容。",
-      "sign_in_required": "請登入以開啟您自己的沙盒。"
+      "sign_in_required": "請登入以開啟您自己的沙盒。",
+      "demo_unavailable": "無法取得示範 {{demo}} 的最新版本。請稍後再試。",
+      "demo_needs_newer_provisa": "示範 {{demo}} 的最新版本需要 Provisa {{requires}} 或更新版本；目前為 Provisa {{running}}。"
     },
     "engine": {
       "write_conflict": "對同一資料的另一項更改同時被寫入。請重試。"
