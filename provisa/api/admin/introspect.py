@@ -1356,6 +1356,15 @@ async def native_column_typings(  # REQ-1965
     return [(name, column_typing(native, kind)) for name, native in listed]
 
 
+def _oracle_spelling(data_type: str, precision: int | None, scale: int | None) -> str:
+    """An Oracle column's type as one spelling: ALL_TAB_COLUMNS reports a NUMBER's size beside its
+    name, not in it (REQ-1961). A NUMBER with a scale of 0 and no precision is an INTEGER
+    (NUMBER(*,0): 38 digits); one with neither is unsized."""
+    if data_type.upper() != "NUMBER" or (precision is None and scale is None):
+        return data_type
+    return f"NUMBER({precision if precision is not None else 38},{scale or 0})"
+
+
 async def native_columns(  # REQ-1732
     source_id: str,
     source_type: str,
@@ -1437,11 +1446,11 @@ async def native_columns(  # REQ-1732
         # native_tables_rdbms's ALL_TABLES/ALL_TAB_COMMENTS pairing above.
         result = await pool.execute(
             source_id,
-            "SELECT column_name, data_type FROM all_tab_columns "
+            "SELECT column_name, data_type, data_precision, data_scale FROM all_tab_columns "
             "WHERE owner = $1 AND table_name = $2 ORDER BY column_id",
             [schema_name, table_name],
         )
-        return [(row[0], row[1]) for row in result.rows]
+        return [(row[0], _oracle_spelling(*row[1:4])) for row in result.rows]
     if t == "saphana":
         # REQ-1753: same "no ATTACH-mechanism seam" gap as trino above — saphana has no DuckDB
         # ATTACH connector, so this is the only path. SYS.TABLE_COLUMNS is HANA's own catalog view.

@@ -169,3 +169,58 @@ def test_oracle_number_is_a_numeric_sized_or_not():
     assert stored_type_of("NUMBER(10,2)") == "numeric(10,2)"
     assert stored_type_of("number(38)") == "numeric(38,0)"
     assert stored_type_of("number") == "number"
+
+
+# Every Oracle type as ALL_TAB_COLUMNS.DATA_TYPE prints it (NUMBER sized by _oracle_spelling),
+# and what it registers as and lands as.
+_ORACLE = [
+    ("VARCHAR2", "text"),
+    ("NVARCHAR2", "text"),
+    ("CHAR", "text"),
+    ("NCHAR", "text"),
+    ("CLOB", "text"),
+    ("NCLOB", "text"),
+    ("LONG", "text"),
+    ("ROWID", "text"),
+    ("UROWID", "text"),
+    ("XMLTYPE", "text"),
+    ("BLOB", "bytea"),
+    ("RAW", "bytea"),
+    ("LONG RAW", "bytea"),
+    ("DATE", "timestamp"),
+    ("TIMESTAMP(6)", "timestamp"),
+    ("TIMESTAMP(6) WITH TIME ZONE", "timestamp"),
+    ("TIMESTAMP(6) WITH LOCAL TIME ZONE", "timestamp"),
+    ("INTERVAL YEAR(2) TO MONTH", "interval"),
+    ("INTERVAL DAY(2) TO SECOND(6)", "interval"),
+    ("BINARY_FLOAT", "float"),
+    ("BINARY_DOUBLE", "double"),
+    ("FLOAT", "double"),
+    ("NUMBER", "numeric"),
+    ("NUMBER(10,2)", "numeric"),
+    ("NUMBER(38,0)", "numeric"),
+    ("JSON", "json"),
+]
+
+
+@pytest.mark.parametrize(("listed", "ir"), _ORACLE)
+def test_every_oracle_type_registers_as_a_type_every_reader_knows(listed, ir):
+    """A replica of an Oracle table failed on each spelling only Oracle has ("unknown SQL type
+    'varchar2' for platform 'duckdb'"): what an Oracle column registers as is read back by readers
+    that name no platform, or another one."""
+    from provisa.core.ir_types import column_typing, to_ir
+    from provisa.core.numeric_type import stored_type_of
+
+    stored = stored_type_of(column_typing(listed, "oracle").data_type)
+    assert to_ir(stored) == ir
+    assert to_ir(stored, "duckdb") == ir
+
+
+def test_an_oracle_number_is_sized_from_its_catalog_row():
+    from provisa.api.admin.introspect import _oracle_spelling
+    from provisa.core.numeric_type import stored_type_of
+
+    assert stored_type_of(_oracle_spelling("NUMBER", 10, 2)) == "numeric(10,2)"
+    assert stored_type_of(_oracle_spelling("NUMBER", None, 0)) == "numeric(38,0)"  # INTEGER
+    assert _oracle_spelling("NUMBER", None, None) == "NUMBER"
+    assert _oracle_spelling("VARCHAR2", None, None) == "VARCHAR2"
