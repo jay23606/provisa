@@ -60,6 +60,7 @@ _IR_TO_DATABRICKS: dict[str, str] = {
     "numeric": "DECIMAL(38,9)",
     "date": "DATE",
     "timestamp": "TIMESTAMP",
+    "timestamptz": "TIMESTAMP",  # REQ-2050: Delta's TIMESTAMP is an instant
     "time": "STRING",  # Delta has no bare TIME type
     "uuid": "STRING",
     "bytea": "BINARY",

@@ -57,6 +57,7 @@ COMPARABLE_TYPES = NUMERIC_TYPES | {
     "date",
     "timestamp",
     "timestamp with time zone",
+    "timestamptz",  # REQ-2050
 }
 
 

@@ -68,6 +68,8 @@ _IR_ARROW: dict[str, pa.DataType] = {
     "date": pa.date32(),
     "time": pa.time64("us"),
     "timestamp": pa.timestamp("us"),
+    # REQ-2050: an instant, in UTC with its zone marked.
+    "timestamptz": pa.timestamp("us", tz="UTC"),
     "interval": pa.utf8(),
     "uuid": pa.utf8(),
     "bytea": pa.binary(),

@@ -432,6 +432,7 @@ _IR_TO_ARROW: dict[str, pa.DataType] = {
     "boolean": pa.bool_(),
     "date": pa.date32(),
     "timestamp": pa.timestamp("us"),
+    "timestamptz": pa.timestamp("us", tz="UTC"),  # REQ-2050
     "time": pa.time64("us"),
     "bytea": pa.large_binary(),
     "uuid": pa.string(),

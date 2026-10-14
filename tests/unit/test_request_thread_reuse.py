@@ -26,6 +26,8 @@ does. What changed is how it gets there:
 
 from __future__ import annotations
 
+import re
+
 import asyncio
 import threading
 import time
@@ -550,7 +552,8 @@ def test_a_refusal_logs_what_holds_the_request_threads(front, caplog):
             refused.call(middleware)
         assert refused.sent[0]["status"] == 503
         line = next(r.getMessage() for r in caplog.records if "refused" in r.getMessage())
-        assert "serving [POST /data/neo4j-export for 0s]; 0 waiting" in line, line
+        # Its age is whole seconds since it began: 0, or 1 on a loaded machine.
+        assert re.search(r"serving \[POST /data/neo4j-export for \d+s\]; 0 waiting", line), line
         assert b"neo4j-export" not in refused.sent[1]["body"]
     finally:
         release.set()

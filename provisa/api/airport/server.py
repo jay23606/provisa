@@ -947,7 +947,8 @@ def _arrow_type_to_ir(t: pa.DataType) -> str:
     if pa.types.is_date(t):
         return "date"
     if pa.types.is_timestamp(t):
-        return "timestamp"
+        # REQ-2050: a zoned Arrow timestamp is an instant.
+        return "timestamp" if t.tz is None else "timestamptz"
     if pa.types.is_time(t):
         return "time"
     if pa.types.is_binary(t) or pa.types.is_large_binary(t):

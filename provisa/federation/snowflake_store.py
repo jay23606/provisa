@@ -64,6 +64,7 @@ _IR_TO_SNOWFLAKE: dict[str, str] = {
     "numeric": "NUMBER(38,9)",
     "date": "DATE",
     "timestamp": "TIMESTAMP_NTZ",
+    "timestamptz": "TIMESTAMP_TZ",  # REQ-2050: an instant
     "time": "TIME",
     "uuid": "VARCHAR",
     "bytea": "BINARY",

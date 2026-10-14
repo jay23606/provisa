@@ -88,6 +88,7 @@ def _physical_to_pg_name(column_type: str) -> str:
         "time": "time without time zone",
         "timestamp": "timestamp without time zone",
         "timestamp with time zone": "timestamp with time zone",
+        "timestamptz": "timestamp with time zone",  # REQ-2050
         "decimal": "numeric",
         "json": "jsonb",
         "row": "jsonb",
@@ -113,6 +114,7 @@ def _physical_to_pg_oid(column_type: str) -> int:
         "time": 1083,
         "timestamp": 1114,
         "timestamp with time zone": 1184,
+        "timestamptz": 1184,  # REQ-2050
         "decimal": 1700,
         "json": 3802,
         "jsonb": 3802,

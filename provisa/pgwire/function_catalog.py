@@ -33,6 +33,7 @@ _FN_TYPE_TO_SQL = {
     "json": "json",
     "uuid": "uuid",
     "timestamp": "timestamp without time zone",
+    "timestamptz": "timestamp with time zone",  # REQ-2050
     "date": "date",
 }
 

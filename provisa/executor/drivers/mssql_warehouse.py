@@ -92,11 +92,16 @@ class MssqlWarehouseDriver(SingleStatementConnectionDriver):
             # matter how long a caller polls. This driver only ever runs governed reads (see
             # _run's own comment), so there is no write to lose by auto-committing each
             # statement.
-            return pyodbc.connect(
-                conn_str,
-                attrs_before={_SQL_COPT_SS_ACCESS_TOKEN: token_struct},
-                timeout=login_timeout,
-                autocommit=True,
+            from provisa.executor.drivers.zoned import mssql_connection
+
+            # REQ-2050: a datetimeoffset is read as the instant it is.
+            return mssql_connection(
+                pyodbc.connect(
+                    conn_str,
+                    attrs_before={_SQL_COPT_SS_ACCESS_TOKEN: token_struct},
+                    timeout=login_timeout,
+                    autocommit=True,
+                )
             )
 
         self._open_pool(

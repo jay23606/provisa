@@ -61,9 +61,14 @@ class _Library:
 class _Connection:
     def __init__(self, lib: _Library) -> None:
         self.lib = lib
+        self.output_converters: dict = {}
         self.busy = threading.Lock()
         self.closed = False
         self._cancel = threading.Event()
+
+    def add_output_converter(self, sql_type, func) -> None:
+        # pyodbc's: REQ-2050 reads a datetimeoffset through one.
+        self.output_converters[sql_type] = func
 
     def _statement(self, sql: str):
         lib = self.lib

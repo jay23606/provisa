@@ -104,7 +104,7 @@ class TestResolveLandingArgs:
             ("blob", "bytea"),
             ("doc", "json"),  # REQ-1965: a native struct is a JSON column
             ("name", "text"),
-            ("ts", "timestamp"),
+            ("ts", "timestamptz"),  # REQ-2050: an instant
         ]
 
     def test_unmapped_native_type_raises(self):

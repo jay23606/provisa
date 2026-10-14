@@ -50,6 +50,7 @@ _IR_TO_CLICKHOUSE: dict[str, str] = {
     "numeric": "Nullable(Decimal(38, 9))",
     "date": "Nullable(Date)",
     "timestamp": "Nullable(DateTime64(3))",
+    "timestamptz": "Nullable(DateTime64(6, 'UTC'))",  # REQ-2050: an instant
     "time": "Nullable(String)",
     "uuid": "Nullable(UUID)",
     "bytea": "Nullable(String)",

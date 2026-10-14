@@ -54,6 +54,7 @@ _IR_TO_BQ: dict[str, str] = {
     "numeric": "NUMERIC",
     "date": "DATE",
     "timestamp": "TIMESTAMP",
+    "timestamptz": "TIMESTAMP",  # REQ-2050: BigQuery's TIMESTAMP is an instant
     "time": "TIME",
     "uuid": "STRING",
     "bytea": "BYTES",
