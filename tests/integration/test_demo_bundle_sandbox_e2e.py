@@ -282,3 +282,46 @@ def test_a_visitor_reads_what_the_demo_shows_its_admin_and_runs_as_its_own_roles
         assert as_admin.status_code == 403, as_admin.text  # REQ-1597: never org_admin itself
     finally:
         tier.stop_process()
+
+
+def test_a_server_started_on_a_bundle_in_an_older_format_refuses_it_by_name(tmp_path):
+    """The maintainer's local-dev: started on weblogs 202610141838-c48b72e45, built before tour.yaml
+    named a landing, every /setup/status failed (KeyError 'landing') and the UI never loaded. Such
+    a bundle is refused when the server starts, by name, saying to pull the latest."""
+    import json
+
+    import yaml
+
+    from tests.integration.isolated_server import IsolatedServer
+    from tests.integration.test_demo_sandboxes_e2e import _demo
+
+    _demo(tmp_path / "named", "weblogs", published=True)
+    old = tmp_path / "named" / "weblogs"
+    (old / "bundle.json").write_text(
+        json.dumps(
+            {
+                "demo": "weblogs",
+                "version": "202610141838-c48b72e45",
+                "commit": "c" * 40,
+                "requires_provisa": "0.1.0",
+            }
+        )
+    )
+    (old / "tour.yaml").write_text(yaml.safe_dump({"steps": []}))
+    server = IsolatedServer(
+        "oldformate2e",
+        engine="duckdb",
+        config=str(old / "config.yaml"),
+        control_plane="own",
+        env={"PROVISA_NAMED_DEMO_DIR": str(old), "PROVISA_DATA_DIR": str(tmp_path / "data")},
+    )
+    with pytest.raises(Exception):  # noqa: B017 - the start fails; what it says is checked below
+        server.start(timeout=120)
+    try:
+        log = server.dump_stderr_debug()
+        assert (
+            "demo weblogs 202610141838-c48b72e45 is in demo format 1; this Provisa reads format 2: "
+            "pull its latest (start-ui-install.sh --demo weblogs)"
+        ) in log, log[-4000:]
+    finally:
+        server.stop_process()

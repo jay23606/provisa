@@ -104,6 +104,7 @@ def test_a_bundle_holds_its_demo_and_the_seed_landed_from_it(tmp_path):
     assert manifest == {
         "commit": commit,
         "demo": "alpha",
+        "format": 2,
         "requires_provisa": "0.1.0",
         "version": bundle.name.removeprefix("alpha-").removesuffix(".tar.gz"),
     }

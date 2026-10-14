@@ -63,6 +63,18 @@ class BundleError(Exception):
     """A bundle could not be published or pulled; the message names why."""
 
 
+class OldDemoFormat(BundleError):
+    """The bundle is in an older demo format than this Provisa reads."""
+
+    def __init__(self, manifest: "BundleManifest") -> None:
+        super().__init__(
+            f"demo {manifest.demo} {manifest.version} is in demo format {manifest.format}; this "
+            f"Provisa reads format {DEMO_FORMAT}: pull its latest "
+            f"(start-ui-install.sh --demo {manifest.demo})"
+        )
+        self.manifest = manifest
+
+
 class NeedsNewerProvisa(BundleError):
     """The bundle needs a newer Provisa than the one pulling it."""
 
@@ -75,19 +87,34 @@ class NeedsNewerProvisa(BundleError):
         self.running = running
 
 
+#: The demo format this Provisa reads: bumped whenever a demo's files gain something a reader
+#: requires. 2: tour.yaml names its ``landing`` (REQ-2010, the tour's "Where next?").
+DEMO_FORMAT = 2
+
+
 @dataclass(frozen=True)
 class BundleManifest:
     demo: str
     version: str
     commit: str
     requires_provisa: str
+    #: The demo format the bundle was built in (DEMO_FORMAT when it was built).
+    format: int = DEMO_FORMAT
 
     @classmethod
     def read(cls, data: dict) -> BundleManifest:
         missing = [f for f in ("demo", "version", "commit", "requires_provisa") if f not in data]
         if missing:
             raise BundleError(f"the bundle manifest has no {', '.join(missing)}")
-        return cls(data["demo"], data["version"], data["commit"], data["requires_provisa"])
+        # A manifest naming no format was written before formats were versioned: format 1, the
+        # one before DEMO_FORMAT 2 (REQ-2049) -- so such a bundle is refused, not read.
+        return cls(
+            data["demo"],
+            data["version"],
+            data["commit"],
+            data["requires_provisa"],
+            data.get("format", 1),
+        )
 
 
 def seeding_run() -> bool:
@@ -119,9 +146,21 @@ def running_provisa() -> str:
 
 
 def check_runs_here(manifest: BundleManifest, running: str) -> None:
-    """Refuse, by name, a bundle that needs a newer Provisa than ``running``."""
+    """Refuse, by name, a bundle that needs a newer Provisa than ``running``, or one in an older
+    demo format than this Provisa reads."""
     if provisa_version_key(running) < provisa_version_key(manifest.requires_provisa):
         raise NeedsNewerProvisa(manifest, running)
+    if manifest.format < DEMO_FORMAT:
+        raise OldDemoFormat(manifest)
+
+
+def check_directory(directory: Path) -> None:
+    """Refuse, by name, a demo directory that is a bundle (it has a bundle.json) this Provisa
+    cannot read -- at load, rather than failing each request that reads it. A checkout's demo
+    directory is no bundle: it is the current format by being the source."""
+    record = directory / MANIFEST_FILE
+    if record.is_file():
+        check_runs_here(BundleManifest.read(json.loads(record.read_text())), running_provisa())
 
 
 #: Where the project publishes its demos (demo-bundles.yml): what ``start-ui-install.sh --demo``
@@ -482,6 +521,7 @@ def pull_into(spec: str, into: Path, registry_url: str) -> Path:
     if not target.exists():
         target.parent.mkdir(parents=True, exist_ok=True)
         registry.pull(name, version, target, running_provisa())
+    check_directory(target)  # a version pulled before: still one this Provisa reads
     return target
 
 
