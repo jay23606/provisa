@@ -48,6 +48,13 @@ export function demoTrackStamp(name: string, defs: readonly DemoTourStepDef[]): 
   return `${name}:${hash.toString(16).padStart(8, "0")}`;
 }
 
+/** The page a demo's tour leaves the visitor on, from "Look around on my own": tour.yaml's
+ * ``landing``, its route and the capability its gate needs. */
+export interface DemoLanding {
+  route: string;
+  capability: Capability;
+}
+
 /** One step of tour.yaml, as the server sends it: its page, and exactly one target. */
 export interface DemoTourStepDef {
   key: string;

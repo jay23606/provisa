@@ -9,7 +9,7 @@
 // permission from the copyright holder.
 
 import { serverMessage, requestFailed } from "../i18n/serverMessage";
-import type { DemoTourStepDef } from "../tour/demoTour";
+import type { DemoLanding, DemoTourStepDef } from "../tour/demoTour";
 
 export interface SetupStatus {
   needs_setup: boolean;
@@ -28,6 +28,8 @@ export interface SetupStatus {
   // and none when no named demo was started.
   named_demo: string | null;
   demo_tour: DemoTourStepDef[];
+  // Where the tour's last "Look around on my own" leaves the visitor (tour.yaml's landing).
+  demo_landing: DemoLanding | null;
 }
 
 export interface ExampleQuery {

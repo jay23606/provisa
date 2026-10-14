@@ -10,7 +10,7 @@
 
 import { createContext, useContext } from "react";
 import type { ExampleQuery, SetupStatus } from "../api/setup";
-import type { DemoTourStepDef } from "../tour/demoTour";
+import type { DemoLanding, DemoTourStepDef } from "../tour/demoTour";
 
 /** The named demo this deployment was started as, from /setup/status (App.tsx provides it): its
  * name, its example GraphQL queries (REQ-2009) and its own tour (REQ-2010). */
@@ -18,21 +18,24 @@ export interface NamedDemo {
   name: string | null;
   exampleQueries: ExampleQuery[];
   tour: DemoTourStepDef[];
+  /** Where the tour's last "Look around on my own" leaves the visitor; null with no tour. */
+  landing: DemoLanding | null;
 }
 
 /** A page rendered outside the app (a component test) has read no status: no named demo. */
-export const NO_NAMED_DEMO: NamedDemo = { name: null, exampleQueries: [], tour: [] };
+export const NO_NAMED_DEMO: NamedDemo = { name: null, exampleQueries: [], tour: [], landing: null };
 
 /** The named demo a status reports. A deployment started as no named demo (a fresh org's) has
  * none: no demo track and no examples, whatever else the status carries. */
 export function namedDemoOf(
-  status: Pick<SetupStatus, "named_demo" | "example_queries" | "demo_tour">,
+  status: Pick<SetupStatus, "named_demo" | "example_queries" | "demo_tour" | "demo_landing">,
 ): NamedDemo {
   if (status.named_demo === null) return NO_NAMED_DEMO;
   return {
     name: status.named_demo,
     exampleQueries: status.example_queries,
     tour: status.demo_tour,
+    landing: status.demo_landing,
   };
 }
 

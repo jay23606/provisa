@@ -489,6 +489,11 @@ export function TourProvider({ children }: { children: ReactNode }) {
     namedDemo.name === null ? null : demoTrackStamp(namedDemo.name, namedDemo.tour);
   const trackDone = trackStamp !== null && demoTrackDone(trackStamp);
   const allStepsRef = useRef(allSteps);
+  // Where the demo's last card's "Look around on my own" leads; read by the runner's closure.
+  const landingRef = useRef(namedDemo.landing);
+  useEffect(() => {
+    landingRef.current = namedDemo.landing;
+  }, [namedDemo]);
   useEffect(() => {
     allStepsRef.current = allSteps;
   }, [allSteps]);
@@ -569,7 +574,9 @@ export function TourProvider({ children }: { children: ReactNode }) {
   // REQ-1945: the core tour ends on the Deep Dives menu (Done, or its Deep Dives button, "deepdives"),
   // and so does every topic however it ends; only a dismissed core tour saves a position instead.
   const endTour = useCallback(
-    (how: "completed" | "dismissed" | "deepdives") => {
+    // "landed": a named demo's track walked to its end, left with "Look around on my own" -- done,
+    // and no menu: the visitor is taken to the demo's landing page instead.
+    (how: "completed" | "dismissed" | "deepdives" | "landed") => {
       setStatus(null);
       setStored(TOUR_SEEN_KEY, "true", { global: true });
       const scope = scopeRef.current;
@@ -578,11 +585,11 @@ export function TourProvider({ children }: { children: ReactNode }) {
       } else if (scope === "core" && activeStepRef.current != null) {
         setStored(TOUR_PROGRESS_KEY, String(activeStepRef.current), { global: true });
       }
-      if (how === "completed" && scope === "demo" && trackStamp !== null)
+      if ((how === "completed" || how === "landed") && scope === "demo" && trackStamp !== null)
         setStored(DEMO_TRACK_DONE_KEY, trackStamp);
       else if (how === "completed" && scope && scope !== "core" && scope !== "demo")
         markTopicCompleted(scope);
-      if (how !== "dismissed" || scope !== "core") openMenu();
+      if (how !== "landed" && (how !== "dismissed" || scope !== "core")) openMenu();
       cleanupPrep();
       closeTourPolly();
       // Null the ref before destroy so onDestroyed treats this as an intentional end, not a dismissal.
@@ -741,12 +748,22 @@ export function TourProvider({ children }: { children: ReactNode }) {
         const pos = steps.indexOf(i);
         const isFirst = pos === 0;
         const isLast = pos === steps.length - 1;
+        // REQ-2010: a named demo's track ends on a choice -- the Deep Dives menu, or the demo's own
+        // landing page -- not on a Done that rolls into another tour.
+        const landing = scopeRef.current === "demo" && isLast ? landingRef.current : null;
+        const ends = landing !== null;
         driverRef.current.highlight({
           element,
           popover: {
             title: t(`tour.steps.${step.key}.title`),
             description: t(`tour.steps.${step.key}.description`),
-            showButtons: isFirst ? ["next", "close"] : ["previous", "next", "close"],
+            showButtons: ends
+              ? isFirst
+                ? ["close"]
+                : ["previous", "close"]
+              : isFirst
+                ? ["next", "close"]
+                : ["previous", "next", "close"],
             nextBtnText: isLast
               ? t("tour.nav.done")
               : t("tour.nav.next", { current: pos + 1, total: steps.length }),
@@ -793,6 +810,40 @@ export function TourProvider({ children }: { children: ReactNode }) {
                   setActiveStep(steps[0]);
                 });
                 popover.footerButtons.prepend(startBtn);
+              }
+              if (landing !== null) {
+                const choice = document.createElement("div");
+                choice.className = "tour-where-next";
+                choice.dataset.testid = "tour-where-next";
+                const heading = document.createElement("p");
+                heading.className = "tour-where-next-heading";
+                heading.textContent = t("tour.nav.whereNext");
+                const buttons = document.createElement("div");
+                buttons.className = "tour-where-next-buttons";
+                const deep = document.createElement("button");
+                deep.type = "button";
+                deep.dataset.testid = "tour-where-next-deep-dives";
+                deep.textContent = t("tour.nav.exploreDeepDives");
+                deep.addEventListener("click", () => {
+                  clickIfPresent(step.clickAfterNext);
+                  endTour("completed"); // done, and the Deep Dives menu opens
+                });
+                const own = document.createElement("button");
+                own.type = "button";
+                own.dataset.testid = "tour-where-next-own";
+                own.textContent = t("tour.nav.lookAround");
+                own.addEventListener("click", () => {
+                  clickIfPresent(step.clickAfterNext);
+                  endTour("landed");
+                  navigate(landing.route);
+                });
+                buttons.append(deep, own);
+                const note = document.createElement("p");
+                note.className = "tour-where-next-note";
+                note.textContent = t("tour.nav.anyTime");
+                choice.append(heading, buttons, note);
+                popover.footer.before(choice);
+                return; // the choice is the card's way on: no Deep Dives button beside it
               }
               // REQ-1945: every card, core or topic, can leave for the Deep Dives menu at once.
               {

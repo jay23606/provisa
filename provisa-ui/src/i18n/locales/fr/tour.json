@@ -6,7 +6,11 @@
       "back": "Précédent",
       "start": "Démarrer",
       "docs": "Docs",
-      "deepDives": "Approfondir"
+      "deepDives": "Approfondir",
+      "whereNext": "Et maintenant ?",
+      "exploreDeepDives": "Explorer les Deep Dives",
+      "lookAround": "Regarder par moi-même",
+      "anyTime": "Vous pouvez relancer la visite ou ouvrir les Deep Dives à tout moment depuis le bouton de la visite."
     },
     "welcome": {
       "title": "Suivre la visite guidée ?",
@@ -314,7 +318,7 @@
       },
       "weblogsDone": {
         "title": "Ce que vous venez de voir",
-        "description": "Trois sources sont devenues des tables, une relation a joint les deux journaux sur un identifiant de requête, et la question de la boutique a reçu sa réponse à partir d'elles, en SQL et en REST, avec les mêmes droits. Terminé ouvre le menu des autres visites."
+        "description": "Trois sources sont devenues des tables, jointes sur un identifiant de requête, et ont répondu à la question de la boutique en SQL et en REST."
       },
       "sonnetsIntro": {
         "title": "Les sonnets de Shakespeare, par le sens",
@@ -354,7 +358,7 @@
       },
       "sonnetsDone": {
         "title": "Des lignes à un graphe",
-        "description": "Un seul modèle a mené les vers de Shakespeare des lignes de Postgres aux vecteurs de Qdrant, à des recherches conservées en vues, à un graphe où un vers ECHOES d'autres vers et EVOKES ses thèmes. Chaque étape était une instruction ou une commande que Provisa gouverne."
+        "description": "Les vers de Shakespeare sont passés de lignes Postgres à des vecteurs Qdrant, à des recherches gouvernées et à un graphe d'échos et de thèmes."
       },
       "weblogsStatements": {
         "title": "Le SQL derrière une page lente",

@@ -348,3 +348,22 @@ def test_each_surface_s_call_on_the_demo_is_accepted():
             },
         ],
     )
+
+
+@pytest.mark.parametrize("path", TOURS, ids=[p.parent.name for p in TOURS])
+def test_every_tour_ends_on_a_landing_page_the_ui_has(path):
+    """The last step's "Look around on my own" leaves the visitor on the page the demo names:
+    one the app routes, with the right its gate needs."""
+    landing = yaml.safe_load(path.read_text())["landing"]
+    assert set(landing) == {"route", "capability"}, landing
+    gates = _route_capabilities()
+    assert landing["route"] in gates, f"{path.parent.name}: no page at {landing['route']}"
+    assert gates[landing["route"]] == landing["capability"], landing
+
+
+def test_the_setup_status_carries_the_demo_s_landing_page():
+    assert demo.demo_landing(_NAMED / "weblogs") == {
+        "route": "/sql",
+        "capability": "query_development",
+    }
+    assert demo.demo_landing(None) is None

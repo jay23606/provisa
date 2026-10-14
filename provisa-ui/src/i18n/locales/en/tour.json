@@ -6,7 +6,11 @@
       "back": "Back",
       "start": "Start",
       "docs": "Docs",
-      "deepDives": "Deep Dives"
+      "deepDives": "Deep Dives",
+      "whereNext": "Where next?",
+      "exploreDeepDives": "Explore the Deep Dives",
+      "lookAround": "Look around on my own",
+      "anyTime": "You can restart the tour or open the Deep Dives any time from the tour button."
     },
     "welcome": {
       "title": "Take the guided tour?",
@@ -314,7 +318,7 @@
       },
       "weblogsDone": {
         "title": "What you just saw",
-        "description": "Three sources became tables, a relationship joined the two logs on a request id, and the shop's question was answered from them in SQL and over REST, under the same rights. Done opens the menu of the other tours."
+        "description": "Three sources became tables, joined on a request id, and answered the shop's question in SQL and over REST."
       },
       "sonnetsIntro": {
         "title": "Shakespeare's sonnets, by meaning",
@@ -354,7 +358,7 @@
       },
       "sonnetsDone": {
         "title": "From rows to a graph",
-        "description": "One model took Shakespeare's lines from Postgres rows to vectors in Qdrant, to searches stored as views, to a graph where a line ECHOES other lines and EVOKES its themes. Every step was a statement or a command Provisa governs."
+        "description": "Shakespeare's lines went from Postgres rows to Qdrant vectors, governed searches and a graph of echoes and themes."
       },
       "weblogsStatements": {
         "title": "The SQL behind a slow page",

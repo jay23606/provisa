@@ -5950,7 +5950,7 @@
   "ru/tour.json::tour.status.starting": "Starting the tour. Please wait…",
   "ru/tour.json::tour.status.stuck": "This step is taking longer than expected. The page may still be loading.",
   "ru/tour.json::tour.status.waiting": "Waiting for this page to finish loading…",
-  "ru/tour.json::tour.steps.sonnetsDone.description": "One model took Shakespeare's lines from Postgres rows to vectors in Qdrant, to searches stored as views, to a graph where a line ECHOES other lines and EVOKES its themes. Every step was a statement or a command Provisa governs.",
+  "ru/tour.json::tour.steps.sonnetsDone.description": "Shakespeare's lines went from Postgres rows to Qdrant vectors, governed searches and a graph of echoes and themes.",
   "ru/tour.json::tour.steps.sonnetsDone.title": "From rows to a graph",
   "ru/tour.json::tour.steps.sonnetsEchoNetwork.description": "The echo network, drawn by Cypher: the lines that closely echo a line of another sonnet, and the sonnets they are in. Look for the sonnets joined by more than one echo.",
   "ru/tour.json::tour.steps.sonnetsEchoNetwork.title": "The echo network",
@@ -6084,7 +6084,7 @@
   "ru/tour.json::tour.steps.stepTestDataMap.title": "How the parts fit",
   "ru/tour.json::tour.steps.stepTestDataProfiler.description": "📊 A <strong>Data Profiler</strong> measures the tables you add to it: column shapes, distributions, value frequencies and children per parent. <strong>Fill from profile</strong> turns those measures into fakes, and a synthetic dataset draws its rows from them. Watching the same runs for drift is covered in the <strong>Data quality</strong> Deep Dive.",
   "ru/tour.json::tour.steps.stepTestDataProfiler.title": "What fakes and synthetic data are built from",
-  "ru/tour.json::tour.steps.weblogsDone.description": "Three sources became tables, a relationship joined the two logs on a request id, and the shop's question was answered from them in SQL and over REST, under the same rights. Done opens the menu of the other tours.",
+  "ru/tour.json::tour.steps.weblogsDone.description": "Three sources became tables, joined on a request id, and answered the shop's question in SQL and over REST.",
   "ru/tour.json::tour.steps.weblogsDone.title": "What you just saw",
   "ru/tour.json::tour.steps.weblogsJoin.description": "nginx gives every request an id, and the shop names each database connection after it. The <strong>LOGGED_FOR</strong> relationship tells Provisa to join a statement to its request on that id, so no query has to spell out the join.",
   "ru/tour.json::tour.steps.weblogsJoin.title": "One request, two logs",
@@ -6208,5 +6208,9 @@
   "ru/whatsNew.json::whatsNew.features": "Features",
   "ru/whatsNew.json::whatsNew.general": "General",
   "ru/whatsNew.json::whatsNew.released": "Released {{date}}",
-  "ru/whatsNew.json::whatsNew.title": "What's new in {{version}}"
+  "ru/whatsNew.json::whatsNew.title": "What's new in {{version}}",
+  "ru/tour.json::tour.nav.whereNext": "Where next?",
+  "ru/tour.json::tour.nav.exploreDeepDives": "Explore the Deep Dives",
+  "ru/tour.json::tour.nav.lookAround": "Look around on my own",
+  "ru/tour.json::tour.nav.anyTime": "You can restart the tour or open the Deep Dives any time from the tour button."
 }

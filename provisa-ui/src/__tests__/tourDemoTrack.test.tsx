@@ -14,7 +14,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, act, fireEvent } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { useNavPayload } from "../hooks/useNavPayload";
 import { MantineProvider } from "@mantine/core";
 import {
@@ -195,6 +195,7 @@ const WEBLOGS: NamedDemo = {
     },
     { key: "weblogsDbLog", source: "shop_db_log" },
   ],
+  landing: null,
 };
 
 function Launcher() {
@@ -212,6 +213,11 @@ function Launcher() {
   );
 }
 
+/** Where the app is: the page a tour's end leaves the visitor on. */
+function Where() {
+  return <output data-testid="where">{useLocation().pathname}</output>;
+}
+
 function renderTour(demo: NamedDemo) {
   return render(
     <MantineProvider>
@@ -219,6 +225,7 @@ function renderTour(demo: NamedDemo) {
         <NamedDemoContext.Provider value={demo}>
           <TourProvider>
             <Launcher />
+            <Where />
             {/* The demo's objects, as the Sources page paints them. */}
             <table>
               <tbody>
@@ -344,7 +351,7 @@ describe("the tour button in a named demo", () => {
   it("runs the product tour where no named demo has a tour", async () => {
     const { STANDARD_DEMO_ORG } = await import("../test-utils/tourOrg");
     org.current = STANDARD_DEMO_ORG;
-    renderTour({ name: null, exampleQueries: [], tour: [] });
+    renderTour({ name: null, exampleQueries: [], tour: [], landing: null });
     fireEvent.click(screen.getByText("launch"));
     await act(async () => chunksResolve());
     await act(async () => vi.advanceTimersByTime(2000));
@@ -354,9 +361,59 @@ describe("the tour button in a named demo", () => {
   });
 });
 
+describe("the end of a named demo's tour: where next?", () => {
+  // A demo that names its landing page ends on a choice, never on a Done into another tour.
+  const ENDING: NamedDemo = {
+    ...WEBLOGS,
+    landing: { route: "/sql", capability: "query_development" },
+  };
+
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+  afterEach(() => vi.useRealTimers());
+
+  async function toTheLastCard() {
+    renderTour(ENDING);
+    fireEvent.click(screen.getByText("launch"));
+    await act(async () => chunksResolve());
+    expect(await screen.findByText("tour.steps.weblogsSources.title")).toBeInTheDocument();
+    fireEvent.click(document.querySelector<HTMLElement>(".driver-popover-next-btn")!);
+    expect(await screen.findByText("tour.steps.weblogsDbLog.title")).toBeInTheDocument();
+    // The last card: the choice, its note, and no Done or second Deep Dives button beside it.
+    expect(screen.getByText("tour.nav.whereNext")).toBeInTheDocument();
+    expect(screen.getByText("tour.nav.anyTime")).toBeInTheDocument();
+    expect(document.querySelector(".driver-popover-next-btn")).not.toBeVisible();
+    expect(screen.queryByTestId("tour-deep-dives")).toBeNull();
+  }
+
+  it("Explore the Deep Dives opens the Deep Dives menu and marks the track walked", async () => {
+    await toTheLastCard();
+    fireEvent.click(screen.getByTestId("tour-where-next-deep-dives"));
+    expect(await screen.findByTestId("tour-menu")).toBeInTheDocument();
+    expect(localStorage.getItem(storageKey("provisa_tour_demo_track_done"))).toBe(
+      demoTrackStamp("weblogs", ENDING.tour),
+    );
+  });
+
+  it("Look around on my own ends the tour on the demo's landing page, the track walked", async () => {
+    await toTheLastCard();
+    fireEvent.click(screen.getByTestId("tour-where-next-own"));
+    await act(async () => {});
+    expect(screen.getByTestId("where")).toHaveTextContent("/sql");
+    expect(screen.queryByTestId("tour-menu")).toBeNull(); // no menu: the visitor looks around
+    expect(document.querySelector(".driver-popover")).toBeNull();
+    expect(localStorage.getItem(storageKey("provisa_tour_demo_track_done"))).toBe(
+      demoTrackStamp("weblogs", ENDING.tour),
+    );
+  });
+});
+
 describe("a freshly onboarded org, started as no named demo", () => {
   // The status of a deployment no named demo was started as: the onboard-org flow's.
-  const FRESH = { named_demo: null, example_queries: [], demo_tour: [] };
+  const FRESH = { named_demo: null, example_queries: [], demo_tour: [], demo_landing: null };
 
   beforeEach(() => {
     localStorage.clear();
@@ -436,6 +493,7 @@ describe("a demo step's statement", () => {
               tour: [
                 { key: "s1", route: "/sql", capability: "query_development", sql: "SELECT 1" },
               ],
+              landing: null,
             }}
           >
             <TourProvider>

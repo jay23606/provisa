@@ -6,7 +6,11 @@
       "back": "戻る",
       "start": "開始",
       "docs": "ドキュメント",
-      "deepDives": "ディープダイブ"
+      "deepDives": "ディープダイブ",
+      "whereNext": "次はどこへ?",
+      "exploreDeepDives": "Deep Dives を見る",
+      "lookAround": "自分で見て回る",
+      "anyTime": "ツアーボタンから、いつでもツアーをやり直したり Deep Dives を開いたりできます。"
     },
     "welcome": {
       "title": "ガイドツアーを開始しますか？",
@@ -314,7 +318,7 @@
       },
       "weblogsDone": {
         "title": "ここまでの内容",
-        "description": "3 つのソースがテーブルになり、リレーションシップが 2 つのログをリクエスト ID で結合し、ショップの問いにそこから同じ権限のもとで SQL と REST が答えました。「完了」でほかのツアーのメニューが開きます。"
+        "description": "3 つのソースがテーブルになり、リクエスト ID で結合され、ショップの問いに SQL と REST で答えました。"
       },
       "sonnetsIntro": {
         "title": "意味で読むシェイクスピアのソネット",
@@ -354,7 +358,7 @@
       },
       "sonnetsDone": {
         "title": "行からグラフへ",
-        "description": "1つのモデルが、シェイクスピアの行を Postgres のレコードから Qdrant のベクトルへ、ビューとして保存された検索へ、そして行がほかの行を ECHOES しテーマを EVOKES するグラフへと運びました。どの手順も Provisa が統制する文かコマンドでした。"
+        "description": "シェイクスピアの詩行は Postgres の行から Qdrant のベクトル、統制された検索、そして響き合いとテーマのグラフになりました。"
       },
       "weblogsStatements": {
         "title": "遅いページの背後にある SQL",
