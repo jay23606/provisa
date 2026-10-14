@@ -282,6 +282,21 @@ def _build_junction_meta(  # REQ-1586
     )
 
 
+class RelationshipFieldTaken(ValueError):
+    """Two relationships of one GraphQL type named for one field (REQ-194): refused, naming both,
+    rather than one replacing the other in the schema."""
+
+    def __init__(self, type_name: str, field: str, held_by: str, refused: str) -> None:
+        self.type_name = type_name
+        self.field = field
+        self.held_by = held_by
+        self.refused = refused
+        super().__init__(
+            f"relationship {refused!r} would be field {field!r} of {type_name}, which "
+            f"relationship {held_by!r} already is: give one of them its own GraphQL alias"
+        )
+
+
 def _register_relationship_joins(
     si: object,  # object-ok: circular import boundary — SchemaInput imported inside function body
     ctx: CompilationContext,
@@ -292,6 +307,8 @@ def _register_relationship_joins(
     from provisa.compiler.schema_gen import SchemaInput
 
     assert isinstance(si, SchemaInput)
+    # (type, field) -> the relationship holding it: two relationships never share a field.
+    joined_by: dict[tuple[str, str], str] = {}
     for rel in si.relationships:
         src_id = rel["source_table_id"]
         tgt_id = rel["target_table_id"]
@@ -343,6 +360,14 @@ def _register_relationship_joins(
         )
 
         join_field_name = rel.get("graphql_alias") or _join_field_name(rel, tgt_info, table_lookup)
+        held = joined_by.get((src_info.type_name, join_field_name))
+        if held is not None:
+            # Two relationships of one type under one field: the later replaced the earlier and
+            # one was gone from the schema, with nothing said. Refused, naming both.
+            raise RelationshipFieldTaken(
+                src_info.type_name, join_field_name, held, rel.get("id") or "(unnamed)"
+            )
+        joined_by[(src_info.type_name, join_field_name)] = rel.get("id") or "(unnamed)"
         ctx.joins[(src_info.type_name, join_field_name)] = JoinMeta(
             source_column=rel["source_column"],
             target_column=rel["target_column"],

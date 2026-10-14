@@ -90,9 +90,12 @@ relationships:
   target_table_id: adopter
   target_column: adopter_id
   cardinality: many-to-one
+  # Both reach adopter: each names its own GraphQL field, or the two would be one field.
+  graphql_alias: referrer
 - id: adopter-referral-to-referred
   source_table_id: adopter_referral
   source_column: referred_id
   target_table_id: adopter
   target_column: adopter_id
   cardinality: many-to-one
+  graphql_alias: referred
