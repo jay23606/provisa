@@ -27,8 +27,7 @@ from __future__ import annotations
 
 _TENANT = "Owning org — control-plane rows are isolated per tenant by this column"
 
-TABLE_DESCRIPTIONS: dict[str, str] = {
-    # meta
+_META: dict[str, str] = {
     "registered_tables": "Every table, view, and data product Provisa knows about, and the "
     "per-table governance and materialization settings that apply to it",
     "table_columns": "The columns of each registered table, with their masking rules, visibility "
@@ -60,7 +59,9 @@ TABLE_DESCRIPTIONS: dict[str, str] = {
     "glossary_term_edges": "The term graph — how terms relate to one another, with both "
     "endpoint names",
     "glossary_term_experts": "Who owns or authored each term, for routing a definition question",
-    # ops
+}
+
+_OPS: dict[str, str] = {
     "query_audit_log": "One row per governed statement: who ran it, under which role, over which "
     "protocol surface, and how it ended",
     "usage_ranking": "Query volume and distinct consumers per registered table; a table with "
@@ -92,6 +93,22 @@ TABLE_DESCRIPTIONS: dict[str, str] = {
     "joining the platform-plane org record to the tenant-plane role assignment",
     "queries": "One row per statement Provisa executed, from the audit log — who ran it, under "
     "which role, over which transport, against which table, how long it took and how it ended",
+}
+
+# A model reading the catalog took ops.query_audit_log -- its route, status_code and duration_ms
+# -- for the organisation's web log, and answered "the most requested page is `engine`" (Polly
+# bake-off run 38630859730). Each built-in table says whose record it is.
+_META_OWN = (
+    ". Provisa's own catalog metadata about the data it governs, not the organisation's data"
+)
+_OPS_OWN = (
+    ". Provisa's own record of the queries and activity run through it, not the "
+    "organisation's application traffic or logs"
+)
+
+TABLE_DESCRIPTIONS: dict[str, str] = {
+    **{name: text + _META_OWN for name, text in _META.items()},
+    **{name: text + _OPS_OWN for name, text in _OPS.items()},
 }
 
 COLUMN_DESCRIPTIONS: dict[str, dict[str, str]] = {
@@ -359,10 +376,12 @@ COLUMN_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "table_names": "Those tables by qualified name (source.schema.table) as they were when "
         "the statement ran, in the same order",
         "source": "Protocol surface the statement arrived on (http, grpc, pgwire, bolt, …)",
-        "status_code": "How the statement ended — 200 success, 403 denied by governance",
+        "status_code": "How the Provisa statement ended — 200 success, 403 denied by "
+        "governance; not an application's HTTP status",
         "duration_ms": "Wall-clock milliseconds the statement took",
         "logged_at": "When the row was written",
-        "route": "How the statement was answered — cache, direct (one source) or engine",
+        "route": "How Provisa answered the statement — cache, direct (one source) or engine; "
+        "not a web page path",
         "row_count": "Rows the statement delivered",
         "route_reason": "Why the statement took its route",
         "sources": "Sources the statement read",
@@ -558,12 +577,14 @@ COLUMN_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "trace_id": "Trace of the request the statement ran in — joins to traces",
         "logged_at": "When the statement finished (UTC)",
         "duration_ms": "Elapsed milliseconds",
-        "status_code": "Outcome of the statement — 200 served, 4xx refused, 5xx failed",
+        "status_code": "Outcome of the Provisa statement — 200 served, 4xx refused, 5xx failed; "
+        "not an application's HTTP status",
         "user_id": "User who ran the statement",
         "role_id": "Role the statement executed under",
         "source": "Transport the statement arrived on (http, pgwire, flight, bolt, grpc, …)",
-        "route": "How the statement was answered — cache, direct, engine or api (comma-joined "
-        "when a GraphQL request's fields took different routes); empty when it was refused",
+        "route": "How Provisa answered the statement — cache, direct, engine or api (comma-joined "
+        "when a GraphQL request's fields took different routes), not a web page path; empty "
+        "when it was refused",
         "row_count": "Rows the statement delivered; empty when it failed or was refused",
         "query_hash": "SHA-256 of the statement text; the text itself is read per statement by "
         "an admin and is never a column",

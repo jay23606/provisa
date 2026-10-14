@@ -1323,15 +1323,87 @@ class TestTheLastRoundAnswers:
         assert events[-3] == chat_mod._STEPS_SPENT
         assert [e["type"] for e in events[-2:]] == ["usage", "done"]
 
-    async def test_the_aisuite_last_round_is_asked_to_call_no_tool(self, monkeypatch, tmp_path):
+    async def _aisuite_rounds(self, monkeypatch, tmp_path, config: str, replies: list) -> list:
         import os
 
         cfg = tmp_path / "provisa.yaml"
-        cfg.write_text("sources: []\nai_models:\n  mcp_chat: {vendor: openai, model: gpt-5}\n")
+        cfg.write_text(config)
         monkeypatch.setitem(os.environ, "PROVISA_CONFIG", str(cfg))
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
-        holder = _install_fake_aisuite(monkeypatch, [_stop_reply()])
+        monkeypatch.setenv("GATEWAY_KEY", "sk-test")
+        monkeypatch.setattr(mcp_tools, "list_schemas", lambda *_a, **_k: _async_result([]))
+        holder = _install_fake_aisuite(monkeypatch, replies)
         convo = [{"role": "user", "content": "go"}]
-        async for _ in chat_mod.run_chat(_state(), "analyst", convo, max_iterations=1):
+        async for _ in chat_mod.run_chat(_state(), "analyst", convo, max_iterations=2):
             pass
-        assert holder["provider"].calls[0]["tool_choice"] == "none"
+        return holder["provider"].calls
+
+    async def test_the_aisuite_last_round_is_sent_without_tools(self, monkeypatch, tmp_path):
+        # OpenRouter's Gemini and Qwen routes answered tool_choice "none" with more tool calls
+        # (bake-off run 38630859730): a round with no tools has none to call.
+        call = SimpleNamespace(
+            id="c1", function=SimpleNamespace(name="list_schemas", arguments="{}")
+        )
+        calls = await self._aisuite_rounds(
+            monkeypatch,
+            tmp_path,
+            "sources: []\nai_models:\n  mcp_chat: {vendor: openai, model: gpt-5}\n",
+            [
+                SimpleNamespace(
+                    choices=[
+                        SimpleNamespace(
+                            message=SimpleNamespace(content=None, tool_calls=[call]),
+                            finish_reason="tool_calls",
+                        )
+                    ]
+                ),
+                _stop_reply(),
+            ],
+        )
+        first, last = calls
+        assert first["tools"] and "tool_choice" not in first
+        assert "tools" not in last and "tool_choice" not in last
+
+    async def test_an_anthropic_wire_last_round_keeps_its_tools_and_calls_none(
+        self, monkeypatch, tmp_path
+    ):
+        calls = await self._aisuite_rounds(
+            monkeypatch,
+            tmp_path,
+            yaml.safe_dump(
+                {
+                    "sources": [],
+                    "ai_endpoints": [
+                        {
+                            "id": "gw",
+                            "style": "anthropic",
+                            "base_url": "https://gw.example",
+                            "api_key_env": "GATEWAY_KEY",
+                        }
+                    ],
+                    "ai_models": {"mcp_chat": {"vendor": "gw", "model": "claude-x"}},
+                }
+            ),
+            [
+                SimpleNamespace(
+                    choices=[
+                        SimpleNamespace(
+                            message=SimpleNamespace(
+                                content=None,
+                                tool_calls=[
+                                    SimpleNamespace(
+                                        id="c1",
+                                        function=SimpleNamespace(
+                                            name="list_schemas", arguments="{}"
+                                        ),
+                                    )
+                                ],
+                            ),
+                            finish_reason="tool_calls",
+                        )
+                    ]
+                ),
+                _stop_reply(),
+            ],
+        )
+        assert calls[1]["tools"] and calls[1]["tool_choice"] == {"type": "none"}

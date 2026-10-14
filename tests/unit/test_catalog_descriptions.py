@@ -157,3 +157,16 @@ class TestTheSeedCarriesTheDescriptions:
             assignments = call.kwargs["set_extra"]
             assert "description" in assignments
             assert "coalesce" in str(assignments["description"]).lower()
+
+
+def test_every_built_in_table_says_it_is_provisas_own_record():
+    """A model took ops.query_audit_log (route, status_code, duration_ms) for the organisation's
+    web log and answered "the most requested page is `engine`" (bake-off run 38630859730)."""
+    from provisa.api._catalog_descriptions import COLUMN_DESCRIPTIONS, TABLE_DESCRIPTIONS
+
+    assert all("Provisa's own" in text for text in TABLE_DESCRIPTIONS.values())
+    assert "not the organisation's application traffic" in TABLE_DESCRIPTIONS["query_audit_log"]
+    assert "not a web page path" in COLUMN_DESCRIPTIONS["query_audit_log"]["route"]
+    assert (
+        "not an application's HTTP status" in COLUMN_DESCRIPTIONS["query_audit_log"]["status_code"]
+    )

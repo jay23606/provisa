@@ -1827,10 +1827,17 @@ async def _run_chat_aisuite(
 
     for round_no in range(max_iterations):
         oa_messages = [system_message, *_wire_convo_to_openai_messages(convo)]
-        # REQ-1838: the last round calls no tool (see the Anthropic loop), as the provider names it.
-        last = (
-            {"tool_choice": {"type": "none"} if provider_key == "anthropic" else "none"}
-            if round_no == max_iterations - 1
+        # REQ-1838: the last round calls no tool (see the Anthropic loop). It is sent with no
+        # tools at all: OpenRouter's Gemini and Qwen routes answered tool_choice "none" with more
+        # tool calls (bake-off run 38630859730), and an OpenAI-wire call takes a history of tool
+        # calls without their definitions. Anthropic requires the definitions whenever the
+        # history holds tool_use blocks, so an Anthropic-wire endpoint keeps them, with
+        # tool_choice none.
+        tooling: dict[str, Any] = (
+            {"tools": openai_tools}
+            if round_no < max_iterations - 1
+            else {"tools": openai_tools, "tool_choice": {"type": "none"}}
+            if provider_key == "anthropic"
             else {}
         )
         # aisuite providers are synchronous (no async client) — off the event loop, same reasoning
@@ -1839,9 +1846,8 @@ async def _run_chat_aisuite(
             provider.chat_completions_create,
             model_name,
             oa_messages,
-            tools=openai_tools,
+            **tooling,
             **cap,
-            **last,
             **extra,
         )
         usage = usage + polly_usage.from_openai(resp.usage)
