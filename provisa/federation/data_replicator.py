@@ -267,6 +267,10 @@ MAILBOXES_AT_QUOTA = "replication.mailboxes_at_quota"
 #: ``committed`` failed): the copy is whole, and the next check will ask for the read again.
 PLACE_NOT_KEPT = "replication.place_not_kept"
 
+#: The build completed, but the indexes its replica is to carry could not be planned (REQ-2015):
+#: the replica is read without them until a landing plans them.
+INDEXES_NOT_PLANNED = "replication.indexes_not_planned"
+
 
 def mailboxes_at_quota_note(accounts: list[str]) -> BuildNote | None:
     """The build's note for the mailboxes left out because they are at their storage quota,

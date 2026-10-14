@@ -51,6 +51,7 @@
       "mailboxes_at_quota": "Ausgelassene Postfächer, weil ihr Speicherkontingent erreicht ist und Microsoft ihre Änderungen erst wieder nachverfolgt, wenn Platz frei wird: {{total}}. Es sind: {{accounts}}",
       "mailboxes_failed": "Postfächer, deren Lesen mittendrin fehlgeschlagen ist: {{total}}. Was von ihnen gelesen wurde, bleibt erhalten, und das Lesen wird bei der nächsten Aktualisierung fortgesetzt. Es sind: {{accounts}}",
       "place_not_kept": "Diese Kopie ist vollständig, aber es konnte nicht festgehalten werden, wie weit ihr Lesevorgang kam; die nächste Änderungsprüfung fordert den Lesevorgang daher erneut an: {{reason}}",
+      "indexes_not_planned": "Diese Kopie ist vollständig und lesbar, aber ihre Indizes konnten nicht geplant werden; sie wird daher ohne sie gelesen, bis sie neu erstellt wird: {{reason}}",
       "andMore": "{{ids}} und {{more}} weitere",
       "other": "Der letzte Build hat vermerkt: {{code}}"
     },

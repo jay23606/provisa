@@ -33,6 +33,12 @@ class BigQueryBackend(NativeEngineBackend):
         # URL is optional — project/location fall back to $GOOGLE_CLOUD_PROJECT / $BIGQUERY_LOCATION.
         return BigQueryFederationRuntime(url=configured_engine_url())
 
+    def replica_indexer(self, state: Any, *, address: Any) -> Any:
+        """REQ-2015: none. This engine's replicas live in its own warehouse (``replica_target``):
+        a BigQuery table is ordered by its own partitioning and clustering, and has no secondary index to build."""
+        del state, address
+        return None
+
     def replica_target(self, state: Any, *, address: Any, args: Any, engine: Any) -> Any:
         """A replica in this project's replicas dataset: Arrow batches through one pending
         Storage Write stream into a build table, then the replica's rows replaced from it in

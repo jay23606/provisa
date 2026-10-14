@@ -47,6 +47,7 @@ from typing import Any
 from provisa.core import process_mode, request_deadline
 from provisa.federation import replica_state as build_state
 from provisa.federation.data_replicator import (
+    INDEXES_NOT_PLANNED,
     PLACE_NOT_KEPT,
     BuildNote,
     BuildOutcome,
@@ -150,6 +151,8 @@ class ReplicaRunner:
             Awaitable[dict[ReplicaKey, "BuildOutcome | BaseException"]],
         ]
         | None = None,
+        plan_indexes: Callable[[ReplicaKey, datetime], Awaitable[None]] | None = None,
+        build_indexes: Callable[[Any], Awaitable[None]] | None = None,
     ) -> None:
         self._db = db
         self._org_id = org_id
@@ -170,6 +173,11 @@ class ReplicaRunner:
         # runs that one read for the claimed ones.
         self._group_of = group_of
         self._build_group = build_group
+        # REQ-2015: ``plan_indexes`` records the indexes a landing asks for once it is recorded;
+        # ``build_indexes`` builds those still due, after the landing, under the replica's index
+        # lock (never its build lock: a landing does not wait on its indexes).
+        self._plan_indexes = plan_indexes
+        self._build_indexes = build_indexes
         self._holder = f"{socket.gethostname()}:{os.getpid()}"
         # Set when the process shuts down: no build is claimed or started after it, so nothing
         # rebuilds the engine's runtime after the engine has been closed.
@@ -223,7 +231,48 @@ class ReplicaRunner:
                 break
             self._spawn(self._run(job), name=f"replica-build:{'.'.join(job.key)}")
             started += 1
+        await self._start_index_builds()
         return started
+
+    async def _start_index_builds(self) -> None:
+        """REQ-2015: start building the indexes each standing replica's landing asked for and
+        has not had, one job per replica, under the replica's index lock (a replica whose
+        indexes another process is building is left to it)."""
+        from provisa.federation import replica_indexes
+
+        if self._build_indexes is None:
+            return
+        async with self._db.acquire() as conn:
+            items = await replica_indexes.due(conn)
+        for item in items:
+            claim = self._locks.claim()
+            if not claim.try_indexes(self._org_id, item.key):
+                claim.close()
+                continue
+            self._spawn(self._index_job(item, claim), name=f"replica-index:{'.'.join(item.key)}")
+
+    async def _index_job(self, item: Any, claim: BuildClaim) -> None:
+        assert self._build_indexes is not None
+        try:
+            await self._build_indexes(item)
+        except Exception:  # allow-ble: an index job that cannot start (its table gone, its store unreachable) leaves its indexes due, logged; the next pass tries again and the landing stands
+            log.exception("replica of %s: its index builds did not run", ".".join(item.key))
+        finally:
+            claim.close()
+
+    async def _planned(self, key: ReplicaKey, landed_at: datetime) -> None:
+        """Record the indexes the landing of ``key`` at ``landed_at`` asks for (REQ-2015). A
+        plan that cannot be made leaves the replica without index builds: logged, and noted on
+        its record, never undoing the landing."""
+        if self._plan_indexes is None:
+            return
+        try:
+            await self._plan_indexes(key, landed_at)
+        except Exception as failed:  # allow-ble: the replica is built and recorded; its indexes are its read speed, not its rows, and a failure to plan them is put on the record for the operator
+            log.exception("replica of %s is built, but its indexes were not planned", ".".join(key))
+            note = BuildNote(INDEXES_NOT_PLANNED, {"reason": str(failed) or type(failed).__name__})
+            async with self._db.acquire() as conn:
+                await build_state.add_note(conn, key, note)
 
     async def _abandon(self, job: _Job) -> None:
         """Release a claimed build that will not run, and put its row back to requested."""
@@ -413,6 +462,7 @@ class ReplicaRunner:
                             next_refresh_at=due,
                             now=now,
                         )
+                    await self._planned(key, now)
                     log.info(
                         "replica of %s built: %d rows (%s, one read of %d tables)",
                         ".".join(key),
@@ -486,6 +536,7 @@ class ReplicaRunner:
                         next_refresh_at=due,
                         now=now,
                     )
+                await self._planned(job.key, now)
                 log.info(
                     "replica of %s built: %d rows (%s)",
                     ".".join(job.key),

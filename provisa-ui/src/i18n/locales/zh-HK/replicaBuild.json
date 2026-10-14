@@ -51,6 +51,7 @@
       "mailboxes_at_quota": "因已達到儲存配額、在釋放空間之前 Microsoft 不會追蹤其變更而被排除的信箱：{{total}} 個。它們是：{{accounts}}",
       "mailboxes_failed": "讀取中途失敗的郵箱：{{total}} 個。已讀取的部分會保留，下次重新整理時繼續讀取。它們是：{{accounts}}",
       "place_not_kept": "此複本已完成，但未能儲存其讀取到達的位置，因此下一次變更檢查將再次要求讀取：{{reason}}",
+      "indexes_not_planned": "此副本已完整並可讀取，但無法規劃其索引，因此在重新建置之前將不使用索引讀取：{{reason}}",
       "andMore": "{{ids}} 以及另外 {{more}} 封",
       "other": "上次建置的備註:{{code}}"
     },

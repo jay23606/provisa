@@ -14,6 +14,7 @@
     "admin.md",
     "deployment.md",
     "sizing.md",
+    "replicas.md",
     "import.md",
     "releasing.md",
     "commands.md",

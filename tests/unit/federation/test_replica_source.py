@@ -173,7 +173,6 @@ def test_a_postgresql_store_has_one_write_face_and_other_stores_are_refused_by_n
         "postgresql+psycopg://u:p@h:5432/db",
         address=address,
         columns=COLUMNS,
-        pk_columns=["id"],
         engine_writes_store=False,
         native_vectors=True,
     )
@@ -186,7 +185,6 @@ def test_a_postgresql_store_has_one_write_face_and_other_stores_are_refused_by_n
         "postgresql://h/db",
         address=address,
         columns=COLUMNS,
-        pk_columns=[],
         engine_writes_store=True,
         native_vectors=True,
     )
@@ -199,7 +197,6 @@ def test_a_postgresql_store_has_one_write_face_and_other_stores_are_refused_by_n
             "snowflake://x",
             address=address,
             columns=COLUMNS,
-            pk_columns=[],
             engine_writes_store=False,
             native_vectors=True,
         )

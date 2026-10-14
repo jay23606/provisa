@@ -139,6 +139,81 @@ class DuckDBStoreTarget:
             self._broker.replica_abort(self._schema, self._build)
 
 
+class DuckDBStoreIndexer:
+    """The indexes of one replica in an embedded DuckDB store file (REQ-2015), each built as one
+    operation of the store broker, as every write to the file is: the key as the table's
+    ``PRIMARY KEY``, a join column as an index. The engine reads a replica of this store through
+    its own copy of it, made per statement (``duckdb_runtime._copy_store_table``), so these
+    indexes serve whatever reads the file in place and enforce the key."""
+
+    def __init__(self, broker: Any, *, schema: str, table: str) -> None:
+        self._broker = broker
+        self._schema = schema
+        self._table = table
+
+    async def build(self, spec: Any) -> None:
+        import asyncio
+
+        # Rows the key repeats are named by the broker (``replica_indexes.DuplicateKey``).
+        await asyncio.to_thread(
+            self._broker.replica_index,
+            self._schema,
+            self._table,
+            spec.name,
+            list(spec.columns),
+            primary=spec.primary,
+        )
+
+
+class SqlAlchemyIndexer:
+    """The indexes of one replica in a store a SQLAlchemy engine names (REQ-2015), each as the
+    dialect's own DDL on a connection of its own: an index on a join column, and the key as a
+    constraint where the build did not create the table with it."""
+
+    def __init__(self, sa_engine: Any, *, schema: str, table: str) -> None:
+        self._sa = sa_engine
+        self._schema = schema
+        self._table = table
+
+    async def build(self, spec: Any) -> None:
+        import asyncio
+
+        await asyncio.to_thread(self._build, spec)
+
+    def _build(self, spec: Any) -> None:
+        from sqlalchemy import Column, Index, MetaData, PrimaryKeyConstraint, Table, inspect
+        from sqlalchemy.exc import IntegrityError
+        from sqlalchemy.schema import AddConstraint
+        from sqlalchemy.sql.elements import quoted_name
+
+        from provisa.federation.replica_indexes import DuplicateKey
+
+        schema = quoted_name(self._schema, quote=True)
+        name = quoted_name(self._table, quote=True)
+        table = Table(
+            name,
+            MetaData(),
+            *(Column(quoted_name(c, quote=True)) for c in spec.columns),
+            schema=schema,
+        )
+        with self._sa.connect() as conn:
+            seen = inspect(conn)
+            if spec.primary:
+                if seen.get_pk_constraint(name, schema=schema).get("constrained_columns"):
+                    return
+                key = PrimaryKeyConstraint(*table.c, name=quoted_name(spec.name, quote=True))
+                table.append_constraint(key)
+                try:
+                    conn.execute(AddConstraint(key))
+                except IntegrityError as exc:
+                    raise DuplicateKey(spec.columns, str(exc.orig).splitlines()[0]) from exc
+            else:
+                if any(ix["name"] == spec.name for ix in seen.get_indexes(name, schema=schema)):
+                    return
+                Index(quoted_name(spec.name, quote=True), *table.c).create(conn)
+            conn.commit()
+
+
 #: Database engines on which ClickHouse exchanges two tables atomically.
 _CLICKHOUSE_ATOMIC_ENGINES = frozenset({"Atomic", "Shared"})
 
@@ -330,7 +405,6 @@ def sqlalchemy_store_target(
             schema=schema,
             table=table,
             columns=columns,
-            pk_columns=pk_columns,
             native_vectors=False,
         )
     return SqlAlchemyStoreTarget(
@@ -776,17 +850,94 @@ def _pg_swap(
     schema: str,
     table: str,
     build: str,
-    pk_columns: list[str],
     vectors: list[str],
 ) -> None:
-    """Replace the replica with the build table, inside the caller's transaction."""
+    """Replace the replica with the build table, inside the caller's transaction.
+
+    The replica's key and join indexes are built after the swap, by its index builds
+    (``PostgresIndexer``, REQ-2015): the replica is read from the commit on. An index build
+    still running on the table this swap replaces is cancelled first -- it belonged to that
+    table, and its lock would hold the DROP until it finished."""
     replica = f"{_q(schema)}.{_q(table)}"
+    cur.execute(
+        "SELECT pg_cancel_backend(pid) FROM pg_stat_activity "
+        "WHERE pid <> pg_backend_pid() AND position(%s in query) > 0",
+        (f"/* {_INDEX_BUILD_MARK}{schema}.{table} */",),
+    )
     cur.execute(f"DROP TABLE IF EXISTS {replica}")
     cur.execute(f"ALTER TABLE {_q(schema)}.{_q(build)} RENAME TO {_q(table)}")
-    if pk_columns:
-        key = ", ".join(_q(c) for c in pk_columns)
-        cur.execute(f"ALTER TABLE {replica} ADD PRIMARY KEY ({key})")
     _pg_index_vectors(cur, schema, table, vectors)
+
+
+#: The comment an index build's statement carries, naming its replica: what a swap of that
+#: replica finds the build by (``_pg_swap``).
+_INDEX_BUILD_MARK = "provisa replica index: "
+
+
+class PostgresIndexer:
+    """The indexes of one replica in a PostgreSQL store (REQ-2015), each built without blocking
+    its readers or writers: ``CREATE INDEX CONCURRENTLY`` on its own autocommit connection, and
+    the key as a unique index built so, then made the table's primary key
+    (``ADD CONSTRAINT ... PRIMARY KEY USING INDEX``). An index a cancelled or failed build left
+    invalid is dropped and built again."""
+
+    def __init__(self, store_dsn: str, *, schema: str, table: str) -> None:
+        self._dsn = _libpq_dsn(store_dsn)
+        self._schema = schema
+        self._table = table
+
+    async def build(self, spec: Any) -> None:
+        import asyncio
+
+        await asyncio.to_thread(self._build, spec)
+
+    def _build(self, spec: Any) -> None:
+        import psycopg
+
+        from provisa.federation.replica_indexes import DuplicateKey, IndexBuildAbandoned
+
+        replica = f"{_q(self._schema)}.{_q(self._table)}"
+        index = f"{_q(self._schema)}.{_q(spec.name)}"
+        cols = ", ".join(_q(c) for c in spec.columns)
+        mark = f"/* {_INDEX_BUILD_MARK}{self._schema}.{self._table} */"
+        with psycopg.connect(self._dsn, autocommit=True) as con:
+            cur: Any = con.cursor()
+            if (
+                spec.primary
+                and cur.execute(
+                    "SELECT 1 FROM pg_constraint WHERE conrelid = %s::regclass AND contype = 'p'",
+                    (replica,),
+                ).fetchone()
+            ):
+                return
+            valid = cur.execute(
+                "SELECT i.indisvalid FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid "
+                "JOIN pg_namespace n ON n.oid = c.relnamespace "
+                "WHERE n.nspname = %s AND c.relname = %s",
+                (self._schema, spec.name),
+            ).fetchone()
+            if valid is not None and valid[0] and not spec.primary:
+                return
+            if valid is not None:
+                cur.execute(f"DROP INDEX CONCURRENTLY IF EXISTS {index}")
+            unique = "UNIQUE " if spec.primary else ""
+            try:
+                cur.execute(
+                    f"{mark} CREATE {unique}INDEX CONCURRENTLY {_q(spec.name)} "
+                    f"ON {replica} ({cols})"
+                )
+            except psycopg.errors.UniqueViolation as exc:
+                cur.execute(f"DROP INDEX CONCURRENTLY IF EXISTS {index}")
+                raise DuplicateKey(spec.columns, str(exc).splitlines()[0]) from exc
+            except psycopg.errors.QueryCanceled as exc:
+                # A landing's swap of this replica cancelled it (_pg_swap); what it left is on a
+                # table that is gone.
+                raise IndexBuildAbandoned(spec.name) from exc
+            if spec.primary:
+                cur.execute(
+                    f"ALTER TABLE {replica} ADD CONSTRAINT {_q(spec.name)} "
+                    f"PRIMARY KEY USING INDEX {_q(spec.name)}"
+                )
 
 
 def pg_statement_copy(
@@ -796,7 +947,6 @@ def pg_statement_copy(
     schema: str,
     table: str,
     columns: list[tuple[str, str]],
-    pk_columns: list[str],
     prior_hash: str | None,
     projection: str = "*",
 ) -> tuple[int, str, bool]:
@@ -847,7 +997,7 @@ def pg_statement_copy(
         if content_hash == prior_hash:
             cur.execute("ROLLBACK")
             return copied, content_hash, False
-        _pg_swap(cur, schema, table, build, pk_columns, vectors)
+        _pg_swap(cur, schema, table, build, vectors)
         cur.execute("COMMIT")
     except BaseException:
         cur.execute("ROLLBACK")
@@ -863,8 +1013,8 @@ class PostgresStoreTarget:
     is written into the open COPY, and the swap drops the previous replica and renames the
     build table onto its name before the commit. PostgreSQL applies that atomically: a reader
     sees the previous replica until the commit, and if this process dies the server discards the
-    transaction, build table included. The key is added after the load, on the replica's own
-    name.
+    transaction, build table included. Its key and join indexes are built after it lands
+    (:class:`PostgresIndexer`, REQ-2015).
 
     ``native_vectors`` says the engine reads this store through the store's own SQL, so an
     embedding column is a ``REAL[]`` with an HNSW index (REQ-424); otherwise it is the vector's
@@ -881,7 +1031,6 @@ class PostgresStoreTarget:
         schema: str,
         table: str,
         columns: list[tuple[str, str]],
-        pk_columns: list[str],
         native_vectors: bool,
     ) -> None:
         self._dsn = _libpq_dsn(store_dsn)
@@ -891,7 +1040,6 @@ class PostgresStoreTarget:
         self._vectors = vector_columns(self._columns)
         # An embedding held as text is written as its JSON text.
         self._text_vectors = frozenset(vector_columns(columns)) - frozenset(self._vectors)
-        self._pk = list(pk_columns)
         self._build = build_table_name(table)
         self._conn: Any = None
         self._cur: Any = None
@@ -968,7 +1116,7 @@ class PostgresStoreTarget:
         try:
             self._copy_cm.__exit__(None, None, None)  # ends the COPY; the server has every row
             self._copy = self._copy_cm = None
-            _pg_swap(self._cur, self._schema, self._table, self._build, self._pk, self._vectors)
+            _pg_swap(self._cur, self._schema, self._table, self._build, self._vectors)
             self._conn.commit()
         finally:
             with shield.lock:

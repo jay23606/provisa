@@ -262,3 +262,5 @@ break-even req/s = (refresh CPU s × 1000 / TTL s) / (live ms − replica ms)
 ```
 
 Doubling the TTL halves the break-even rate, and the data can be up to twice as old. Choose the TTL from how stale your users can accept the data to be, then compare your request rate on that source with the break-even at that TTL.
+
+A replica read's cost depends on the store and on its indexes, which are built shortly after each landing. Measure after the indexes are in, and rerun after a change of store. [Replicas](replicas.md) covers the store choice and the freshness strategies.

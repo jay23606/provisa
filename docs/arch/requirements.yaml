@@ -81847,3 +81847,62 @@
     measuring the core UI lane: on a SQLite control plane each statement''s audit commit made the next statement
     re-snapshot and rebuild provisa_admin (~330 ms a query on a laptop), which put the Neo4j export spec past its 300 s
     budget under CI load.'
+- id: REQ-2015
+  status: complete
+  since: 2026-10
+  group: 4. Source Connectors
+  category: Materialization Store
+  feature: replicas-and-freshness-landed-shape
+  priority: MUST
+  type: behavioral
+  description: 'A replica is indexed as its table is used: its declared primary key, enforced as the
+    key, and the columns its declared relationships join on -- the foreign key of each relationship whose
+    source is the table, the target column of one whose target it is when that column is not the key, and
+    both foreign keys of a junction table a relationship traverses. The indexes are built after the replica
+    lands, never in its landing: the replica is read from its swap, and its indexes follow, built by the
+    replica runner under a per-replica index lock that a landing never waits on. PostgreSQL stores build
+    each with CREATE INDEX CONCURRENTLY outside the swap, the key as a unique index made the primary key
+    (ADD CONSTRAINT ... PRIMARY KEY USING INDEX); other SQLAlchemy stores by the dialect''s DDL; the embedded
+    DuckDB store file through its broker. ClickHouse keeps its sorting key (the declared key) and warehouse
+    stores build none. What a landing asked for, what was built and what failed is kept by name on the
+    replica''s record (replica_state.index_state); a failed index is logged with its cause and asked for
+    again by the next landing, never failing the landing. Rows that repeat a declared key are a named failure
+    carrying the key''s columns. A landing that replaces the table while the last one''s indexes are being
+    built leaves them behind (a PostgreSQL swap cancels a build still running on the table it replaces), and
+    the new table gets its own. Index names are fixed by the replica and the columns.'
+  use_case: 'An operator declares orders.customer_id -> customers.id; the replica of orders is readable at once
+    and carries an index on customer_id shortly after, so a join on it reads the index in a PostgreSQL store.'
+  scenario: 'Given orders declares the key id and the relationship orders.customer_id -> customers.id
+
+    When the replica of orders lands in a PostgreSQL store
+
+    Then it is read at once, and after it its primary key on id and an index on customer_id are built
+
+    Given the source holds two orders with the same id
+
+    When the replica lands
+
+    Then the primary key is recorded as failed, naming the column id, and the replica stays readable
+
+    Given a relationship orders.product_id -> products.id is declared after a landing
+
+    When the replica lands again
+
+    Then it also carries an index on product_id'
+  related_reqs: [REQ-1912, REQ-1915, REQ-1916, REQ-424, REQ-826]
+  code:
+  - provisa/federation/replica_indexes.py
+  - provisa/federation/replica_state.py
+  - provisa/federation/replica_runner.py
+  - provisa/federation/replica_builds.py
+  - provisa/federation/replica_target.py
+  - provisa/federation/materialize_broker.py
+  tests:
+  - tests/unit/federation/test_replica_indexes.py
+  - tests/unit/federation/test_replica_index_stores.py
+  notes: 'Maintainer through the lead, 2026-10-13: index the source-side join columns of declared relationships
+    and carry a PRIMARY KEY on DuckDB replicas; builds are asynchronous and never block reads or the next landing;
+    a duplicate key is a data fact the operator needs to see. Embedded DuckDB store: the engine reads a per-statement
+    local copy, so join indexes there do not speed joins (ruling (a): index the store file, leave the copy).
+    Measured: a 2,000,000-row DuckDB replica takes 0.87 s for its key and 0.55 s for a join index (one broker
+    operation each).'

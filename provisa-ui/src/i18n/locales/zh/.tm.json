@@ -3078,6 +3078,7 @@
   "zh/replicaBuild.json::replicaBuild.note.mailboxes_left_out": "Mailboxes left out, because Microsoft or Google says they are not there or may not be read: {{total}}. They are: {{accounts}}",
   "zh/replicaBuild.json::replicaBuild.note.other": "The last build noted: {{code}}",
   "zh/replicaBuild.json::replicaBuild.note.place_not_kept": "This copy is complete, but where its read reached could not be kept, so the next check for changes will ask for the read again: {{reason}}",
+  "zh/replicaBuild.json::replicaBuild.note.indexes_not_planned": "This copy is complete and readable, but its indexes could not be planned, so it is read without them until it is built again: {{reason}}",
   "zh/replicaBuild.json::replicaBuild.note.unreadable_messages": "Messages kept without their text, because a part is not what it declares: {{total}}. Their ids: {{ids}}",
   "zh/replicaBuild.json::replicaBuild.progressAbout": "About {{percent}}%: {{rows}} of about {{total}} rows",
   "zh/replicaBuild.json::replicaBuild.progressMailboxes": "{{done}} of {{total}} mailboxes read",

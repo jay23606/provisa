@@ -51,6 +51,7 @@
       "mailboxes_at_quota": "Buzones omitidos, porque han alcanzado su cuota de almacenamiento y Microsoft no seguirá sus cambios hasta que se libere espacio: {{total}}. Son: {{accounts}}",
       "mailboxes_failed": "Buzones cuya lectura falló a mitad: {{total}}. Lo que se leyó de ellos se conserva y su lectura continúa en la próxima actualización. Son: {{accounts}}",
       "place_not_kept": "Esta copia está completa, pero no se pudo guardar hasta dónde llegó su lectura, por lo que la próxima comprobación de cambios volverá a pedir la lectura: {{reason}}",
+      "indexes_not_planned": "Esta copia está completa y se puede leer, pero no se pudieron planificar sus índices, así que se lee sin ellos hasta que se vuelva a crear: {{reason}}",
       "andMore": "{{ids}} y {{more}} más",
       "other": "La última compilación anotó: {{code}}"
     },

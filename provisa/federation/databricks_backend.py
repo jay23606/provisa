@@ -56,6 +56,12 @@ class DatabricksBackend(NativeEngineBackend):
         counted = runtime.run_sync(result_sink.databricks_count(target), None).rows
         return {"s3_prefix": target.s3_prefix, "row_count": int(counted[0][0])}
 
+    def replica_indexer(self, state: Any, *, address: Any) -> Any:
+        """REQ-2015: none. This engine's replicas live in its own warehouse (``replica_target``):
+        a Delta table in Unity Catalog is laid out by its own clustering, and has no secondary index to build."""
+        del state, address
+        return None
+
     def replica_target(self, state: Any, *, address: Any, args: Any, engine: Any) -> Any:
         """A replica in this engine's own Unity Catalog: Parquet batches streamed to a volume of
         the replicas schema, then the replica overwritten from them in one commit (REQ-1915)."""

@@ -51,6 +51,7 @@
       "mailboxes_at_quota": "Caixas de correio deixadas de fora, porque atingiram a quota de armazenamento e a Microsoft não acompanhará as suas alterações até ser libertado espaço: {{total}}. São: {{accounts}}",
       "mailboxes_failed": "Caixas de correio cuja leitura falhou no meio: {{total}}. O que foi lido delas é mantido e a leitura continua na próxima atualização. São: {{accounts}}",
       "place_not_kept": "Esta cópia está completa, mas não foi possível guardar até onde a leitura chegou, pelo que a próxima verificação de alterações pedirá a leitura novamente: {{reason}}",
+      "indexes_not_planned": "Esta cópia está completa e pode ser lida, mas não foi possível planejar seus índices; ela é lida sem eles até ser construída novamente: {{reason}}",
       "andMore": "{{ids}} e mais {{more}}",
       "other": "A última compilação registrou: {{code}}"
     },

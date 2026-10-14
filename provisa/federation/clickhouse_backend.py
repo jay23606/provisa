@@ -49,6 +49,13 @@ class ClickHouseBackend(NativeEngineBackend):
             pk_columns=list(args.pk_columns or ()),
         )
 
+    def replica_indexer(self, state: Any, *, address: Any) -> Any:
+        """REQ-2015: none. A ClickHouse table's order is its sorting key, set when the replica
+        lands (the declared key, ``create_ddl``); ClickHouse keeps no secondary B-tree index to
+        build on a join column."""
+        del state, address
+        return None
+
     result_formats = frozenset({"parquet"})
 
     def ctas_redirect(

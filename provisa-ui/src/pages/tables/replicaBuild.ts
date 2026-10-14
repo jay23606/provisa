@@ -276,6 +276,9 @@ export function replicaNoteLines(build: ReplicaBuild | undefined, t: Translate):
     if (code === "replication.place_not_kept") {
       return t("replicaBuild.note.place_not_kept", { reason: String(params.reason ?? "") });
     }
+    if (code === "replication.indexes_not_planned") {
+      return t("replicaBuild.note.indexes_not_planned", { reason: String(params.reason ?? "") });
+    }
     return t("replicaBuild.note.other", { code });
   });
 }

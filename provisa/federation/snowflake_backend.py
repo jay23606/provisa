@@ -65,6 +65,12 @@ class SnowflakeBackend(NativeEngineBackend):
         )
         return {"s3_prefix": target.s3_prefix, "row_count": int(unloaded[0][0])}
 
+    def replica_indexer(self, state: Any, *, address: Any) -> Any:
+        """REQ-2015: none. This engine's replicas live in its own warehouse (``replica_target``):
+        a Snowflake table is ordered by its own micro-partitions and clustering, and has no secondary index to build."""
+        del state, address
+        return None
+
     def replica_target(self, state: Any, *, address: Any, args: Any, engine: Any) -> Any:
         """A replica in this engine's own Snowflake database: Arrow batches ingested into a
         build table, then the replica overwritten from it in one statement (REQ-1915)."""
