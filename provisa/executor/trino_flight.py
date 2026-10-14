@@ -25,6 +25,7 @@ import logging
 import pyarrow as pa
 
 from provisa.core import request_deadline
+from provisa.core.ir_arrow import column_values
 from provisa.executor.result import QueryResult
 
 log = logging.getLogger(__name__)
@@ -91,7 +92,7 @@ def execute_trino_flight(  # REQ-144, REQ-146
     """
     table = execute_trino_flight_arrow(conn, sql, params)
     column_names = table.column_names
-    rows = [tuple(row.values()) for row in table.to_pylist()]
+    rows = list(zip(*(column_values(c) for c in table.columns)))
     return QueryResult(rows=rows, column_names=column_names)
 
 

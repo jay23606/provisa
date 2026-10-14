@@ -36,6 +36,8 @@ import sys
 from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING, cast
 
+from dateutil.relativedelta import relativedelta
+
 from provisa.federation.execution_auth import plan_authorization
 
 import concurrent.futures
@@ -123,7 +125,7 @@ def _proto_value(field, value):
             return ts
         return value
     if field.type == FieldDescriptor.TYPE_STRING:
-        if isinstance(value, timedelta):
+        if isinstance(value, (timedelta, relativedelta)):
             return iso8601_duration(value)  # an interval's canonical text form, as on every surface
         return value if isinstance(value, str) else str(value)
     if field.type in (FieldDescriptor.TYPE_DOUBLE, FieldDescriptor.TYPE_FLOAT):

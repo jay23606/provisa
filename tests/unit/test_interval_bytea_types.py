@@ -21,6 +21,7 @@ from datetime import timedelta
 from types import SimpleNamespace
 
 import pytest
+from dateutil.relativedelta import relativedelta
 from google.protobuf.descriptor import FieldDescriptor
 
 from provisa.compiler.type_map import (
@@ -45,6 +46,14 @@ from provisa.grpc.server import _proto_value
         (timedelta(hours=1, minutes=30), "PT1H30M"),
         (timedelta(microseconds=500_000), "PT0.5S"),
         (timedelta(seconds=-90), "-PT1M30S"),
+        # A year-month interval keeps its months: a month has no fixed number of days.
+        (relativedelta(years=1, months=2), "P1Y2M"),
+        (relativedelta(months=-14), "-P1Y2M"),
+        (
+            relativedelta(months=14, days=3, hours=4, minutes=5, seconds=6, microseconds=500_000),
+            "P1Y2M3DT4H5M6.5S",
+        ),
+        (relativedelta(months=1, days=-2), "P1M-2D"),
     ],
 )
 def test_an_interval_renders_as_its_iso_8601_duration(value, text):
@@ -76,6 +85,134 @@ def test_json_results_render_interval_and_bytea_as_their_canonical_text():
     assert _convert_value(b"\x00\x01\xff") == "\\x0001ff"
     assert _convert_value(memoryview(b"\xab")) == "\\xab"
     json.dumps([_convert_value(b"\x00"), _convert_value(timedelta(seconds=1))])
+
+
+def test_an_interval_value_is_its_months_days_and_microseconds():
+    from provisa.core.ir_types import interval_parts, interval_value
+
+    assert interval_value(14, 0, 0) == relativedelta(years=1, months=2)
+    assert interval_value(0, 3, 14_706_000_000) == timedelta(days=3, seconds=14706)
+    assert interval_parts(relativedelta(years=1, months=2, days=3)) == (14, 3, 0)
+    assert interval_parts(timedelta(microseconds=-5)) == (0, 0, -5)
+    assert interval_parts(timedelta(days=-1, hours=2)) == (0, 0, -79_200_000_000)
+
+
+def test_a_json_response_writes_an_interval_as_its_iso_8601_duration():
+    """Not jsonable_encoder's total seconds for a timedelta, nor a year-month interval's fields."""
+    from provisa.api.json_response import dumps
+
+    body = {"ym": relativedelta(years=1, months=2), "ds": timedelta(days=3, seconds=14706)}
+    assert json.loads(dumps(body)) == {"ym": "P1Y2M", "ds": "P3DT4H5M6S"}
+    assert _convert_value(relativedelta(years=1, months=2)) == "P1Y2M"
+    assert Interval.serialize(relativedelta(months=3)) == "P3M"
+
+
+def test_an_interval_lands_as_text_a_store_reads_with_its_months():
+    import duckdb
+
+    from provisa.core.ir_arrow import arrow_value
+
+    text = arrow_value(relativedelta(months=14, days=3, hours=4, minutes=5, seconds=6), "interval")
+    assert text == "14 months 3 days 14706000000 microseconds"
+    landed = duckdb.connect().execute("SELECT to_json(?::INTERVAL)", [text]).fetchone()
+    assert landed == ('"1 year 2 months 3 days 04:05:06"',)
+
+
+def test_an_oracle_year_to_month_interval_is_read_as_its_months():
+    import oracledb  # pyright: ignore[reportMissingImports]
+
+    from provisa.executor.drivers.zoned import _oracle_ym
+
+    assert _oracle_ym(oracledb.IntervalYM(1, 2)) == relativedelta(years=1, months=2)
+    assert _oracle_ym(oracledb.IntervalYM(-1, -2)) == relativedelta(months=-14)
+    assert _oracle_ym(None) is None
+
+
+@pytest.mark.parametrize(
+    ("text", "value"),
+    [
+        (b"1 year 2 mons", relativedelta(years=1, months=2)),
+        (b"3 days 04:05:06.5", timedelta(days=3, seconds=14706, microseconds=500_000)),
+        (
+            b"-1 years -2 mons +3 days -04:05:06",
+            relativedelta(months=-14, days=3, hours=-4, minutes=-5, seconds=-6),
+        ),
+        (b"00:00:00", timedelta(0)),
+    ],
+)
+def test_a_postgres_interval_is_read_with_its_months(text, value):
+    from provisa.executor.drivers.postgresql import _PgIntervalLoader
+
+    loader = _PgIntervalLoader.__new__(_PgIntervalLoader)
+    assert _PgIntervalLoader._load_postgres(loader, text) == value
+
+
+def test_a_postgres_binary_interval_is_read_with_its_months():
+    import struct
+
+    from provisa.executor.drivers.postgresql import _PgIntervalBinaryLoader
+
+    raw = struct.pack("!qii", 14_706_000_000, 3, 14)
+    assert _PgIntervalBinaryLoader(1186).load(raw) == relativedelta(
+        months=14, days=3, hours=4, minutes=5, seconds=6
+    )
+
+
+def test_a_duckdb_result_reads_an_interval_with_its_months():
+    import duckdb
+
+    from provisa.executor.drivers.duckdb_driver import fetch_rows
+
+    result = duckdb.connect().execute(
+        "SELECT INTERVAL '1 year 2 months' AS ym, INTERVAL '3 days 04:05:06' AS ds, 'x' AS s "
+        "UNION ALL SELECT NULL, NULL, NULL"
+    )
+    assert fetch_rows(result) == [
+        (relativedelta(years=1, months=2), timedelta(days=3, seconds=14706), "x"),
+        (None, None, None),
+    ]
+
+
+def test_an_arrow_interval_column_reads_as_ir_intervals():
+    import pyarrow as pa
+
+    from provisa.core.ir_arrow import column_values
+
+    column = pa.array(
+        [pa.MonthDayNano([14, 0, 0]), pa.MonthDayNano([0, 3, 14_706_000_000_000]), None],
+        pa.month_day_nano_interval(),
+    )
+    assert column_values(column) == [
+        relativedelta(years=1, months=2),
+        timedelta(days=3, seconds=14706),
+        None,
+    ]
+    assert column_values(pa.array(["x"])) == ["x"]
+
+
+@pytest.mark.parametrize(
+    ("value", "text", "binary"),
+    [
+        (relativedelta(years=1, months=2), "1 year 2 mons", (0, 0, 14)),
+        (
+            timedelta(days=3, seconds=14706, microseconds=500_000),
+            "3 days 04:05:06.5",
+            (14_706_500_000, 3, 0),
+        ),
+        (relativedelta(months=-14, days=1), "-1 years -2 mons 1 day", (0, 1, -14)),
+        (timedelta(microseconds=-5), "-00:00:00.000005", (-5, 0, 0)),
+        (timedelta(0), "00:00:00", (0, 0, 0)),
+    ],
+)
+def test_pgwire_writes_an_interval_as_postgres_does(value, text, binary):
+    import struct
+
+    from buenavista.core import BVType
+    from buenavista.postgres import BVTYPE_TO_PGTYPE
+
+    _, to_text, to_binary = BVTYPE_TO_PGTYPE[BVType.INTERVAL]
+    assert to_text(value) == text
+    assert struct.unpack("!qii", to_binary(value)) == binary
 
 
 def test_bytea_hex_is_postgres_hex_output():

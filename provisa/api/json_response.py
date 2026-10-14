@@ -22,10 +22,14 @@ a set -- to ``jsonable_encoder``, so the body is what jsonable_encoder would hav
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Any
 
 import orjson
+from dateutil.relativedelta import relativedelta
 from fastapi.responses import JSONResponse
+
+from provisa.core.ir_types import iso8601_duration
 
 
 def _encode_unknown(value: Any) -> Any:  # noqa: ANN401 — whatever orjson cannot encode itself
@@ -41,6 +45,10 @@ def _encode_unknown(value: Any) -> Any:  # noqa: ANN401 — whatever orjson cann
         # gives (transpiler.native_json): jsonable_encoder decodes bytes as UTF-8, and refused a
         # BLOB/RAW value that is not text.
         return "\\x" + bytes(value).hex()
+    if isinstance(value, (timedelta, relativedelta)):
+        # An interval as its ISO 8601 duration, as on every surface (ir_types.iso8601_duration):
+        # jsonable_encoder writes a timedelta as its total seconds, and a relativedelta not at all.
+        return iso8601_duration(value)
     return jsonable_encoder(value)
 
 

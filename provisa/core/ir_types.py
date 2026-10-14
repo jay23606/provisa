@@ -27,6 +27,8 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
 
+from dateutil.relativedelta import relativedelta
+
 from provisa.core.native_types import NativeType, parse_native_type
 
 from sqlalchemy.dialects.postgresql import JSONB
@@ -326,24 +328,58 @@ def bytea_hex(value: bytes | bytearray | memoryview) -> str:
     return "\\x" + bytes(value).hex()
 
 
-def iso8601_duration(value: timedelta) -> str:
-    """The canonical text form of an IR ``interval`` value: an ISO 8601 duration (``P3DT4.000005S``),
+def interval_parts(value: timedelta | relativedelta) -> tuple[int, int, int]:
+    """An IR ``interval`` value as Postgres holds one: (months, days, microseconds). A duration with
+    no months is a ``timedelta``; one with months (a year-month interval: Oracle's INTERVAL YEAR TO
+    MONTH, Trino's and BigQuery's) is a ``relativedelta``, since a month has no fixed length."""
+    if isinstance(value, timedelta):
+        # A negative timedelta is held as negative days and positive seconds; its parts share a sign.
+        if value < timedelta(0):
+            _, days, micros = interval_parts(-value)
+            return 0, -days, -micros
+        return 0, value.days, value.seconds * 1_000_000 + value.microseconds
+    seconds = (value.hours * 60 + value.minutes) * 60 + value.seconds
+    return value.years * 12 + value.months, value.days, seconds * 1_000_000 + value.microseconds
+
+
+def interval_value(months: int, days: int, microseconds: int) -> timedelta | relativedelta:
+    """The IR ``interval`` value of (months, days, microseconds), as a reader hands one on: a
+    ``timedelta`` when it has no months, else a ``relativedelta``."""
+    if not months:
+        return timedelta(days=days, microseconds=microseconds)
+    return relativedelta(months=months, days=days, microseconds=microseconds)
+
+
+def iso8601_duration(value: timedelta | relativedelta) -> str:
+    """The canonical text form of an IR ``interval`` value: an ISO 8601 duration (``P1Y2M3DT4.5S``),
     the form Postgres itself emits under ``IntervalStyle = iso_8601``. Every transport that renders
     an interval as text (GraphQL's ``Interval`` scalar, JSON results, gRPC string fields) uses it,
-    so a duration reads the same on every surface. A negative duration is ``-`` + its magnitude."""
-    if value < timedelta(0):
-        return "-" + iso8601_duration(-value)
-    seconds = value.seconds + value.microseconds / 1_000_000
-    hours, rem = divmod(value.seconds, 3600)
-    minutes, secs = divmod(rem, 60)
-    out = "P" + (f"{value.days}D" if value.days else "")
-    if not seconds:
-        return out if value.days else "PT0S"
-    out += "T" + (f"{hours}H" if hours else "") + (f"{minutes}M" if minutes else "")
-    if secs or value.microseconds:
-        frac = f"{secs}.{value.microseconds:06d}".rstrip("0").rstrip(".")
-        out += f"{frac}S"
-    return out
+    so a duration reads the same on every surface. A duration whose parts are none of them positive
+    is ``-`` + its magnitude; one of mixed signs writes each part with its own sign, as Postgres
+    does."""
+    months, days, micros = interval_parts(value)
+    if (months, days, micros) != (0, 0, 0) and max(months, days, micros) <= 0:
+        return "-" + _iso8601(-months, -days, -micros)
+    return _iso8601(months, days, micros)
+
+
+def _iso8601(months: int, days: int, micros: int) -> str:
+    years, months = int(months / 12), months - int(months / 12) * 12
+    sign = "-" if micros < 0 else ""
+    hours, rem = divmod(abs(micros), 3_600_000_000)
+    minutes, rem = divmod(rem, 60_000_000)
+    secs, frac = divmod(rem, 1_000_000)
+    date = (
+        (f"{years}Y" if years else "")
+        + (f"{months}M" if months else "")
+        + (f"{days}D" if days else "")
+    )
+    time = (f"{sign}{hours}H" if hours else "") + (f"{sign}{minutes}M" if minutes else "")
+    if secs or frac:
+        time += sign + f"{secs}.{frac:06d}".rstrip("0").rstrip(".") + "S"
+    if not date and not time:
+        return "PT0S"
+    return "P" + date + ("T" + time if time else "")
 
 
 def type_name(native_type: str) -> str:

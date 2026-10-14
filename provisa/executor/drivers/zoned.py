@@ -11,13 +11,17 @@
 """A zoned timestamp read as the instant it is (REQ-2050), from the two drivers that would lose
 it: SQL Server's ``datetimeoffset`` (pyodbc has no conversion for it) and Oracle's ``TIMESTAMP
 WITH TIME ZONE`` (python-oracledb hands it on with its offset dropped) and ``TIMESTAMP WITH LOCAL
-TIME ZONE`` (read in the session's zone). Each comes back as an aware datetime in UTC."""
+TIME ZONE`` (read in the session's zone). Each comes back as an aware datetime in UTC. Oracle's
+INTERVAL YEAR TO MONTH, which python-oracledb hands on as its own ``IntervalYM``, is read here too,
+as the IR interval it is (ir_types.interval_value)."""
 
 from __future__ import annotations
 
 import struct
 from datetime import datetime, timedelta, timezone
 from typing import Any
+
+from provisa.core.ir_types import interval_value
 
 # The ODBC SQL type of SQL Server's datetimeoffset.
 SQL_SS_TIMESTAMPOFFSET = -155
@@ -57,9 +61,18 @@ def _oracle_ltz(value: datetime | None) -> datetime | None:
     return None if value is None else value.replace(tzinfo=timezone.utc)
 
 
+def _oracle_ym(value: Any) -> Any:
+    # An oracledb.IntervalYM: its years and months, as the IR interval of that many months.
+    return None if value is None else interval_value(value.years * 12 + value.months, 0, 0)
+
+
 def _oracle_output_type(cursor: Any, metadata: Any) -> Any:
     import oracledb  # pyright: ignore[reportMissingImports]
 
+    if metadata.type_code is oracledb.DB_TYPE_INTERVAL_YM:
+        return cursor.var(
+            oracledb.DB_TYPE_INTERVAL_YM, arraysize=cursor.arraysize, outconverter=_oracle_ym
+        )
     if metadata.type_code is oracledb.DB_TYPE_TIMESTAMP_TZ:
         return cursor.var(
             oracledb.DB_TYPE_VARCHAR, arraysize=cursor.arraysize, outconverter=_oracle_tz
@@ -74,7 +87,7 @@ def _oracle_output_type(cursor: Any, metadata: Any) -> Any:
 def oracle_connection(conn: Any) -> Any:
     """A python-oracledb connection that reads a zoned timestamp as the instant it is: the
     session is in UTC, and a TIMESTAMP WITH TIME ZONE is fetched as ISO 8601 text with its
-    offset and read from that."""
+    offset and read from that. A year-to-month interval is read as its months."""
     with conn.cursor() as cur:
         cur.execute(
             f"ALTER SESSION SET TIME_ZONE = 'UTC' NLS_TIMESTAMP_TZ_FORMAT = '{_ORACLE_TZ_FORMAT}'"

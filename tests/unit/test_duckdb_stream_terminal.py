@@ -100,3 +100,19 @@ def test_stream_from_dbapi_fires_on_close_once_on_non_select():
     assert isinstance(res, QueryResult)
     assert res.rows == []
     assert cur.closed == 1
+
+
+def test_run_sync_reads_an_interval_with_its_months(runtime):
+    """DuckDB's own rows fold an interval's months into days (1 year 2 months reads as 420 days);
+    a result with an interval column streams through Arrow, which keeps them."""
+    from datetime import timedelta
+
+    from dateutil.relativedelta import relativedelta
+
+    res = runtime.run_sync(
+        "select interval '1 year 2 months' as ym, interval '3 days 04:05:06' as ds, 1 as n"
+    )
+    assert res.column_names == ["ym", "ds", "n"]
+    assert res.column_types == ["INTERVAL", "INTERVAL", "INTEGER"]
+    assert res.rows == [(relativedelta(years=1, months=2), timedelta(days=3, seconds=14706), 1)]
+    assert res.stats.done

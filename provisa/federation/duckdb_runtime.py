@@ -40,6 +40,7 @@ import duckdb
 
 from provisa.federation.duckdb_extensions import install_and_load
 from provisa.federation.file_locks import ReadersWriterGate
+from provisa.executor.drivers.duckdb_driver import fetch_rows
 from provisa.executor.result import QueryResult, ResultStream
 from provisa.federation import store_writer
 from provisa.federation.engine import build_duckdb_engine
@@ -51,6 +52,7 @@ from provisa.federation.runtime_support import (
     columns_from_describe,
     open_cursor,
     stream_from_dbapi,
+    stream_rows_from_arrow,
 )
 from provisa.transpiler.transpile import transpile
 
@@ -1241,7 +1243,7 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
                             res = cur.execute(sql, params) if params else cur.execute(sql)
                         cols = [d[0] for d in res.description] if res.description else []
                         types = [str(d[1]) for d in res.description] if res.description else []
-                        rows = res.fetchall()
+                        rows = fetch_rows(res)
                     return QueryResult(rows=rows, column_names=cols, column_types=types)
                 finally:
                     close_cursor(cur)
@@ -1315,6 +1317,14 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
 
         # DuckDB's description carries each column's declared DuckDBPyType ("BIGINT",
         # "DECIMAL(18,2)"), even for a zero-row result — the pgwire Describe relies on it.
+        types = [str(d[1]) for d in cur.description] if cur.description else []
+        if "INTERVAL" in types:
+            # DuckDB's own Python rows fold an interval's months into days; its Arrow batches keep
+            # them (duckdb_driver.fetch_rows).
+            reader = cur.to_arrow_reader(_ARROW_STREAM_BATCH_ROWS)
+            return stream_rows_from_arrow(
+                reader.schema, iter(reader), on_close=_close, column_types=types
+            )
         return stream_from_dbapi(
             cur, on_close=_close, type_names=lambda codes: [str(c) for c in codes]
         )

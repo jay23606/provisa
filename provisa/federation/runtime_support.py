@@ -25,6 +25,7 @@ from typing import Any, Callable
 
 from provisa.core.read_refusal import ReadRefused
 from provisa.core import request_deadline
+from provisa.core.ir_arrow import column_values
 from provisa.executor.result import (
     QueryResult,
     ResultStream,
@@ -408,6 +409,7 @@ def stream_rows_from_arrow(
     batches: Iterator[Any],
     *,
     on_close: Callable[[StreamStats], None] | None = None,
+    column_types: list[str] | None = None,
 ) -> ResultStream:
     """Adapt a lazy Arrow ``(schema, RecordBatch iterator)`` into a row-based ``StreamingQueryResult``
     — the inverse of :func:`arrow_batches_from_rows`. An engine whose only lazy primitive is Arrow
@@ -416,15 +418,16 @@ def stream_rows_from_arrow(
     whole result (REQ-1217, streaming-uniformity-gap Defect 3). Each Arrow batch is converted to row
     tuples on demand — peak memory is one batch — and draining the row stream drains (and closes) the
     underlying Arrow generator. Column names come from the Arrow schema; a zero-row result yields the
-    columns and no rows. Column types are declared from the Arrow schema (``arrow_type_name``)."""
+    columns and no rows. Column types are declared from the Arrow schema (``arrow_type_name``), unless
+    the caller gives the engine's own (``column_types``)."""
     names = list(schema.names)
-    types = [arrow_type_name(f.type) for f in schema]
+    types = column_types if column_types is not None else [arrow_type_name(f.type) for f in schema]
 
     def _batches() -> Iterator[list[tuple]]:
         for rb in batches:
             if not rb.num_rows:
                 continue
-            cols = [col.to_pylist() for col in rb.columns]
+            cols = [column_values(col) for col in rb.columns]
             yield list(zip(*cols, strict=True))
 
     return StreamingQueryResult(
