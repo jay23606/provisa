@@ -285,6 +285,32 @@ def _as_http2(raw: bytes) -> str:
     return f"{len(raw)} bytes; frames {kinds}; DATA bytes by stream {data}; {'; '.join(notes)}"
 
 
+def _where(sock) -> tuple:
+    """A socket's descriptor and peer, as the operating system says them now."""
+    try:
+        return (sock.fileno(), sock.getpeername())
+    except OSError as exc:
+        return (sock.fileno(), f"{type(exc).__name__}: {exc}")
+
+
+class _Watched:
+    """A relayed socket as ``_copy`` reads it, saying before each read whether its descriptor or
+    its peer is still the one the copy began with (the relay's own socket, read through)."""
+
+    def __init__(self, sock, record: dict) -> None:
+        self._sock = sock
+        self._record = record
+
+    def recv_into(self, buffer) -> int:
+        now = _where(self._sock)
+        if now != self._record["source"]:
+            self._record["moved"].append({"after_bytes": self._record["bytes"], "now": now})
+        return self._sock.recv_into(buffer)
+
+    def shutdown(self, how) -> None:
+        self._sock.shutdown(how)
+
+
 def test_many_large_streams_at_once_each_arrive_whole_through_the_relay(started, monkeypatch):
     """Twelve 24 MB streams relayed at once, twice over. Each must arrive whole -- every row, in
     order -- and the relay must have carried the same number of bytes towards each client.
@@ -294,7 +320,10 @@ def test_many_large_streams_at_once_each_arrive_whole_through_the_relay(started,
     machine in any arrangement, and what the relay does to bytes has been verified separately,
     so where the stream goes wrong is not yet known. This test runs on Linux in CI, where the
     product runs; and when a stream fails it says what the relay carried to each client, read as
-    HTTP/2 frames, so the failure names the place."""
+    HTTP/2 frames, so the failure names the place. It also says whether a relayed socket's
+    descriptor or peer changed while it was read: the bytes a failed stream carried were out of
+    step as the relay received them, and a descriptor closed under the relay and reused by
+    another connection is one way that happens."""
     import zlib
 
     import pyarrow.compute as pc
@@ -309,10 +338,16 @@ def test_many_large_streams_at_once_each_arrive_whole_through_the_relay(started,
     real_copy, real_send_all = relay._copy, relay._send_all  # noqa: SLF001
 
     def _copy(source, sink) -> None:
-        this_copy.record = {"bytes": 0, "packer": zlib.compressobj(1), "packed": []}
+        this_copy.record = {
+            "bytes": 0,
+            "packer": zlib.compressobj(1),
+            "packed": [],
+            "source": _where(source),
+            "moved": [],
+        }
         with copies_lock:
             copies.append(this_copy.record)
-        real_copy(source, sink)
+        real_copy(_Watched(source, this_copy.record), sink)
 
     def _send_all(sink, data) -> None:
         real_send_all(sink, data)
@@ -365,5 +400,13 @@ def test_many_large_streams_at_once_each_arrive_whole_through_the_relay(started,
         for c in towards_clients
         if abs(c["bytes"] - whole) > 8192
     ]
-    assert failures == [], {"failures": failures, "carried": carried, "streams that differ": odd}
+    # Whether a socket's descriptor or peer changed while it was read: a descriptor closed under
+    # the relay and reused by another connection would splice that connection's bytes in.
+    moved = [{"source": c["source"], "moved": c["moved"][:5]} for c in copies if c["moved"]]
+    assert failures == [], {
+        "failures": failures,
+        "carried": carried,
+        "streams that differ": odd,
+        "sockets whose descriptor or peer changed mid-stream": moved,
+    }
     assert len(carried) == 24 and odd == [], {"carried": carried, "streams that differ": odd}
