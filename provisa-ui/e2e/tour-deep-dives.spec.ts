@@ -35,7 +35,11 @@ test("the core tour's Deep Dives button leaves for the menu", async ({ page }) =
 // Done on the core tour's last step lands on the menu; a topic is its own tour, and Done on its
 // last step returns to the menu with the topic marked completed.
 test("Done on the core tour and on a topic both return to the menu", async ({ page }) => {
+  // Seeded on the first load only: an init script runs again on the reload below, and the progress
+  // it put back would resume the core tour there instead of opening the menu.
   await page.addInitScript((step: number) => {
+    if (sessionStorage.getItem("e2e_tour_seeded") !== null) return;
+    sessionStorage.setItem("e2e_tour_seeded", "1");
     localStorage.setItem("provisa_tour_seen", "true");
     localStorage.setItem("provisa_tour_progress", String(step));
   }, CORE_LAST_STEP);
@@ -70,7 +74,9 @@ test("Done on the core tour and on a topic both return to the menu", async ({ pa
 
 // REQ-1945: a topic's step also carries Deep Dives, which lands on the catalog, and the catalog's
 // control starts the core tour again at its first step.
-test("a topic's Deep Dives button reaches the catalog, which restarts the core tour", async ({ page }) => {
+test("a topic's Deep Dives button reaches the catalog, which restarts the core tour", async ({
+  page,
+}) => {
   await page.addInitScript(() => localStorage.setItem("provisa_tour_seen", "true"));
   await page.goto("/sources");
   await page.locator(".navbar-tour-btn").click();

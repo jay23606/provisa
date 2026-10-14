@@ -29,6 +29,7 @@ import {
   pickSchemaAndTable,
   runSqlOnPage,
   releaseDraftTables,
+  submitRegister,
   submitSourceAndExpectListed,
   FORM_FIELD,
   removeTestSources,
@@ -109,7 +110,10 @@ test.describe("source to query through the UI: exasol (REQ-1731, REQ-1763)", () 
     await page.getByLabel(/^Port/).and(page.locator(FORM_FIELD)).fill(String(E2E_EXASOL_PORT));
     await page.getByLabel(/^Username/).fill("sys");
     await page.getByLabel(/^Password/).fill("exasol");
-    await page.getByLabel(/^Database/).and(page.locator(FORM_FIELD)).fill("PROVISA");
+    await page
+      .getByLabel(/^Database/)
+      .and(page.locator(FORM_FIELD))
+      .fill("PROVISA");
     // Exasol always serves TLS with a self-signed, per-boot certificate — pin the fingerprint
     // THIS run's container actually presents (read back from prime.py's output file above),
     // exactly the same pin ExasolDriver.connect() (executor/drivers/exasol.py) needs to validate.
@@ -123,7 +127,7 @@ test.describe("source to query through the UI: exasol (REQ-1731, REQ-1763)", () 
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "PROVISA", "WIDGETS");
     await expectDiscoveredColumns(page, ["name"], 60000);
-    await page.getByTestId("register-table-submit").click();
+    await submitRegister(page);
     const row = page.locator(".data-table tbody tr").filter({ hasText: sourceId }).first();
     await expect(row).toBeVisible({ timeout: 120000 });
     // REQ-1921: registered through the admin, it starts as draft; released, it is read.

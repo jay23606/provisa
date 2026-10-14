@@ -295,6 +295,17 @@ export async function releaseDraftTables(
 }
 
 /**
+ * Submit the registration form. A table that will be a replica, of a source that states no Cache
+ * TTL under a ttl change signal, states one itself when it is registered (#208, REQ-1907): the form
+ * asks for it then (register-table-cache-ttl), and nothing is registered until it has one.
+ */
+export async function submitRegister(page: Page, cacheTtlSeconds = 300): Promise<void> {
+  const cacheTtl = page.getByTestId("register-table-cache-ttl");
+  if ((await cacheTtl.count()) > 0) await cacheTtl.fill(String(cacheTtlSeconds));
+  await page.getByTestId("register-table-submit").click();
+}
+
+/**
  * Submit the registration, wait for the table's row in the tables list, and return the name a
  * SELECT addresses it by. The list shows the alias (the GraphQL name, camelCase under the default
  * convention); the SQL-plane name is its snake form, which the server reports as the last segment
@@ -314,7 +325,7 @@ export async function submitRegisterAndExpectListed(
   baseUrl = "",
   columns: RegisteredColumnEdits = {},
 ): Promise<string> {
-  await page.getByTestId("register-table-submit").click();
+  await submitRegister(page);
   // Registration rebuilds the schemas; the row lands in the tables list when it is done.
   const row = page.locator(".data-table tbody tr").filter({ hasText: sourceId }).first();
   await expect(row).toBeVisible({ timeout: timeoutMs });
