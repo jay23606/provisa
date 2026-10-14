@@ -288,7 +288,7 @@ def test_a_visitor_sandbox_of_weblogs_reads_the_bundle(published, tmp_path_facto
         )
         assert rows.status_code == 200, rows.text
         assert len(rows.json()["data"]["sql"]) == 5, rows.text
-        served = (work / "data" / "demo-bundles" / "weblogs" / "current").read_text().strip()
+        served = (work / "data" / "demo-bundles" / "weblogs" / "ready").read_text().strip()
         assert served == version
     finally:
         tier.stop_process()
