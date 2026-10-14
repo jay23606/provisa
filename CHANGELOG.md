@@ -3,6 +3,671 @@
 All notable changes to Provisa are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## v0.1.0-alpha.482
+
+Released 2026-10-14.
+
+### Features
+
+#### API & Integration
+
+- GraphQL DB-backed fields used as nested paths must expose root-query controls (`limit`, `offset`, `where`, `order_by`, `distinct_on`) and apply them during SQL compilation.
+
+#### Admin Configuration
+
+- Metadata export admin surface: an Admin tab that configures the per-org export target (provider, endpoint, credentials, reconcile schedule), runs a connection health check against the live catalog, triggers an on-demand full reconcile, and shows the last publish outcome including the per-asset errors a partial publish returns.
+- Provisa supports configuring custom AI/LLM endpoints reachable over either the OpenAI-compatible or Anthropic-compatible wire protocol.
+
+#### Admin UI
+
+- Hover tooltips on domain groups, table nodes, and column items display their descriptions.
+- The ERD modal provides download buttons for exporting the current diagram as SVG, PNG, or JSON.
+
+#### Aggregate & Group-by Queries
+
+- A group-by is ordered by its keys and its aggregates.
+    - The weblogs demo opens the GraphQL explorer on its example queries
+
+#### Approvals
+
+- A relationship request is decided by the domains it touches.
+- A creation request of any type -- relationship, view, table, source or webhook -- is carried out only through its approvals, and carrying it out creates what it asks for.
+
+#### Authentication
+
+- The break-glass superuser of can sign in from a browser under any auth provider.
+
+#### Authorization
+
+- No organization can be left with zero org_admins by an ordinary administrative act.
+- A user may delete their own Provisa account.
+- A user can never change their own role in an org.
+- An org id is validated on creation and immutable thereafter.
+
+#### Branded API Sources
+
+- A Google Workspace or Microsoft 365 source reads, beside mail, the calendars and To Do / Google Tasks of its accounts, and writes their events, attendees and tasks.
+
+#### Cache
+
+- Per-user-class staleness tolerance as a table attribute.
+    - createSource judges the definition first, then the id
+
+#### Change Data Capture
+
+- A Debezium topic encoded in Avro with a schema registry is read as its rows.
+
+#### Client Access
+
+- A role is the one the request runs as, on every data route, and a catalog is listed for the caller it is listed to.
+
+#### Column-Level Masking
+
+- Masking has a consistent form.
+
+#### Commands
+
+- A command can be implemented by a Provisa SQL statement with typed arguments (implementation kind statement): the statement is governed and run through the one pipeline under the caller's rights like any statement, its arguments bound as values, never spliced.
+
+#### Control Plane & Deployment
+
+- Schema clustering (`provisa/schema_clusters.py`): uses networkx Louvain community detection to group registered tables into semantic clusters (l1/l2/l3 cluster labels).
+
+#### Data Catalog Integration
+
+- Premium-gated metadata export: the metadata export connector is an enterprise/premium tier entitlement, extending.
+- New DataProduct entity, domain-scoped: id, domain_id (required FK — a data product has exactly one owning domain), name, owner (person accountable for this product, distinct from Domain.steward), description.
+    - createDataProduct refuses an existing id; an edit saves through updateDataProduct
+- New bigquery_dataplex.py MetadataExport adapter, the BigQuery counterpart to's snowflake_horizon.py: populates BigQuery Dataplex catalog entries and registers each DataProduct as a BigQuery Analytics Hub listing, backed by a dataset containing the product's member tables.
+- The Data Product detail panel shows a computed, read-only "Lineage" section rendering the same interactive LineageDag graph visualization used on the Lineage page ("model / lineage"), scoped to a subgraph of the whole federation-wide column lineage graph (GET /admin/lineage/federation, no domains filter, so cross-domain ancestor chains are never severed): [SUPERSEDED by 2026-10-03 -- draws contributors in lanes -1, -2... by longest upstream path, so the subgraph is the full upstream ancestry plus one hop downstream.
+
+#### Data Discovery
+
+- Provisa shall document and expose the HTML crawler capability from the underlying Calcite file adapter (org.apache.calcite.adapter.file.converters.HtmlCrawler) as a first-class, general-purpose source-discovery method for registering sources that expose only HTML index pages with linked data files (CSV, Parquet, etc.).
+
+#### Data Governance
+
+- Tag-scoped RLS rules (follow-on to and existing table/domain-scoped RLS/041/402): an RLS rule may attach to a tag; at compile time it resolves to all tables carrying that tag and its predicate is AND-ed with any table- and domain-scoped predicates (most-restrictive-wins, no precedence tiers; multiple matching tags each contribute AND-ed predicates).
+    - A row filter attaches to a tag and applies to every table carrying it
+    - The tag rule's table count is its field's hint, as the form rules ask
+
+#### Data Quality Sources
+
+- A DATA PROFILER is a source type, registered and used the way the data-quality checker sources are.
+    - A source that owns no replica is never promoted or rebuilt
+    - A source that owns no replica is no landed node of the event loop
+
+#### Data Residency
+
+- Data residency (the rule in force is the SIMPLE RULE amendment at the end). [SUPERSEDED by the SIMPLE RULE amendment below, 2026-10-02 -- the maintainer reduced residency to regions, the row and column rules, and a region on a table for whole-table copies.
+
+#### Demo Provisioning
+
+- `start-ui-install.sh --demo` accepts an optional named demo argument: `--demo` alone selects the standard demo (unchanged behavior), and `--demo <name>` (e.g. `--demo perf`) selects a named demo variant with its own data/source setup, spliced into config the same way the existing `--source=<name>` mechanism splices in demo/sources/<name>/fragment.yaml. [SUPERSEDED by 2026-09-24 -- named-demo tooling moved from scripts/bench-data/ to demo/named/perf/, the fixed layout below.
+    - The weblogs named demo, a web shop's access and database logs joined to its tables
+
+#### Domains
+
+- A domain is deleted only when nothing refers to it, and the operator is shown everything that does.
+
+#### DuckDB Connectors
+
+- The pg engine should gain a PgDuckdbMotherDuckConnector (Mechanism.ATTACH_RW) using pg_duckdb's own FOREIGN DATA WRAPPER duckdb TYPE 'motherduck' SERVER + USER MAPPING (token) mechanism, confirmed present in pg_duckdb's own source (src/pgduckdb_fdw.cpp's FdwType::MD, test/pycheck/motherduck_test.py) — pg_duckdb can live-attach a MotherDuck-hosted DuckDB database today, [SUPERSEDED by amendment, 2026-10-03 -- PgDuckdbMotherDuckConnector exists and is registered (provisa/federation/connector_duckdb.py:713-772, provisa/federation/engine.py:698).
+    - The Postgres engine reads the table pg_duckdb's sync creates, in the schema of its naming
+    - Wait for pg_duckdb's sync to settle; both MotherDuck e2es run in the warehouse lane
+
+#### Engine Streaming Terminals
+
+- Warehouse federation runtimes (Snowflake, Databricks, BigQuery, MSSQL, ClickHouse) must implement genuinely streaming `run_sync` terminals using their respective server-side chunk APIs.
+
+#### Enterprise Sources
+
+- Salesforce is a source type.
+- Cloud inventory is a source type.
+- ServiceNow is a source type.
+
+#### Environments
+
+- An organization runs its governed model in more than one environment -- a dev environment, a test environment, a staging environment, whatever it names -- without becoming more than one organization.
+- An environment is physically a schema of its own.
+    - A name the organization already has is refused as taken, not as invalid
+- Copying an environment carries the governed model and nothing else, and what it carries is stated as an allow-list rather than an exclusion list, so a table added to the org schema later does not travel by default.
+- Copying into an environment that already exists is a merge, not a replacement.
+- Where an environment points is a per-environment fact that no copy ever supplies.
+- Every environment other than production owns stores of its own, because a non-prod environment needs data that is neither a read of production nor absent.
+- An environment populates a table from its own model when no source holds one.
+- An environment can be protected, and a merge into a protected environment waits for an approval by someone other than the person who requested it. prod is protected when the organization has more than one member; any environment can be protected by an org_admin.
+- An environment name is bounded, and so is the number of them. makes an environment a schema of its own, so a free-form name is a schema name and an unbounded count is unbounded schemas: the short-lived per-developer environments an org actually creates -- dev-alice, dev-1482-refund-fix -- accumulate until nothing reaps them.
+- Every environment has a repository, and the repository is a PROJECTION of the environment, never an authority over it.
+- The exclusion of bindings and secrets from what an environment carries is an exclusion of COLUMNS, and it cannot reach inside one.
+- The serialized model is a DIRECTORY OF FILES, one file per entity, and never a single document.
+- Authority over a model is scoped to an ENVIRONMENT, and the ordinary way to acquire it is to create one.
+- An organization's environments come in TWO KINDS, and the difference is who made them.
+    - A capped PostgreSQL source's DuckDB pool holds its share of the cap and waits
+- A DEVELOPER IS ALWAYS LIMITED BY DOMAIN MEMBERSHIP.
+- EVERY MUTATION THAT NAMES A DOMAIN MUST BE GATED ON IT, AND EVERY MUTATION THAT OUGHT TO NAME ONE MUST NAME ONE. makes a role's domain_access the limit on what a member may change; a limit is only real where it is checked, and today the check runs in two places.
+    - Assigning or removing a tag is checked against its target's domains
+    - Saving a metric is checked against the domains its expression reads
+    - createRole refuses an existing id; a role's edit saves through updateRole
+- THE BROWSER MUST BE ABLE TO SAY WHICH ENVIRONMENT IT IS READING, AND EVERY REQUEST IT MAKES MUST SAY THE SAME ONE. makes the environment a request-scoped choice carried in ``x-provisa-env``; until now nothing in the UI set it, so every screen read prod and the branch was reachable only from curl.
+- THE ORG'S ENVIRONMENTS MUST BE ADMINISTRABLE FROM THE ADMIN UI, AND ITS REPOSITORY MUST BE READABLE THERE.
+- THE CHOICE CALLS BASE-OR-BRANCH MUST BE PRESENTED AS "INHERIT CONNECTIONS", AND MUST DEFAULT TO OFF.
+- What a person may do to DATA inside an environment is what their ROLES say, and an environment never overrides it.
+- A merge may END the environment it came from.
+- Because every model change commits, an environment can be MOVED ALONG ITS OWN HISTORY rather than edited back by hand.
+- A BRANCH SAYS WHETHER IT HOLDS WORK THE REMOTE DOES NOT, and an operator can send it or end it.
+    - An org's environments are served once the org is ready on this node
+    - The org is readied after the guard authorizes, never for a refused caller
+- UPDATING LOCAL FROM THE REMOTE IS AN APPLY, not a ref write.
+- THERE IS ONE VERB AND IT IS "APPLY A SHA".
+- WHEN THE TARGET BRANCH IS GOVERNED BY PULL REQUESTS, REVIEW IS ASKED FOR ON THE HOST.
+- A MERGE THAT OVERWRITES SOMEBODY ELSE'S WORK SAYS SO.
+- A PULL SAYS WHAT IT OVERWROTE, AND A REFUSED PULL SAYS WHAT COLLIDED.
+- A NODE WHOSE PROJECTION DOES NOT HOLD THE COMMIT STILL LISTS ITS ENVIRONMENTS.
+- A synthetic dataset is a model object that fills an environment with generated data shaped like the estate it is drawn from, at a chosen scale, so tests run over larger volumes, or smaller ones, with similar processing characteristics.
+- Every environment other than production has one data mode, chosen when it is created and changeable afterwards: Inherit, Unbound, Test (fake) or Test (synthetic).
+- Changing the domain of a registered table or view requires the caller to hold the registering right in the domain it is in AND in the domain it is going to.
+
+#### Feature
+
+- A Kaggle source's token is resolved via provisa/core/secrets.py resolve_secrets (${env:KAGGLE_API_TOKEN} token pattern), never a raw os.environ read.
+- An end-user-facing script (scripts/install-pg-ext.sh or similar) that stages provisa_pg_ext's bundled FDW/extension binaries into an OPERATOR-SUPPLIED, external Postgres instance — the same manual sequence performed live this session (pip install provisa-pg-ext; docker cp the platform-matched lib/*.so + share/extension/* files into the target's pg_config --pkglibdir/--sharedir; ALTER SYSTEM SET shared_preload_libraries for pg_duckdb; restart; CREATE EXTENSION).
+
+#### Federation Engine
+
+- SaaS runs ONE engine architecture on one GKE cluster.
+- An isolated engine idles to zero and wakes on traffic, so the org pays for compute it uses rather than 730 node-hours a month.
+- The shared engine is one multi-tenant Trino deployment on the GKE cluster, serving every Starter org from a single cluster whose node pool grows as customers sign up.
+- The cold-shard wake is reconciled with the executor's retry budget by ORDERING, not by widening the budget.
+
+#### Federation Engine Abstraction
+
+- Pgwire auth must be a pluggable provider interface selected at launch (trust | local | oidc), superseding today's fixed MD5/cleartext wiring while keeping trust/cleartext as the baseline.
+
+#### Federation Engines
+
+- MotherDuck is a federation engine, the production counterpart of the embedded DuckDB engine: an organization that chooses it has its replicas kept in a database of its own MotherDuck account and its governed SQL run there, in the same DuckDB dialect it runs in on the embedded engine, so what was built and checked on local DuckDB in development runs unchanged in production.
+    - MotherDuck is an engine -- the DuckDB engine with its store in MotherDuck
+    - A MotherDuck store's token reference is resolved at use; complete
+
+#### File & Lake Sources
+
+- File connector sources accept a directory glob pattern to enumerate CSV files.
+- The pg engine's snowflake/databricks/bigquery source types should be reachable as a live, zero-copy ATTACH_R via each warehouse's Iceberg REST catalog (Snowflake Iceberg Tables' catalog integration or SYSTEM$GET_ICEBERG_TABLE_INFORMATION, Databricks Unity Catalog's Iceberg REST endpoint / UniForm, BigQuery BigLake Metastore), instead of only Mechanism.DIRECT (native driver, materialize-required).
+
+#### File Sources
+
+- A files source may declare an HTML crawl, and Wikipedia is a source type carried by it.
+
+#### Form Layout
+
+- Every form in the UI is laid out by one shared form layout, and a field is as wide as what it holds, not as wide as the form.
+    - A tick with a (?) takes no withAsterisk; the e2e specs add a source through the type picker
+
+#### Governance Column Visibility
+
+- The admin API answers a caller with the catalog that caller may see, as every data surface does.
+
+#### Graph Query
+
+- A junction table is declarable as a first-class Cypher relationship, and its own columns are that relationship's attributes.
+
+#### HTTPS/TLS Configuration
+
+- GCP/Docker cluster deployment must serve all endpoints over HTTPS with TLS encryption.
+
+#### Helm Auth Configuration
+
+- Helm chart deployment MUST NOT require Firebase.
+
+#### Infrastructure
+
+- Helm chart for production Kubernetes: horizontal Trino worker scaling, resource groups, HPA autoscaling.
+
+#### Large Result Redirect & CTAS
+
+- HTTP-addressable local materialization.
+    - A large result with no object store lands in the org's folder again, served to its owner
+- Per-username access scoping on served redirect files.
+- Age-based reaping of local redirect files.
+- Extend engine-native ctas_redirect beyond Trino to all object-store-capable engines.
+- Sink-tier selection rule. ctas_redirect targets the engine's native object-store sink when a reachable object store is configured (PROVISA_REDIRECT_ENDPOINT + credentials); otherwise it falls back to Provisa's local_dir + HTTP-serve.
+- Buffered transports (GraphQL, JSON:API, Bolt) surface materialize/CTAS handles via protocol-native side-channels; streaming transports (pgwire streaming, Flight SQL, airport) opt out (deliver=None).
+
+#### Materialization Store
+
+- Delta fetch for materialization_store REPLICA incremental refresh: an INCREMENTAL RELOAD strategy for datasets whose federation strategy is MATERIALIZED — data is landed/cached, so full re-pull is the cost delta avoids.
+- Write-surface isolation.
+    - A table its query produces is not listed from its source
+    - A csv or parquet source floored to its replica builds it from the file
+    - The file reader is a floored file source's only; any other keeps the engine's in-place copy
+    - A source with no listing keeps the columns its registration supplies
+- A replica is indexed as its table is used: its declared primary key, enforced as the key, and the columns its declared relationships join on -- the foreign key of each relationship whose source is the table, the target column of one whose target it is when that column is not the key, and both foreign keys of a junction table a relationship traverses.
+    - A replica carries its key and its join columns' indexes, built after it lands
+    - A landing's index plan reads the model through its own store
+
+#### Model Propagation
+
+- A model or governance change reaches every worker and every instance.
+
+#### Multi-Method Authentication
+
+- Login page surfaces multiple simultaneous authentication providers (Google, GitHub, email/password), advertised by the server as a list.
+
+#### Object Deletion
+
+- One rule governs the deletion of every kind of object.
+
+#### OpenTelemetry Instrumentation
+
+- Lean tracing by default, detailed tracing in a debug mode.
+
+#### Operator Settings
+
+- Every operator setting has a UI surface.
+
+#### Org Identity & Subdomain Addressing
+
+- The subdomain `{org}.provisa.dev` is the org identity.
+- The subdomain never authorizes — it only names the org.
+
+#### Org Selection
+
+- Under multitenancy a request acts in the org it names, and there is no implied org.
+
+#### Performance Benchmark
+
+- Randomized workload benchmark with tuning knobs.
+    - The sizing and tuning guide, workload sizing, and the worker sweep in the report
+    - The guide counts its cores in the singular and points at the models below
+    - The report reads a replica run's idle.json where the run writes it, and its TTL from the run
+    - Read the server's CPU from another host through server_cpu_agent.py
+    - The three-device optimistic benchmark harness and terraform/perf
+    - cross-source joins under each replication setting as a knob; engine as a sweep dimension
+    - The three-device harness ready to run: its contract, device 1's Bolt port, a dry run
+    - terraform/perf: Spot by default, idle shutdown, and a startup script that leaves no hand steps
+    - The three-device benchmark as one command: apply, wait for ready, run, copy back, destroy
+
+#### Process Roles
+
+- Process roles.
+
+#### Query Cost Control & Monetization
+
+- Hard query-cost caps as a monetization gate: each org tier enforces ceilings on query cost (CPU time, peak memory, bytes scanned, execution time) AND on OUTPUT ROWS returned.
+
+#### Query Governance
+
+- No code path returns query or action-invocation rows without a role bound to them.
+- A read that a role's row limit cut short says so.
+
+#### Regions
+
+- Regions -- separate clusters on one shared model.
+
+#### Registration & Governance
+
+- NL-assisted table candidate discovery for registration.
+
+#### Release Integrity
+
+- A release is made only by the Release: cut workflow, run by hand on main with the version.
+
+#### Replication
+
+- Replication is bounded, single and survivable.
+
+#### Requirements Taxonomy
+
+- A feature layer sits above the requirements, because the requirements are too detailed to explain the product. docs/arch/features.yaml lists the customer-facing features, each with a name, its section, a visibility (feature, quality, or internal) and an audience (consumer, modeler, admin or operator; none for an internal feature), told in a few short conversational paragraphs, one concept each.
+    - A feature layer above the requirements
+
+#### Result Handling & Streaming
+
+- Engine-agnostic query results implement a ResultStream Protocol (column_names, column_types, batches(), iter_rows(), rows); two implementations separate fully-materialized QueryResult (bounded metadata/catalog paths) from lazy StreamingQueryResult (row batches, once-consumed iterator, stateless for shared-pool SaaS deployment).
+
+#### Row-level materialization
+
+- A registered table may opt in (row_materialize, per-table, never a global engine mode) to a row-level, query-driven cache: an individual row is fetched from the live source and upserted into a landed replica strictly when a query's compiled plan resolves a concrete primary-key equality/IN bound against that table — never eagerly, never a background pre-fetch of a key nothing has queried.
+
+#### SaaS Billing
+
+- Pro is sold as three fixed sizes -- S (4 vCPU / 32GB), M (8/64), L (16/128) -- expressed as the node pool machine type and the pod requests/limits of the org's engine, each a plan-fixed constant rather than a control the org adjusts, since each plan is a fixed setting and orgs do not tune their own entitlements.
+- A Starter org signs itself up with a credit card and can answer, without asking anyone, what it owes right now and when the card will be charged.
+
+#### Security
+
+- A SECRETS SERVICE, WITH PROVISA'S OWN STORE AS THE ONE THAT IS ALWAYS THERE. ${provider:reference} already names a provider, and a registry already exists to hold more than one -- [SUPERSEDED by amendment, 2026-10-03 -- Before-state narrative; the secrets registry now registers five backends and ${secret:...} resolves through the configured one.
+- ADMIN / SECRETS: NAMES GO IN, VALUES NEVER COME BACK OUT.
+- A SECRET BELONGS TO SOMEONE, AND WHO IT BELONGS TO IS PART OF ITS ADDRESS.
+- A tag definition carries a Sensitive data option, and a column carrying any tag with that option set is a sensitive column.
+- A standard data_steward role is seeded in every organisation: the owner of a domain's governance.
+
+#### Semantic Interchange (Apache Ossie)
+
+- The model export offers a dbt sources file (sources.yml) written by Provisa directly, for dbt projects that do not use the semantic layer and so cannot load the semantic manifest of.
+
+#### Session
+
+- A browser session's stored bearer is cleared only when the identity provider says the credential is dead (signed out, revoked, or a refresh rejected for the credential itself).
+
+#### Source Connectors
+
+- MongoDB sources can optionally use MongoDB's native change streams ($changeStream) to achieve near-real-time freshness for materialized and cached data, instead of relying solely on TTL-based polling refresh.
+- A table on a MongoDB source can be registered from an aggregation pipeline instead of a collection.
+- Amazon Athena is a source type.
+    - Ported onto main: an array parameter's GraphQL argument stays a list; main's later tests take a native array as JSON
+- Azure Cosmos DB for NoSQL is a source type (cosmosdb): an account endpoint, a database, and either the account key (a secret reference) or a Microsoft Entra service principal (tenant, client id, client secret as a secret reference), each set on the Sources form.
+- Qdrant is a source type.
+- Node is a source type.
+- A MongoDB source can be reached by a connection string, so a MongoDB Atlas cluster can be registered.
+- A query command can run a MongoDB aggregation pipeline whose output has no stable shape (implementation kind source_query).
+- Python is a source type, the Python counterpart of the Node connector, on the same language-neutral worker protocol.
+- A statement whose tables all belong to one Qdrant source routes DIRECT to Qdrant, as any single-source statement routes to its source: the governed statement is lowered to Qdrant's API.
+
+#### Source Registration
+
+- A file-based source (DuckDB, SQLite, CSV and Parquet: the sources whose path names a file) can be given its file by uploading it.
+    - MotherDuck on the Sources form, and the file-source and MotherDuck docs
+
+#### State Store
+
+- The state store.
+
+#### Table Registration
+
+- A table declares its parameters: the values a caller passes to the source to read the table.
+    - Ported onto main: an array parameter stays repeated of its element type; the landing fixture's columns carry embedding
+    - A parameter column is named _nf_<name>; only the context's parameters are native arguments
+    - A refusal names each missing parameter once
+
+#### Tenancy Architecture
+
+- Org is the canonical tenancy subject in Provisa; "tenant" terminology is retired.
+
+#### Testing
+
+- The fabric e2e test (provisa-ui/e2e/source-to-query-cloud-warehouse.spec.ts) was skipped on a "[28000]... system update...
+
+#### UI
+
+- Every results grid -- the SQL explorer's results, the admin reports and the governed table viewer, which share one grid -- filters each column Excel-style, typed by the column's type, beyond today's case-insensitive contains.
+- Every admin page that lists items (sources, tables, security roles and rules, relationships, views, commands, metrics, data products, team, requests and the like) presents its list in one style, the style of the Register Tables page -- the same list component, header row, row height, spacing, typography, action placement, selection and expand behaviour, empty state and loading state.
+- The product tour is a short core tour followed by a menu of topics.
+
+#### UI & Design Patterns
+
+- On a list page a row's detail opens in a right-hand panel beside the list, not under the row.
+- The head of a detail panel is pinned: the item's name, then its actions.
+- An item's detail is divided into sections shown as top-level tabs, not as one scrolling form with expanding sections.
+- The column editor is four tabs: Naming, Type and keys, Access, Testing.
+- Creating an object is short.
+- The explorers are outside the form and detail-panel rules: the pages at /query, /graph, /sql, /jsonapi, /openapi, /explore and /lineage are a different experience and keep their own layout.
+- The application has one tooltip style: the style of the ERD icon button on the Tables page.
+
+#### Vector Search
+
+- A source's native vector capability is detected when its driver connects, at boot and when the source is registered (executor.pool.SourcePool.add): what its own SQL computes a cosine_similarity search with.
+- A `cosine_similarity(column, query)` function is available in Provisa SQL (and so in Cypher, which compiles to it).
+- A table served from its replica is the fallback for a vector search: where the engine reads the replica through its store's own SQL, the replica holds an embedding column as a vector with an HNSW index for cosine distance.
+    - An embedding column is exempt from the JSON rule end to end
+- A replica's vector index is as fresh as the replica: it is built with each replica build and swapped in with it, and the DuckDB engine re-indexes its copy whenever the store changes.
+- Embedding columns are subject to the full Provisa governance stack: row filters, domain boundary rules, and sensitivity tiers.
+- Query-time vectorization must be supported: when a similarity search is expressed with a text string rather than a raw vector, Provisa calls the declared embedding model to generate the query vector before executing the search.
+- Column masking does not apply to embedding columns — a vector cannot be partially masked and remain semantically meaningful.
+- embed(model, text) is a function of Provisa SQL that returns the embedding of text by a model from the registry, its dimensions those of the model.
+
+#### Write Admission
+
+- One write admission.
+
+### Changes
+
+#### admin
+
+- A numeric size no numeric can have is refused with a code, naming the column
+- A REST role or user create whose id or username is taken is refused by name
+- A REST role create finds an existing role as the router's other checks do
+- A REST role create judges the definition first, then the id
+
+#### api
+
+- A binary value is written to JSON as \\x and hex
+
+#### askamerica
+
+- Trino reads an AskAmerica source live through its PostgreSQL connector, once proven
+
+#### auth
+
+- A token name one of the owner's live tokens in the org has is refused
+
+#### cache
+
+- The response-cache opt-in in HTTP request headers on every HTTP surface
+- A Flight cache hit types each registered column as its miss does
+- A plan answered from the cache carries its statement's result shape
+
+#### catalog
+
+- The type a catalog lists for a column is the type a read of it returns
+
+#### commands
+
+- A create on a command or webhook name that exists is refused; an edit saves through its PUT
+
+#### compiler
+
+- Two relationships named for one GraphQL field are refused at the schema build, naming both
+- A command named for a GraphQL root field another command or a table already is, is refused at the build
+- Two sources' tables of one schema and name each lower to their own on the DIRECT route
+
+#### cypher
+
+- A write on a compiled surface is routed as a write, to its source's driver
+- A hot API table reads through Cypher and SQL *
+
+#### demo
+
+- No demo's domain in another demo or org: shelter is the standard demo config's, not a seed
+
+#### discovery
+
+- Foreign keys are read by one PostgreSQL query, for every source that speaks its wire protocol
+- A bundle-served source's tables are listed by its server as soon as it listens
+
+#### domains
+
+- createDomain refuses an existing id by name, and the add form says so
+
+#### duckdb
+
+- A deleted source's attaches go with it; a replica copy lists no other catalog
+
+#### federation
+
+- A source registered at runtime carries its live-read cap to the attach
+
+#### glossary
+
+- PostgreSQL admits every glossary edge type, so a config's DERIVED_FROM edge no longer stops boot
+
+#### graph
+
+- The explorer draws the first "max nodes" rows and says so over the canvas
+- A drawn read is never redirected and is cut at max nodes counted as distinct nodes
+- The page draws a node result up to max nodes; the setting is uncapped, 300 by default
+- A redraw lays a collapsed group's neighbours around its supernode where it was dragged
+- A drop onto a result keeps the result's own ORDER BY, SKIP and LIMIT
+
+#### graphql
+
+- An aggregate field carries the row type's name for its column
+- A group-by is ordered by its keys and its aggregates
+
+#### install
+
+- NixOS hosts are told the settings they need, and the Linux download starts on stock NixOS
+
+#### join-guard
+
+- A scalar subquery over a derived table is a value, not a cross join
+
+#### json
+
+- A read of a natively nested column is the backend's own to-JSON expression
+- A replica lands a natively nested column as JSON the source or engine produces
+- Registration refuses another type for a nested column; GraphQL lists from the attributes; refusals by code
+- The hidden attributes in the authoritative DDL and every locale; exact JSON text in the container tests
+- gRPC carries a nested column as a JSON string; decimal list elements are strings; binary elements read as the scalar does
+- PostgreSQL hands over finite floats, Trino keeps a timestamp's microseconds
+
+#### materialization
+
+- A TTL of 0 is 0 and reads live; a small answer inlined, a large one in a scratch table
+- A gRPC remote query's TTL is the first one set, never 300 by itself
+
+#### metrics
+
+- upsertMetric becomes createMetric and updateMetric; a create refuses an existing name
+
+#### model
+
+- A registration stores a numeric's size in one spelling and refuses an impossible one
+
+#### motherduck
+
+- MotherDuck in place on the DuckDB engine; hybrid through the shared connection
+- The tour counts 72 source types with MotherDuck in
+
+#### native
+
+- The native launchers run an embedded PostgreSQL control plane
+
+#### oracle
+
+- A CLOB or BLOB is read as its value
+
+#### polly
+
+- Prompt caching on every model call, a usage event per turn, the price table, and the model bake-off
+- A Cypher statement is checked before it reaches the Graph page, and Polly sets the page's view controls
+
+#### reads
+
+- The row stream reads each column as its registered type
+- Only a result column that is a registered column is typed by the model
+- A value that is not its column's registered type is a read refusal with a code
+- Flight's buffered answers read each registered column as its registered type
+- An Airport scan reads each registered column as its registered type
+- An engine's Arrow stream reads each registered column as its registered type
+- An undeclared numeric is cast to double by its source, in the governed statement
+- A read's shape types each column on its own
+- A decimal with no reported size is floating point; its type depends on no row
+- A registered table whose columns are not known leaves its columns underived
+- A column the statement states is floating point is typed with or without rows
+- A published name differing from its physical column only in case is lowered (issue #140)
+
+#### registration
+
+- A native array, struct or map registers as json with its depth, element type and native type
+- A type spelling only its platform has registers as its IR name
+
+#### relationships
+
+- A save ends in success or a refusal by name, never a spinner
+- upsertRelationship becomes createRelationship and updateRelationship; ids and GraphQL aliases are refused by name when taken
+
+#### roles
+
+- A held role with no data surface is no member of a meta-role
+- One rule for a role with no data surface in a meta-role
+
+#### schema
+
+- Every enum CHECK admits the same values in both schemas and the code
+
+#### server
+
+- /setup/status answers when every data thread is busy; a refusal logs what holds them
+
+#### settings
+
+- Polly's price table is edited as a table
+
+#### site
+
+- A live demos page, one card per published named demo
+- The Sources page's spelled-out connector counts come from SOURCE_TYPES
+- A Live demos link in every page's navigation
+
+#### sources
+
+- A rename onto another source's id is refused by name; onto its own id it changes nothing
+- createSource refuses an existing id; updateSource provisions the source on the bound engine again
+- A remote schema's refresh hint stays open while the refresh runs
+
+#### sqlserver
+
+- The listing statements bind their schema; a value with no placeholder is refused
+
+#### synthetic
+
+- A fixed pool holds as many distinct values as it declares, spread over its range
+
+#### tables
+
+- A column alias is unique within its table, and so is each column's GraphQL field
+
+#### tags
+
+- upsertTag becomes createTag and updateTag; a create refuses an existing id
+
+#### tour
+
+- A named demo tells its own story first; the weblogs demo's track
+- Deep dives are offered only where the org has what they show; a step's opener waits for what it opens
+- A read of what the org has that a store reset cut short is read again; a failed one does not leave the tour preparing
+
+#### types
+
+- A numeric column's precision and scale have one stored spelling, one writer, one reader
+- A decimal's precision and scale reach the model from what the engine reports
+- Oracle's NUMBER is a numeric, sized or not
+- Every Oracle type registers as a type every reader knows
+
+#### ui
+
+- A domain new since the last visit stays checked after a reload
+- A numeric column's precision and scale are set beside its type
+- Ported onto main: the numeric size inputs sit in main's column type tab; a reusable control under the form layout guard
+- Browser state is saved per control plane and org
+- A statement with its own LIMIT runs as written; the SQL page hides the sample controls for it
+- The graph explorer says when a result went to a file, instead of drawing nothing
+- A busy flag set before an await is cleared in a finally; refusals are said, not shown as success
+- A deployment started as no named demo has no demo track
+- The tour starts when it is started twice at once; a registered table opens by the id it was given
+- A table edit saves only the table settings that changed
+- The GraphQL explorer keeps its introspected schema in memory, not in sessionStorage
+- Schema discovery's columns are clickable in the source's detail panel
+- Open in SQL runs and shows the handed statement on a page it opens
+
+#### weblogs
+
+- Customers in four sales regions; short unique customer and product names
+
+#### writes
+
+- An INSERT's target takes no alias, so its column list survives
+
+#### General
+
+- A server's shutdown closes every connection it opened, also after its config was re-applied
+- The engine-state poll is answered beside the health probes and never queues behind itself
+- The swap lane's exasol case -- an edited source keeps its certificate pin, nvarchar is text, a stored sqlite path is resolved where it is read
+- A single aggregate root answers in the data envelope; three tests' fakes and seeds catch up
+- A checker's result table registers without a source listing; a held role with no data surface adds nothing
+
 ## v0.1.0-alpha.481
 
 Released 2026-10-13.
