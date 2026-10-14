@@ -82457,3 +82457,55 @@
   notes: 'Maintainer 2026-10-14, via the lead: extend Qdrant search tables to the full Query API (today''s table
     accepts only collection, query, using, filter, limit, score_threshold, model; provisa/qdrant/table.py _KEYS).
     Lead''s elaboration: the list of request features and the text-to-vector rule.'
+- id: REQ-2031
+  status: proposed
+  since: 2026-10
+  group: 3. Source Registration & Data Modeling
+  category: Table Registration
+  feature: replicas-and-freshness-freshness-gate
+  priority: SHOULD
+  type: behavioral
+  description: 'A TTL of -1 means never expires: the table lands once and its replica is never stale after that.
+    -1 can be set on a source, which its tables inherit as they inherit any TTL, or on a table. A read of a TTL
+    -1 table is always answered from its replica; with no replica yet, a read is refused by name, never sent to
+    the source. The UI shows the replica''s landing time ("as of") where freshness would show. Provisa contacts
+    a source only to land a table that needs landing: a source whose tables are all TTL -1 and landed is never attached,
+    probed, reconciled or landed, at boot or later, and needs no credential to be read. Other negative TTLs are
+    refused. A TTL of 0 keeps its REQ-2003 meaning.'
+  use_case: 'A demo is built in CI against real Salesforce, ServiceNow and Jira accounts: its sources are registered
+    with TTL -1, each table lands once, and the model plus the replica store are packaged into the demo template.
+    Every visitor''s sandbox then reads only the replicas, with no credentials and no call to any live account.'
+  scenario: 'Given a source with TTL -1 whose tables have landed
+
+
+    When Provisa starts, and later reconciles
+
+
+    Then nothing is sent to the source: no attach, probe, reconcile or landing
+
+
+    When a query reads one of its tables
+
+
+    Then it is answered from the replica, and the table shows the landing time
+
+
+    When a TTL -1 table has no replica and is read
+
+
+    Then the read is refused, naming the table, and nothing is sent to the source
+
+
+    When a TTL of -2 is saved
+
+
+    Then it is refused'
+  related_reqs:
+  - REQ-2003
+  - REQ-2006
+  - REQ-2012
+  - REQ-2015
+  notes: 'Maintainer 2026-10-14, via the lead: demos use replicas 100% and never reach out to live accounts; live
+    accounts are used only to build accurate demos. Maintainer chose "as simple as a TTL -1 for freshness" over
+    a separate snapshot source state. Lead''s elaboration: the contact-only-to-land rule (Provisa otherwise attaches,
+    probes and reconciles sources; cf. issue #256).'

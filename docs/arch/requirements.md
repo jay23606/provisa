@@ -23379,3 +23379,17 @@ A Qdrant search table ([REQ-1983](#REQ-1983)) can be registered from the full Qd
 **Code:** —
 
 **Tests:** —
+
+## 3. Source Registration & Data Modeling
+
+### REQ-2031 · Table Registration {#REQ-2031}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+A TTL of -1 means never expires: the table lands once and its replica is never stale after that. -1 can be set on a source, which its tables inherit as they inherit any TTL, or on a table. A read of a TTL -1 table is always answered from its replica; with no replica yet, a read is refused by name, never sent to the source. The UI shows the replica's landing time ("as of") where freshness would show. Provisa contacts a source only to land a table that needs landing: a source whose tables are all TTL -1 and landed is never attached, probed, reconciled or landed, at boot or later, and needs no credential to be read. Other negative TTLs are refused. A TTL of 0 keeps its [REQ-2003](#REQ-2003) meaning.
+
+**Use case:** A demo is built in CI against real Salesforce, ServiceNow and Jira accounts: its sources are registered with TTL -1, each table lands once, and the model plus the replica store are packaged into the demo template. Every visitor's sandbox then reads only the replicas, with no credentials and no call to any live account.
+
+**Code:** —
+
+**Tests:** —
