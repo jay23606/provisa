@@ -77,14 +77,18 @@ def missing_parameters(
     ``given`` (the statement's arguments, by parameter name) nor through a join (``fed`` answers
     for a parameter column's name)."""
     have = {_canonical(k) for k, v in (given or {}).items() if v is not None}
-    return [
-        parameter_name(c)
-        for c in columns
-        if is_parameter(c)
-        and is_required(c)
-        and _canonical(parameter_name(c)) not in have
-        and not fed(column_name(c))
-    ]
+    # Each parameter once: a remote field that is also an argument is held both as its column and
+    # as its ``_nf_`` column, one parameter ("requires the parameter(s) ['id', 'id']").
+    return list(
+        dict.fromkeys(
+            parameter_name(c)
+            for c in columns
+            if is_parameter(c)
+            and is_required(c)
+            and _canonical(parameter_name(c)) not in have
+            and not fed(column_name(c))
+        )
+    )
 
 
 def missing_reason(missing: list[str]) -> str:
