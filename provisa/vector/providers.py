@@ -14,6 +14,8 @@ Pluggable backends that turn text into vectors for a registered VectorModel:
 
 from __future__ import annotations
 
+import threading
+
 from abc import ABC, abstractmethod
 
 from provisa.vector.registry import VectorModel
@@ -119,9 +121,13 @@ class OllamaProvider(EmbeddingProvider):  # REQ-420
 
 
 class HuggingFaceLocalProvider(EmbeddingProvider):  # REQ-420
-    """Local sentence-transformers model — no network."""
+    """Local sentence-transformers model — no network. A model is loaded once per process, and it
+    is used by one request at a time: each request runs on its own thread, and two encoding at
+    once on Apple's GPU (MPS, where sentence-transformers runs on a Mac) abort the process
+    (``failed assertion _status < MTLCommandBufferStatusCommitted``)."""
 
     _cache: dict = {}
+    _in_use = threading.Lock()
 
     async def embed(self, texts: list[str], model: VectorModel) -> list[list[float]]:
         try:
@@ -130,11 +136,12 @@ class HuggingFaceLocalProvider(EmbeddingProvider):  # REQ-420
             raise EmbeddingError(
                 "huggingface provider requires sentence-transformers: pip install provisa[vector]"
             ) from exc
-        st = self._cache.get(model.id)
-        if st is None:
-            st = SentenceTransformer(model.id)
-            self._cache[model.id] = st
-        return [list(map(float, v)) for v in st.encode(texts)]
+        with self._in_use:
+            st = self._cache.get(model.id)
+            if st is None:
+                st = SentenceTransformer(model.id)
+                self._cache[model.id] = st
+            return [list(map(float, v)) for v in st.encode(texts)]
 
     async def reported_version(self, model: VectorModel) -> str | None:  # REQ-2002
         """The commit of the model's local snapshot: the hub cache names each snapshot by it."""

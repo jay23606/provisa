@@ -77,6 +77,53 @@ class TestProviders:
         assert isinstance(get_provider("ollama"), _Ol)
         assert isinstance(get_provider("huggingface"), HuggingFaceLocalProvider)
 
+    async def test_a_local_model_used_by_two_requests_at_once_is_loaded_once_and_used_in_turn(
+        self, monkeypatch
+    ):
+        """Each request runs on its own thread: two using a local model together load it once
+        and encode one after the other -- two encoding at once on Apple's GPU abort the process."""
+        import asyncio
+        import sys
+        import threading
+        import time
+
+        from provisa.vector.providers import HuggingFaceLocalProvider
+
+        loads: list[str] = []
+        encoding: list[int] = []  # how many encodes run at once, each time one starts
+
+        class _Model:
+            def __init__(self, model_id):
+                loads.append(model_id)
+                time.sleep(0.2)  # long enough for the other thread to arrive meanwhile
+
+            def encode(self, texts):
+                encoding.append(len(encoding) + 1 - len(done))
+                time.sleep(0.2)
+                done.append(1)
+                return [[1.0, 0.0] for _ in texts]
+
+        done: list[int] = []
+
+        monkeypatch.setitem(
+            sys.modules, "sentence_transformers", types.SimpleNamespace(SentenceTransformer=_Model)
+        )
+        monkeypatch.setattr(HuggingFaceLocalProvider, "_cache", {})
+        model = VectorModel(id="mini", provider="huggingface", dimensions=2)
+        got: list = []
+
+        def _request():
+            got.append(asyncio.run(HuggingFaceLocalProvider().embed(["a line"], model)))
+
+        threads = [threading.Thread(target=_request) for _ in range(2)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        assert loads == ["mini"]
+        assert encoding == [1, 1]  # never two at once
+        assert got == [[[1.0, 0.0]], [[1.0, 0.0]]]
+
     async def test_unknown_provider_raises(self):
         with pytest.raises(EmbeddingError, match="Unknown embedding provider"):
             get_provider("bogus")
