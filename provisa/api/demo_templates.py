@@ -96,10 +96,13 @@ def _demo_directories() -> list[Path]:
     names = bundled_demos()
     if not names:
         return [spec.parent for spec in sorted(named_demos_dir().glob("*/demo.yaml"))]
+    from provisa.core.demo_bundles import check_directory
+
     found = []
     for name in names:
         version = ready_version(name)
         if version is not None:
+            check_directory(bundles_root() / name / version)
             found.append(bundles_root() / name / version)
     return found
 

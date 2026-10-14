@@ -1069,6 +1069,14 @@ async def _load_and_build(
     # exporter, so provisa.* logs never reach the console / backend.log.
     _startup_log = logging.getLogger("uvicorn.error")
     _startup_marks = [time.perf_counter()]
+    # REQ-2049: a named demo started from a bundle this Provisa cannot read is refused here, by
+    # name, rather than failing every /setup/status that reads its tour.
+    from provisa.core.demo import started_demo_directory
+    from provisa.core.demo_bundles import check_directory
+
+    _started_demo = started_demo_directory()
+    if _started_demo is not None:
+        check_directory(_started_demo)
 
     def _mark(name: str) -> None:
         now = time.perf_counter()

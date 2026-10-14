@@ -453,6 +453,8 @@ A demo with a `setup.yaml` is set up in the build. The extras its `demo.yaml` na
 
 ### requires_provisa
 
+A bundle also names its demo format: the version of a demo's own files (tour, queries, config), bumped when they gain something Provisa requires, such as a tour's `landing`. A bundle in an older format than the running Provisa reads is refused when it is pulled or loaded, by name, saying to pull the latest: `demo weblogs <version> is in demo format 1; this Provisa reads format 2: pull its latest (start-ui-install.sh --demo weblogs)`.
+
 `demo.yaml` must say the oldest Provisa the demo runs on. The build refuses a published demo without it.
 
 ```yaml

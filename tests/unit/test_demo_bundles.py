@@ -234,3 +234,62 @@ def test_a_version_tag_names_the_build_minute_and_commit(tmp_path):
     with pytest.raises(db.BundleError, match="not a bundle version"):
         db.pack(_demo(tmp_path), _manifest(version="latest"))
     assert re.match(r"^weblogs-latest$", db.tag_of("weblogs", db.LATEST))
+
+
+# --- the demo format (the maintainer's local-dev: a bundle built before tour.yaml's `landing`) ---
+
+
+def _old_bundle(directory) -> None:
+    """A bundle as published before demo formats were versioned (weblogs 202610141838-c48b72e45):
+    its bundle.json names no format, and its tour.yaml no landing."""
+    directory.mkdir(parents=True)
+    (directory / "bundle.json").write_text(
+        json.dumps(
+            {
+                "demo": "weblogs",
+                "version": "202610141838-c48b72e45",
+                "commit": "c48b72e45" + "0" * 31,
+                "requires_provisa": "0.1.0a483",
+            }
+        )
+    )
+    (directory / "tour.yaml").write_text("steps: []\n")
+
+
+def test_a_bundle_in_an_older_demo_format_is_refused_by_name_at_load(tmp_path):
+    old = tmp_path / "weblogs" / "202610141838-c48b72e45"
+    _old_bundle(old)
+    with pytest.raises(db.OldDemoFormat) as refused:
+        db.check_directory(old)
+    assert str(refused.value) == (
+        "demo weblogs 202610141838-c48b72e45 is in demo format 1; this Provisa reads format "
+        f"{db.DEMO_FORMAT}: pull its latest (start-ui-install.sh --demo weblogs)"
+    )
+
+
+def test_a_version_pulled_before_is_checked_again_when_asked_for(tmp_path, registry_pair):
+    _fake, make = registry_pair
+    _old_bundle(tmp_path / "demos" / "weblogs" / "202610141838-c48b72e45")
+    with pytest.raises(db.OldDemoFormat, match="demo format 1"):
+        db.pull_into("weblogs@202610141838-c48b72e45", tmp_path / "demos", "https://reg.test/acme")
+
+
+def test_the_current_format_loads_and_a_checkout_is_the_current_format(tmp_path, registry_pair):
+    fake, make = registry_pair
+    manifest = _manifest()
+    assert manifest.format == db.DEMO_FORMAT
+    make(_PUBLISHER).push(manifest, db.pack(_demo(tmp_path), manifest))
+    target = tmp_path / "pulled"
+    make().pull("weblogs", db.LATEST, target, running="0.1.0a483")
+    db.check_directory(target)  # its bundle.json names the current format
+    assert json.loads((target / db.MANIFEST_FILE).read_text())["format"] == db.DEMO_FORMAT
+    db.check_directory(tmp_path / "weblogs")  # a checkout's demo: no bundle.json
+
+
+def test_a_published_bundle_in_an_older_format_is_refused_before_its_layer(tmp_path, registry_pair):
+    fake, make = registry_pair
+    old = db.BundleManifest("weblogs", "202610141838-c48b72e45", "c" * 40, "0.1.0a483", format=1)
+    make(_PUBLISHER).push(old, db.pack(_demo(tmp_path), old))
+    with pytest.raises(db.OldDemoFormat, match="pull its latest"):
+        make().pull("weblogs", db.LATEST, tmp_path / "pulled", running="0.1.0a483")
+    assert not (tmp_path / "pulled").exists()
