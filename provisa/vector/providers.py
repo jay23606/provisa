@@ -129,22 +129,29 @@ class HuggingFaceLocalProvider(EmbeddingProvider):  # REQ-420
     _cache: dict = {}
     _in_use = threading.Lock()
 
-    async def embed(self, texts: list[str], model: VectorModel) -> list[list[float]]:
+    def _loaded(self, model: VectorModel):
+        """``model``, loaded once for this process -- fetched into the hub cache first when this
+        host has never had it. Called with ``_in_use`` held."""
         try:
             from sentence_transformers import SentenceTransformer  # pyright: ignore[reportMissingImports]
         except ImportError as exc:
             raise EmbeddingError(
                 "huggingface provider requires sentence-transformers: pip install provisa[vector]"
             ) from exc
+        st = self._cache.get(model.id)
+        if st is None:
+            st = SentenceTransformer(model.id)
+            self._cache[model.id] = st
+        return st
+
+    async def embed(self, texts: list[str], model: VectorModel) -> list[list[float]]:
         with self._in_use:
-            st = self._cache.get(model.id)
-            if st is None:
-                st = SentenceTransformer(model.id)
-                self._cache[model.id] = st
-            return [list(map(float, v)) for v in st.encode(texts)]
+            return [list(map(float, v)) for v in self._loaded(model).encode(texts)]
 
     async def reported_version(self, model: VectorModel) -> str | None:  # REQ-2002
-        """The commit of the model's local snapshot: the hub cache names each snapshot by it."""
+        """The commit of the snapshot the model is loaded from: the hub cache names each snapshot
+        by it. The model is loaded first, so a host that has never had it fetches it, as its
+        first use would -- the version is asked before any text is embedded."""
         from pathlib import Path
 
         try:
@@ -153,6 +160,8 @@ class HuggingFaceLocalProvider(EmbeddingProvider):  # REQ-420
             raise EmbeddingError(
                 "huggingface provider requires sentence-transformers: pip install provisa[vector]"
             ) from exc
+        with self._in_use:
+            self._loaded(model)
         return Path(snapshot_download(model.id, local_files_only=True)).name
 
 

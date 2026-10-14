@@ -201,6 +201,11 @@ async def test_a_local_huggingface_model_reports_its_snapshot_commit(monkeypatch
         )
     )
     monkeypatch.setitem(sys.modules, "huggingface_hub", hub)
+    # The model is loaded before its snapshot is read (a host that never had it fetches it).
+    monkeypatch.setitem(
+        sys.modules, "sentence_transformers", SimpleNamespace(SentenceTransformer=lambda _id: None)
+    )
+    monkeypatch.setattr(HuggingFaceLocalProvider, "_cache", {})
     model = VectorModel(id="all-MiniLM", provider="huggingface", dimensions=3)
     assert await HuggingFaceLocalProvider().reported_version(model) == "0f1e2d3c"
 

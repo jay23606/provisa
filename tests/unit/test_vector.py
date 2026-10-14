@@ -124,6 +124,41 @@ class TestProviders:
         assert encoding == [1, 1]  # never two at once
         assert got == [[[1.0, 0.0]], [[1.0, 0.0]]]
 
+    async def test_a_local_model_s_version_is_read_on_a_host_that_never_had_it(
+        self, monkeypatch, tmp_path
+    ):
+        """REQ-2002: embed() records the model's version before any text is embedded. On a host
+        whose hub cache does not hold the model yet, the version is read once the model is
+        fetched -- a cache-only lookup first failed the statement ('outgoing traffic has been
+        disabled')."""
+        import sys
+
+        from provisa.vector.providers import HuggingFaceLocalProvider
+
+        cached: set[str] = set()
+
+        class _Model:
+            def __init__(self, model_id):
+                cached.add(model_id)  # loading fetches it into the hub cache
+
+        def _snapshot_download(model_id, local_files_only):
+            assert local_files_only
+            if model_id not in cached:
+                raise FileNotFoundError("outgoing traffic has been disabled")
+            return str(tmp_path / "snapshots" / "abc123")
+
+        monkeypatch.setitem(
+            sys.modules, "sentence_transformers", types.SimpleNamespace(SentenceTransformer=_Model)
+        )
+        monkeypatch.setitem(
+            sys.modules,
+            "huggingface_hub",
+            types.SimpleNamespace(snapshot_download=_snapshot_download),
+        )
+        monkeypatch.setattr(HuggingFaceLocalProvider, "_cache", {})
+        model = VectorModel(id="mini", provider="huggingface", dimensions=2)
+        assert await HuggingFaceLocalProvider().reported_version(model) == "abc123"
+
     async def test_unknown_provider_raises(self):
         with pytest.raises(EmbeddingError, match="Unknown embedding provider"):
             get_provider("bogus")
