@@ -28,6 +28,9 @@
     "yes": "Ja",
     "no": "Nein",
     "typeSomethingElse": "Etwas anderes eingeben",
-    "confirm": "Bestätigen"
+    "confirm": "Bestätigen",
+    "graphCaption": "Knoten: {{nodes}} · Beziehungen: {{relationships}}",
+    "downloadPng": "PNG herunterladen",
+    "openOnGraphPage": "Auf der Graph-Seite öffnen"
   }
 }

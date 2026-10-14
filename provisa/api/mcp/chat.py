@@ -17,7 +17,9 @@ runs under the caller's fixed role (never chosen by the model), so the agent is
 bound by the same domain access + governance as any other client.
 
 The loop yields discrete events (assistant text, tool_use, tool_result, done,
-error) that the endpoint streams to the browser as SSE.
+error) that the endpoint streams to the browser as SSE, and an artifact -- a picture
+render_graph drew, a file run_sql delivered -- that the chat panel shows with its download
+and that never enters the model's context.
 
 CLIENT TOOLS (REQ-1795): a second tool category — `navigate` and admin-mutation
 dispatch — that only make sense in the browser (router, Apollo client, confirm
@@ -152,15 +154,41 @@ _TOOLS: list[Any] = [
     },
     {
         "name": "run_sql",
-        "description": "Execute SQL through the governed pipeline; returns row-capped JSON rows.",
+        "description": (
+            "Execute SQL through the governed pipeline; returns row-capped JSON rows. With "
+            "file_format, the result is delivered as a file instead, and the user gets a download "
+            "for it in the chat: use it when the user asks for the data as a file (CSV or "
+            "Parquet). A result with more rows than the cap, asked for without a limit, is also "
+            "delivered as a CSV file the user can download, alongside the first rows."
+        ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "sql": {"type": "string"},
                 "limit": {"type": "integer"},
                 "offset": {"type": "integer"},
+                "file_format": {"type": "string", "enum": ["csv", "parquet"]},
             },
             "required": ["sql"],
+        },
+    },
+    {
+        "name": "render_graph",
+        "description": (
+            "Draw a Cypher read as a picture IN THE CHAT: runs the statement under your role, "
+            "draws its nodes and relationships the way the Graph page draws them, and shows the "
+            "PNG to the user with a Download button and an 'Open on Graph page' button that runs "
+            "the same statement there. Call cypher_field_names first for the real labels. The "
+            "statement must bind and return the relationships along its path. Returns the counts "
+            "of nodes and relationships drawn."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "cypher": {"type": "string"},
+                "layout": {"type": "string", "enum": list(mcp_tools.GRAPH_LAYOUTS)},
+            },
+            "required": ["cypher"],
         },
     },
     {
@@ -658,8 +686,9 @@ _SYSTEM = (
     "answer. Never narrate your steps ('Let me look at...', 'I'll check...') before or between "
     "tool calls: call the tools, then write the answer. A large result the user did not ask to "
     "see in full (dozens of rows or more) is summarized -- the count, how it splits, a few "
-    "examples -- with an offer of the rest, or its rows are put in a table on the SQL page via "
-    "navigate; never paste hundreds of lines into the chat. State only what a tool result "
+    "examples -- with an offer of the rest as a file (run_sql with file_format), or its rows "
+    "are put in a table on the SQL page via navigate; never paste hundreds of lines into the "
+    "chat. State only what a tool result "
     "confirms: when a result says only that something was requested or navigated to, say what "
     "you requested, never that it worked or how it now looks. When you're offering the user a decision among a handful of concrete options — which "
     "source, which table, proceed or not, pick some of these — call present_choice rather than "
@@ -813,6 +842,14 @@ _SYSTEM = (
     "for any domain id containing a hyphen or space (reproduced live).\n"
     "- OpenAPI: same as JSON:API — call graphql_field_names and use its openapi_path verbatim as "
     "state.openApiUrl, never reassembled from the plain schema/table names.\n"
+    "PICTURES AND FILES: asked to show, draw or visualise a graph or network, call render_graph: "
+    "the picture appears in the chat with a Download button and an Open on Graph page button "
+    "that runs the same statement there, so never ask whether the user meant the chat or the "
+    "Graph page -- they get both. Asked to open the Graph page, or to explore the graph there, "
+    "navigate to /graph instead. Asked for data as a file (CSV or Parquet), call run_sql with "
+    "file_format. A run_sql result that carries `redirect` was delivered as a file the user "
+    "can download in the chat: say how many rows it holds and that the download is there, "
+    "never list its rows.\n"
     "The Graph page's view -- group by, collapse every group, layout, max nodes -- is set through "
     "navigate's state.view, never by rewriting the query: asked to group the graph on screen by "
     "an attribute, navigate to /graph with only state.view.groupBy (the node property name) and "
@@ -950,6 +987,77 @@ async def _resolve_model(state: Any) -> str | None:
     return "claude-opus-4-8" if await _resolve_vendor(state) == "anthropic" else None
 
 
+async def _run_sql(state: Any, role: str, sql: str, args: dict) -> dict:
+    """run_sql for the chat. A result delivered as a file -- asked for with file_format, or by the
+    operator's large-result threshold -- carries a download for the chat panel. A result with more
+    rows than the cap, asked for without a limit, is too large to show in the chat: it is also
+    delivered as a CSV file, and the model keeps the first rows to describe it."""
+    file_format = args.get("file_format")
+    result = await mcp_tools.run_sql(
+        state,
+        role,
+        sql,
+        limit=args.get("limit"),
+        offset=int(args.get("offset", 0)),
+        redirect=file_format is not None,
+        redirect_format=file_format,
+    )
+    if file_format is None and args.get("limit") is None and result["truncated"]:
+        delivered = await mcp_tools.run_sql(state, role, sql, redirect=True, redirect_format="csv")
+        result["redirect"] = delivered["redirect"]
+    if "redirect" in result:
+        result["artifact"] = {"kind": "file", **result["redirect"]}
+        result["shown"] = "The user has a download for this file in the chat."
+    return result
+
+
+async def _render_graph(state: Any, role: str, cypher: str, layout: str) -> dict:
+    """render_graph for the chat: the statement checked as a Graph page navigate is, run under
+    the role, and drawn as a PNG the chat panel shows with its download and its way to the Graph
+    page. The model gets what was drawn, never the picture."""
+    import asyncio
+    import base64
+
+    from provisa.api.mcp.cypher_check import check_graph_read
+
+    read = await check_graph_read(state, role, cypher)
+    if read.problem is not None:
+        raise ValueError(
+            f"Not drawn: {read.problem}. Correct the statement and call render_graph again."
+        )
+    ran = await mcp_tools.run_cypher(state, role, cypher)
+    elements = ran["elements"]
+    png = await asyncio.to_thread(mcp_tools.render_graph, elements, layout)
+    nodes, relationships = len(elements["nodes"]), len(elements["edges"])
+    return {
+        "nodes": nodes,
+        "relationships": relationships,
+        "rows": ran["row_count"],
+        "truncated": ran["truncated"],
+        "shown": (
+            "The picture is shown in the chat, with a Download button and an Open on Graph page "
+            "button that runs this statement there."
+        ),
+        "artifact": {
+            "kind": "graph",
+            "png": base64.b64encode(png).decode("ascii"),
+            "cypher": cypher,
+            "nodes": nodes,
+            "relationships": relationships,
+        },
+    }
+
+
+def _split_artifact(result: Any) -> tuple[Any, dict | None]:
+    """A tool result as the model gets it, and the artifact the chat panel shows, when it has one
+    (a picture, a download): the artifact goes to the browser alone, never into the model's
+    context."""
+    if not isinstance(result, dict) or "artifact" not in result:
+        return result, None
+    kept = dict(result)
+    return kept, {"type": "artifact", **kept.pop("artifact")}
+
+
 async def _execute_tool(
     state: Any, role: str, name: str, args: dict, *, request: Any = None
 ) -> Any:
@@ -977,16 +1085,12 @@ async def _execute_tool(
         # Polly's SQL runs with every identifier quoted; SQL that does not parse runs as written,
         # and the result says why it was not quoted.
         sql, quote_error = quote_identifiers(args["sql"])
-        result = await mcp_tools.run_sql(
-            state,
-            role,
-            sql,
-            limit=args.get("limit"),
-            offset=int(args.get("offset", 0)),
-        )
+        result = await _run_sql(state, role, sql, args)
         if quote_error is not None:
             result["sql_note"] = _unquoted_note(quote_error)
         return result
+    if name == "render_graph":
+        return await _render_graph(state, role, args["cypher"], args.get("layout", "force"))
     if name == "explain_sql":
         return await mcp_tools.explain_sql(state, role, args["sql"])
     if name == "propose_source":
@@ -1462,14 +1566,17 @@ async def _run_chat_anthropic(
         for block in server_blocks:
             yield {"type": "tool_use", "name": block.name, "input": block.input}
             try:
-                result = await _execute_tool(
-                    state, role, block.name, dict(block.input), request=request
+                result, artifact = _split_artifact(
+                    await _execute_tool(state, role, block.name, dict(block.input), request=request)
                 )
                 content = json.dumps(result, default=str)
                 is_error = False
             except Exception as exc:  # noqa: BLE001 - reported back to the model, see pragma
                 content = f"Error: {exc}"
                 is_error = True
+                artifact = None
+            if artifact is not None:
+                yield artifact
             yield {"type": "tool_result", "name": block.name, "is_error": is_error}
             tool_results.append(
                 {
@@ -1725,14 +1832,17 @@ async def _run_chat_aisuite(
         for call in server_calls:
             yield {"type": "tool_use", "name": call["name"], "input": call["input"]}
             try:
-                result = await _execute_tool(
-                    state, role, call["name"], call["input"], request=request
+                result, artifact = _split_artifact(
+                    await _execute_tool(state, role, call["name"], call["input"], request=request)
                 )
                 content = json.dumps(result, default=str)
                 is_error = False
             except Exception as exc:  # noqa: BLE001 - reported back to the model, see pragma
                 content = f"Error: {exc}"
                 is_error = True
+                artifact = None
+            if artifact is not None:
+                yield artifact
             yield {"type": "tool_result", "name": call["name"], "is_error": is_error}
             tool_results.append(
                 {

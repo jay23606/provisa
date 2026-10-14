@@ -28,6 +28,9 @@
     "yes": "Sim",
     "no": "Não",
     "typeSomethingElse": "Escrever outra coisa",
-    "confirm": "Confirmar"
+    "confirm": "Confirmar",
+    "graphCaption": "Nós: {{nodes}} · Relações: {{relationships}}",
+    "downloadPng": "Baixar PNG",
+    "openOnGraphPage": "Abrir na página Grafo"
   }
 }

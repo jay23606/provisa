@@ -28,6 +28,9 @@
     "yes": "はい",
     "no": "いいえ",
     "typeSomethingElse": "別の内容を入力",
-    "confirm": "確認"
+    "confirm": "確認",
+    "graphCaption": "ノード: {{nodes}} · リレーションシップ: {{relationships}}",
+    "downloadPng": "PNG をダウンロード",
+    "openOnGraphPage": "グラフページで開く"
   }
 }

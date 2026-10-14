@@ -341,6 +341,52 @@ describe("ChatPanel — a navigate's result carries the server's confirmation", 
   });
 });
 
+describe("ChatPanel — what Polly hands over: a drawn graph, a file", () => {
+  it("shows the graph with its download and a way to the Graph page, and the file's download", async () => {
+    fetchMcpChatStatus.mockResolvedValue({ configured: true, reason: "" });
+    const cypher = "MATCH (l:Line)-[e:EVOKES]->(t:Theme) RETURN l, e, t";
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      sseResponse([
+        { type: "artifact", kind: "graph", png: "iVBORw0KGgo=", cypher, nodes: 12, relationships: 9 },
+        {
+          type: "artifact",
+          kind: "file",
+          redirect_url: "/data/redirect-file/0123456789abcdef0123456789abcdef.csv",
+          row_count: 1540,
+          expires_in: 3600,
+          content_type: "text/csv",
+        },
+        { type: "text", text: "Here is the graph, and the rows as a file." },
+        { type: "done" },
+      ]),
+    );
+
+    render(<ChatPanel />);
+    fireEvent.click(screen.getByTestId("chat-panel-toggle"));
+    const textarea = await screen.findByPlaceholderText(/Ask me a question/);
+    fireEvent.change(textarea, { target: { value: "show it as a graph" } });
+    fireEvent.keyDown(textarea, { key: "Enter" });
+
+    const graph = await screen.findByTestId("chat-graph");
+    const image = graph.querySelector("img")!;
+    expect(image.getAttribute("src")).toBe("data:image/png;base64,iVBORw0KGgo=");
+    expect(image.getAttribute("alt")).toBe("Nodes: 12 · Relationships: 9");
+    const download = screen.getByTestId("chat-graph-download");
+    expect(download.getAttribute("href")).toBe("data:image/png;base64,iVBORw0KGgo=");
+    expect(download.getAttribute("download")).toBe("graph.png");
+    fireEvent.click(screen.getByTestId("chat-graph-open"));
+    expect(navigate).toHaveBeenCalledWith("/graph", { state: { query: cypher, autoRun: true } });
+
+    const file = screen.getByTestId("result-redirected");
+    expect(file.querySelector("a")!.getAttribute("href")).toBe(
+      "/data/redirect-file/0123456789abcdef0123456789abcdef.csv",
+    );
+    // The reply's text is still there, after what it handed over.
+    expect(screen.getByText("Here is the graph, and the rows as a file.")).toBeInTheDocument();
+    fetchMock.mockRestore();
+  });
+});
+
 describe("ChatPanel — copy button (REQ-1811)", () => {
   it("copies a message's text to the clipboard", async () => {
     Object.assign(navigator, { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });

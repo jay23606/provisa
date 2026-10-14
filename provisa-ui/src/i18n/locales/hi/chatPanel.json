@@ -28,6 +28,9 @@
     "yes": "हाँ",
     "no": "नहीं",
     "typeSomethingElse": "कुछ और लिखें",
-    "confirm": "पुष्टि करें"
+    "confirm": "पुष्टि करें",
+    "graphCaption": "नोड: {{nodes}} · संबंध: {{relationships}}",
+    "downloadPng": "PNG डाउनलोड करें",
+    "openOnGraphPage": "ग्राफ़ पेज पर खोलें"
   }
 }

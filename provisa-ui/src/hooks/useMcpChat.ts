@@ -13,9 +13,28 @@ import { executeClientTool, type ClientToolContext } from "../mcp/clientTools";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "";
 
+/** What Polly hands over besides text (the server's `artifact` event): a graph render_graph drew,
+ *  or a result run_sql delivered as a file. Shown in the reply, never sent back to the model. */
+export type ChatArtifact =
+  | { kind: "graph"; png: string; cypher: string; nodes: number; relationships: number }
+  | {
+      kind: "file";
+      redirect_url: string;
+      row_count: number;
+      expires_in: number | null;
+      content_type: string | null;
+    };
+
 export interface ChatMsg {
   role: "user" | "assistant";
   text: string;
+  artifacts?: ChatArtifact[];
+}
+
+/** One assistant reply as it streams in: its text, and anything it hands over. */
+interface AssistantTurn {
+  text: (chunk: string) => void;
+  artifact: (artifact: ChatArtifact) => void;
 }
 
 export interface ToolEvent {
@@ -75,7 +94,7 @@ export function useMcpChat(
    *  `awaiting_client_tools` event if the server paused, or null if the turn truly finished. */
   const streamOnce = async (
     convo: RawTurn[],
-    onText: (chunk: string) => void,
+    turn: AssistantTurn,
     signal: AbortSignal,
   ): Promise<Record<string, unknown> | null> => {
     const resp = await fetch(`${API_BASE}/admin/mcp/chat`, {
@@ -107,7 +126,11 @@ export function useMcpChat(
           console.error("Malformed SSE event, skipped:", parseErr, line);
           continue;
         }
-        if (ev.type === "text") onText(ev.text);
+        if (ev.type === "text") turn.text(ev.text);
+        else if (ev.type === "artifact") {
+          const { type: _type, ...artifact } = ev;
+          turn.artifact(artifact as ChatArtifact);
+        }
         else if (ev.type === "tool_use")
           setTools((p) => [...p, { name: ev.name, input: ev.input, running: true }]);
         else if (ev.type === "tool_result") {
@@ -130,26 +153,36 @@ export function useMcpChat(
   // placeholder's actual position is found fresh on every update via indexOf, immune to whatever
   // else got inserted around it. If the placeholder is gone (e.g. the conversation was cleared
   // mid-turn), the update is simply dropped rather than resurrecting a stale message.
-  const beginAssistantTurn = (): ((chunk: string) => void) => {
+  const beginAssistantTurn = (): AssistantTurn => {
     const placeholder: ChatMsg = { role: "assistant", text: "" };
     setMessages((prev) => [...prev, placeholder]);
     let assistantText = "";
-    return (chunk: string) => {
-      assistantText += chunk;
-      const current = assistantText;
+    // REQ-1842: mutate `placeholder` in place — the previous version wrote `next[idx] = {
+    // role: "assistant", text: current }`, a NEW object, replacing the very reference this
+    // closure was tracking. Every chunk after the first then searched for an object no
+    // longer in the array (indexOf always -1) and silently dropped, so the message froze on
+    // the FIRST chunk forever while the server kept streaming the whole real reply
+    // underneath — confirmed live via console logging of every onText call. A new outer
+    // array (still built below) is what tells React to re-render either way.
+    const update = (change: (msg: ChatMsg) => void) =>
       setMessages((prev) => {
-        const idx = prev.indexOf(placeholder);
-        if (idx === -1) return prev;
-        // REQ-1842: mutate `placeholder` in place — the previous version wrote `next[idx] = {
-        // role: "assistant", text: current }`, a NEW object, replacing the very reference this
-        // closure was tracking. Every chunk after the first then searched for an object no
-        // longer in the array (indexOf always -1) and silently dropped, so the message froze on
-        // the FIRST chunk forever while the server kept streaming the whole real reply
-        // underneath — confirmed live via console logging of every onText call. A new outer
-        // array (still built below) is what tells React to re-render either way.
-        placeholder.text = current;
+        if (prev.indexOf(placeholder) === -1) return prev;
+        change(placeholder);
         return [...prev];
       });
+    return {
+      text: (chunk: string) => {
+        assistantText += chunk;
+        const current = assistantText;
+        update((msg) => {
+          msg.text = current;
+        });
+      },
+      artifact: (artifact: ChatArtifact) =>
+        update((msg) => {
+          // An updater may run twice (React StrictMode): the artifact is added once.
+          if (!msg.artifacts?.includes(artifact)) msg.artifacts = [...(msg.artifacts ?? []), artifact];
+        }),
     };
   };
 
@@ -170,8 +203,8 @@ export function useMcpChat(
 
     try {
       for (;;) {
-        const appendAssistant = beginAssistantTurn();
-        const awaiting = await streamOnce(convo, appendAssistant, controller.signal);
+        const turn = beginAssistantTurn();
+        const awaiting = await streamOnce(convo, turn, controller.signal);
         if (!awaiting) break; // the model finished for real — no pending client tools
 
         const pending = awaiting.pending as {
