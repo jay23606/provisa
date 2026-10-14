@@ -336,6 +336,7 @@ async def _optimize_and_route(
     is_mutation=False,
     steward_hint: str | None = None,
     extra_selections: dict | None = None,
+    read_args: dict | None = None,
 ):
     """REQ-863 post-governance optimization stage (may REMOVE sources) + routing on the reduced
     set — shared by both governed-SQL entrypoints so routing observes the optimized source set,
@@ -363,7 +364,13 @@ async def _optimize_and_route(
     # ``extra_selections``: the fields a GraphQL query reads of a graphql_remote table beyond its
     # columns (``CompiledQuery.gql_remote_extra_selections``), fetched with it.
     _rewrites, _values_ctes, _dropped = await _materialize_api_to_engine_cache(
-        exec_sql, state, extra_selections, nf_args=nf_args, table_ids=table_ids, ctx=ctx
+        exec_sql,
+        state,
+        extra_selections,
+        nf_args=nf_args,
+        table_ids=table_ids,
+        ctx=ctx,
+        read_args=read_args,
     )
     _actually_dropped: set[str] = set()
     if _dropped:
@@ -691,6 +698,7 @@ async def _optimize_and_route_cached(
     is_mutation=False,
     steward_hint: str | None = None,
     extra_selections: dict | None = None,
+    read_args: dict | None = None,
 ):
     """REQ-1877 routing addendum: cache `_optimize_and_route`'s output for the ONE case proven
     safe — see `provisa/compiler/compiled_query_cache.py`'s "ROUTING-DECISION CACHING" section
@@ -724,6 +732,7 @@ async def _optimize_and_route_cached(
             is_mutation=is_mutation,
             steward_hint=steward_hint,
             extra_selections=extra_selections,
+            read_args=read_args,
         )
 
     from provisa.compiler.compiled_query_cache import RoutingOutcome
@@ -758,6 +767,7 @@ async def _optimize_and_route_cached(
         has_json_extract=has_json_extract,
         is_mutation=is_mutation,
         extra_selections=extra_selections,
+        read_args=read_args,
     )
     _exec_sql_out, decision, default_source, optimized, sources, opt_labels = result
     # Guaranteed by would_materialize_optimize(exec_sql, state) being False (see module docstring):
@@ -1993,7 +2003,7 @@ async def route_governed(
     # same as the compiled path (_govern_and_route_compiled) — without this, an API table with a
     # required path param never resolves it, materialization skips, and the unmaterialized table
     # reaches the engine unchanged ("no such table").
-    from provisa.compiler.nf_extractor import extract_nf_args
+    from provisa.compiler.nf_extractor import extract_nf_args, separate_parameter_reads
 
     # REQ-1882: both stages are sqlglot-parse-based regex/AST rewrite work; off-load the combined
     # call (see _off_loop's own docstring).
@@ -2001,6 +2011,9 @@ async def route_governed(
         governed.memo,
         lambda: lower_to_catalog_physical(governed_semantic, ctx),
     )
+    # Each read of a table under arguments of its own -- a union of views over one search table
+    # -- is read under its own (REQ-1983, REQ-1986); a single one is extract_nf_args' as ever.
+    _physical_sql, _read_args = separate_parameter_reads(_physical_sql, context_parameters(ctx))
     _physical_sql, _nf_clean_params, _extracted_nf = extract_nf_args(
         _physical_sql, embedded_params or [], context_parameters(ctx)
     )
@@ -2028,6 +2041,7 @@ async def route_governed(
         is_mutation=_is_mutation,
         nf_args=_nf_args,
         steward_hint=route_hint,
+        read_args=_read_args,
     )
     # REQ-1910: the sources are known now — a window opened on one of them covers this request.
     await extend_trace_scope_to_sources(state, role_id, frozenset(_sources))
@@ -4532,7 +4546,7 @@ async def _route_compiled(
         _exec_sql = expand_view_refs(
             _exec_sql, unnarrowed_view_bodies(_exec_sql, _view_map, state, as_of=as_of)
         )
-    from provisa.compiler.nf_extractor import extract_nf_args
+    from provisa.compiler.nf_extractor import extract_nf_args, separate_parameter_reads
     from provisa.vector import similarity as _similarity
 
     if exec_params and _similarity.mentions(governed_sql):
@@ -4540,6 +4554,7 @@ async def _route_compiled(
         exec_params = await _similarity.bind_query_vectors(
             governed_sql, exec_params, await vector_registry(state)
         )
+    _exec_sql, _read_args = separate_parameter_reads(_exec_sql, context_parameters(ctx))
     _exec_sql, _nf_clean_params, _extracted_nf = extract_nf_args(
         _exec_sql, exec_params or [], context_parameters(ctx)
     )
@@ -4575,6 +4590,7 @@ async def _route_compiled(
         is_mutation=_is_write,
         steward_hint=steward_hint,
         extra_selections=extra_selections,
+        read_args=_read_args,
     )
     # REQ-1910: the sources are known now — a window opened on one of them covers this request.
     await extend_trace_scope_to_sources(state, role_id, frozenset(sources))
