@@ -124,6 +124,7 @@ class _Resolver:
         # a marked view's derived table, and each branch of its SQL -> (its instance, view id)
         self._view_scopes: dict[int, tuple[int, int]] = {}
         self._view_sources: set[int] = set()  # the marked derived tables themselves
+        self._view_instances: set[int] = set()  # each marked view's own instance
         self.view_edges: set[frozenset[int]] = set()  # a view's instance and its SQL's instances
 
     def unions_of(self, scopes: list[Scope]) -> None:
@@ -144,6 +145,7 @@ class _Resolver:
                     continue
                 instance = id(source.expression)
                 self.table_of[instance] = view_id
+                self._view_instances.add(instance)
                 self._view_sources.add(id(source))
                 for body in [source, *source.union_scopes]:
                     self._view_scopes[id(body)] = (instance, view_id)
@@ -301,6 +303,15 @@ class _Resolver:
                 # A constant a view gives: a column of the view itself.
                 instance, view_id = self._view_scopes[id(scope)]
                 out.add(_Base(instance, view_id, name))
+        if (
+            out
+            and id(scope) in self._view_scopes
+            and all(b.instance in self._view_instances for b in out)
+        ):
+            # A constant a view reads from a view it reads is a constant it gives: a column of
+            # the outermost view that gives it.
+            instance, view_id = self._view_scopes[id(scope)]
+            return {_Base(instance, view_id, name)}
         return out
 
 
