@@ -82647,24 +82647,24 @@
     a separate snapshot source state. Lead''s elaboration: the contact-only-to-land rule (Provisa otherwise attaches,
     probes and reconciles sources; cf. issue #256).'
 - id: REQ-2032
-  status: proposed
+  status: in-progress
   since: 2026-10
   group: 10. UI & Admin Surfaces
   category: UI
   feature: product-tour-and-demos-named-demos
   priority: SHOULD
   type: behavioral
-  description: 'A named demo, files (Instant data lake): A folder of mixed CSV, Parquet, XLSX and JSON files (a
-    small city open-data drop: 311 complaints, building permits, a budget workbook, inspections) becomes a governed
-    catalog through the files source type with no load step. It shows automatic table discovery (a file dropped
-    into the folder appears as a table), data quality checks and profiling, schema change on a new file, relationships
-    on neighborhood or address, a glossary term and a materialized view. Its tour follows the settled demo tour
-    shape: the scenario and the features it exercises; how its sources, tables, commands, views and relationships
-    fit, each step on its real row; then the solution in whatever form best answers the question: predesigned queries
-    and views run over the transports that suit it (SQL, GraphQL, REST, JSON:API, gRPC, Cypher, or an external client
-    over pgwire or Arrow Flight), with a Polly question (answered at template build and served stored, REQ-2012)
-    only where a conversational answer is the natural fit; then a recap. The demo never reaches a live external
-    account at run time: data from real accounts is landed at build as TTL -1 replicas (REQ-2031). Its business
+  description: 'A named demo, files (Instant data lake): a folder of mixed CSV, Parquet, XLSX and JSON files (a
+    small city open-data drop: 311 complaints in one CSV file a month, building permits in Parquet, a budget workbook,
+    inspections in JSON) becomes a governed catalog through one files source, read where it lies with no load step.
+    It shows every file read as a table; the monthly complaint files as one table over their glob (REQ-788), so a
+    new month''s file needs no table of its own; relationships on address, permit and neighborhood; a glossary term
+    grounded by the terms its columns give; and a materialized view that answers the question. The files are added
+    at build only, never by a visitor, and the demo has no replicas. Data quality, profiling and schema change are
+    not part of it: data quality and profiling are demos of their own (REQ-2051, REQ-2052). Its tour follows the
+    settled demo tour shape: the scenario and the features it exercises; how its source, tables, relationships and
+    glossary term fit, each step on its real row; then the solution, the stored view in SQL and over REST; then a
+    recap, ending on the SQL page. The demo never reaches a live external account at run time. Its business
     question: "Which neighborhoods have the most complaints near active construction?"'
   use_case: 'A visitor opens the files demo, walks its tour, and sees the business question answered: Which neighborhoods
     have the most complaints near active construction?'
@@ -82684,9 +82684,20 @@
   - REQ-2010
   - REQ-2012
   - REQ-2031
+  - REQ-2051
+  - REQ-2052
+  - REQ-788
   notes: 'Maintainer 2026-10-14, via the lead: approved as one of the capability demos (logs, AI/vector, NoSQL,
     enterprise SaaS, files, streaming, data residency, cybersecurity). Lead''s elaboration: the scenario, data and
     feature assignment in the description.'
+  code:
+  - demo/named/files/config.yaml
+  - demo/named/files/generate.py
+  - demo/named/files/tour.yaml
+  - demo/named/files/demo.yaml
+  tests:
+  - tests/integration/test_files_demo.py
+  - tests/unit/test_named_demo_tour.py
 - id: REQ-2033
   status: proposed
   since: 2026-10

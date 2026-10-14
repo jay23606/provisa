@@ -363,6 +363,42 @@
       "weblogsStatements": {
         "title": "De SQL achter een trage pagina",
         "description": "De traagste pagina's gekoppeld aan de statements die hun verzoeken uitvoerden, in gewone SQL over twee views van de demo. Een view is een opgeslagen query die Provisa in dit statement invult voordat het wordt uitgevoerd. Hier zie je waar de tijd heen ging, statement voor statement."
+      },
+      "filesIntro": {
+        "title": "Een direct data lake",
+        "description": "Een stad publiceert haar open data als bestanden: meldingen van bewoners in een CSV-bestand per maand, bouwvergunningen in Parquet, de begroting in Excel en inspecties in JSON. <strong>drop</strong> is één bestandsbron over die map: elk bestand is een tabel, gelezen waar het staat, zonder laadstap. De vraag: welke wijken hebben de meeste klachten bij actieve bouwplaatsen?"
+      },
+      "filesComplaints": {
+        "title": "Eén tabel over veel bestanden",
+        "description": "<strong>complaints</strong> is één tabel over elk bestand met de naam complaints_*.csv in de map. Het bestand van elke maand hoort erbij; het bestand van een nieuwe maand heeft geen eigen tabel nodig."
+      },
+      "filesMonths": {
+        "title": "Rijen uit elk bestand",
+        "description": "De klachten geteld per maand: elke maand komt uit een eigen bestand, gelezen als één tabel. Zoek één rij voor elk maandbestand."
+      },
+      "filesFormats": {
+        "title": "Een bestand van elk formaat",
+        "description": "<strong>building_permits</strong> wordt gelezen uit een Parquet-bestand, zoals de begroting uit een Excel-werkmap en de inspecties uit een JSON-bestand. Elk is een beheerde tabel zoals elke andere."
+      },
+      "filesJoin": {
+        "title": "Klachten op vergunde adressen",
+        "description": "De relatie DRAWS koppelt een bouwvergunning aan de klachten op haar adres. De view die de vraag beantwoordt, koppelt langs deze relatie."
+      },
+      "filesTerm": {
+        "title": "Wat een open klacht is",
+        "description": "De woordenlijst zegt wat een open klacht is: een klacht die de stad nog niet heeft gesloten. Termen als deze zeggen wat de gegevens van de catalogus betekenen."
+      },
+      "filesAnswer": {
+        "title": "Het antwoord",
+        "description": "De opgeslagen view complaints_near_construction telt per wijk de klachten op een adres met een actieve vergunning. Kijk welke wijk bovenaan staat."
+      },
+      "filesRest": {
+        "title": "Hetzelfde antwoord via REST",
+        "description": "Dezelfde view als REST-aanroep. Elke tabel en view wordt via REST, GraphQL en SQL op dezelfde manier geleverd, onder dezelfde regels."
+      },
+      "filesDone": {
+        "title": "Een map werd een catalogus",
+        "description": "Een map met bestanden werd een beheerde catalogus: tabellen, relaties, een woordenlijstterm en een opgeslagen view, zonder dat er iets geladen is. Een nieuw maandbestand met klachten heeft geen nieuwe tabel nodig: het patroon omvat het al."
       }
     },
     "status": {
@@ -383,6 +419,10 @@
       "sonnets": {
         "title": "De sonnetten van Shakespeare",
         "summary": "De 154 sonnetten ingebed, op betekenis doorzocht en uitgegroeid tot een graaf: de thema's die ze delen en de regels waarin Shakespeare zichzelf echoot."
+      },
+      "files": {
+        "title": "Direct data lake",
+        "summary": "De opendatabestanden van een stad, ter plekke gelezen als één catalogus: welke wijken hebben de meeste klachten bij actieve bouwplaatsen?"
       }
     }
   }

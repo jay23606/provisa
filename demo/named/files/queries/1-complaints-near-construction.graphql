@@ -1,0 +1,9 @@
+# Which neighborhoods have the most complaints near active construction: the stored view, most
+# complaints first, with the active permits they are about.
+query ComplaintsNearConstruction {
+  c__viewComplaintsNearConstruction(order_by: [{ complaints: desc }]) {
+    neighborhood
+    complaints
+    activePermits
+  }
+}

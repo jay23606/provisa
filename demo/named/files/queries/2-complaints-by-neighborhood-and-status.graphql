@@ -1,0 +1,13 @@
+# The complaints table is one table over a CSV file a month: its complaints by neighborhood and
+# status, across every monthly file the folder holds.
+query ComplaintsByNeighborhoodAndStatus {
+  c__complaintsGroupBy(
+    by: [neighborhood, status]
+    order_by: [{ aggregate: { count: desc } }]
+  ) {
+    groupKey
+    aggregate {
+      count
+    }
+  }
+}

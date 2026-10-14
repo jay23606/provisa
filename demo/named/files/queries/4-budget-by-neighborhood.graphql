@@ -1,0 +1,11 @@
+# The city budget, read from an Excel workbook: what each neighborhood is budgeted.
+query BudgetByNeighborhood {
+  c__budgetGroupBy(by: [neighborhood], order_by: [{ aggregate: { sum: { amount: desc } } }]) {
+    groupKey
+    aggregate {
+      sum {
+        amount
+      }
+    }
+  }
+}

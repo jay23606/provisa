@@ -363,6 +363,42 @@
       "weblogsStatements": {
         "title": "Das SQL hinter einer langsamen Seite",
         "description": "Die langsamsten Seiten, verknüpft mit den Anweisungen, die ihre Anfragen ausgeführt haben, in einfachem SQL über zwei Views der Demo. Eine View ist eine gespeicherte Abfrage, die Provisa vor der Ausführung in diese Anweisung einsetzt. Hier ist zu sehen, wohin die Zeit ging, Anweisung für Anweisung."
+      },
+      "filesIntro": {
+        "title": "Ein sofortiger Data Lake",
+        "description": "Eine Stadt veröffentlicht ihre offenen Daten als Dateien: Bürgerbeschwerden als CSV-Datei pro Monat, Baugenehmigungen in Parquet, den Haushalt in Excel und Inspektionen in JSON. <strong>drop</strong> ist eine Dateiquelle über diesem Ordner: Jede Datei ist eine Tabelle, gelesen, wo sie liegt, ohne Ladeschritt. Die Frage: Welche Stadtteile haben die meisten Beschwerden in der Nähe aktiver Baustellen?"
+      },
+      "filesComplaints": {
+        "title": "Eine Tabelle über viele Dateien",
+        "description": "<strong>complaints</strong> ist eine Tabelle über jede Datei namens complaints_*.csv im Ordner. Die Datei jedes Monats gehört dazu; die Datei eines neuen Monats braucht keine eigene Tabelle."
+      },
+      "filesMonths": {
+        "title": "Zeilen aus jeder Datei",
+        "description": "Die Beschwerden nach Monat gezählt: Jeder Monat stammt aus seiner eigenen Datei, gelesen als eine Tabelle. Achten Sie auf eine Zeile für jede Monatsdatei."
+      },
+      "filesFormats": {
+        "title": "Eine Datei in jedem Format",
+        "description": "<strong>building_permits</strong> wird aus einer Parquet-Datei gelesen, der Haushalt aus einer Excel-Arbeitsmappe und die Inspektionen aus einer JSON-Datei. Jede ist eine verwaltete Tabelle wie jede andere."
+      },
+      "filesJoin": {
+        "title": "Beschwerden an genehmigten Adressen",
+        "description": "Die Beziehung DRAWS verbindet eine Baugenehmigung mit den Beschwerden an ihrer Adresse. Die Ansicht, die die Frage beantwortet, verknüpft entlang dieser Beziehung."
+      },
+      "filesTerm": {
+        "title": "Was eine offene Beschwerde ist",
+        "description": "Das Glossar sagt, was eine offene Beschwerde ist: eine, die die Stadt noch nicht geschlossen hat. Begriffe wie dieser sagen, was die Daten des Katalogs bedeuten."
+      },
+      "filesAnswer": {
+        "title": "Die Antwort",
+        "description": "Die gespeicherte Ansicht complaints_near_construction zählt für jeden Stadtteil die Beschwerden an einer Adresse mit aktiver Genehmigung. Achten Sie darauf, welcher Stadtteil vorn liegt."
+      },
+      "filesRest": {
+        "title": "Dieselbe Antwort über REST",
+        "description": "Dieselbe Ansicht als REST-Aufruf. Jede Tabelle und Ansicht wird über REST, GraphQL und SQL gleichermaßen bereitgestellt, unter denselben Regeln."
+      },
+      "filesDone": {
+        "title": "Aus einem Ordner wurde ein Katalog",
+        "description": "Ein Ordner mit Dateien wurde zu einem verwalteten Katalog: Tabellen, Beziehungen, ein Glossarbegriff und eine gespeicherte Ansicht, ohne dass etwas geladen wurde. Eine neue monatliche Beschwerdedatei braucht keine neue Tabelle: Das Muster erfasst sie bereits."
       }
     },
     "status": {
@@ -383,6 +419,10 @@
       "sonnets": {
         "title": "Shakespeares Sonette",
         "summary": "Die 154 Sonette eingebettet, nach Bedeutung durchsucht und zu einem Graphen ausgebaut: die Themen, die sie teilen, und die Verse, in denen Shakespeare sich selbst wiederholt."
+      },
+      "files": {
+        "title": "Sofortiger Data Lake",
+        "summary": "Die offenen Daten einer Stadt als Dateien, an Ort und Stelle als ein Katalog gelesen: Welche Stadtteile haben die meisten Beschwerden in der Nähe aktiver Baustellen?"
       }
     }
   }

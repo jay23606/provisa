@@ -363,6 +363,42 @@
       "weblogsStatements": {
         "title": "O SQL por trás de uma página lenta",
         "description": "As páginas mais lentas unidas às instruções que os seus pedidos executaram, em SQL simples sobre duas vistas da demo. Uma vista é uma consulta guardada que o Provisa expande nesta instrução antes de a executar. Aqui está para onde foi o tempo, instrução a instrução."
+      },
+      "filesIntro": {
+        "title": "Um data lake instantâneo",
+        "description": "Uma cidade publica seus dados abertos como arquivos: as reclamações dos moradores em um arquivo CSV por mês, os alvarás de obra em Parquet, o orçamento em Excel e as inspeções em JSON. <strong>drop</strong> é uma fonte de arquivos sobre essa pasta: cada arquivo é uma tabela, lida onde está, sem etapa de carga. A pergunta: quais bairros têm mais reclamações perto de obras ativas?"
+      },
+      "filesComplaints": {
+        "title": "Uma tabela sobre muitos arquivos",
+        "description": "<strong>complaints</strong> é uma tabela sobre cada arquivo chamado complaints_*.csv na pasta. O arquivo de cada mês faz parte dela; o arquivo de um mês novo não precisa de uma tabela própria."
+      },
+      "filesMonths": {
+        "title": "Linhas de cada arquivo",
+        "description": "As reclamações contadas por mês: cada mês vem do seu próprio arquivo, lido como uma só tabela. Procure uma linha para cada arquivo mensal."
+      },
+      "filesFormats": {
+        "title": "Um arquivo de cada formato",
+        "description": "<strong>building_permits</strong> é lida de um arquivo Parquet, assim como o orçamento de uma pasta de trabalho do Excel e as inspeções de um arquivo JSON. Cada uma é uma tabela governada como qualquer outra."
+      },
+      "filesJoin": {
+        "title": "Reclamações em endereços com alvará",
+        "description": "A relação DRAWS liga um alvará de obra às reclamações feitas no seu endereço. A visão que responde à pergunta faz a junção ao longo dela."
+      },
+      "filesTerm": {
+        "title": "O que é uma reclamação aberta",
+        "description": "O glossário diz o que é uma reclamação aberta: uma que a cidade ainda não fechou. Termos como este dizem o que os dados do catálogo significam."
+      },
+      "filesAnswer": {
+        "title": "A resposta",
+        "description": "A visão armazenada complaints_near_construction conta, para cada bairro, as reclamações feitas em um endereço com alvará ativo. Veja qual bairro vem primeiro."
+      },
+      "filesRest": {
+        "title": "A mesma resposta via REST",
+        "description": "A mesma visão como uma chamada REST. Cada tabela e visão é servida via REST, GraphQL e SQL da mesma forma, sob as mesmas regras."
+      },
+      "filesDone": {
+        "title": "Uma pasta virou um catálogo",
+        "description": "Uma pasta de arquivos virou um catálogo governado: tabelas, relações, um termo do glossário e uma visão armazenada, sem carregar nada. Um novo arquivo mensal de reclamações não precisa de uma tabela nova: o padrão já o inclui."
       }
     },
     "status": {
@@ -383,6 +419,10 @@
       "sonnets": {
         "title": "Os sonetos de Shakespeare",
         "summary": "Os 154 sonetos transformados em vetores, buscados pelo significado e transformados num grafo: os temas que partilham e os versos em que Shakespeare ecoa a si mesmo."
+      },
+      "files": {
+        "title": "Data lake instantâneo",
+        "summary": "Os arquivos de dados abertos de uma cidade, lidos no lugar como um só catálogo: quais bairros têm mais reclamações perto de obras ativas?"
       }
     }
   }
