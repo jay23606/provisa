@@ -80,7 +80,9 @@ class OracleDriver(DirectDriver):  # REQ-052, REQ-229, REQ-550
             try:
                 with conn.cursor() as cur:
                     with request_deadline.cancel_on_deadline(conn.cancel):
-                        cur.execute(exec_sql, bound)
+                        # A CLOB/NCLOB is read as its text and a BLOB as its bytes: a LOB locator
+                        # is a handle on the connection, no value a result can carry.
+                        cur.execute(exec_sql, bound, fetch_lobs=False)
                         rows = fetch_chunked(cur) if cur.description else []
                     # ``desc.name``, not ``desc[0]``: a FetchInfo indexes as the DB-API 7-tuple
                     # whose members span str, int, bool and None, so only the named attribute is
@@ -114,7 +116,7 @@ class OracleDriver(DirectDriver):  # REQ-052, REQ-229, REQ-550
             self._require_pool(),
             open_cursor=lambda conn: conn.cursor(),
             per_fetch=lambda cur, size: setattr(cur, "arraysize", size),
-            execute=lambda cur: cur.execute(exec_sql, bound),
+            execute=lambda cur: cur.execute(exec_sql, bound, fetch_lobs=False),
             columns=lambda cur: [desc.name.lower() for desc in cur.description],
             cancel=lambda conn, _cur: conn.cancel(),
             # Statement-level commit, as execute() does (autocommit semantics).

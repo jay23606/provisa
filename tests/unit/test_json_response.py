@@ -84,3 +84,14 @@ def test_a_float_subclass_is_encoded_as_its_number():
         OrjsonResponse({"rows": [{"latitude": Boxed(41.5)}]}).body
         == b'{"rows":[{"latitude":41.5}]}'
     )
+
+
+def test_a_binary_value_is_written_as_postgres_writes_it():
+    """An Oracle BLOB/RAW value read on /data/sql answered 500 "Type is not JSON serializable":
+    binary is written as \\x and hex, the spelling a JSON read of a bytea column gives."""
+    import json
+
+    from provisa.api.json_response import dumps
+
+    body = json.loads(dumps({"b": b"\xde\xad\xbe\xef", "m": memoryview(b"\xca\xfe")}))
+    assert body == {"b": "\\xdeadbeef", "m": "\\xcafe"}

@@ -237,6 +237,32 @@ _PLATFORM_ALIASES: dict[str, dict[str, str]] = {
         "tinyint": "smallint",
         "binary": "bytea",
     },
+    # Oracle as ALL_TAB_COLUMNS prints it. DATE carries a time of day; LONG is long text (not a
+    # 64-bit integer); FLOAT is binary precision up to 126 bits. A sized NUMBER is the source's
+    # reported decimal (numeric_type), an unsized one the generic alias.
+    "oracle": {
+        "varchar2": "text",
+        "nvarchar2": "text",
+        "nchar": "text",
+        "char": "text",
+        "clob": "text",
+        "nclob": "text",
+        "long": "text",
+        "rowid": "text",
+        "urowid": "text",
+        "xmltype": "text",
+        "blob": "bytea",
+        "raw": "bytea",
+        "long raw": "bytea",
+        "bfile": "bytea",
+        "date": "timestamp",
+        "interval year": "interval",
+        "interval day": "interval",
+        "binary_float": "float",
+        "binary_double": "double",
+        "float": "double",
+        "json": "json",
+    },
     "snowflake": {
         "number": "numeric",
         "binary": "bytea",
@@ -427,7 +453,14 @@ def column_typing(native_type: str, platform: str | None = None) -> ColumnTyping
     shape = parse_native_type(spelling)
     if not shape.nested:
         own = _PLATFORM_ALIASES.get(platform.split("+", 1)[0], {}) if platform else {}
-        return ColumnTyping(own.get(spelling, spelling))
+        # By the spelling's name, its size aside (Oracle's varchar2(64), interval day(2) to
+        # second(6)) -- but a decimal keeps its size, which is its type (REQ-1961).
+        from provisa.core.numeric_type import DECIMAL_NAMES
+
+        base = spelling.split("(", 1)[0].strip()
+        if base in DECIMAL_NAMES:
+            return ColumnTyping(spelling)
+        return ColumnTyping(own.get(spelling) or own.get(base) or spelling)
     read_from = platform.split("+", 1)[0] if platform else None
     typed = _array_of_a_primitive(shape, platform)
     if typed is None:
