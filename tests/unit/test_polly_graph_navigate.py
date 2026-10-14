@@ -24,7 +24,12 @@ import pytest
 
 from provisa.api.mcp import chat as chat_mod
 from provisa.api.mcp import cypher_check
-from tests.unit.test_mcp_chat import _block, _install_fake_anthropic, _state
+from tests.unit.test_mcp_chat import (  # the chat's fakes, and the key its vendor is configured with
+    _block,
+    _install_fake_anthropic,
+    _state,
+    _a_configured_vendor_key,  # noqa: F401  (autouse fixture: the readiness check needs a key)
+)
 
 pytestmark = pytest.mark.asyncio
 
