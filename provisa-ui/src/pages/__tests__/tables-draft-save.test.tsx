@@ -257,3 +257,32 @@ describe("TablesPage — draft (REQ-1921)", () => {
     await waitFor(() => expect(calls).toEqual(["region 8 us", "draft 8 false"]));
   });
 });
+
+describe("TablesPage — a save sends only the table settings that changed", () => {
+  beforeEach(() => {
+    for (const fn of [
+      updateTable,
+      updateTableNaming,
+      updateTableCache,
+      updateTableReplicate,
+      updateTableLoadProtection,
+      updateTableRoleTtl,
+    ]) {
+      fn.mockReset();
+      fn.mockResolvedValue(ok);
+    }
+  });
+
+  it("sends no naming, replication or load protection save for an edit that left them", async () => {
+    // Each of those rebuilds the model: sent on every save, a one-field edit took four rebuilds,
+    // past the 15s the core lane allows a save (core retest, alpha.482 round 2).
+    await openEditor("orders");
+    await userEvent.click(screen.getByTestId("table-edit-save"));
+    await waitFor(() => expect(updateTable).toHaveBeenCalled());
+    await waitFor(() => expect(screen.queryByTestId("table-edit-save")).toBeNull());
+    expect(updateTableNaming).not.toHaveBeenCalled();
+    expect(updateTableReplicate).not.toHaveBeenCalled();
+    expect(updateTableLoadProtection).not.toHaveBeenCalled();
+    expect(updateTableRoleTtl).not.toHaveBeenCalled();
+  });
+});

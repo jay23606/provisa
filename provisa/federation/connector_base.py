@@ -164,6 +164,10 @@ class Connector(ABC):  # REQ-842
     # write face to land into (store_writer). The engine's usable-store set is the connectors so
     # flagged. False for a reach-only source (no write face, or not a landing target).
     materialized_store: bool = False
+    # Whether the engine reads the source through the source's bundled Calcite connector server
+    # (its pgwire endpoint) rather than a connector of its own: then the source's tables are listed
+    # from that server's information_schema as soon as it listens (introspect.native_tables).
+    served_by_bundle: bool = False
     # Non-core shared libraries this connector's extension links at runtime, each a structured
     # ``RuntimeDep(lib, provider)`` (REQ-948). Empty for core contrib (postgres_fdw/file_fdw) with no
     # external dependency. Documents the packaging surface and feeds the capability report + dropdown.

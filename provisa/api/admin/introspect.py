@@ -1751,6 +1751,21 @@ async def require_live_attach(state, source_id: str, what: str) -> None:
         )
 
 
+def _listed_by_its_server(source_type: str, state) -> bool:
+    """Whether a source of ``source_type`` is read through its bundled connector server on the
+    bound engine: a pgwire-replica type the engine lands through that server, or attaches through
+    it (``Connector.served_by_bundle``). Trino reads files with its own file catalog, for one."""
+    from provisa.federation.pgwire_replica import PGWIRE_REPLICA_TYPES
+    from provisa.federation.strategy import engine_attaches
+
+    if source_type not in PGWIRE_REPLICA_TYPES:
+        return False
+    engine = state.federation_engine.engine
+    if not engine_attaches(engine, source_type):
+        return True
+    return engine.connector_for(source_type).served_by_bundle
+
+
 async def native_tables(  # REQ-012, REQ-250, REQ-252, REQ-295, REQ-307, REQ-314, REQ-322, REQ-147
     source_id: str,
     source_type: str,
@@ -1801,6 +1816,19 @@ async def native_tables(  # REQ-012, REQ-250, REQ-252, REQ-295, REQ-307, REQ-314
             AvailableTableType(name=name, comment=label, group=theme)
             for name, label, theme in listed
         ]
+
+    if _listed_by_its_server(t, state):
+        # Listed from the connector server's information_schema as soon as it listens, as a
+        # govdata source's are -- not through the engine's attach of that server, which waits for
+        # its first catalog query: it counts the rows of every table, and on a cold runner that ran
+        # past the Register Table form's wait for the list (core lane, alpha.482 round 2).
+        from provisa.api.admin.types import AvailableTableType
+        from provisa.federation.pgwire_replica import adapter_tables
+
+        source = await _adapter_source(source_id)
+        async with _adapter_bound():
+            names = await adapter_tables(source, schema_name.strip().lower())
+        return [AvailableTableType(name=name, comment=None) for name in names]
 
     if t == "openapi":
         return await _native_tables_openapi(source_id, schema_name, state)
