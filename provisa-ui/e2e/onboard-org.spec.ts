@@ -88,7 +88,9 @@ test("member-less user onboards a new org with demo data and is routed into the 
   await page.goto("/");
 
   const idInput = page.getByTestId("onboard-org-id");
-  await expect(idInput).toBeVisible();
+  // The first page a fresh worker opens waits on the dev server compiling the app's chunks: the
+  // form took 7.9s on a cold run, past expect's default 5s; warm, it is well under a second.
+  await expect(idInput).toBeVisible({ timeout: 30000 });
   await idInput.fill(ORG_ID);
   await page.getByTestId("onboard-org-name").fill("Carol Co");
   await page.getByTestId("onboard-org-demo").check();
@@ -157,7 +159,8 @@ test("member-less user joins an existing org with an invite code and is routed i
 
   await page.goto("/");
 
-  await expect(page.getByTestId("onboard-org-mode")).toBeVisible();
+  // A fresh worker's first page, as above.
+  await expect(page.getByTestId("onboard-org-mode")).toBeVisible({ timeout: 30000 });
   await page.getByText("Join with an invite").click();
   await page.getByTestId("onboard-org-invite").fill("invite-tok-xyz");
   await page.getByTestId("onboard-org-join-submit").click();
