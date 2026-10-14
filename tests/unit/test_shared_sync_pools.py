@@ -216,7 +216,9 @@ def test_oracle_execute_registers_deadline_cancel() -> None:
         name = "ID"
 
     class _OraCursor(_FakeCursor):
-        def execute(self, sql: str, params: Any = None) -> None:
+        # fetch_lobs: the driver reads a LOB as its value, as python-oracledb's cursor takes it.
+        def execute(self, sql: str, params: Any = None, *, fetch_lobs: bool = True) -> None:
+            assert fetch_lobs is False
             super().execute(sql, params)
             self.description = [_Desc()]
 
