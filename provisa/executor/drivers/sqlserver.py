@@ -29,6 +29,7 @@ from provisa.core import request_deadline
 from provisa.core.sync_pool import BlockingPool
 from provisa.executor.drivers.base import DirectDriver
 from provisa.executor.drivers.cursor_stream import PooledCursorStream, fetch_chunked
+from provisa.executor.drivers.zoned import mssql_connection
 from provisa.executor.result import QueryResult
 
 
@@ -65,7 +66,8 @@ class SQLServerDriver(DirectDriver):  # REQ-052, REQ-068, REQ-229, REQ-550
 
         # min_pool connections open now, so an unreachable source fails at registration.
         self._pool = BlockingPool(
-            lambda: pyodbc.connect(dsn, autocommit=True),
+            # REQ-2050: a datetimeoffset is read as the instant it is.
+            lambda: mssql_connection(pyodbc.connect(dsn, autocommit=True)),
             lambda c: c.close(),
             minsize=max(min_pool, 1),
             maxsize=max_pool,

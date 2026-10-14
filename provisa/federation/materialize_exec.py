@@ -145,7 +145,7 @@ def temporal_columns(columns: list[tuple[str, str]]) -> dict[str, str]:
     out = {}
     for name, sql_type in columns:
         canonical = to_ir(sql_type)
-        if canonical in ("timestamp", "date", "time"):
+        if canonical in ("timestamp", "timestamptz", "date", "time"):
             out[name] = canonical
     return out
 
@@ -172,6 +172,9 @@ def coerce_temporal_row(row: dict, temporal_cols: dict[str, str]) -> dict:
                 out[name] = parsed.date()
             elif canonical == "time":
                 out[name] = parsed.timetz() if parsed.tzinfo else parsed.time()
+            elif canonical == "timestamptz" and parsed.tzinfo is None:
+                # REQ-2050: an instant given with no zone is UTC.
+                out[name] = parsed.replace(tzinfo=datetime.timezone.utc)
             else:
                 out[name] = parsed
     return out

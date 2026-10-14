@@ -210,6 +210,9 @@ def _synthesize_column_metadata(
         "date": "date",
         "timestamp": "timestamp",
         "timestamp without time zone": "timestamp",
+        # REQ-2050: the control plane's zoned columns are instants.
+        "timestamptz": "timestamptz",
+        "timestamp with time zone": "timestamptz",
         "json": "json",
         "jsonb": "json",
     }

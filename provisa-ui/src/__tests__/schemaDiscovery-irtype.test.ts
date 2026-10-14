@@ -18,7 +18,9 @@ describe("toIrType (native → IR)", () => {
     expect(toIrType("tinyint")).toBe("smallint");
     expect(toIrType("double precision")).toBe("double");
     expect(toIrType("DECIMAL(10,2)")).toBe("numeric");
-    expect(toIrType("timestamp with time zone")).toBe("timestamp");
+    // REQ-2050: a zoned timestamp is an instant.
+    expect(toIrType("timestamp with time zone")).toBe("timestamptz");
+    expect(toIrType("timestamp without time zone")).toBe("timestamp");
     expect(toIrType("JSONB")).toBe("json"); // REQ-980, REQ-1965
     expect(toIrType("json")).toBe("json");
     expect(toIrType("varbinary")).toBe("bytea");

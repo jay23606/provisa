@@ -246,6 +246,10 @@ _BACKENDS: dict[str, _Backend] = {
         },
     ),
 }
+# REQ-2050: an instant's element is a timestamp element whose native type has a time zone -- the
+# same form, which takes it to UTC before writing it.
+for _backend in _BACKENDS.values():
+    _backend.elements["timestamptz"] = _backend.elements["timestamp"]
 _BACKENDS["postgresql"] = _BACKENDS["postgres"]
 
 

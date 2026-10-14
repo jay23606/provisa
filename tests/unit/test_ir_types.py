@@ -48,8 +48,8 @@ def test_value_transform_passthrough_default_and_sql_expression():
     # the handful of complex-type reshapes return a SQL-EXPRESSION template ({col} placeholder),
     # so the transform runs set-based in the land/generation query — never per-cell in Python
     assert value_transform("bit", "sqlserver") == "{col} <> 0"
-    tz = value_transform("timestamp with time zone", "trino")
-    assert tz is not None and "{col}" in tz and "UTC" in tz
+    # REQ-2050: an instant keeps its zone; it is not reshaped to a UTC wall-clock time.
+    assert value_transform("timestamp with time zone", "trino") is None
 
 
 def test_aliases_canonicalize_to_one_ir_name():
@@ -61,7 +61,7 @@ def test_aliases_canonicalize_to_one_ir_name():
     assert to_ir("bool") == "boolean"
     assert to_ir("json") == "json"  # REQ-980: first-class JSON
     assert to_ir("jsonb") == "json"  # jsonb narrows to portable generic JSON
-    assert to_ir("timestamptz") == "timestamp"
+    assert to_ir("timestamptz") == "timestamptz"  # REQ-2050: an instant
 
 
 def test_a_registered_nvarchar_column_lands_as_text_with_no_platform_named():
@@ -163,3 +163,36 @@ def test_a_scalar_whose_name_starts_like_a_nested_type_is_not_json():
         to_ir("arraylike")
     assert to_ir("text") == "text"
     assert to_ir("varchar(3)") == "text"
+
+
+@pytest.mark.parametrize(
+    ("native", "platform"),
+    [
+        ("timestamp with time zone", None),
+        ("timestamptz", "postgresql"),
+        ("TIMESTAMP(6) WITH TIME ZONE", "oracle"),
+        ("TIMESTAMP(6) WITH LOCAL TIME ZONE", "oracle"),
+        ("datetimeoffset", "sqlserver"),
+        ("TIMESTAMP_TZ", "snowflake"),
+        ("TIMESTAMP_LTZ", "snowflake"),
+        ("timestamp(3) with time zone", "trino"),
+        ("TIMESTAMP WITH TIME ZONE", "duckdb"),
+        ("TIMESTAMP", "bigquery"),
+        ("timestamp", "mysql"),
+    ],
+)
+def test_every_zoned_spelling_is_an_instant(native, platform):
+    """REQ-2050: a zoned source timestamp is the IR instant, timestamptz, read back with or
+    without its platform named."""
+    from provisa.core.ir_types import column_typing
+
+    stored = column_typing(native, platform).data_type
+    assert to_ir(stored, platform) == "timestamptz"
+    assert to_ir(stored) in ("timestamptz", "timestamp")  # a bare "timestamp" needs its platform
+
+
+def test_a_civil_timestamp_stays_a_timestamp():
+    assert to_ir("timestamp") == "timestamp"
+    assert to_ir("datetime2", "sqlserver") == "timestamp"
+    assert to_ir("TIMESTAMP_NTZ", "snowflake") == "timestamp"
+    assert to_ir("datetime", "mysql") == "timestamp"

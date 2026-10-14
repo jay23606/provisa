@@ -43,6 +43,7 @@ _IR_TO_ARROW: dict[str, str] = {
     "numeric": "decimal",
     "date": "date32",
     "timestamp": "timestamp",
+    "timestamptz": "timestamptz",  # REQ-2050: an instant, in UTC with its zone marked
     "time": "string",
     "interval": "string",  # its text form: days, seconds and microseconds, which a store parses
     "uuid": "string",
@@ -62,6 +63,8 @@ def arrow_type(ir_type: str, *, decimal: pa.DataType | None = None) -> pa.DataTy
         return decimal if decimal is not None else pa.string()
     if spelling == "timestamp":
         return pa.timestamp("us")
+    if spelling == "timestamptz":
+        return pa.timestamp("us", tz="UTC")
     if spelling == "vector":
         return pa.list_(pa.float32())
     return getattr(pa, spelling)()
@@ -95,6 +98,17 @@ def arrow_value(value: Any, ir_type: str, *, decimal: pa.DataType | None = None)
         parsed = datetime.fromisoformat(value)
         if parsed.tzinfo is not None:
             parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+        return parsed
+    if canonical == "timestamptz":
+        # REQ-2050: an instant. Text is ISO-8601; a value with no zone is UTC, as the readers
+        # that normalize a zoned source (Oracle, SQL Server) hand it on.
+        parsed = datetime.fromisoformat(value) if isinstance(value, str) else value
+        if isinstance(parsed, datetime):
+            return (
+                parsed.replace(tzinfo=timezone.utc)
+                if parsed.tzinfo is None
+                else parsed.astimezone(timezone.utc)
+            )
         return parsed
     if canonical == "date" and isinstance(value, str):
         return date.fromisoformat(value)

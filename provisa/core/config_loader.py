@@ -1111,7 +1111,9 @@ def _validate_table_live_delivery(config) -> None:
 # incremental reads, so it MUST be monotonic non-decreasing: an incrementing integer or a
 # temporal column. Text/float/boolean/uuid/bytea/numeric are rejected — they give no reliable
 # ordering for delta reads. (numeric is excluded: a scale/rounding column is not an increment.)
-_MONOTONIC_WATERMARK_IR = frozenset({"smallint", "integer", "bigint", "timestamp", "date", "time"})
+_MONOTONIC_WATERMARK_IR = frozenset(
+    {"smallint", "integer", "bigint", "timestamp", "timestamptz", "date", "time"}
+)
 
 
 def _validate_watermark_columns(config) -> None:  # REQ-924, REQ-925

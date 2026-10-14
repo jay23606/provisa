@@ -23236,6 +23236,18 @@ A replica is indexed as its table is used: its declared primary key, enforced as
 
 **Tests:** `tests/unit/federation/test_replica_indexes.py`, `tests/unit/federation/test_replica_index_stores.py`
 
+### REQ-2017 · Source Connectors {#REQ-2017}
+
+**Status:** ⚙ in-progress · **Priority:** SHOULD · **Type:** behavioral
+
+A table on an Elasticsearch source can be registered from a native search instead of an index: one JSON document, {"index": ..., "query": {...}}, the Query DSL of a _search request, optionally with aggs, sort and highlight. The table stores it in query_template. Each "{{name}}" placeholder string anywhere in the request is a parameter of the table (query_arg, [REQ-1986](#REQ-1986)) with an IR type, optional unless a steward makes it required; a caller passes it as a GraphQL field argument or an equality condition on the parameter column in SQL. Each value is checked against its type and bound by replacing the placeholder node of the parsed request with the value, never written into the request text. The request is sent to _search and nowhere else: an index that names another endpoint, and any key that is not part of a search or that pages it (from, search_after, pit, scroll), is refused by name. A search with aggregations answers one row per bucket, nested buckets flattened with one column per key, doc count and metric; otherwise one row per hit, read in a point in time with search_after, with the hit's id, score and highlighted fragments beside its fields. Output columns are fixed at registration, from the index mapping restricted to the fields the hits hold, or from the aggregations for a bucket search, found by one preview run with sample arguments, and every row is checked against them. Like a MongoDB pipeline table ([REQ-1980](#REQ-1980)), it is read per statement by Provisa itself on every federation engine and landed for the engine; with no arguments it behaves as a view. It is registered on the Register Table form as a pipeline table is, and joins and is governed like any registered table.
+
+**Use case:** A support analyst registers reviews_matching from a match_phrase search with a highlight and a required phrase argument, and joins its hits to the product catalog to see which products draw a complaint.
+
+**Code:** `provisa/elasticsearch/native_query.py`, `provisa/elasticsearch/native_table.py`, `provisa/elasticsearch/fetch.py`
+
+**Tests:** `tests/unit/test_es_native_query.py`, `tests/integration/test_elasticsearch_native_search_e2e.py`, `provisa-ui/e2e/source-to-query.spec.ts`
+
 ### REQ-2018 · Source Connectors {#REQ-2018}
 
 **Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
@@ -23611,3 +23623,17 @@ The sonnets named demo: Shakespeare's 154 sonnets in Postgres, embedded into Qdr
 **Code:** `demo/named/sonnets/config.yaml`, `demo/named/sonnets/echoes.py`, `demo/named/sonnets/setup.yaml`, `scripts/run_demo_setup.py`, `scripts/demo_extras.py`, `start-ui-install.sh`, `provisa/core/settings_catalog.py`
 
 **Tests:** `tests/unit/test_demo_setup.py`, `tests/unit/test_named_demo_tour.py`
+
+## 3. Source Registration & Data Modeling
+
+### REQ-2050 · Schema Registration {#REQ-2050}
+
+**Status:** ⚙ in-progress · **Priority:** MUST · **Type:** behavioral
+
+A zoned timestamp is an instant, and the model has a type for it: timestamptz, carried as UTC with its zone marked, beside timestamp, a date and time with no zone. Registration types a source's zoned timestamp as timestamptz: PostgreSQL timestamptz and timestamp with time zone, Oracle TIMESTAMP WITH TIME ZONE and WITH LOCAL TIME ZONE, SQL Server datetimeoffset, Snowflake TIMESTAMP_TZ and TIMESTAMP_LTZ, Trino and DuckDB timestamp with time zone, BigQuery TIMESTAMP, the MySQL family's TIMESTAMP and an Elasticsearch date. Each source's reader hands on the instant: the Oracle and SQL Server readers take the value to UTC with its offset, which their drivers would otherwise lose, and the MySQL family is read in a UTC session. Every engine and store holds the instant as its zoned type (timestamptz on PostgreSQL, TIMESTAMP WITH TIME ZONE on DuckDB, timestamp with time zone on Trino, an Arrow timestamp in UTC), the engines read in UTC, and every surface gives the instant with its zone: ISO 8601 with its offset in JSON and GraphQL, google.protobuf.Timestamp in gRPC, timestamp with time zone in the pgwire and Flight catalogs. A literal compared to a timestamptz column is read at its own offset, or as UTC when it has none.
+
+**Use case:** An analyst joins Oracle shipments, whose departure is a TIMESTAMP WITH TIME ZONE written in the depot's zone, to SQL Server deliveries, whose arrival is a datetimeoffset, and reads the transit time; both columns are instants, so the difference is right whatever zone either was written in.
+
+**Code:** `provisa/core/ir_types.py`, `provisa/core/ir_arrow.py`, `provisa/core/catalog_types.py`, `provisa/executor/drivers/zoned.py`
+
+**Tests:** `tests/unit/test_zoned_readers.py`, `tests/unit/test_ir_types.py`, `tests/integration/test_zoned_timestamp_readers_e2e.py`, `tests/integration/test_timestamptz_e2e.py`, `tests/integration/test_zoned_timestamp_warehouses_e2e.py`

@@ -112,7 +112,12 @@ def test_the_fabric_runtime_resumes_before_it_connects_and_synapse_does_not(monk
     monkeypatch.setitem(
         __import__("sys").modules,
         "pyodbc",
-        SimpleNamespace(connect=lambda *a, **k: order.append("connect") or object()),
+        # A connection takes the datetimeoffset converter (REQ-2050), as pyodbc's does.
+        SimpleNamespace(
+            connect=lambda *a, **k: (
+                order.append("connect") or SimpleNamespace(add_output_converter=lambda *_: None)
+            )
+        ),
     )
 
     class _Cred:

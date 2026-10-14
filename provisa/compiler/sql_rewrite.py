@@ -68,7 +68,14 @@ _NUMERIC_TYPES = {
     "numeric",
 }
 _STRING_TYPES = {"varchar", "char", "text", "varbinary", "bytea", "uuid"}
-_TEMPORAL_TYPES = {"date", "time", "timestamp", "time with time zone", "timestamp with time zone"}
+_TEMPORAL_TYPES = {
+    "date",
+    "time",
+    "timestamp",
+    "time with time zone",
+    "timestamp with time zone",
+    "timestamptz",  # REQ-2050
+}
 
 
 def _q(name: str) -> str:

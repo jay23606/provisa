@@ -73,6 +73,9 @@ class MySQLDriver(DirectDriver):  # REQ-052, REQ-068, REQ-229, REQ-550
                 password=password,
                 ssl=ssl.create_default_context() if require_ssl else None,
                 autocommit=True,
+                # REQ-2050: a TIMESTAMP is an instant, read in the session's zone -- UTC here, so
+                # the value handed on is the instant in UTC.
+                init_command="SET time_zone = '+00:00'",
             )
 
         self._connect = _create

@@ -88,6 +88,10 @@ _IR_TO_SA: dict[str, Any] = {
     "numeric": Numeric,
     "date": Date,
     "timestamp": DateTime,
+    # An instant (REQ-2050): a zoned source's timestamp, carried as UTC with its zone marked --
+    # timestamptz on PostgreSQL, TIMESTAMP WITH TIME ZONE on DuckDB, the store's zoned type
+    # elsewhere. ``timestamp`` is a local date and time with no zone.
+    "timestamptz": DateTime(timezone=True),
     "time": Time,
     # A duration. SQLAlchemy's generic Interval is native INTERVAL on Postgres/DuckDB and its own
     # epoch-offset emulation elsewhere; its canonical TEXT form is ISO 8601 (iso8601_duration).
@@ -132,8 +136,10 @@ _ALIASES: dict[str, str] = {
     # no size and a reader with no platform to name reads it back.
     "number": "numeric",
     "timestamp without time zone": "timestamp",
-    "timestamp with time zone": "timestamp",
-    "timestamptz": "timestamp",
+    # An instant (REQ-2050), however a source spells one.
+    "timestamp with time zone": "timestamptz",
+    "timestamp with local time zone": "timestamptz",
+    "timestamptz": "timestamptz",
     "time without time zone": "time",
     "time with time zone": "time",
     "timetz": "time",  # postgres time with time zone alias
@@ -151,7 +157,7 @@ _PLATFORM_ALIASES: dict[str, dict[str, str]] = {
         "real": "float",
         "varbinary": "bytea",
         "json": "json",  # REQ-980
-        "timestamp with time zone": "timestamp",
+        "timestamp with time zone": "timestamptz",
         "time with time zone": "time",
         "ipaddress": "text",
         "uuid": "uuid",
@@ -175,7 +181,7 @@ _PLATFORM_ALIASES: dict[str, dict[str, str]] = {
         "datetime": "timestamp",
         "datetime2": "timestamp",
         "smalldatetime": "timestamp",
-        "datetimeoffset": "timestamp",
+        "datetimeoffset": "timestamptz",
         "nvarchar": "text",
         "nchar": "text",
         "ntext": "text",
@@ -195,8 +201,8 @@ _PLATFORM_ALIASES: dict[str, dict[str, str]] = {
         "uhugeint": "bigint",
         "real": "float",
         "blob": "bytea",
-        "timestamptz": "timestamp",
-        "timestamp with time zone": "timestamp",
+        "timestamptz": "timestamptz",
+        "timestamp with time zone": "timestamptz",
         "json": "json",  # REQ-980
     },
     # The scalar names these platforms use for the element of an array (REQ-1965): the element
@@ -219,11 +225,16 @@ _PLATFORM_ALIASES: dict[str, dict[str, str]] = {
         "datetime": "timestamp",
         "datetime64": "timestamp",
     },
+    # REQ-2050: MySQL's TIMESTAMP is an instant (stored in UTC, read in the session's zone, which
+    # the driver sets to UTC); its DATETIME is a civil date and time.
+    **{kind: {"timestamp": "timestamptz"} for kind in ("mysql", "mariadb", "tidb", "singlestore")},
     "bigquery": {
         "int64": "bigint",
         "float64": "double",
         "bytes": "bytea",
         "bignumeric": "numeric",
+        # BigQuery's TIMESTAMP is an instant; its DATETIME is a civil date and time.
+        "timestamp": "timestamptz",
     },
     "databricks": {
         "byte": "smallint",
@@ -256,8 +267,8 @@ _PLATFORM_ALIASES: dict[str, dict[str, str]] = {
         "long raw": "bytea",
         "bfile": "bytea",
         "date": "timestamp",
-        "interval year": "interval",
-        "interval day": "interval",
+        "interval year to month": "interval",
+        "interval day to second": "interval",
         "binary_float": "float",
         "binary_double": "double",
         "float": "double",
@@ -267,8 +278,8 @@ _PLATFORM_ALIASES: dict[str, dict[str, str]] = {
         "number": "numeric",
         "binary": "bytea",
         "timestamp_ntz": "timestamp",
-        "timestamp_ltz": "timestamp",
-        "timestamp_tz": "timestamp",
+        "timestamp_ltz": "timestamptz",
+        "timestamp_tz": "timestamptz",
     },
 }
 
@@ -283,17 +294,14 @@ _PLATFORM_TRANSFORMS: dict[tuple[str, str], str] = {
     # Most native types are passthrough; the handful that need the VALUE reshaped are complex types
     # — chiefly date/time. Each expression is a SQL projection over the source, so it runs set-based.
     ("sqlserver", "bit"): "{col} <> 0",  # bit 0/1 → boolean
-    (
-        "trino",
-        "timestamp with time zone",
-    ): "CAST({col} AT TIME ZONE 'UTC' AS timestamp)",  # tz→UTC naive
-    ("duckdb", "timestamptz"): "{col} AT TIME ZONE 'UTC'",  # tz-aware → UTC timestamp
     # A column whose STRING content is a date (e.g. a varchar in "MM/DD/YYYY") is NOT a type-level
     # transform — that is a per-column declared expression (the enrich path), not a platform native
     # type. Register only TYPE-level reshapes here.
 }
 
 IR_TYPES: frozenset[str] = frozenset(_IR_TO_SA)
+# A parenthesized size anywhere in a type's spelling.
+_SIZES = re.compile(r"\s*\([^)]*\)")
 _NUMERIC_SIZE = re.compile(r"\(\s*(\d+)\s*,\s*(\d+)\s*\)\s*\Z")
 
 # REQ-1908: a registered temporal column whose source stores it as an epoch number declares the
@@ -338,6 +346,12 @@ def iso8601_duration(value: timedelta) -> str:
     return out
 
 
+def type_name(native_type: str) -> str:
+    """A spelling's type name, its sizes aside: ``varchar(64)`` is ``varchar``, ``timestamp(6)
+    with time zone`` is ``timestamp with time zone`` (Oracle prints a size in the middle)."""
+    return " ".join(_SIZES.sub(" ", native_type.strip().lower()).split())
+
+
 def value_transform(native_type: str, platform: str | None = None) -> str | None:
     """The optional SQL-EXPRESSION transform for a (platform, native type), or None (identity).
 
@@ -348,8 +362,7 @@ def value_transform(native_type: str, platform: str | None = None) -> str | None
     the whole write face does."""
     if not platform:
         return None
-    base = native_type.split("(", 1)[0].strip().lower()
-    return _PLATFORM_TRANSFORMS.get((platform.split("+", 1)[0], base))
+    return _PLATFORM_TRANSFORMS.get((platform.split("+", 1)[0], type_name(native_type)))
 
 
 def to_ir(native_type: str, platform: str | None = None) -> str:
@@ -363,7 +376,7 @@ def to_ir(native_type: str, platform: str | None = None) -> str:
     A native array, struct or map, in any spelling, is ``json`` (REQ-1965)."""
     if parse_native_type(native_type).nested:
         return "json"
-    base = native_type.split("(", 1)[0].strip().lower()
+    base = type_name(native_type)
     canon: str | None = None
     if platform:
         canon = _PLATFORM_ALIASES.get(platform.split("+", 1)[0], {}).get(base)
@@ -457,10 +470,9 @@ def column_typing(native_type: str, platform: str | None = None) -> ColumnTyping
         # second(6)) -- but a decimal keeps its size, which is its type (REQ-1961).
         from provisa.core.numeric_type import DECIMAL_NAMES
 
-        base = spelling.split("(", 1)[0].strip()
-        if base in DECIMAL_NAMES:
+        if spelling.split("(", 1)[0].strip() in DECIMAL_NAMES:
             return ColumnTyping(spelling)
-        return ColumnTyping(own.get(spelling) or own.get(base) or spelling)
+        return ColumnTyping(own.get(spelling) or own.get(type_name(spelling)) or spelling)
     read_from = platform.split("+", 1)[0] if platform else None
     typed = _array_of_a_primitive(shape, platform)
     if typed is None:

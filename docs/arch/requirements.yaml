@@ -83359,3 +83359,58 @@
     failed step stopping the run by name with no retry; the vector extra installed only for a demo that declares
     it. link_echoes is a python command, because Qdrant is live-only and a search table takes literal arguments
     (no per-row search).'
+- id: REQ-2050
+  status: in-progress
+  since: 2026-10
+  group: 3. Source Registration & Data Modeling
+  category: Schema Registration
+  feature: source-registration-introspection
+  priority: MUST
+  type: behavioral
+  description: 'A zoned timestamp is an instant, and the model has a type for it: timestamptz, carried as UTC with
+    its zone marked, beside timestamp, a date and time with no zone. Registration types a source''s zoned timestamp
+    as timestamptz: PostgreSQL timestamptz and timestamp with time zone, Oracle TIMESTAMP WITH TIME ZONE and WITH
+    LOCAL TIME ZONE, SQL Server datetimeoffset, Snowflake TIMESTAMP_TZ and TIMESTAMP_LTZ, Trino and DuckDB timestamp
+    with time zone, BigQuery TIMESTAMP, the MySQL family''s TIMESTAMP and an Elasticsearch date. Each source''s
+    reader hands on the instant: the Oracle and SQL Server readers take the value to UTC with its offset, which
+    their drivers would otherwise lose, and the MySQL family is read in a UTC session. Every engine and store holds
+    the instant as its zoned type (timestamptz on PostgreSQL, TIMESTAMP WITH TIME ZONE on DuckDB, timestamp with
+    time zone on Trino, an Arrow timestamp in UTC), the engines read in UTC, and every surface gives the instant
+    with its zone: ISO 8601 with its offset in JSON and GraphQL, google.protobuf.Timestamp in gRPC, timestamp with
+    time zone in the pgwire and Flight catalogs. A literal compared to a timestamptz column is read at its own
+    offset, or as UTC when it has none.'
+  use_case: An analyst joins Oracle shipments, whose departure is a TIMESTAMP WITH TIME ZONE written in the
+    depot's zone, to SQL Server deliveries, whose arrival is a datetimeoffset, and reads the transit time; both
+    columns are instants, so the difference is right whatever zone either was written in.
+  scenario: 'Given an Oracle table whose ts is TIMESTAMP WITH TIME ZONE holding 2024-01-02 03:04:05 +02:00
+
+
+    When it is registered and read on the SQL page, live or from its replica, on DuckDB or on Trino
+
+
+    Then ts is timestamptz and reads 2024-01-02T01:04:05+00:00
+
+
+    When a query filters on ts = 2024-01-01 20:04:05 -05:00
+
+
+    Then the row is found'
+  related_reqs:
+  - REQ-846
+  - REQ-1908
+  - REQ-1961
+  - REQ-1965
+  notes: 'Maintainer 2026-10-14, via the lead: Option B, a new IR type timestamptz (sources, engines and stores,
+    surfaces, comparisons), the Oracle and SQL Server readers normalizing to UTC; found as lossy values in an Oracle
+    table of every type. Lead''s elaboration: the per-source mapping and the per-engine types.'
+  code:
+  - provisa/core/ir_types.py
+  - provisa/core/ir_arrow.py
+  - provisa/core/catalog_types.py
+  - provisa/executor/drivers/zoned.py
+  tests:
+  - tests/unit/test_zoned_readers.py
+  - tests/unit/test_ir_types.py
+  - tests/integration/test_zoned_timestamp_readers_e2e.py
+  - tests/integration/test_timestamptz_e2e.py
+  - tests/integration/test_zoned_timestamp_warehouses_e2e.py

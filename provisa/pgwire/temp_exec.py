@@ -73,6 +73,7 @@ _DECLARED: dict[str, str] = {
     "boolean": "boolean",
     "date": "date",
     "timestamp": "timestamp",
+    "timestamptz": "timestamptz",  # REQ-2050
     "text": "text",
     "varchar": "text",
 }
@@ -116,6 +117,7 @@ def _arrow(landed: str) -> Any:
         "boolean": pa.bool_(),
         "date": pa.date32(),
         "timestamp": pa.timestamp("us"),
+        "timestamptz": pa.timestamp("us", tz="UTC"),
         "text": pa.string(),
     }[landed]
 
@@ -143,7 +145,7 @@ def inferred_type(name: str, values: list[Any]) -> str:
     if pa.types.is_date(kind):
         return "date"
     if pa.types.is_timestamp(kind):
-        return "timestamp"
+        return "timestamp" if kind.tz is None else "timestamptz"
     if pa.types.is_string(kind) or pa.types.is_large_string(kind):
         return "text"
     raise _unsupported(name, str(kind))

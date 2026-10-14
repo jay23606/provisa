@@ -39,9 +39,9 @@ ES_TYPE_TO_IR = {
     "scaled_float": "DOUBLE",
     # Boolean
     "boolean": "BOOLEAN",
-    # Date/time
-    "date": "TIMESTAMP",
-    "date_nanos": "TIMESTAMP",
+    # Date/time: an Elasticsearch date is an instant, held in UTC (REQ-2050).
+    "date": "timestamptz",
+    "date_nanos": "timestamptz",
     # Binary / hash
     "binary": "bytea",
     "murmur3": "VARCHAR",

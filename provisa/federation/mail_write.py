@@ -172,6 +172,7 @@ _DUCK_TYPES = {
     "boolean": "BOOLEAN",
     "date": "DATE",
     "timestamp": "TIMESTAMPTZ",
+    "timestamptz": "TIMESTAMPTZ",
     "json": "JSON",
 }
 

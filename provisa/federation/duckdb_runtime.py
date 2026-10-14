@@ -138,6 +138,9 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
             if _ext_dir
             else {}
         )
+        # REQ-2050: the engine's zone is UTC, so an instant (TIMESTAMPTZ) reads as UTC and a
+        # literal with no zone compared to one is UTC -- never the host's zone.
+        _cfg["TimeZone"] = "UTC"
         self._con = duckdb.connect(config=_cfg)
         from provisa.fakes.duckdb_functions import register as register_fake_functions
 
