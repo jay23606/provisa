@@ -86,7 +86,8 @@ def numeric_arrow_type(data_type: str | None) -> pa.DataType:
 
 # ClickHouse's sized names fix the precision: Decimal64(4) is 18 digits, 4 of them after the point.
 _CLICKHOUSE_SIZED = {"decimal32": 9, "decimal64": 18, "decimal128": 38, "decimal256": 76}
-_DECIMAL_NAMES = ("decimal", "numeric", "dec", *_CLICKHOUSE_SIZED)
+# Oracle's (and Snowflake's) NUMBER is a decimal: NUMBER(10,2) is stored as numeric(10,2).
+_DECIMAL_NAMES = ("decimal", "numeric", "dec", "number", *_CLICKHOUSE_SIZED)
 _WRAPPED = re.compile(r"^\s*(?:nullable|lowcardinality)\s*\((.*)\)\s*$", re.IGNORECASE)
 _REPORTED = re.compile(r"^\s*([a-z0-9]+)\s*(?:\((.*)\))?\s*$", re.IGNORECASE)
 
