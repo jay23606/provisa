@@ -307,7 +307,7 @@ def normalize_table_refs(sql: str, ctx: CompilationContext) -> str:  # REQ-641
 def _column_renames(ctx: CompilationContext) -> dict[tuple[str, str], dict[str, str]]:
     """Per physical ``(schema, table)`` (lowercased), each published column name that is not the
     column's physical name, lowercased, to that physical name -- an ``alias``, or a SQL naming
-    convention's rename (``CompilationContext.physical_to_sql``). A published name that is also a
+    convention's rename (``CompilationContext.physical_to_sql``). A published name that is another
     physical column of the table is left out: lowering never renames a physical name, so it is
     idempotent and safe on SQL that is already physical."""
     by_id: dict[int, tuple[str, str]] = {
@@ -320,7 +320,13 @@ def _column_renames(ctx: CompilationContext) -> dict[tuple[str, str], dict[str, 
     out: dict[tuple[str, str], dict[str, str]] = {}
     for (table_id, phys), exposed in ctx.physical_to_sql.items():
         key = by_id.get(table_id)
-        if key is None or exposed == phys or exposed.lower() in physical[key]:
+        # A published name that differs from its own physical name only in case IS renamed: a
+        # source that keeps case (Snowflake's ID) refuses the quoted published name ("id").
+        if (
+            key is None
+            or exposed == phys
+            or (exposed.lower() in physical[key] and exposed.lower() != phys.lower())
+        ):
             continue
         out.setdefault(key, {})[exposed.lower()] = phys
     return out
