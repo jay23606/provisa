@@ -1081,3 +1081,85 @@ class TestCustomEndpointRouting:  # REQ-1790, REQ-1808
         )
         _, provider_configs = await chat_mod._resolve_aisuite_routing(state, "gw", "m")
         assert "api_key" not in provider_configs["anthropic"]
+
+
+_NARRATION = "Let me look at the catalog's metadata to find the registered sources."
+_ANSWER = "Here are the registered data sources."
+
+
+@pytest.mark.asyncio
+class TestNarrationKeptApartFromTheAnswer:
+    """ "...to find the registered sources.Here are the registered data sources": the text before
+    a tool call and the answer after it streamed into one message with nothing between them."""
+
+    async def test_anthropic_rounds_are_separate_paragraphs(self, monkeypatch):
+        resp1 = SimpleNamespace(
+            content=[
+                _block(type="text", text=_NARRATION),
+                _block(type="tool_use", name="list_schemas", input={}, id="tu1"),
+            ],
+            stop_reason="tool_use",
+        )
+        resp2 = SimpleNamespace(content=[_block(type="text", text=_ANSWER)], stop_reason="end_turn")
+        _install_fake_anthropic(monkeypatch, [resp1, resp2])
+        monkeypatch.setattr(mcp_tools, "list_schemas", lambda *_a, **_k: _async_result([]))
+        convo = [{"role": "user", "content": "What data sources are registered?"}]
+        events = [ev async for ev in chat_mod.run_chat(_state(), "analyst", convo)]
+        text = "".join(e["text"] for e in events if e["type"] == "text")
+        assert text == f"{_NARRATION}\n\n{_ANSWER}"
+
+    async def test_aisuite_rounds_are_separate_paragraphs(self, monkeypatch, tmp_path):
+        import os
+
+        cfg = tmp_path / "provisa.yaml"
+        cfg.write_text("sources: []\nai_models:\n  mcp_chat: {vendor: openai, model: gpt-5}\n")
+        monkeypatch.setitem(os.environ, "PROVISA_CONFIG", str(cfg))
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        call = SimpleNamespace(
+            id="c1", function=SimpleNamespace(name="list_schemas", arguments="{}")
+        )
+        _install_fake_aisuite(
+            monkeypatch,
+            [
+                SimpleNamespace(
+                    choices=[
+                        SimpleNamespace(
+                            message=SimpleNamespace(content=_NARRATION, tool_calls=[call]),
+                            finish_reason="tool_calls",
+                        )
+                    ]
+                ),
+                SimpleNamespace(
+                    choices=[
+                        SimpleNamespace(
+                            message=SimpleNamespace(content=_ANSWER, tool_calls=None),
+                            finish_reason="stop",
+                        )
+                    ]
+                ),
+            ],
+        )
+        monkeypatch.setattr(mcp_tools, "list_schemas", lambda *_a, **_k: _async_result([]))
+        convo = [{"role": "user", "content": "What data sources are registered?"}]
+        events = [ev async for ev in chat_mod.run_chat(_state(), "analyst", convo)]
+        text = "".join(e["text"] for e in events if e["type"] == "text")
+        assert text == f"{_NARRATION}\n\n{_ANSWER}"
+
+
+class TestResponseGuidance:
+    """The transcript's other faults, which only the prompt can steer."""
+
+    def test_no_step_narration(self):
+        assert "Never narrate your steps" in chat_mod._SYSTEM
+
+    def test_a_large_result_is_summarized_not_pasted(self):
+        # "list the sonnets" pasted all 154 first lines into the chat.
+        assert "never paste hundreds of lines into the chat" in chat_mod._SYSTEM
+        assert "a table on the SQL page via navigate" in chat_mod._SYSTEM
+
+    def test_only_what_a_result_confirms_is_claimed(self):
+        # "Done -- the graph is now grouped by theme", with nothing to say so.
+        assert "State only what a tool result confirms" in chat_mod._SYSTEM
+
+    def test_a_graph_path_returns_its_relationships(self):
+        assert "binds every relationship on it and returns it with the nodes" in chat_mod._SYSTEM

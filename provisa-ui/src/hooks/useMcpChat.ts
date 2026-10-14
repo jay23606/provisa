@@ -174,7 +174,12 @@ export function useMcpChat(
         const awaiting = await streamOnce(convo, appendAssistant, controller.signal);
         if (!awaiting) break; // the model finished for real — no pending client tools
 
-        const pending = awaiting.pending as { id: string; name: string; input: unknown }[];
+        const pending = awaiting.pending as {
+          id: string;
+          name: string;
+          input: unknown;
+          confirmation?: string;
+        }[];
         const clientResults = [];
         for (const p of pending) {
           let result;
@@ -186,6 +191,11 @@ export function useMcpChat(
             );
           } catch (e) {
             result = { success: false, message: e instanceof Error ? e.message : String(e) };
+          }
+          // The server's account of what this call's result can confirm (e.g. what a Graph page
+          // navigate handed the page), since the browser reports only that it navigated.
+          if (result.success && p.confirmation) {
+            result = { ...result, message: `${result.message}. ${p.confirmation}` };
           }
           markToolResolved(p.name, !result.success);
           clientResults.push({

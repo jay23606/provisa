@@ -655,7 +655,13 @@ _SYSTEM = (
     "datasets, describe_table to confirm structure, and explain_sql before run_sql on non-trivial "
     "queries. Never invent table, column, or schema names — discover them with the tools. If a "
     "tool returns an error or empty result, say so plainly. Keep answers concise and lead with the "
-    "answer. When you're offering the user a decision among a handful of concrete options — which "
+    "answer. Never narrate your steps ('Let me look at...', 'I'll check...') before or between "
+    "tool calls: call the tools, then write the answer. A large result the user did not ask to "
+    "see in full (dozens of rows or more) is summarized -- the count, how it splits, a few "
+    "examples -- with an offer of the rest, or its rows are put in a table on the SQL page via "
+    "navigate; never paste hundreds of lines into the chat. State only what a tool result "
+    "confirms: when a result says only that something was requested or navigated to, say what "
+    "you requested, never that it worked or how it now looks. When you're offering the user a decision among a handful of concrete options — which "
     "source, which table, proceed or not, pick some of these — call present_choice rather than "
     "listing options in prose and waiting for a typed reply; it's a real UI widget (multiple "
     "choice, checklist, or yes/no) and reads better than typing a number or a name back. Once a "
@@ -791,10 +797,12 @@ _SYSTEM = (
     "`(o:Shop:Orders)<-[:ON_ORDER]-(i:Shop:OrderItems)-[:OF_PRODUCT]->(p:Shop:Products)`, or one "
     "MATCH per path: comma-separated patterns and a bare `--` do not parse here, an untyped "
     "`-[]-` matches every relationship, and a join on columns in WHERE draws no relationship. "
-    "A /graph navigate is "
-    "checked before it "
-    "reaches the page: if it is refused, correct the statement from the error and navigate "
-    "again.\n"
+    "A statement for the Graph page that matches a path binds every relationship on it and "
+    "returns it with the nodes, e.g. `MATCH (l:Poems:Line)-[e:EVOKES]->(t:Poems:Theme) RETURN l, "
+    "e, t`: returning only the nodes draws no edges, so the page can neither connect nor group "
+    "them. A /graph navigate is checked before it reaches the page -- one that does not run, or "
+    "returns a path's nodes without its relationships, is refused: correct the statement from "
+    "the error and navigate again.\n"
     "- gRPC: call graphql_field_names for the table — it also returns grpc_query_method/"
     "grpc_aggregate_method, the real rpc name. state.grpcMethod is that name plus `()`, e.g. "
     '`"QuerySIrisIris()"` — this is deterministic, not a guess; never omit the trailing `()`, '
@@ -808,7 +816,8 @@ _SYSTEM = (
     "The Graph page's view -- group by, collapse every group, layout, max nodes -- is set through "
     "navigate's state.view, never by rewriting the query: asked to group the graph on screen by "
     "an attribute, navigate to /graph with only state.view.groupBy (the node property name) and "
-    "no query. Never change a query the user did not ask to change. A control you have no state "
+    "no query, once the graph on screen was drawn with its relationships (if it was not, navigate "
+    "with a query that returns them and the view together). Never change a query the user did not ask to change. A control you have no state "
     "key for, you say you cannot set; never guess a key.\n"
     "For any of these, do the lookup (if needed) once per table, build the query, navigate with "
     "state once, then stop — report the outcome; never re-run the naming lookup, search_catalog, "
@@ -1180,16 +1189,39 @@ def _openai_message_to_wire_blocks(message: Any) -> list[dict]:
     return blocks
 
 
+class _TurnText:
+    """The model's text across the rounds of one turn, as the chat receives it: a round's text
+    after an earlier round's text opens a new paragraph, so what the model says before a tool call
+    never runs into what it says after it ("...the registered sources.Here are...")."""
+
+    def __init__(self) -> None:
+        self._earlier = False
+        self._this_round = False
+
+    def next_round(self) -> None:
+        self._earlier = self._earlier or self._this_round
+        self._this_round = False
+
+    def event(self, text: str) -> dict:
+        lead = "\n\n" if self._earlier and not self._this_round else ""
+        self._this_round = True
+        return {"type": "text", "text": lead + text}
+
+
 def _unquoted_note(error: str) -> str:
     return f"The SQL could not be read to quote its names, so it is used as written: {error}"
 
 
-def _prepare_client_call(call: dict) -> tuple[dict, str | None]:
+def _prepare_client_call(call: dict, confirmation: str | None = None) -> tuple[dict, str | None]:
     """A client tool call as the browser receives it, and a note for the user when there is one.
 
     SQL handed to the SQL explorer has every identifier quoted (a reserved word as a column name
     otherwise breaks it). SQL that does not parse is handed on unchanged, and the note says why.
+    A ``confirmation`` -- what the navigate's result can confirm -- travels with the call, and the
+    browser adds it to the result it returns.
     """
+    if confirmation is not None:
+        call = {**call, "confirmation": confirmation}
     state = call["input"].get("state") if call["name"] == "navigate" else None
     if not isinstance(state, dict) or not isinstance(state.get("sql"), str):
         return call, None
@@ -1198,24 +1230,49 @@ def _prepare_client_call(call: dict) -> tuple[dict, str | None]:
     return prepared, None if error is None else _unquoted_note(error)
 
 
-async def _refused_graph_navigates(state: Any, role: str, calls: list[dict]) -> dict[str, str]:
-    """Each navigate whose Cypher statement could not run on the Graph page, by call id, with the
-    tool result the model gets instead: the statement never reaches the page, and the model
-    corrects it from the real error."""
-    from provisa.api.mcp.cypher_check import cypher_read_problem, graph_query
+async def _checked_graph_navigates(
+    state: Any, role: str, calls: list[dict]
+) -> tuple[dict[str, str], dict[str, str]]:
+    """Each Graph page navigate, by call id: refused -- its Cypher statement could not run, or
+    would draw no edges -- with the tool result the model gets instead (the statement never
+    reaches the page, and the model corrects it); or let through, with what the navigate's result
+    can confirm. The browser reports only that it navigated, never what the page drew, so the
+    confirmation says what the page was handed and that the drawing is not reported back."""
+    from provisa.api.mcp.cypher_check import check_graph_read, graph_query
 
     refused: dict[str, str] = {}
+    confirmed: dict[str, str] = {}
     for call in calls:
+        if call["name"] != "navigate" or not str(call["input"].get("route") or "").startswith(
+            "/graph"
+        ):
+            continue
         query = graph_query(call)
         if query is None:
+            view = (call["input"].get("state") or {}).get("view")
+            if view:
+                confirmed[call["id"]] = (
+                    f"The Graph page was asked to set its view to {json.dumps(view)} on the graph "
+                    "already on screen; the page does not report back what it drew."
+                )
             continue
-        problem = await cypher_read_problem(state, role, query)
-        if problem is not None:
+        read = await check_graph_read(state, role, query)
+        if read.problem is not None:
             refused[call["id"]] = (
                 "Not navigated: this Cypher statement does not run, so it was not put on the "
-                f"Graph page. {problem}. Correct the statement and navigate again."
+                f"Graph page. {read.problem}. Correct the statement and navigate again."
             )
-    return refused
+            continue
+        drawn = {
+            kind: [name for name, k in read.columns.items() if k == kind]
+            for kind in ("node", "edge", "path")
+        }
+        confirmed[call["id"]] = (
+            "The Graph page was handed the statement, which checks clean and returns "
+            + "; ".join(f"{kind} column(s) {', '.join(n)}" for kind, n in drawn.items() if n)
+            + ". The page runs it; it does not report back the rows it drew."
+        )
+    return refused, confirmed
 
 
 def _split_tool_calls(calls: list[dict]) -> tuple[list[dict], list[dict]]:
@@ -1287,8 +1344,10 @@ async def _run_chat_anthropic(
     prior_messages: list[Any] = []
     # REQ-2012: the turn's token usage, summed over every call, tool round trips included.
     usage = polly_usage.Usage()
+    turn_text = _TurnText()
 
     for _ in range(max_iterations):
+        turn_text.next_round()
         # REQ-1838: adaptive thinking's budget shares the max_tokens cap — 8192 let a heavily-
         # reasoning turn (many tools + a long system prompt) exhaust the budget mid-thought,
         # before the model ever emitted its tool_use block. stop_reason came back "max_tokens",
@@ -1333,7 +1392,7 @@ async def _run_chat_anthropic(
                 async for event in stream:
                     if event.type == "content_block_delta" and event.delta.type == "text_delta":
                         live_text.append(event.delta.text)
-                        yield {"type": "text", "text": event.delta.text}
+                        yield turn_text.event(event.delta.text)
                         continue
                     if event.type != "content_block_stop":
                         continue
@@ -1378,7 +1437,7 @@ async def _run_chat_anthropic(
                     else full_text
                 )
                 if remainder:
-                    yield {"type": "text", "text": remainder}
+                    yield turn_text.event(remainder)
 
         if resp.stop_reason == "max_tokens":
             # REQ-1838: never end the turn silently on this — the user sees exactly the same
@@ -1421,7 +1480,7 @@ async def _run_chat_anthropic(
                 }
             )
 
-        refused = await _refused_graph_navigates(
+        refused, confirmed = await _checked_graph_navigates(
             state, role, [{"id": b.id, "name": b.name, "input": b.input} for b in client_blocks]
         )
         for block in client_blocks:
@@ -1443,7 +1502,8 @@ async def _run_chat_anthropic(
             pending = []
             for block in client_blocks:
                 call, note = _prepare_client_call(
-                    {"id": block.id, "name": block.name, "input": block.input}
+                    {"id": block.id, "name": block.name, "input": block.input},
+                    confirmed.get(block.id),
                 )
                 if note is not None:
                     yield {"type": "text", "text": f"\n\n{note}"}
@@ -1634,8 +1694,10 @@ async def _run_chat_aisuite(
     prior_messages: list[Any] = []  # REQ-1850, same reasoning as the Anthropic loop above
     usage = polly_usage.Usage()
     billed: float | None = None
+    turn_text = _TurnText()
 
     for _ in range(max_iterations):
+        turn_text.next_round()
         oa_messages = [system_message, *_wire_convo_to_openai_messages(convo)]
         # aisuite providers are synchronous (no async client) — off the event loop, same reasoning
         # as every other sync-SDK call in this codebase (e.g. provisa/llm/client.py).
@@ -1648,7 +1710,7 @@ async def _run_chat_aisuite(
             billed = (billed or 0.0) + float(call_cost)
         message = resp.choices[0].message
         if message.content:
-            yield {"type": "text", "text": message.content}
+            yield turn_text.event(message.content)
 
         if resp.choices[0].finish_reason != "tool_calls" or not getattr(
             message, "tool_calls", None
@@ -1681,7 +1743,7 @@ async def _run_chat_aisuite(
                 }
             )
 
-        refused = await _refused_graph_navigates(state, role, client_calls)
+        refused, confirmed = await _checked_graph_navigates(state, role, client_calls)
         for call in client_calls:
             if call["id"] in refused:
                 yield {"type": "tool_result", "name": call["name"], "is_error": True}
@@ -1697,7 +1759,7 @@ async def _run_chat_aisuite(
         if client_calls:
             prepared_calls = []
             for raw_call in client_calls:
-                call, note = _prepare_client_call(raw_call)
+                call, note = _prepare_client_call(raw_call, confirmed.get(raw_call["id"]))
                 if note is not None:
                     yield {"type": "text", "text": f"\n\n{note}"}
                 prepared_calls.append(call)
