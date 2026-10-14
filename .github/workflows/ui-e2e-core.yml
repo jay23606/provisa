@@ -137,9 +137,13 @@ jobs:
       ui-timeout: 12
       # CI: every webServer is started by the harness, never adopted from a stale process.
       # PROVISA_E2E_LANE: the embedded control plane, and no Trino webServer in the config.
+      # Two workers, each a backend and a browser: at four, the 4-vCPU runner ran at a load of 13
+      # to 21 (run 38499105258's sampler) -- about five times slower than the specs' bounds allow,
+      # and the MV, file-connector and Cypher specs timed out there and nowhere else.
       env: |
         CI=true
         PROVISA_E2E_LANE=core
+        PROVISA_E2E_WORKERS=2
         PROVISA_E2E_SPECS=${{ inputs.specs }}
       working-directory: provisa-ui
       # json beside the list and the HTML report (in a file of its own: the HTML reporter empties
