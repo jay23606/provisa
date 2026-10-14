@@ -121,7 +121,11 @@ test.describe("google_sheets: source to query through the UI (REQ-1742)", () => 
     // source crashed the shared single-worker backend outright (~29s in, then every subsequent
     // request ERR_CONNECTION_REFUSED). Un-skipped to re-isolate with the backend in the
     // foreground.
-    test.setTimeout(120000);
+    // A live source, budgeted as the cloud-warehouse ones are: its steps are Google round trips
+    // (create, list the sheet, register) and a first read that lands its replica, each with a
+    // budget of its own up to 120s. At 120s for the whole test both CI attempts ran out mid-step
+    // (core retest run 38499105258), the retry with the table already registered.
+    test.setTimeout(300000);
     const stamp = Date.now();
     const sourceId = `e2e_gsheets_${stamp}`;
 
