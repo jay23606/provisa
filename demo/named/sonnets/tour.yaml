@@ -48,8 +48,8 @@ steps:
   route: /graph
   capability: query_development
   cypher: >-
-    MATCH (s:S__Sonnet)<-[:IN]-(a:S__Line)-[e:ECHOES]->(b:S__Line)-[:IN]->(t:S__Sonnet)
-    WHERE e.score > 0.75 RETURN s, a, e, b, t
+    MATCH (s:S__Sonnet)<-[i:IN]-(a:S__Line)-[e:ECHOES]->(b:S__Line)-[j:IN]->(t:S__Sonnet)
+    WHERE e.score > 0.75 RETURN s, i, a, e, b, j, t
 - key: sonnetsThemesBySequence
   route: /query
   capability: query_development
