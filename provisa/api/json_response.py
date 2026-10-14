@@ -36,6 +36,11 @@ def _encode_unknown(value: Any) -> Any:  # noqa: ANN401 — whatever orjson cann
     # subclass back as it is: JPype's boxed java.lang.Double, in a govdata row.
     if isinstance(value, float):
         return float(value)
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        # Binary as PostgreSQL writes it (\x and hex), the spelling a JSON read of a bytea column
+        # gives (transpiler.native_json): jsonable_encoder decodes bytes as UTF-8, and refused a
+        # BLOB/RAW value that is not text.
+        return "\\x" + bytes(value).hex()
     return jsonable_encoder(value)
 
 
