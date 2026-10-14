@@ -23644,9 +23644,47 @@ A zoned timestamp is an instant, and the model has a type for it: timestamptz, c
 
 **Status:** ⚙ in-progress · **Priority:** SHOULD · **Type:** behavioral
 
-Each published named demo is its own bundle, built and published on its own and never part of a release or the app image. A bundle holds the demo's model (config.yaml), its data landed once at build (the seed the sandbox tier lands its template from, the files its traffic generator wrote, and a dump of each of its databases a run-time compose file loads), its tour and example queries, and the oldest Provisa version it runs on (requires_provisa in demo.yaml). The Demo bundles workflow builds a demo when a push to main changes demo/named/<name>/, or on a dispatch naming it, and publishes it as an OCI artifact to one package every demo shares, ghcr.io/<owner>/provisa-demos, tagged <name>-<version> and <name>-latest; the version is the build's UTC minute and commit, and a version is never published twice. Whoever runs a demo pulls its bundle and runs its own stores, which it reads live, as the demo defines them; only an external SaaS-account source is landed at build (TTL -1, [REQ-2031](#REQ-2031)) and served from replicas. On the sandbox tier's node a sync (scripts/demo_stores_sync.sh, run at boot, on a timer and whenever the tier asks) pulls each offered demo's version (PROVISA_DEMO_BUNDLES), brings up the bundle's run-time stores as a compose project of that version, shared read-only by its sandboxes, writes where they are into the bundle's stores.env, and marks the version ready; it takes down the stores of versions nothing reads any more. The tier serves the ready version; when a sandbox is opened it looks for a newer published version and asks the node for it, serving the ready one meanwhile, so a newly published version reaches the next sandbox opened after it is ready, with no release and no redeploy; the demo's template is replaced from it, and a sandbox already open keeps reading its own version. A sandbox's visitor sees what the demo shows its admin and holds the demo's own roles, never a right the sandbox role withholds ([REQ-1597](#REQ-1597)), and is shown the example queries and tour of the version it was opened from. A demo's log files are read live from its bundle, by its template and sandboxes only, inside that demo's directory. start-ui-install.sh --demo <name> pulls <name>-latest, --demo <name>@<version> that version, and runs it with only what reading it needs (the weblogs demo: its shop database, loaded from the bundle's dump; no shop, web server or traffic generator), while --from-source runs a demo from the checkout's own directory for development. A bundle that needs a newer Provisa than the one pulling it is refused by name. Only the OCI distribution API is spoken, so no registry client is needed where a demo runs.
+Each published named demo is its own bundle, built and published on its own and never part of a release or the app image. A bundle holds the demo's model (config.yaml), its data landed once at build (the seed the sandbox tier lands its template from, the files its traffic generator wrote, and a dump of each of its databases a run-time compose file loads), its tour and example queries, and the oldest Provisa version it runs on (requires_provisa in demo.yaml). The Demo bundles workflow builds a demo when a push to main changes demo/named/<name>/, or on a dispatch naming it, and publishes it as an OCI artifact to one package every demo shares, ghcr.io/<owner>/provisa-demos, tagged <name>-<version> and <name>-latest; the version is the build's UTC minute and commit, and a version is never published twice. Whoever runs a demo pulls its bundle and runs its own stores, which it reads live, as the demo defines them; only an external SaaS-account source is landed at build (TTL -1, [REQ-2031](#REQ-2031)) and served from replicas. On the sandbox tier's node a sync (scripts/demo_stores_sync.sh, run at boot, on a timer and whenever the tier asks) pulls each offered demo's version (PROVISA_DEMO_BUNDLES), brings up the bundle's run-time stores as a compose project of that version, shared read-only by its sandboxes, writes where they are into the bundle's stores.env, and marks the version ready; it takes down the stores of versions nothing reads any more. The tier serves the ready version; when a sandbox is opened it looks for a newer published version and asks the node for it, serving the ready one meanwhile, so a newly published version reaches the next sandbox opened after it is ready, with no release and no redeploy; the demo's template is replaced from it, and a sandbox already open keeps reading its own version. A sandbox's visitor sees what the demo shows its admin and holds the demo's own roles, never a right the sandbox role withholds ([REQ-1597](#REQ-1597)), and is shown the example queries and tour of the version it was opened from. A demo's log files are read live from its bundle, by its template and sandboxes only, inside that demo's directory. start-ui-install.sh --demo <name> pulls <name>-latest, --demo <name>@<version> that version, and runs it with only what reading it needs (the weblogs demo: its shop database, loaded from the bundle's dump; no shop, web server or traffic generator), while --from-source runs a demo from the checkout's own directory for development. A bundle that needs a newer Provisa than the one pulling it is refused by name, and so is one in an older demo format than it reads (the format its manifest names, bumped when a demo's files gain something a reader requires), when it is pulled or loaded, naming the bundle and saying to pull its latest. Only the OCI distribution API is spoken, so no registry client is needed where a demo runs.
 
 **Use case:** The maintainer changes an example query of the weblogs demo and merges it; minutes later the live demos page's next sandbox and a solution engineer's next start-ui-install.sh --demo weblogs both have the change, with no release cut.
+
+**Code:** —
+
+**Tests:** —
+
+## 10. UI & Admin Surfaces
+
+### REQ-2051 · UI {#REQ-2051}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+A feature demo, data quality: A medallion pipeline of at least three tables: a landed bronze table (the source table, replicated), a silver materialized view over bronze (cleaned, typed, conformed) and a gold materialized view over silver (business aggregates). Silver and gold each carry a preflight check ([REQ-1165](#REQ-1165)) on their input. A deliberately bad batch landed in bronze fails silver's check: silver's refresh is refused by name, the last good silver stays in place, and the error event is posted (quarantine holds instead where the check says so); gold is rebuilt only from a silver that passed, so it keeps serving the last good data. Bronze and silver are kept bitemporal ([REQ-1162](#REQ-1162)): every batch is appended with when it was valid and when it was recorded, so the tour can show what each layer held at any moment, including the bad batch bronze received and silver refused. The views are built by the engine and SQL-expressible checks run in the engine; Provisa declares the stages and gates and never becomes a processing platform. Its tour follows the settled demo tour shape (scenario and features; how the pieces fit, each step on its real row; the solution as predesigned queries and views over fitting transports; recap; then "Where next?" with its landing page). Its business question: "Can I trust this data before it reaches gold?"
+
+**Use case:** A visitor opens the data quality demo and sees how Provisa answers: Can I trust this data before it reaches gold?
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-2052 · UI {#REQ-2052}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+A feature demo, data profiling: The built-in Data Profiler ([REQ-1934](#REQ-1934)) profiles a demo's tables on a schedule; its results are governed tables the tour shows (nulls, distinct counts, value ranges, outliers), and a profile run is visible on each profiled table. Its tour follows the settled demo tour shape (scenario and features; how the pieces fit, each step on its real row; the solution as predesigned queries and views over fitting transports; recap; then "Where next?" with its landing page). Its business question: "What is actually in this data?"
+
+**Use case:** A visitor opens the data profiling demo and sees how Provisa answers: What is actually in this data?
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-2053 · UI {#REQ-2053}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+A feature demo, environments and test data: The model's git-branch environments (dev, test, prod) with fake data generated per environment ([REQ-1494](#REQ-1494), computed by the serving engine) and masking, over a demo's schema (weblogs'): the same queries return production-shaped but generated rows in dev and test, and real rows only in prod. Its tour follows the settled demo tour shape (scenario and features; how the pieces fit, each step on its real row; the solution as predesigned queries and views over fitting transports; recap; then "Where next?" with its landing page). Its business question: "Can I test against realistic data without touching production?"
+
+**Use case:** A visitor opens the environments and test data demo and sees how Provisa answers: Can I test against realistic data without touching production?
 
 **Code:** —
 

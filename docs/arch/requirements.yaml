@@ -83538,3 +83538,98 @@
     branch. 2026-10-14, the maintainer: only SaaS sources use replicas; a demo''s own sources are read live, and the sandbox
     tier''s node runs them (approved hosting design: host-side sync, stores.env, no forced replication, logs read from the
     demo''s own bundle).'
+- id: REQ-2051
+  status: proposed
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI
+  feature: product-tour-and-demos-named-demos
+  priority: SHOULD
+  type: behavioral
+  description: 'A feature demo, data quality: A medallion pipeline of at least three tables: a landed bronze table
+    (the source table, replicated), a silver materialized view over bronze (cleaned, typed, conformed) and a gold
+    materialized view over silver (business aggregates). Silver and gold each carry a preflight check (REQ-1165)
+    on their input. A deliberately bad batch landed in bronze fails silver''s check: silver''s refresh is refused
+    by name, the last good silver stays in place, and the error event is posted (quarantine holds instead where
+    the check says so); gold is rebuilt only from a silver that passed, so it keeps serving the last good data. Bronze and silver are kept bitemporal (REQ-1162): every batch is appended with when it was valid and when it was recorded, so the tour can show what each layer held at any moment, including the bad batch bronze received and silver refused.
+    The views are built by the engine and SQL-expressible checks run in the engine; Provisa declares the stages
+    and gates and never becomes a processing platform. Its tour follows the settled demo tour shape (scenario and
+    features; how the pieces fit, each step on its real row; the solution as predesigned queries and views over
+    fitting transports; recap; then "Where next?" with its landing page). Its business question: "Can I trust this
+    data before it reaches gold?"'
+  use_case: 'A visitor opens the data quality demo and sees how Provisa answers: Can I trust this data before it
+    reaches gold?'
+  scenario: 'Given the data quality demo started from its bundle
+
+
+    When a visitor walks its tour to the end
+
+
+    Then every step shows its real object and every predesigned query returns rows'
+  related_reqs:
+  - REQ-2006
+  - REQ-2010
+  - REQ-2049
+  - REQ-1162
+  - REQ-1165
+  notes: 'Maintainer 2026-10-14, via the lead: data quality is its own feature demo. To check data before it reaches
+    gold, register the source tables as bronze, check, move to silver, check, then gold, using a check step before
+    a view so that a failure posts an error rather than moving data to the next stage; three tables at a minimum:
+    the landed bronze, silver, gold. Lead: the gate must sit on a materialized view (a plain view reads live and
+    holds nothing back); the preflight check already aborts a refresh keeping the previous copy.'
+- id: REQ-2052
+  status: proposed
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI
+  feature: product-tour-and-demos-named-demos
+  priority: SHOULD
+  type: behavioral
+  description: 'A feature demo, data profiling: The built-in Data Profiler (REQ-1934) profiles a demo''s tables
+    on a schedule; its results are governed tables the tour shows (nulls, distinct counts, value ranges, outliers),
+    and a profile run is visible on each profiled table. Its tour follows the settled demo tour shape (scenario
+    and features; how the pieces fit, each step on its real row; the solution as predesigned queries and views over
+    fitting transports; recap; then "Where next?" with its landing page). Its business question: "What is actually
+    in this data?"'
+  use_case: 'A visitor opens the data profiling demo and sees how Provisa answers: What is actually in this data?'
+  scenario: 'Given the data profiling demo started from its bundle
+
+
+    When a visitor walks its tour to the end
+
+
+    Then every step shows its real object and every predesigned query returns rows'
+  related_reqs:
+  - REQ-2006
+  - REQ-2010
+  - REQ-2049
+  notes: 'Maintainer 2026-10-14, via the lead: data profiling is its own feature demo, separate from data quality.'
+- id: REQ-2053
+  status: proposed
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI
+  feature: product-tour-and-demos-named-demos
+  priority: SHOULD
+  type: behavioral
+  description: 'A feature demo, environments and test data: The model''s git-branch environments (dev, test, prod)
+    with fake data generated per environment (REQ-1494, computed by the serving engine) and masking, over a demo''s
+    schema (weblogs''): the same queries return production-shaped but generated rows in dev and test, and real rows
+    only in prod. Its tour follows the settled demo tour shape (scenario and features; how the pieces fit, each
+    step on its real row; the solution as predesigned queries and views over fitting transports; recap; then "Where
+    next?" with its landing page). Its business question: "Can I test against realistic data without touching production?"'
+  use_case: 'A visitor opens the environments and test data demo and sees how Provisa answers: Can I test against
+    realistic data without touching production?'
+  scenario: 'Given the environments and test data demo started from its bundle
+
+
+    When a visitor walks its tour to the end
+
+
+    Then every step shows its real object and every predesigned query returns rows'
+  related_reqs:
+  - REQ-2006
+  - REQ-2010
+  - REQ-2049
+  notes: 'Maintainer 2026-10-14, via the lead: test data as a feature demo, perhaps inside the existing environments;
+    the lead placed it with the environments (git branches) demo.'
