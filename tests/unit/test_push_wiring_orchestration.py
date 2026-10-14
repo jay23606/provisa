@@ -296,3 +296,40 @@ async def test_a_postgresql_table_on_a_polling_signal_gets_no_listener():
     ):
         tasks = await wire_push_listeners(state=state, log=logging.getLogger("test"))
     assert tasks == [] and state.push_listener_disconnects == {}
+
+
+@pytest.mark.asyncio
+async def test_a_kafka_signal_table_of_a_database_lands_its_delta_topic():
+    """A database table on the kafka signal reads the delta topic it names, over the source's
+    CDC transport, landed by key into its replica like a Debezium-captured one."""
+    state = _FakeState()
+    state.config = MagicMock(cdc_consumer_group_id="provisa-debezium")
+    table = _captured_table("kafka")
+    table["live"] = {"kafka": {"topic": "orders.deltas"}}
+    run = AsyncMock()
+    built: dict = {}
+
+    def _get_provider(kind, config):
+        built.update(kind=kind, **config)
+        return MagicMock()
+
+    with (
+        patch("provisa.api.admin.db_queries.fetch_tables", AsyncMock(return_value=[table])),
+        patch(
+            "provisa.federation.registry_view.registered_sources",
+            AsyncMock(return_value=[_captured_source()]),
+        ),
+        patch("provisa.subscriptions.registry.get_provider", _get_provider),
+        patch("provisa.events.push_wiring._run_listener", run),
+        patch("provisa.events.push_wiring._drop_slot_of", lambda src: False),
+    ):
+        tasks = await wire_push_listeners(state=state, log=logging.getLogger("test"))
+        await shutdown_push_listeners(state)
+
+    assert len(tasks) == 1
+    assert run.call_args.kwargs["watch_target"] == "orders.deltas"
+    assert built == {
+        "kind": "kafka",
+        "bootstrap_servers": "broker:9092",
+        "group_id": "provisa-debezium",
+    }

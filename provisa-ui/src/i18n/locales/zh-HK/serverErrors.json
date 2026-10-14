@@ -315,6 +315,7 @@
       "relationship_saved": "關係「{{relationship}}」已儲存",
       "remigrated": "已重新遷移 {{source}}.{{table}}",
       "logical_replication_refused": "資料來源 '{{source}}' 的原生變更訊號需要其資料庫的邏輯複寫，而 {{reason}}。",
+      "change_signal_no_topic": "資料來源 '{{source}}' 的表 '{{table}}' 使用 kafka 變更訊號，但未在 live.kafka.topic 中指定 topic，因此不會有任何東西重新整理它。",
       "change_signal_no_receiver": "Provisa 不會從 {{type}} 類型的資料來源接收變更訊號 {{signal}}，因此資料來源 '{{source}}' 的資料表永遠不會因此重新整理。請使用 Debezium 擷取該資料來源，並使用 debezium。",
       "change_signal_not_honoured": "類型為 {{type}} 的數據來源尚不能檢查是否有變更，因此變更訊號 {{signal}} 永遠不會被詢問。請為數據來源「{{source}}」使用 ttl。",
       "sentinel_path_not_applicable": "類型為 {{type}} 的數據來源不能有哨兵路徑：沒有您自己的生產方可以標記其數據的變更，或者該數據來源不被探測。請從數據來源「{{source}}」中移除哨兵路徑。",

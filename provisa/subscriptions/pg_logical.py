@@ -35,6 +35,7 @@ from typing import Any
 
 PLUGIN = "pgoutput"
 _SLOT_MAX = 63  # PostgreSQL's identifier length
+_CONNECT_TIMEOUT_S = 10
 # pgoutput message types that name the relation they change, by their first byte.
 _ROW_CHANGES = frozenset(b"IUD")
 _TRUNCATE = ord("T")
@@ -85,6 +86,7 @@ class PgConnection:
             user=self.user,
             password=self.password,
             autocommit=True,
+            connect_timeout=_CONNECT_TIMEOUT_S,
         )
 
 
@@ -136,14 +138,18 @@ def ensure_slot(conn: Any, name: str, tables: list[tuple[str, str]]) -> None:
         conn.execute("SELECT pg_create_logical_replication_slot(%s, %s)", (name, PLUGIN))
 
 
-def drop_slot(conn: Any, name: str) -> None:
-    """Drop the slot ``name`` and its publication, each when it exists."""
-    exists = conn.execute(
+def drop_slot(conn: Any, name: str) -> bool:
+    """Drop the slot ``name`` and its publication, each when it exists; True when either did.
+    A database holding neither is only read: nothing is written to it."""
+    slot = conn.execute(
         "SELECT 1 FROM pg_replication_slots WHERE slot_name = %s", (name,)
     ).fetchone()
-    if exists is not None:
+    if slot is not None:
         conn.execute("SELECT pg_drop_replication_slot(%s)", (name,))
-    conn.execute(f"DROP PUBLICATION IF EXISTS {_quoted(name)}")
+    published = conn.execute("SELECT 1 FROM pg_publication WHERE pubname = %s", (name,)).fetchone()
+    if published is not None:
+        conn.execute(f"DROP PUBLICATION {_quoted(name)}")
+    return slot is not None or published is not None
 
 
 def _relids(message: bytes) -> list[int]:

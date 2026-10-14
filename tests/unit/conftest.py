@@ -41,7 +41,10 @@ def embedded_postgres():
     machine's 5432 — other jobs start and stop that one, and a parallel worker shares it."""
     from tests.embedded_pg import start_local_postgres
 
-    pg = start_local_postgres()
+    # wal_level logical: a PostgreSQL source's change feed is read from a logical replication
+    # slot (REQ-929, test_pg_logical_change_feed.py); a cluster of its own per test would be one
+    # more server per worker.
+    pg = start_local_postgres(settings={"wal_level": "logical"})
     yield pg
     pg.stop()
 

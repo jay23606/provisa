@@ -136,9 +136,10 @@ PROVISA_MATERIALIZE_URL="postgresql://provisa:secret@replicas.internal:5432/repl
   ```
 
 - **WebSocket 数据源。** 其数据流以同样方式应用。[tool-verified: `provisa/events/push_wiring.py` `_build_provider`]
-- **带 `change_signal: debezium` 的表**（在表或其数据源上），其数据源的 `cdc` 块指明 Kafka 传输和连接器的 topic 前缀。首次读取构建副本；之后 topic `{topic_prefix}.{schema}.{table}` 上的每个变更事件都按主键应用，包括删除，且仅在变更落地后才提交 offset。[tool-verified: `provisa/events/push_wiring.py` `_captured_by_debezium`, `_debezium_provider`; `provisa/subscriptions/debezium_provider.py` `ack`]
+- **带 `change_signal: debezium` 的表**（在表或其数据源上），其数据源的 `cdc` 块指明 Kafka 传输和连接器的 topic 前缀。首次读取构建副本；之后 topic `{topic_prefix}.{schema}.{table}` 上的每个变更事件都按主键应用，包括删除，且仅在变更落地后才提交 offset。[tool-verified: `provisa/events/push_wiring.py` `_captured_by_cdc`, `_cdc_provider`; `provisa/subscriptions/debezium_provider.py` `ack`]
+- **此类数据源上带 `change_signal: kafka` 的表**。其变更从其 `live.kafka.topic` 指定的增量 topic 读取，使用同一传输，并以同样方式应用；使用此信号却未指定 topic 的表，在保存该表或其数据源以及加载配置时都会被点名拒绝。 [tool-verified: `provisa/events/push_wiring.py` `_cdc_provider`; `provisa/core/change_signal.py` `kafka_topic_refusal`]
 - **带 `change_signal: native` 的 MongoDB 或 Cosmos DB 表**（在表或其数据源上）。变更流上的每一批变更都会请求重建副本。[tool-verified: `provisa/events/push_wiring.py` `_change_feed_opted_in`, `_run_change_stream`]
-- **带 `change_signal: native` 的 PostgreSQL 表**（在表或其数据源上）。Provisa 从自己的 slot `provisa_<source id>` 读取数据库的逻辑复制，所用的同名发布列出该数据源的原生表。不涉及 Kafka。表上的每一批变更都会请求重建其副本。数据库需要的条件与 Debezium 相同：`wal_level` 设为 `logical`、具有复制权限且可创建该发布的角色，以及主库而非只读副本；缺少其中任何一项的数据源在保存和加载配置时都会被点名拒绝。第一张表跟随时创建 slot 和发布，最后一张停止跟随或数据源被删除时将其删除。[tool-verified: `provisa/subscriptions/pg_logical.py`; `provisa/events/push_wiring.py` `_run_logical_stream`, `_drop_unfollowed_slots`]
+- **带 `change_signal: native` 的 PostgreSQL 表**（在表或其数据源上）。Provisa 从自己的 slot `provisa_<source id>` 读取数据库的逻辑复制，所用的同名发布列出该数据源的原生表。不涉及 Kafka。表上的每一批变更都会请求重建其副本。数据库需要的条件与 Debezium 相同：`wal_level` 设为 `logical`、具有复制权限且可创建该发布的角色，以及主库而非只读副本；缺少其中任何一项的数据源在保存和加载配置时都会被点名拒绝。第一张表跟随时创建 slot 和发布，最后一张停止跟随或数据源被删除时将其删除。 服务器启动时会检查每个已注册的 PostgreSQL 数据源，并删除没有任何原生表跟随的 Provisa slot，因此在没有服务器运行时修改配置所遗留的 slot 不会继续占用数据源的 WAL。[tool-verified: `provisa/subscriptions/pg_logical.py`; `provisa/events/push_wiring.py` `_run_logical_stream`, `_drop_unfollowed_slots`]
 
 被推送的表需要声明主键；没有主键的表会被跳过并写入日志。[tool-verified: `provisa/events/push_wiring.py` `wire_push_listeners`]
 

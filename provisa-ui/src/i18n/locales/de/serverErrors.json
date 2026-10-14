@@ -315,6 +315,7 @@
       "relationship_saved": "Beziehung '{{relationship}}' gespeichert",
       "remigrated": "{{source}}.{{table}} erneut migriert",
       "logical_replication_refused": "Das native Änderungssignal der Quelle '{{source}}' benötigt die logische Replikation ihrer Datenbank, und {{reason}}.",
+      "change_signal_no_topic": "Die Tabelle '{{table}}' der Quelle '{{source}}' verwendet das Änderungssignal kafka, nennt aber in live.kafka.topic kein Topic, daher würde nichts sie aktualisieren.",
       "change_signal_no_receiver": "Provisa empfängt das Änderungssignal {{signal}} nicht von einer Quelle des Typs {{type}}, daher würde eine Tabelle der Quelle '{{source}}' dadurch nie aktualisiert. Erfassen Sie die Quelle mit Debezium und verwenden Sie debezium.",
       "change_signal_not_honoured": "Eine Quelle vom Typ {{type}} kann noch nicht auf Änderungen geprüft werden, daher würde das Änderungssignal {{signal}} nie abgefragt. Verwenden Sie ttl für die Quelle „{{source}}“.",
       "sentinel_path_not_applicable": "Eine Quelle vom Typ {{type}} kann keinen Sentinel-Pfad haben: Kein eigener Produzent kann eine Änderung ihrer Daten markieren, oder die Quelle wird nicht geprüft. Entfernen Sie den Sentinel-Pfad aus der Quelle „{{source}}“.",

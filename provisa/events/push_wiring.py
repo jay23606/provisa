@@ -69,28 +69,42 @@ def _effective_signal(src: Any, tbl: dict) -> str | None:
     return tbl["change_signal"] if tbl["change_signal"] is not None else src.change_signal
 
 
-def _captured_by_debezium(src: Any, tbl: dict) -> bool:
-    """Whether a table's changes arrive as Debezium change events on its source's CDC transport
-    (REQ-261, REQ-824): its effective signal is ``debezium`` on a source that is not itself a
-    push type. Config load and the admin save refuse the signal on a source with no cdc block."""
-    return _source_type_of(src) not in PUSH_SOURCE_TYPES and _effective_signal(src, tbl) == (
-        "debezium"
+# The signals whose changes arrive on a non-push source's CDC transport (REQ-824).
+_CDC_TRANSPORT_SIGNALS = frozenset({"debezium", "kafka"})
+
+
+def _captured_by_cdc(src: Any, tbl: dict) -> bool:
+    """Whether a table's changes arrive on its source's CDC transport (REQ-261, REQ-813,
+    REQ-824): its effective signal is ``debezium`` or ``kafka`` on a source that is not itself a
+    push type. Config load and the admin save refuse either on a source with no cdc block, and
+    ``kafka`` on a table that names no topic."""
+    return (
+        _source_type_of(src) not in PUSH_SOURCE_TYPES
+        and _effective_signal(src, tbl) in _CDC_TRANSPORT_SIGNALS
     )
 
 
-def _debezium_provider(state: Any, src: Any, tbl: dict) -> tuple[Any, str]:
-    """The Debezium consumer of one captured table: the source's CDC transport, the topic its
-    connector writes the table to, and Provisa's consumer group for it (REQ-931: the source's
-    own, else the Provisa-level default)."""
+def _cdc_provider(state: Any, src: Any, tbl: dict) -> tuple[Any, str]:
+    """The consumer of one captured table on its source's CDC transport, with Provisa's
+    consumer group for it (REQ-931: the source's own, else the Provisa-level default): the
+    Debezium topic its connector writes the table to, or the delta topic the table names."""
     from provisa.kafka.avro_registry import RegistrySettings
     from provisa.subscriptions.debezium_provider import DebeziumNotificationProvider
+    from provisa.subscriptions.registry import get_provider
 
     cdc = src.cdc
+    group = cdc.consumer_group_id or state.config.cdc_consumer_group_id
+    if _effective_signal(src, tbl) == "kafka":
+        topic = ((tbl.get("live") or {}).get("kafka") or {})["topic"]
+        provider = get_provider(
+            "kafka", {"bootstrap_servers": cdc.bootstrap_servers, "group_id": group}
+        )
+        return provider, topic
     provider = DebeziumNotificationProvider(
         bootstrap_servers=cdc.bootstrap_servers,
         topic_prefix=cdc.topic_prefix,
         database=src.database,
-        consumer_group_id=cdc.consumer_group_id or state.config.cdc_consumer_group_id,
+        consumer_group_id=group,
         registry=RegistrySettings.of(cdc),
         source_type=_source_type_of(src),
         pg_schema=tbl["schema_name"],
@@ -229,8 +243,8 @@ async def wire_push_listeners(*, state: Any, log: Any) -> list[LongLived]:
             if task is not None:
                 started.append(task)
             continue
-        debezium = _captured_by_debezium(src, tbl)
-        if source_type not in _LISTENER_SOURCE_TYPES and not debezium:
+        captured = _captured_by_cdc(src, tbl)
+        if source_type not in _LISTENER_SOURCE_TYPES and not captured:
             continue
         node = source_node(tbl["source_id"], tbl["schema_name"], tbl["table_name"])
         wired.add(node)
@@ -260,11 +274,7 @@ async def wire_push_listeners(*, state: Any, log: Any) -> list[LongLived]:
             )
             continue
 
-        built = (
-            _debezium_provider(state, src, tbl)
-            if debezium
-            else _build_provider(src, tbl, node=node)
-        )
+        built = _cdc_provider(state, src, tbl) if captured else _build_provider(src, tbl, node=node)
         if built is None:
             continue  # _build_provider already logged why
         provider, watch_target = built
@@ -320,7 +330,7 @@ async def wire_push_listeners(*, state: Any, log: Any) -> list[LongLived]:
 
     started.extend(_start_logical_streams(state, logical, wired, log=log))
     await _stop_unwired(state, wired, log=log)
-    await _drop_unfollowed_slots(state, logical, log=log)
+    await _drop_unfollowed_slots(state, logical, sources, log=log)
     await _settle_pipelines(state, engine, wired, log=log)
     return started
 
@@ -359,38 +369,51 @@ def _start_logical_streams(
 
 
 async def _drop_unfollowed_slots(
-    state: Any, logical: dict[str, tuple[Any, list[tuple[str, str, int]]]], *, log: Any
+    state: Any,
+    logical: dict[str, tuple[Any, list[tuple[str, str, int]]]],
+    sources: dict[str, Any],
+    *,
+    log: Any,
 ) -> None:
-    """Drop the slot of each source whose tables no longer follow it -- set off the native
-    signal, or the source deleted -- since this process last wired it: a slot nobody reads holds
-    the source's WAL. The source is reached as it was registered when its slot was made."""
+    """Drop the slot and publication of each PostgreSQL source no native table follows: a slot
+    nobody reads holds the source's WAL until its disk fills. A process's first wiring checks
+    every registered PostgreSQL source, so one left by a configuration changed while no process
+    ran is found however the change was made; later wirings check the sources this process
+    followed before -- set off the native signal, or deleted -- reached as they were
+    registered then."""
     from provisa.federation.source_vault import org_vault
     from provisa.subscriptions import pg_logical
 
-    held: dict[str, Any] = getattr(state, "logical_slot_sources", None) or {}
+    first = not hasattr(state, "logical_slot_sources")
+    held: dict[str, Any] = (
+        {sid: s for sid, s in sources.items() if _source_type_of(s) == "postgresql"}
+        if first
+        else state.logical_slot_sources
+    )
     for source_id, src in sorted(held.items()):
         if source_id in logical:
             continue
         try:
             async with org_vault(state, [src]):
-                await asyncio.to_thread(_drop_slot_of, src)
-            log.info("logical replication slot of source %r dropped", source_id)
+                dropped = await asyncio.to_thread(_drop_slot_of, src)
+            if dropped:
+                log.info("logical replication slot of source %r dropped", source_id)
         except Exception as failed:  # allow-ble: named in the log with the slot to drop by hand; one source's server being down must not stop the wiring of every other
             log.error(
-                "logical replication slot %r of source %r could not be dropped (%s): drop it on "
-                "the source, it holds the source's WAL",
-                pg_logical.slot_name(source_id),
+                "source %r could not be checked for Provisa's logical replication slot %r (%s): "
+                "a slot left there holds the source's WAL; drop it on the source",
                 source_id,
+                pg_logical.slot_name(source_id),
                 failed,
             )
     state.logical_slot_sources = {sid: src for sid, (src, _t) in logical.items()}
 
 
-def _drop_slot_of(src: Any) -> None:
+def _drop_slot_of(src: Any) -> bool:
     from provisa.subscriptions import pg_logical
 
     with pg_logical.PgConnection.from_source(src).connect() as conn:
-        pg_logical.drop_slot(conn, pg_logical.slot_name(src.id))
+        return pg_logical.drop_slot(conn, pg_logical.slot_name(src.id))
 
 
 async def _run_logical_stream(

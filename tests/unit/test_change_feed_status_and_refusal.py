@@ -22,7 +22,7 @@ from types import SimpleNamespace
 import pytest
 
 from provisa.api.admin._replica_builds import build_view
-from provisa.core.schema_org import sources
+from provisa.core.schema_org import domains, registered_tables, sources
 from provisa.federation import replica_state
 from provisa.mongodb.change_feed import ChangeStreamsUnavailable, follows_change_feed
 
@@ -242,3 +242,36 @@ async def test_saving_a_native_table_on_a_source_nothing_receives_is_refused_by_
     assert refused is not None and refused.code == "schema.change_signal_no_receiver"
     assert refused.params == {"source": "shop_pg", "type": "mysql", "signal": "native"}
     assert polled is None
+
+
+async def test_a_kafka_signal_table_that_names_no_topic_is_refused_by_name(plane):
+    from provisa.api.admin._change_feed import (
+        source_change_feed_refusal,
+        table_change_feed_refusal,
+    )
+
+    async with plane.acquire() as conn:
+        await conn.execute_core(
+            sources.insert().values(
+                id="shop_db", type="mysql", host="db.test", port=3306, database="shop",
+                username="", password_ref="", change_signal="ttl",
+            )
+        )  # fmt: skip
+        refused = await table_change_feed_refusal(conn, "shop_db", "kafka", table_name="orders")
+        named = await table_change_feed_refusal(
+            conn, "shop_db", "kafka", kafka_topic="orders.deltas", table_name="orders"
+        )
+        await conn.execute_core(domains.insert().values(id="sales", description=""))
+        await conn.execute_core(
+            registered_tables.insert().values(
+                source_id="shop_db", domain_id="sales", schema_name="shop", table_name="orders",
+                change_signal=None, live=None,
+            )
+        )  # fmt: skip
+        inherited = await source_change_feed_refusal(
+            conn, SimpleNamespace(id="shop_db", type="mysql", change_signal="kafka")
+        )
+    assert refused is not None and refused.code == "schema.change_signal_no_topic"
+    assert refused.params == {"source": "shop_db", "table": "orders"}
+    assert named is None
+    assert inherited is not None and inherited.params == {"source": "shop_db", "table": "orders"}

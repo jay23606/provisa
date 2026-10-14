@@ -170,3 +170,72 @@ def test_a_native_table_follows_its_databases_logical_replication(server, source
 
     _mutate(server, f"updateSource(input: {_source_input(source_pg, 'ttl')})")
     _wait(lambda: _held(source_pg) == (0, 0), "the slot outlived the native signal", server)
+
+
+def _file_config(pg, signal: str) -> dict:
+    """The deployment's file: the source and its table declared in it, on ``signal``."""
+    config = _config()
+    config["sources"] = [
+        {
+            "id": "shop_pg",
+            "type": "postgresql",
+            "host": "127.0.0.1",
+            "port": pg.port,
+            "database": DATABASE,
+            "username": ROLE,
+            "password": PASSWORD,
+            "change_signal": signal,
+            "cache_ttl": 3600,
+            "replicate": 0,
+        }
+    ]
+    config["tables"] = [
+        {
+            "source_id": "shop_pg",
+            "domain_id": "shop",
+            "schema": "public",
+            "table": "orders",
+            "columns": [
+                {"name": "id", "data_type": "integer", "is_primary_key": True,
+                 "visible_to": [_ADMIN]},
+                {"name": "name", "data_type": "varchar", "visible_to": [_ADMIN]},
+            ],
+        }
+    ]  # fmt: skip
+    return config
+
+
+def _boot(workdir: str, config: dict, store) -> object:
+    from tests.integration.isolated_server import IsolatedServer
+
+    path = Path(workdir) / "config.yaml"
+    path.write_text(yaml.safe_dump(config))
+    srv = IsolatedServer(
+        _NAME,
+        engine="pg",
+        config=str(path),
+        control_plane="own",
+        env={"PROVISA_MATERIALIZE_URL": store.dsn()},
+    )
+    srv.start()
+    return srv
+
+
+def test_a_slot_left_by_a_config_edited_while_stopped_is_dropped_at_the_next_start(source_pg):
+    """The file sets the source off the native signal while no server runs: the next server's
+    first wiring finds the slot no native table follows and drops it with its publication."""
+    store = start_local_postgres()
+    try:
+        with tempfile.TemporaryDirectory() as workdir:
+            first = _boot(workdir, _file_config(source_pg, "native"), store)
+            try:
+                _wait(lambda: _held(source_pg) == (1, 1), "the slot was never made", first)
+            finally:
+                first.stop_process()
+            second = _boot(workdir, _file_config(source_pg, "ttl"), store)
+            try:
+                _wait(lambda: _held(source_pg) == (0, 0), "the abandoned slot stayed", second)
+            finally:
+                second.stop_process()
+    finally:
+        store.stop()
