@@ -553,3 +553,40 @@ def test_every_job_that_collects_the_container_suite_restores_the_trino_plugins_
         "polly-bakeoff.yml:bakeoff",
     ], collecting
     assert in_a_guest == ["nixos.yml:lane"], in_a_guest
+
+
+def test_a_targeted_run_hands_each_lane_only_its_named_tests(monkeypatch):
+    runner = _runner()
+    lane = runner.LANES["core"]
+    inside = runner.test_files(lane.paths)[0]
+    monkeypatch.setenv("PROVISA_LANE_TESTS", f"{inside}::test_x")
+    assert runner.targets("core", None) == [f"{inside}::test_x"]
+    assert runner.targets("core", "3/6") == [f"{inside}::test_x"]
+
+
+def test_a_targeted_run_is_not_sharded(monkeypatch):
+    runner = _runner()
+    inside = runner.test_files(runner.LANES["core"].paths)[0]
+    monkeypatch.setenv("PROVISA_LANE_TESTS", inside)
+    include = runner.matrix("core,neo4j")["include"]
+    assert [(e["lane"], e["shard"]) for e in include] == [("core", ""), ("neo4j", "")]
+
+
+def test_a_targeted_run_naming_a_missing_file_is_refused(monkeypatch):
+    runner = _runner()
+    monkeypatch.setenv("PROVISA_LANE_TESTS", "tests/integration/test_no_such_file.py::test_x")
+    with pytest.raises(ValueError, match="no such test file"):
+        runner.matrix("core")
+
+
+def test_a_lane_that_deselects_every_named_test_passes_but_a_real_failure_does_not(monkeypatch):
+    runner = _runner()
+    inside = runner.test_files(runner.LANES["core"].paths)[0]
+    monkeypatch.setenv("PROVISA_LANE_TESTS", inside)
+    monkeypatch.setattr(runner.subprocess, "call", lambda *a, **k: 5)
+    assert runner.main(["neo4j"]) == 0
+    monkeypatch.setattr(runner.subprocess, "call", lambda *a, **k: 1)
+    assert runner.main(["neo4j"]) == 1
+    monkeypatch.delenv("PROVISA_LANE_TESTS")
+    monkeypatch.setattr(runner.subprocess, "call", lambda *a, **k: 5)
+    assert runner.main(["neo4j"]) == 5

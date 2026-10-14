@@ -242,3 +242,14 @@ def test_a_cut_is_refused_by_name_unless_every_ui_e2e_lane_is_green_on_its_commi
     assert '"${run#completed success }" = "$run"' in script
     assert 'echo "::error::$workflow is not green on $GITHUB_SHA: $run"' in script
     assert 'exit "$refused"' in script
+
+
+def test_a_waived_ui_gate_needs_a_reason_and_is_written_into_the_notes():
+    runs = [step.get("run", "") for step in _steps()]
+    gate = runs[next(i for i, r in enumerate(runs) if "gh run list" in r)]
+    assert 'if [ "$UI_GATE" = "waived" ]; then' in gate
+    assert "ui_gate is waived but no waiver_reason was given" in gate
+    notes = next(r for r in runs if "## Release gate" in r)
+    assert '"docs/releases/$VERSION.md"' in notes and "$WAIVER_REASON" in notes
+    record = next(s for s in _steps() if "## Release gate" in s.get("run", ""))
+    assert record["if"] == "inputs.ui_gate == 'waived'"

@@ -33,6 +33,16 @@ on:
         description: The release tag to cut (v0.1.0-alpha.480).
         type: string
         required: true
+      ui_gate:
+        description: "enforce (default): every UI e2e lane must be green on this commit. waived: the maintainer waives it for this release; waiver_reason is required and goes into the release notes."
+        type: choice
+        options: [enforce, waived]
+        default: enforce
+      waiver_reason:
+        description: Required when ui_gate is waived; written into the release notes.
+        type: string
+        required: false
+        default: ""
 
 # One cut at a time, and a cut is never cancelled half-way.
 concurrency:
@@ -68,8 +78,18 @@ jobs:
       - name: Refuse unless every UI e2e lane is green on this commit
         env:
           GH_TOKEN: ${{ github.token }}
+          UI_GATE: ${{ inputs.ui_gate }}
+          WAIVER_REASON: ${{ inputs.waiver_reason }}
         run: |
           set -euo pipefail
+          if [ "$UI_GATE" = "waived" ]; then
+            if [ -z "${WAIVER_REASON// /}" ]; then
+              echo "::error::ui_gate is waived but no waiver_reason was given"
+              exit 1
+            fi
+            echo "::warning::the UI e2e gate is waived for $VERSION: $WAIVER_REASON"
+            exit 0
+          fi
           refused=0
           for workflow in ui-e2e-core.yml ui-e2e-trino.yml ui-e2e-swap-amd64.yml; do
             run="$(gh run list --workflow "$workflow" --branch main --event push \
@@ -97,6 +117,15 @@ jobs:
             exit 1
           fi
           uv run python scripts/release_cut_check.py --version "$VERSION" --written
+
+      # A waived UI gate is stated in the release's own notes, with the maintainer's reason.
+      - name: Record a waived UI gate in the notes
+        if: inputs.ui_gate == 'waived'
+        env:
+          WAIVER_REASON: ${{ inputs.waiver_reason }}
+        run: |
+          set -euo pipefail
+          printf '\n## Release gate\n\nThe UI end-to-end gate was waived for this release: %s\n' "$WAIVER_REASON" >> "docs/releases/$VERSION.md"
 
       - name: Commit the notes, tag the release and push both
         run: |

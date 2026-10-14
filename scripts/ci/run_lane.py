@@ -118,9 +118,21 @@ SUITE: dict[str, tuple[int, int]] = {
 }
 
 
+def named_tests() -> list[str]:
+    """The tests a targeted run names (PROVISA_LANE_TESTS: space-separated pytest node ids or
+    files), or none for an ordinary run. A named file that does not exist is refused, so a typo
+    cannot pass by running nothing."""
+    named = os.environ.get("PROVISA_LANE_TESTS", "").split()
+    missing = [t for t in named if not (REPO / t.split("::", 1)[0]).is_file()]
+    if missing:
+        raise ValueError(f"no such test file: {', '.join(missing)}")
+    return named
+
+
 def matrix(selection: str) -> dict:
     """The suite matrix for ``selection``: "all", or comma-separated lane names. A name that is
-    no lane is refused, so a typo cannot dispatch an empty run that reports green."""
+    no lane is refused, so a typo cannot dispatch an empty run that reports green. A targeted run
+    (named_tests) runs each lane as one job: its few tests are not sharded."""
     names = [n.strip() for n in selection.split(",") if n.strip()]
     if names == ["all"]:
         names = list(SUITE)
@@ -128,11 +140,12 @@ def matrix(selection: str) -> dict:
     if unknown:
         raise ValueError(f"no such lane: {', '.join(unknown)}; lanes: {', '.join(sorted(LANES))}")
     include = []
+    targeted = bool(named_tests())
     for name in names:
         if name not in SUITE:
             continue
         shards, timeout = SUITE[name]
-        if shards == 1:
+        if shards == 1 or targeted:
             include.append({"lane": name, "shard": "", "timeout": timeout})
         else:
             include += [
@@ -166,10 +179,18 @@ def shard(files: list[str], index: int, total: int) -> list[str]:
 def targets(lane_name: str, shard_spec: str | None) -> list[str]:
     """What the lane (or its shard) hands pytest: the lane's paths, or the shard's files."""
     lane = LANES[lane_name]
+    named = named_tests()
+    if named:
+        # A targeted run: only the named tests that live under this lane's paths.
+        return [t for t in named if _under(t.split("::", 1)[0], lane.paths)]
     if shard_spec is None:
         return list(lane.paths)
     index, total = (int(x) for x in shard_spec.split("/"))
     return shard(test_files(lane.paths), index, total)
+
+
+def _under(path: str, roots: tuple[str, ...]) -> bool:
+    return any(path == r or path.startswith(r.rstrip("/") + "/") for r in roots)
 
 
 def command(lane_name: str, shard_spec: str | None, extra: list[str]) -> list[str]:
@@ -199,9 +220,18 @@ def main(argv: list[str]) -> int:
     parser.add_argument("lane", choices=sorted(LANES))
     parser.add_argument("--shard", help="K/N: the Kth of N file shards of the lane")
     args, extra = parser.parse_known_args(argv)
+    if named_tests() and not targets(args.lane, args.shard):
+        print(f"targeted run: no named test is in lane {args.lane}; nothing to run", flush=True)
+        return 0
     cmd = command(args.lane, args.shard, extra)
     print("+", " ".join(cmd), flush=True)
-    return subprocess.call(cmd, cwd=REPO, env=os.environ.copy())  # noqa: S603 - fixed argv
+    code = subprocess.call(cmd, cwd=REPO, env=os.environ.copy())  # noqa: S603 - fixed argv
+    if code == 5 and named_tests():
+        # Lanes share paths and differ by marker: a named test runs in its own lane, and every
+        # other lane of a targeted run deselects it. Collecting nothing there is not a failure.
+        print(f"targeted run: lane {args.lane} selects none of the named tests", flush=True)
+        return 0
+    return code
 
 
 if __name__ == "__main__":

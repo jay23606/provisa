@@ -45,6 +45,10 @@ on:
         description: "Lanes: all, or comma-separated (core, app, hive_s3, kafka, neo4j, datastores, isolated, e2e, cluster)"
         required: false
         default: "all"
+      tests:
+        description: "Targeted run: space-separated pytest node ids or files; each named lane runs only its own of them, unsharded (empty: the whole lane)"
+        required: false
+        default: ""
       include_warehouse:
         description: "Also run the warehouse lane (live cloud warehouses)"
         type: boolean
@@ -155,6 +159,7 @@ jobs:
     with:
       ref: ${{ inputs.ref || '' }}
       lanes: ${{ inputs.lanes || 'all' }}
+      tests: ${{ inputs.tests || '' }}
       include_warehouse: ${{ inputs.include_warehouse || false }}
       include_salesforce: ${{ inputs.include_salesforce || false }}
       include_athena: ${{ inputs.include_athena || false }}

@@ -33,6 +33,12 @@ on:
         type: string
         required: false
         default: "all"
+      # A targeted run's pytest node ids or files (scripts/ci/run_lane.py named_tests); empty runs
+      # each lane whole.
+      tests:
+        type: string
+        required: false
+        default: ""
       include_warehouse:
         type: boolean
         required: false
@@ -233,6 +239,7 @@ jobs:
         env:
           # The caller's choice: 'all' on a push, the dispatcher's list on demand.
           LANES: ${{ inputs.lanes }}
+          PROVISA_LANE_TESTS: ${{ inputs.tests }}
         run: |
           matrix=$(python3 scripts/ci/run_lane.py --matrix "$LANES")
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
@@ -271,6 +278,7 @@ jobs:
         PYTEST_DOCKER_KEEP=
         PYTHONFAULTHANDLER=1
         PYTHONUNBUFFERED=1
+        PROVISA_LANE_TESTS=${{ inputs.tests }}
       prepare: scripts/ci/lanes/suite-prepare.sh
       run: >-
         uv run python scripts/ci/run_lane.py ${{ matrix.lane }}
