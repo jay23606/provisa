@@ -449,7 +449,7 @@ A bundled demo does not run `docker-compose.yml`. It runs `docker-compose.run.ym
 
 Edit `demo/named/<name>/` and merge to `main`. The workflow publishes a new version. The next sandbox on the demos page and the next `--demo <name>` pull get it. No release, no redeploy.
 
-A demo with a `setup.yaml` is not bundled yet; the build refuses it.
+A demo with a `setup.yaml` is set up in the build. The extras its `demo.yaml` names are installed first (torch from PyTorch's CPU-only index when the extra needs it). After its stores come up, a Provisa server on the demo's own `config.yaml` runs `scripts/run_demo_setup.py` against them, so what its setup writes is in the stores the build saves. Its Qdrant stores (`com.provisa.demo.role: vector`) are saved as one snapshot a collection, `dump/<service>/<collection>.snapshot`, which its `docker-compose.run.yml` recovers at start. A bundled demo's setup does not run again where it runs. For `sonnets`, that is the embedded lines in Qdrant and the echoes in Postgres. [tool-verified: `scripts/demo_bundle.py`, `.github/actions/demo-bundle/action.yml`, `demo/named/sonnets/docker-compose.run.yml`]
 
 ### requires_provisa
 

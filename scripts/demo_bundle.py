@@ -16,13 +16,18 @@ where the demo runs:
 ``build <name> --out DIR``
     1. the demo's directory is copied to a scratch directory, and its own data stores come up from
        its docker-compose.yml on ports of the build's own, traffic generator (seeder) included --
-       the weblogs demo's writes its log files into the copy's ``logs/``;
+       the weblogs demo's writes its log files into the copy's ``logs/``; a demo with a
+       ``setup.yaml`` is then set up against those stores, by a Provisa server on the demo's own
+       config.yaml with a throwaway control plane (scripts/run_demo_setup.py, REQ-2016) -- the
+       sonnets demo's embeds its lines into Qdrant and writes its echoes;
     2. a sandbox tier runs on a throwaway embedded control plane in seeding mode
        (``PROVISA_DEMO_SEED_EXPORT=true``): it lands the demo's template from those stores and
        writes the seed -- ``seeded/replicas.duckdb`` and ``seeded/replicas.json``
        (provisa/api/demo_replicas.py);
     3. each Postgres data store (a service labelled ``com.provisa.demo.role: rdb``) is dumped to
-       ``dump/<service>.sql``, for the demo's run-time compose file (docker-compose.run.yml) to load;
+       ``dump/<service>.sql``, and each Qdrant store (``com.provisa.demo.role: vector``) is saved as
+       one snapshot a collection, ``dump/<service>/<collection>.snapshot``, for the demo's run-time
+       compose file (docker-compose.run.yml) to load and restore;
     4. everything is taken down, and the copy is packed (provisa/core/demo_bundles.py) as
        ``DIR/<name>-<version>.tar.gz``, version ``<UTC minute>-<commit>``.
 
@@ -139,6 +144,9 @@ class Stores:
         dumped = []
         for name, service in sorted(config["services"].items()):
             labels = service.get("labels") or {}
+            if labels.get("com.provisa.demo.role") == "vector":
+                dumped += self._snapshot(name, service)
+                continue
             if labels.get("com.provisa.demo.role") != "rdb":
                 continue
             if not str(service["image"]).startswith("postgres:"):
@@ -161,6 +169,32 @@ class Stores:
                 )
             dumped.append(name)
         return dumped
+
+    def _snapshot(self, name: str, service: dict) -> list[str]:
+        """Each collection of Qdrant store ``name``, as a snapshot in dump/<name>/<collection>.snapshot
+        (REQ-2016): what it holds is read live where the demo runs, restored from these."""
+        if not str(service["image"]).startswith("qdrant/qdrant:"):
+            raise SystemExit(f"{self.demo.name}: vector store {name} is not Qdrant; no snapshot")
+        published = self._compose("port", name, "6333", capture_output=True, text=True).stdout
+        base = f"http://127.0.0.1:{published.strip().rsplit(':', 1)[1]}"
+        collections = httpx.get(f"{base}/collections", timeout=60)
+        collections.raise_for_status()
+        saved = []
+        for collection in sorted(c["name"] for c in collections.json()["result"]["collections"]):
+            made = httpx.post(f"{base}/collections/{collection}/snapshots", timeout=600)
+            made.raise_for_status()
+            snapshot = made.json()["result"]["name"]
+            target = self.demo / "dump" / name / f"{collection}.snapshot"
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with httpx.stream(
+                "GET", f"{base}/collections/{collection}/snapshots/{snapshot}", timeout=600
+            ) as fetched:
+                fetched.raise_for_status()
+                with target.open("wb") as out:
+                    for chunk in fetched.iter_bytes():
+                        out.write(chunk)
+            saved.append(f"{name}/{collection}")
+        return saved
 
     def down(self) -> None:
         if not self.compose_file.exists():
@@ -185,14 +219,14 @@ class Stores:
         )
 
 
-def _control_plane(work: Path) -> tuple[str, str]:
+def _control_plane(work: Path, name: str = "cp") -> tuple[str, str]:
     out = subprocess.run(
         [
             sys.executable,
             "-m",
             "provisa.core.control_plane_pg",
             "start",
-            str(work / "cp"),
+            str(work / name),
             "--init-sql",
             str(_REPO / "db" / "init.sql"),
         ],
@@ -226,6 +260,67 @@ def _config(work: Path) -> Path:
         )
     )
     return path
+
+
+def _set_up(work: Path, demo: Path, stores: Stores, timeout: float) -> None:
+    """Run the demo's setup.yaml against its running stores (REQ-2016): a Provisa server on the
+    demo's own config.yaml, with a throwaway control plane of its own, set up by
+    scripts/run_demo_setup.py -- what its commands write is then in the stores the build dumps."""
+    host, port = _control_plane(work, "setup-cp")
+    url = f"postgresql+psycopg://provisa:provisa@/provisa?host={host}&port={port}"
+    http_port = _free_port()
+    server_env = {
+        **stores.env,
+        "PROVISA_CONFIG": str(demo / "config.yaml"),
+        "PROVISA_ENGINE": "duckdb",
+        "PROVISA_DATA_DIR": str(work / "setup-data"),
+        "PROVISA_REDIS_EMBEDDED": "1",
+        "TENANT_DATABASE_URL": url,
+        "PLATFORM_DATABASE_URL": url,
+        "PG_HOST": host,
+        "PG_PORT": port,
+        "OTEL_SDK_DISABLED": "true",
+    }
+    server = subprocess.Popen(
+        [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "main:app",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            str(http_port),
+        ],
+        cwd=_REPO,
+        env=server_env,
+    )
+    base = f"http://127.0.0.1:{http_port}"
+    try:
+        deadline = time.monotonic() + timeout
+        while True:
+            if server.poll() is not None:
+                raise SystemExit(f"the setup server exited early ({server.returncode})")
+            try:
+                if httpx.get(f"{base}/health", timeout=5).status_code == 200:
+                    break
+            except httpx.HTTPError:
+                pass  # not listening yet; the deadline below bounds the wait
+            if time.monotonic() > deadline:
+                raise SystemExit(f"{demo.name}: the setup server was not up in {timeout:.0f}s")
+            time.sleep(2)
+        subprocess.run(
+            [sys.executable, str(_REPO / "scripts" / "run_demo_setup.py"), str(demo)]
+            + ["--url", base],
+            check=True,
+        )
+    finally:
+        server.terminate()
+        server.wait(timeout=60)
+        subprocess.run(
+            [sys.executable, "-m", "provisa.core.control_plane_pg", "stop", str(work / "setup-cp")],
+            check=True,
+        )
 
 
 def _seed(work: Path, demo: Path, stores: Stores, timeout: float) -> None:
@@ -309,10 +404,6 @@ def build(args: argparse.Namespace) -> int:
     source = (args.named_dir / args.name).resolve()
     if not (source / "demo.yaml").exists():
         raise SystemExit(f"no named demo {args.name} in {args.named_dir}")
-    if (source / "setup.yaml").exists():
-        # The demo's setup steps (setup.yaml) run in the build once scripts/run_demo_setup.py,
-        # their one entry point, is on this branch; until then such a demo is not bundled.
-        raise SystemExit(f"{args.name} has a setup.yaml, which the bundle build does not run yet")
     requires = _requires_provisa(source)
     commit = args.commit or _commit()
     stamp = datetime.datetime.now(datetime.UTC).strftime("%Y%m%d%H%M")
@@ -323,6 +414,8 @@ def build(args: argparse.Namespace) -> int:
         stores = Stores(demo)
         try:
             stores.up()
+            if (demo / "setup.yaml").exists():
+                _set_up(work, demo, stores, args.timeout)
             if _replicates(demo, stores):
                 _seed(work, demo, stores, args.timeout)
             dumped = stores.dump()
