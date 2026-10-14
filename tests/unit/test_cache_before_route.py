@@ -294,3 +294,25 @@ async def test_reads_at_different_as_of_never_share_an_entry(pipe):
     ]
     keys = {key(p, wire_formats=None) for p in routed}
     assert len(keys) == 3 and None not in keys
+
+
+async def test_a_hit_carries_the_shape_its_miss_was_typed_by(pipe):
+    """REQ-1961: a Flight read types each registered column as its registered type from the
+    plan's result shape. A plan answered from the cache before routing carried none, so its
+    Arrow hit typed ``id`` from the rows (int64) where the miss had read it as int32
+    (test_raw_sql_response_cache_direct_e2e::test_flight_direct_stream_miss_then_hit_same_shape)."""
+    import pyarrow as pa
+
+    # The registry's column types, as a schema build keeps them: orders.id is an integer.
+    pipe.state.schema_build_cache = {
+        "column_types": {1: [SimpleNamespace(column_name="id", data_type="integer")]}
+    }
+    miss, _ = await _raw(pipe, _CACHED, [7])
+    hit = await pipe.mod._govern_and_route(_CACHED, "analyst", params=[7], serve_cached=True)
+    assert hit.route == Route.CACHE
+    assert miss.result_shape is not None and hit.result_shape is not None
+    shape = await hit.result_shape()
+    assert shape == await miss.result_shape() and shape is not None
+
+    table = await pipe.mod.check_response_cache_arrow(hit, pipe.state)
+    assert table.schema.field("id").type == pa.int32()

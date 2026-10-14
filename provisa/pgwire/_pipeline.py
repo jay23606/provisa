@@ -1973,6 +1973,9 @@ async def route_governed(
                 sources=governed.memo.get("sources", frozenset()),
                 semantic_sql=_metric_semantic_sql,
                 as_of=as_of,
+                result_shape=_kept_result_shape(
+                    governed.memo, governed_semantic, gov_ctx.table_map, ctx, state
+                ),
             )
 
     if explain is not None:
@@ -3264,15 +3267,18 @@ def _cached_plan(
     sources: frozenset[str],
     semantic_sql: str | None,
     as_of: str | None,
+    result_shape: _KeptResultShape,
 ) -> _Plan:
     """The plan of a request answered from the response cache before routing: it names no source
     and carries no executable statement — only what its terminal needs to serve, account and
-    audit the entry (REQ-865: the cache is a route)."""
+    audit the entry (REQ-865: the cache is a route). It carries the statement's result shape,
+    which types the entry as the miss's read typed it (REQ-1961)."""
     from provisa.transpiler.router import Route
 
     return _Plan(
         route=Route.CACHE,
         sql=governed_sql,
+        result_shape=result_shape,
         source_id="",
         dialect="",
         exec_params=params,
@@ -4132,6 +4138,9 @@ async def _govern_and_route_compiled_planned(  # REQ-262, REQ-263, REQ-265, REQ-
                 sources=_memo.get("sources", frozenset()),
                 semantic_sql=None,
                 as_of=as_of,
+                result_shape=_kept_result_shape(
+                    _memo, governed_sql, gov_ctx.table_map, state.contexts[role_id], state
+                ),
             )
 
     from provisa.api.data.materialization import statement_scratch
