@@ -77,7 +77,8 @@ class TestValidateNeo4jSources:
         )
         with pytest.raises(
             ValueError,
-            match="only valid under a neo4j, sparql, mongodb, cosmosdb, qdrant, node or python source",
+            match="only valid under a neo4j, sparql, mongodb, elasticsearch, cosmosdb, qdrant, node or "
+            "python source",
         ):
             _validate_neo4j_sources(cfg)
 
