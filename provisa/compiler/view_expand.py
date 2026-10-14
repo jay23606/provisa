@@ -14,8 +14,22 @@ Replaces table references to view tables with their defining SQL as subqueries.
 from __future__ import annotations
 
 import re
+import secrets
 
 from provisa.compiler.sql_gen import CompiledQuery
+
+#: The alias prefix a view's SQL is marked with where the statement governance validates is
+#: expanded (:func:`expand_view_refs` with ``mark``): ``(SELECT * FROM (<view SQL>) AS
+#: "<prefix><view>") <alias>``. The relationship guard reads a marked derived table as the view
+#: it expands -- a registered table whose own relationships relate it -- and only one carrying
+#: this process's prefix, which no statement a caller writes can name (REQ-603).
+VIEW_MARK = f"__view_{secrets.token_hex(8)}__"
+
+
+def marked_view(alias: str) -> str | None:
+    """The view a derived table aliased ``alias`` expands, when the alias is a view mark."""
+    return alias[len(VIEW_MARK) :] if alias.startswith(VIEW_MARK) else None
+
 
 # Keywords that can follow a table reference; never consume one as an alias.
 _KW_AFTER_TABLE = (
@@ -27,13 +41,16 @@ _KW_AFTER_TABLE = (
 _ALIAS = rf'(?P<alias>\s+(?:AS\s+)?(?:"[^"]+"|(?!(?i:{_KW_AFTER_TABLE})\b)[A-Za-z_]\w*))?'
 
 
-def _expand_one(sql: str, view_table: str, view_sql: str) -> str:
+def _expand_one(sql: str, view_table: str, view_sql: str, mark: bool = False) -> str:
     """Replace catalog- and schema-qualified refs to one view table.
 
     Preserves an explicit alias when present; otherwise injects the view-table
     name as the subquery alias so column references qualified by that name (e.g.
     ``shelter__animalBreeds.name``) still resolve after expansion.
     """
+
+    if mark:
+        view_sql = f'SELECT * FROM ({view_sql}) AS "{VIEW_MARK}{view_table}"'
 
     def repl(m: re.Match) -> str:
         kw = m.groupdict().get("kw") or ""
@@ -58,7 +75,9 @@ def _expand_one(sql: str, view_table: str, view_sql: str) -> str:
     return sql
 
 
-def expand_view_refs(sql: str, view_sql_map: dict[str, str]) -> str:  # REQ-135
+def expand_view_refs(  # REQ-135
+    sql: str, view_sql_map: dict[str, str], *, mark: bool = False
+) -> str:
     """Replace view-table references in a SQL string with inline subqueries.
 
     For each view table in view_sql_map, replaces a catalog- or schema-qualified
@@ -69,13 +88,16 @@ def expand_view_refs(sql: str, view_sql_map: dict[str, str]) -> str:  # REQ-135
     chain (REQ-966/158/133) — so re-expanding runs to a fixed point: each pass may inline
     text that exposes a further view reference, bounded by map size + 1 to guarantee
     termination (a cycle could never have validated at view-creation time).
+
+    ``mark``: each view's SQL is wrapped in a derived table carrying :data:`VIEW_MARK`, for the
+    statement governance validates (REQ-603).
     """
     if not view_sql_map:
         return sql
     for _ in range(len(view_sql_map) + 1):
         changed = False
         for view_table, view_sql in view_sql_map.items():
-            new_sql = _expand_one(sql, view_table, view_sql)
+            new_sql = _expand_one(sql, view_table, view_sql, mark)
             if new_sql != sql:
                 changed = True
                 sql = new_sql

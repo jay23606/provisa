@@ -239,7 +239,7 @@ def semantic_statement(
             require_inputs_reached(view_sql, gov)
             bodies[view] = _with_own_rules(view, view_sql, gov)
     governed = expand_view_refs(sql, bodies)
-    return governed, expand_view_refs(governed, definitions)
+    return governed, expand_view_refs(governed, definitions, mark=True)
 
 
 def _definitions(view_sql_map: dict[str, str], state: Any) -> dict[str, str]:
