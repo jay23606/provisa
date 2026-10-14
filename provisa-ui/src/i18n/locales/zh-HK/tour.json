@@ -6,7 +6,11 @@
       "back": "上一步",
       "start": "開始",
       "docs": "文件",
-      "deepDives": "深入探索"
+      "deepDives": "深入探索",
+      "whereNext": "接下來去哪?",
+      "exploreDeepDives": "探索 Deep Dives",
+      "lookAround": "自己四處看看",
+      "anyTime": "你可以隨時透過導覽按鈕重新開始導覽或開啟 Deep Dives。"
     },
     "welcome": {
       "title": "開始導覽？",
@@ -314,7 +318,7 @@
       },
       "weblogsDone": {
         "title": "你剛才看到的",
-        "description": "三個資料來源變成了表，一個關係按請求 id 關聯了兩份日誌，網店的問題據此在相同權限下由 SQL 和 REST 作答。「完成」會開啟其他導覽的選單。"
+        "description": "三個資料來源變成了表，按請求 id 關聯，並用 SQL 和 REST 回答了網店的問題。"
       },
       "sonnetsIntro": {
         "title": "按意義讀莎士比亞十四行詩",
@@ -354,7 +358,7 @@
       },
       "sonnetsDone": {
         "title": "從記錄到圖",
-        "description": "一個模型把莎士比亞的詩行從 Postgres 記錄帶到 Qdrant 中的向量，再到保存為檢視的搜尋，最後到一張圖：詩行 ECHOES 其他詩行，並 EVOKES 它的主題。每一步都是 Provisa 治理的語句或指令。"
+        "description": "莎士比亞的詩行從 Postgres 的行變成 Qdrant 向量、受管控的搜尋，以及一張迴響與主題的圖。"
       },
       "weblogsStatements": {
         "title": "慢頁面背後的 SQL",

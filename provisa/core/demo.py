@@ -66,6 +66,20 @@ def tour_answers_path(named: str) -> Path:  # REQ-2012
     return Path(named) / "tour_answers.json"
 
 
+def demo_landing(directory: Path | None) -> dict[str, str] | None:  # REQ-2010
+    """Where "Look around on my own" leaves a visitor at the end of the demo's tour: the page its
+    tour.yaml names as ``landing`` (``route`` and the ``capability`` its gate needs). None when no
+    named demo was started or it has no tour."""
+    import yaml
+
+    if directory is None:
+        return None  # no named demo: no tour to end
+    path = directory / "tour.yaml"
+    if not path.is_file():
+        return None  # a named demo without a tour of its own
+    return yaml.safe_load(path.read_text(encoding="utf-8"))["landing"]
+
+
 def demo_tour(directory: Path | None) -> list[dict[str, str]]:  # REQ-2010
     """The steps of the named demo's own tour (``demo/named/<name>/tour.yaml``), as written: the
     UI runs them as the demo's track, before the product tour. None when no named demo was

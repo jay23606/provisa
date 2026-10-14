@@ -6,7 +6,11 @@
       "back": "Voltar",
       "start": "Início",
       "docs": "Documentação",
-      "deepDives": "Aprofundar"
+      "deepDives": "Aprofundar",
+      "whereNext": "E agora?",
+      "exploreDeepDives": "Explorar os Deep Dives",
+      "lookAround": "Explorar por conta própria",
+      "anyTime": "Você pode reiniciar o tour ou abrir os Deep Dives a qualquer momento pelo botão do tour."
     },
     "welcome": {
       "title": "Fazer a visita guiada?",
@@ -314,7 +318,7 @@
       },
       "weblogsDone": {
         "title": "O que você acabou de ver",
-        "description": "Três fontes viraram tabelas, um relacionamento juntou os dois logs por um id de requisição, e a pergunta da loja foi respondida a partir delas em SQL e por REST, com os mesmos direitos. Concluído abre o menu dos outros tours."
+        "description": "Três fontes viraram tabelas, juntadas por um id de requisição, e responderam à pergunta da loja em SQL e por REST."
       },
       "sonnetsIntro": {
         "title": "Os sonetos de Shakespeare, pelo significado",
@@ -354,7 +358,7 @@
       },
       "sonnetsDone": {
         "title": "De linhas a um grafo",
-        "description": "Um só modelo levou os versos de Shakespeare de linhas do Postgres a vetores no Qdrant, a buscas guardadas como vistas, a um grafo em que um verso ECHOES outros versos e EVOKES os seus temas. Cada passo foi uma instrução ou um comando que o Provisa governa."
+        "description": "Os versos de Shakespeare passaram de linhas do Postgres a vetores no Qdrant, buscas governadas e um grafo de ecos e temas."
       },
       "weblogsStatements": {
         "title": "O SQL por trás de uma página lenta",

@@ -35,6 +35,10 @@
 # The track: the scenario, then how the demo fits together (its sources, the tables they become,
 # the relationship that joins the two logs), then the shop's question answered in SQL and over
 # REST, over the demo's views, then a recap.
+# Where the tour's "Look around on my own" leaves the visitor: the SQL page, with the shop's example queries.
+landing:
+  route: /sql
+  capability: query_development
 steps:
 - key: weblogsSources
   route: /sources

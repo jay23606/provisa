@@ -11,6 +11,10 @@
 # its pieces fit -- the sources, the command that embeds the lines, the search, a theme view, the
 # echoes, the relationships -- each step on a real row, then the answer: the echo network and a
 # theme view. Step kinds and checks are as tour.yaml of the weblogs demo describes them.
+# Where the tour's "Look around on my own" leaves the visitor: the Graph page, the echo network.
+landing:
+  route: /graph
+  capability: query_development
 steps:
 - key: sonnetsIntro
   route: /sources

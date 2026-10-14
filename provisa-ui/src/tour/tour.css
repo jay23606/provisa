@@ -201,3 +201,41 @@
 .driver-popover-deepdives-btn:hover {
   background: rgba(99, 102, 241, 0.12);
 }
+
+/* A named demo's last card: "Where next?", its two ways on, and how to come back. */
+.tour-where-next {
+  margin-top: 10px;
+}
+.tour-where-next-heading {
+  margin: 0 0 6px;
+  font-weight: 600;
+  font-size: 14px;
+}
+.tour-where-next-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tour-where-next-buttons button {
+  cursor: pointer;
+  font-size: 13px;
+  padding: 5px 12px;
+  border-radius: 5px;
+  color: #fff;
+  background: #4f46e5;
+  border: 1px solid #4f46e5;
+  text-shadow: none;
+}
+.tour-where-next-buttons button + button {
+  color: #4f46e5;
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.35);
+}
+.tour-where-next-buttons button:hover {
+  filter: brightness(1.08);
+}
+.tour-where-next-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  opacity: 0.75;
+}
