@@ -780,6 +780,18 @@
       "idle_ttl": {
         "label": "Limite di inattività di una sandbox demo",
         "help": "Una sandbox demo che nessuno ha usato per questo tempo viene eliminata, con tutto ciò che contiene."
+      },
+      "ai_base_url": {
+        "label": "Endpoint IA della sandbox",
+        "help": "L'endpoint con protocollo OpenAI (quello di OpenRouter è https://openrouter.ai/api/v1) usato dalle funzioni IA di ogni sandbox demo. Non impostato: nessuna IA nelle sandbox."
+      },
+      "ai_model": {
+        "label": "Modello IA della sandbox",
+        "help": "Il modello che una sandbox demo usa per Polly e per ogni funzione IA."
+      },
+      "ai_api_key": {
+        "label": "Chiave IA della sandbox",
+        "help": "Un riferimento ${secret:NAME} alla chiave dell'endpoint, conservata nell'organizzazione di questo deployment; la usa ogni sandbox. Non impostata: nessuna IA nelle sandbox."
       }
     }
   }

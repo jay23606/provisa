@@ -46,3 +46,18 @@ requests there by the sandbox's address; any other process refuses a sandbox by 
 published demo (`published: true` in its `demo/named/<name>/demo.yaml`) has a template the
 sandbox tier builds when it starts, landing the demo's data once; a sandbox is opened as a copy of
 it. See [named demos](named-demos.md) for how a demo is written.
+
+### AI in the sandbox
+
+Polly and the AI features of a sandbox (column and table descriptions, relationship discovery,
+natural-language SQL, table selection) all use one OpenAI-wire endpoint the operator names, with
+one model. A sandbox has no embedding model, so catalog search is unavailable there; Polly browses
+the catalog instead. The key is stored once, as a secret in the deployment organization, and
+resolved there for every sandbox; a sandbox's own secrets never hold it.
+
+| Setting | Value | Setting |
+|---|---|---|
+| Endpoint | Unset: no AI in sandboxes. OpenRouter's is `https://openrouter.ai/api/v1` | `sandbox.ai_base_url` |
+| Model | `anthropic/claude-haiku-5.5`, for every role | `sandbox.ai_model` |
+| Key | Unset: no AI in sandboxes. A `${secret:NAME}` reference to the deployment organization's secret | `sandbox.ai_api_key` |
+

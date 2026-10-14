@@ -780,6 +780,18 @@
       "idle_ttl": {
         "label": "示範沙盒的閒置期限",
         "help": "在這段時間內無人使用的示範沙盒會連同其中的一切被刪除。"
+      },
+      "ai_base_url": {
+        "label": "沙盒 AI 端點",
+        "help": "每個示範沙盒的 AI 功能所用的 OpenAI 協定端點(OpenRouter 的為 https://openrouter.ai/api/v1)。未設定:沙盒中沒有 AI。"
+      },
+      "ai_model": {
+        "label": "沙盒 AI 模型",
+        "help": "示範沙盒為 Polly 及每項 AI 功能使用的模型。"
+      },
+      "ai_api_key": {
+        "label": "沙盒 AI 密鑰",
+        "help": "指向該端點密鑰的 ${secret:NAME} 參照,密鑰保存在本部署的組織中;每個沙盒都使用它。未設定:沙盒中沒有 AI。"
       }
     }
   }

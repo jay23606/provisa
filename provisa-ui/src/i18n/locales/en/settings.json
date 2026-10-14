@@ -780,6 +780,18 @@
       "idle_ttl": {
         "label": "Demo sandbox inactivity limit",
         "help": "A demo sandbox nobody has used for this long is deleted, with everything in it."
+      },
+      "ai_base_url": {
+        "label": "Sandbox AI endpoint",
+        "help": "The OpenAI-wire endpoint (OpenRouter's is https://openrouter.ai/api/v1) every demo sandbox's AI features use. Unset: no AI in sandboxes."
+      },
+      "ai_model": {
+        "label": "Sandbox AI model",
+        "help": "The model a demo sandbox uses for Polly and every AI feature."
+      },
+      "ai_api_key": {
+        "label": "Sandbox AI key",
+        "help": "A ${secret:NAME} reference to the endpoint's key, stored in this deployment's organization; every sandbox uses it. Unset: no AI in sandboxes."
       }
     }
   }

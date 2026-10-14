@@ -780,6 +780,18 @@
       "idle_ttl": {
         "label": "Inactiviteitslimiet van een demo-sandbox",
         "help": "Een demo-sandbox die zo lang door niemand is gebruikt, wordt met alles erin verwijderd."
+      },
+      "ai_base_url": {
+        "label": "AI-endpoint van de sandbox",
+        "help": "Het endpoint met OpenAI-protocol (dat van OpenRouter is https://openrouter.ai/api/v1) dat de AI-functies van elke demosandbox gebruiken. Niet ingesteld: geen AI in sandboxen."
+      },
+      "ai_model": {
+        "label": "AI-model van de sandbox",
+        "help": "Het model dat een demosandbox gebruikt voor Polly en elke AI-functie."
+      },
+      "ai_api_key": {
+        "label": "AI-sleutel van de sandbox",
+        "help": "Een ${secret:NAME}-verwijzing naar de sleutel van het endpoint, opgeslagen in de organisatie van deze implementatie; elke sandbox gebruikt hem. Niet ingesteld: geen AI in sandboxen."
       }
     }
   }

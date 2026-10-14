@@ -81527,13 +81527,53 @@
   feature: product-tour-and-demos-sandbox
   priority: SHOULD
   type: behavioral
-  description: 'provisa.dev has a live demos page with one card for each published named demo: its title, description and screenshot, and an "Open live demo" button. The button opens a cloud.provisa.dev sandbox of that demo that needs no signup, with the demo''s example queries and the product tour. A named demo says whether it is published, and what its card shows, in demo/named/<name>/demo.yaml (title, description, screenshot, published: true or false); the site build generates the page from those files, as it generates the source picker, and CI fails when the page is out of step with them. Every published demo is lightweight, and its data is seeded ahead of time: never at a visitor''s request, and never by a live traffic generator. Opening the page warms the cloud coordinator in the background through the front door''s wake-on-hit, so that a visitor''s click rarely meets the waking page. The cloud side: each published demo has a template organization on the sandbox tier, built from the demo''s published bundle, whose own sources it reads live from the stores the tier''s node runs (REQ-2049); only a SaaS-account source is landed, when the bundle is built. Opening the demo (cloud.provisa.dev/demos/<name>, no account) opens a sandbox: an organization of its own (id sbx<hex>) whose model is copied from the template, reading the demo''s own sources live and any replica the template holds copied into its own file, so nothing is seeded at the visitor''s request. The visitor is a user minted for the sandbox with the sandbox role and a personal access token the browser keeps (REQ-1035: no identity-provider sign-in). A signed-in person''s "Try it Out" sandbox (POST /sandboxes/<name>) is the same organization model under their own identity, the same one from every device they use. Every sandbox runs on an in-process DuckDB engine of its own, pinned to the file in its folder (REQ-1992); real organizations stay on their own engine. Exactly one process ever opens a sandbox''s file: the sandbox tier, a single-worker API of its own (PROVISA_SANDBOX_TIER), which serves only sandbox and template organizations; the UI server sends a sandbox''s requests there by its address, and every other process refuses a sandbox by name (421 sandbox.wrong_tier). Inside it, concurrent requests share the one engine; a write-write conflict DuckDB raises is refused by name (engine.write_conflict), never retried, and two creates of one source id leave one created and the other refused (schema.source_id_taken). Model edits go through the model store''s guards as any organization''s do. Nobody else can join a sandbox of either kind: the sandbox role holds no user_management (REQ-1597), so no one can be invited into it. Limits, each an operator setting with a settings UI: sandbox.max_concurrent (past it, a visitor is asked to try again shortly, sandbox.at_capacity), sandbox.memory_limit (the sandbox engine''s DuckDB memory_limit), sandbox.disk_limit (the sandbox''s folder, its DuckDB file and uploads together; a write past it is refused, sandbox.disk_full), and sandbox.idle_ttl (a sandbox no request has reached for that long is deleted whole: its organization, engine, folder and token). A sandbox''s sources may reach only the destinations its demo declares and public addresses, checked at registration and again at each connection, each connection made to the checked address (sources.private_destination, sources.unpinnable_destination). A named sandbox''s person is told plainly that this is a lightweight version with limits, each named with its value read from the settings, in the sandbox''s welcome notice and on the hosted-sandbox docs page: it runs on a single-process DuckDB engine, not the engine production organizations use; the memory cap and the disk cap (DuckDB file plus uploads); concurrent writes from several devices can be refused with a conflict, to retry; it expires after the inactivity period; its person can''t invite people, or switch or manage environments; the sample sources are read-only and writes stay inside the sandbox. All of it is translated in every locale, with no requirement ids in the UI.'
-  use_case: 'A visitor to provisa.dev picks a scenario close to their own (a web shop''s logs, say) and is querying it in Provisa a few seconds later, without an account.'
+  description: 'provisa.dev has a live demos page with one card for each published named demo: its title, description and
+    screenshot, and an "Open live demo" button. The button opens a cloud.provisa.dev sandbox of that demo that needs no signup,
+    with the demo''s example queries and the product tour. A named demo says whether it is published, and what its card shows,
+    in demo/named/<name>/demo.yaml (title, description, screenshot, published: true or false); the site build generates the
+    page from those files, as it generates the source picker, and CI fails when the page is out of step with them. Every published
+    demo is lightweight, and its data is seeded ahead of time: never at a visitor''s request, and never by a live traffic
+    generator. Opening the page warms the cloud coordinator in the background through the front door''s wake-on-hit, so that
+    a visitor''s click rarely meets the waking page. The cloud side: each published demo has a template organization on the
+    sandbox tier, built from the demo''s published bundle, whose own sources it reads live from the stores the tier''s node
+    runs (REQ-2049); only a SaaS-account source is landed, when the bundle is built. Opening the demo (cloud.provisa.dev/demos/<name>,
+    no account) opens a sandbox: an organization of its own (id sbx<hex>) whose model is copied from the template, reading
+    the demo''s own sources live and any replica the template holds copied into its own file, so nothing is seeded at the
+    visitor''s request. The visitor is a user minted for the sandbox with the sandbox role and a personal access token the
+    browser keeps (REQ-1035: no identity-provider sign-in). A signed-in person''s "Try it Out" sandbox (POST /sandboxes/<name>)
+    is the same organization model under their own identity, the same one from every device they use. Every sandbox runs on
+    an in-process DuckDB engine of its own, pinned to the file in its folder (REQ-1992); real organizations stay on their
+    own engine. Exactly one process ever opens a sandbox''s file: the sandbox tier, a single-worker API of its own (PROVISA_SANDBOX_TIER),
+    which serves only sandbox and template organizations; the UI server sends a sandbox''s requests there by its address,
+    and every other process refuses a sandbox by name (421 sandbox.wrong_tier). Inside it, concurrent requests share the one
+    engine; a write-write conflict DuckDB raises is refused by name (engine.write_conflict), never retried, and two creates
+    of one source id leave one created and the other refused (schema.source_id_taken). Model edits go through the model store''s
+    guards as any organization''s do. Nobody else can join a sandbox of either kind: the sandbox role holds no user_management
+    (REQ-1597), so no one can be invited into it. Limits, each an operator setting with a settings UI: sandbox.max_concurrent
+    (past it, a visitor is asked to try again shortly, sandbox.at_capacity), sandbox.memory_limit (the sandbox engine''s DuckDB
+    memory_limit), sandbox.disk_limit (the sandbox''s folder, its DuckDB file and uploads together; a write past it is refused,
+    sandbox.disk_full), and sandbox.idle_ttl (a sandbox no request has reached for that long is deleted whole: its organization,
+    engine, folder and token). A sandbox''s sources may reach only the destinations its demo declares and public addresses,
+    checked at registration and again at each connection, each connection made to the checked address (sources.private_destination,
+    sources.unpinnable_destination). A named sandbox''s person is told plainly that this is a lightweight version with limits,
+    each named with its value read from the settings, in the sandbox''s welcome notice and on the hosted-sandbox docs page:
+    it runs on a single-process DuckDB engine, not the engine production organizations use; the memory cap and the disk cap
+    (DuckDB file plus uploads); concurrent writes from several devices can be refused with a conflict, to retry; it expires
+    after the inactivity period; its person can''t invite people, or switch or manage environments; the sample sources are
+    read-only and writes stay inside the sandbox. All of it is translated in every locale, with no requirement ids in the
+    UI. A sandbox''s AI -- Polly and every AI-model role (column and table descriptions, relationship inference, natural-language
+    SQL, table selection) -- uses one OpenAI-wire endpoint and model the sandbox tier''s operator names (sandbox.ai_base_url,
+    sandbox.ai_model, default anthropic/claude-haiku-5.5 through OpenRouter), off until the endpoint and its key are set;
+    the key is a ${secret:...} in the deployment organization''s vault, resolved there for that endpoint only, while every
+    credential a visitor writes resolves in the sandbox''s own vault. A sandbox has no embedding model.'
+  use_case: A visitor to provisa.dev picks a scenario close to their own (a web shop's logs, say) and is querying it in Provisa
+    a few seconds later, without an account.
   scenario: 'Given demo/named/weblogs/demo.yaml says published: true
 
     When the site is built
 
-    Then the live demos page has a weblogs card whose button opens the weblogs sandbox, and a demo marked published: false has no card
+    Then the live demos page has a weblogs card whose button opens the weblogs sandbox, and a demo marked published: false
+    has no card
 
     Given the sandbox tier has started with two published demos
 
@@ -81572,7 +81612,15 @@
     Then it is refused by name and that process never opens the sandbox''s file
 
     '
-  notes: 'Maintainer 2026-10-13, through the lead: design approved; "every published demo is lightweight, and its data is pre-seeded ahead of time, never seeded at visitor time and never by a live generator". The cloud side (a sandbox template per demo and its seeded data) is ci-fix''s; the page, demo.yaml and the generator are gmail''s. Amended 2026-10-13 by ci-fix for the cloud side, with the maintainer''s rulings through the lead: a sandbox is its own organization cloned from a per-demo template organization on an embedded DuckDB (REQ-1992); cloud.provisa.dev/demos/<name> replaces the invite link for demo sandboxes; a visitor''s identity is a minted user with a personal access token (REQ-1035); the sandbox tier is a separate single-worker service; sandboxes take writes; two kinds, anonymous and named; nobody else can join either (user_management is withheld); memory, disk and concurrency caps with settings UI; the named sandbox is told its limits; a sandbox''s sources reach only declared or public, pinned addresses.'
+  notes: 'Maintainer 2026-10-13, through the lead: design approved; "every published demo is lightweight, and its data is
+    pre-seeded ahead of time, never seeded at visitor time and never by a live generator". The cloud side (a sandbox template
+    per demo and its seeded data) is ci-fix''s; the page, demo.yaml and the generator are gmail''s. Amended 2026-10-13 by
+    ci-fix for the cloud side, with the maintainer''s rulings through the lead: a sandbox is its own organization cloned from
+    a per-demo template organization on an embedded DuckDB (REQ-1992); cloud.provisa.dev/demos/<name> replaces the invite
+    link for demo sandboxes; a visitor''s identity is a minted user with a personal access token (REQ-1035); the sandbox tier
+    is a separate single-worker service; sandboxes take writes; two kinds, anonymous and named; nobody else can join either
+    (user_management is withheld); memory, disk and concurrency caps with settings UI; the named sandbox is told its limits;
+    a sandbox''s sources reach only declared or public, pinned addresses.'
   code:
   - scripts/gen-site-demos.mjs
   - site/demos.html

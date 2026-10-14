@@ -117,11 +117,18 @@ async def read_org_api_keys(model_db: Database) -> dict[str, str]:
         )
         rows = result.fetchall()
     service = encryption_service()
+    from provisa.core.request_context import current_org
+    from provisa.core.sandbox_ai import vendor_keys
+
     return {
-        row[0].removesuffix("_api_key"): await _resolved(
-            service.decrypt(bytes(row[1])).decode("utf-8")
-        )
-        for row in rows
+        # REQ-2006: a sandbox-tier org's include the tier's AI endpoint's key, by its id.
+        **await vendor_keys(current_org.get()),
+        **{
+            row[0].removesuffix("_api_key"): await _resolved(
+                service.decrypt(bytes(row[1])).decode("utf-8")
+            )
+            for row in rows
+        },
     }
 
 

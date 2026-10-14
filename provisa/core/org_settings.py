@@ -104,10 +104,14 @@ async def read_org_overrides_stamped(model_db: Database) -> tuple[int, dict[str,
 
 
 async def resolve_org_config(model_db: Database) -> dict[str, Any]:
-    """The deployment config with this org's overrides applied — the config a request should use."""
+    """The deployment config with this org's overrides applied — the config a request should use.
+    A sandbox-tier org's are layered on the tier's AI models (provisa.core.sandbox_ai, REQ-2006)."""
     from provisa.api.admin._config_io import read_config
+    from provisa.core.request_context import current_org
+    from provisa.core.sandbox_ai import defaults_for
 
-    return merge_org_overrides(read_config(), await read_org_overrides(model_db))
+    base = merge_org_overrides(read_config(), defaults_for(current_org.get()))
+    return merge_org_overrides(base, await read_org_overrides(model_db))
 
 
 async def write_org_overrides(

@@ -780,6 +780,18 @@
       "idle_ttl": {
         "label": "演示沙盒的闲置期限",
         "help": "在这段时间内无人使用的演示沙盒会连同其中的一切被删除。"
+      },
+      "ai_base_url": {
+        "label": "沙盒 AI 端点",
+        "help": "每个演示沙盒的 AI 功能所用的 OpenAI 协议端点(OpenRouter 的为 https://openrouter.ai/api/v1)。未设置:沙盒中没有 AI。"
+      },
+      "ai_model": {
+        "label": "沙盒 AI 模型",
+        "help": "演示沙盒为 Polly 和每项 AI 功能使用的模型。"
+      },
+      "ai_api_key": {
+        "label": "沙盒 AI 密钥",
+        "help": "指向该端点密钥的 ${secret:NAME} 引用,密钥保存在本部署的组织中;每个沙盒都使用它。未设置:沙盒中没有 AI。"
       }
     }
   }

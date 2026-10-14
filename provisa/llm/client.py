@@ -50,6 +50,14 @@ class ProvisaLLMClient:  # REQ-355, REQ-356, REQ-358
         # by request paths that have an org bound; paths with no org (startup, discovery jobs)
         # construct with none and get the deployment config, which is the base in both cases.
         cfg = read_config() if config is None else config
+        if config is None:
+            # REQ-2006: a sandbox-tier org's roles use the tier's AI models (the resolved config a
+            # request path passes carries them already, provisa.core.org_settings).
+            from provisa.core.org_settings import merge_org_overrides
+            from provisa.core.request_context import current_org
+            from provisa.core.sandbox_ai import defaults_for
+
+            cfg = merge_org_overrides(cfg, defaults_for(current_org.get()))
 
         # REQ-1395, REQ-1398: an org's own per-vendor API keys (provisa.core.org_secrets),
         # keyed by vendor name, when the caller resolved them for the acting org. Vendors with
@@ -118,8 +126,10 @@ class ProvisaLLMClient:  # REQ-355, REQ-356, REQ-358
             # endpoint's base_url instead of the vendor's own. No fallback key invention: a
             # configured api_key_env that isn't set in the environment is a config error, not a
             # reason to try the call unauthenticated.
-            key = None
-            if endpoint.get("api_key_env"):
+            # The key the caller resolved for this endpoint, by its id (the org's vendor keys carry a
+            # sandbox's tier endpoint's, REQ-2006); else its api_key_env, an env-var name.
+            key = (self._api_keys or {}).get(vendor)
+            if key is None and endpoint.get("api_key_env"):
                 key = os.environ.get(endpoint["api_key_env"])
                 if not key:
                     raise ValueError(
