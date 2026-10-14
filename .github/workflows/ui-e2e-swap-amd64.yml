@@ -28,6 +28,15 @@ on:
       - "!.github/workflows/docs.yml"
       - "!scripts/gen-site-*.mjs"
   workflow_dispatch:
+    # A retest of named specs: each a file or file:line under provisa-ui (e2e/x.spec.ts,
+    # e2e/x.spec.ts:42), space-separated. The lane's provisioning runs as on a full run; Playwright
+    # is given only these. Empty: the whole lane.
+    inputs:
+      specs:
+        description: "Only these specs (e2e/x.spec.ts or e2e/x.spec.ts:42, space-separated); empty runs the whole lane"
+        type: string
+        required: false
+        default: ""
   # Callable: by an orchestrator, and by the proof of the CI's own structure. Reads no secret.
   workflow_call:
 
@@ -62,6 +71,7 @@ jobs:
       env: |
         CI=true
         PROVISA_E2E_LANE=trino
+        PROVISA_E2E_SPECS=${{ inputs.specs }}
         PG_PORT=5432
         TRINO_PORT=8080
         PROVISA_OTEL_S3_ENDPOINT=http://localhost:9000
@@ -69,7 +79,11 @@ jobs:
         PROVISA_E2E_TRINO_ORG_ID=e2e_swap
       prepare: scripts/ci/lanes/trino-stack-prepare.sh placeholder-cert
       working-directory: provisa-ui
-      run: npx playwright test --project=swap -g "exasol|saphana" --reporter=list,html
+      # A named spec that is not there fails here: with --pass-with-no-tests a mistyped one would
+      # otherwise run nothing and pass.
+      run: >-
+        for spec in $PROVISA_E2E_SPECS; do test -f "${spec%%:*}" || { echo "::error::no spec ${spec%%:*}"; exit 1; }; done; 
+        npx playwright test --project=swap -g "exasol|saphana" --reporter=list,html $PROVISA_E2E_SPECS ${PROVISA_E2E_SPECS:+--pass-with-no-tests}
       on-failure: scripts/ci/lanes/trino-stack-on-failure.sh
       artifact-name: playwright-report-swap-amd64
       artifact-path: provisa-ui/playwright-report/

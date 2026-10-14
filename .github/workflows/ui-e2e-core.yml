@@ -38,6 +38,15 @@ on:
       - "!.github/workflows/docs.yml"
       - "!scripts/gen-site-*.mjs"
   workflow_dispatch:
+    # A retest of named specs: each a file or file:line under provisa-ui (e2e/x.spec.ts,
+    # e2e/x.spec.ts:42), space-separated. The lane's provisioning runs as on a full run; Playwright
+    # is given only these. Empty: the whole lane.
+    inputs:
+      specs:
+        description: "Only these specs (e2e/x.spec.ts or e2e/x.spec.ts:42, space-separated); empty runs the whole lane"
+        type: string
+        required: false
+        default: ""
   # Callable: by an orchestrator, and by the proof of the CI's own structure. Every secret its two
   # jobs read, by name; the caller passes each one and nothing is inherited.
   workflow_call:
@@ -131,6 +140,7 @@ jobs:
       env: |
         CI=true
         PROVISA_E2E_LANE=core
+        PROVISA_E2E_SPECS=${{ inputs.specs }}
       working-directory: provisa-ui
       # json beside the list and the HTML report (in a file of its own: the HTML reporter empties
       # its folder): the run's own record of what did not execute.
@@ -138,9 +148,12 @@ jobs:
       # kills writes no report at all (release .479, run 38022153596: 108 failed attempts and
       # not one line of error text, no artifact). Stopped by its own limit it prints every
       # failure and writes the HTML and JSON reports, which the steps after this one upload.
+      # A named spec that is not there fails here: with --pass-with-no-tests a mistyped one would
+      # otherwise run nothing and pass.
       run: >-
+        for spec in $PROVISA_E2E_SPECS; do test -f "${spec%%:*}" || { echo "::error::no spec ${spec%%:*}"; exit 1; }; done; 
         PLAYWRIGHT_JSON_OUTPUT_NAME=playwright-results.json
-        npx playwright test --project=core --global-timeout=5700000 --reporter=list,html,json
+        npx playwright test --project=core --global-timeout=5700000 --reporter=list,html,json $PROVISA_E2E_SPECS ${PROVISA_E2E_SPECS:+--pass-with-no-tests}
       # prepare: the credential files of the live sources. after: every test that did not run,
       # by name and reason, under its own count (not a pass); the Fabric capacity paused again;
       # the credential files removed.
@@ -195,6 +208,7 @@ jobs:
       env: |
         CI=true
         PROVISA_E2E_LANE=core
+        PROVISA_E2E_SPECS=${{ inputs.specs }}
       working-directory: provisa-ui
       # json beside the list and the HTML report (in a file of its own: the HTML reporter empties
       # its folder): the run's own record of what did not execute.
@@ -202,9 +216,12 @@ jobs:
       # kills writes no report at all (release .479, run 38022153596: 108 failed attempts and
       # not one line of error text, no artifact). Stopped by its own limit it prints every
       # failure and writes the HTML and JSON reports, which the steps after this one upload.
+      # A named spec that is not there fails here: with --pass-with-no-tests a mistyped one would
+      # otherwise run nothing and pass.
       run: >-
+        for spec in $PROVISA_E2E_SPECS; do test -f "${spec%%:*}" || { echo "::error::no spec ${spec%%:*}"; exit 1; }; done; 
         PLAYWRIGHT_JSON_OUTPUT_NAME=playwright-results.json
-        npx playwright test --project=core-provisioning --workers=1 --global-timeout=7500000 --reporter=list,html,json
+        npx playwright test --project=core-provisioning --workers=1 --global-timeout=7500000 --reporter=list,html,json $PROVISA_E2E_SPECS ${PROVISA_E2E_SPECS:+--pass-with-no-tests}
       # prepare: the credential files of the live sources. after: every test that did not run,
       # by name and reason, under its own count (not a pass); the Fabric capacity paused again;
       # the credential files removed.

@@ -809,3 +809,23 @@ def test_no_workflow_is_started_by_a_push_to_a_branch_nobody_pushes_to():
             if branch not in allowed:
                 other.append(f"{path.name}: {branch}")
     assert other == []
+
+
+_UI_LANES = ("ui-e2e-core.yml", "ui-e2e-trino.yml", "ui-e2e-swap-amd64.yml")
+
+
+@pytest.mark.parametrize("workflow", _UI_LANES)
+def test_a_ui_lane_can_be_run_for_named_specs_only(workflow):
+    """A dispatch may name the specs to retest (`specs`: file or file:line, space-separated);
+    every job of the lane keeps its provisioning and hands Playwright only those, a job whose
+    project holds none of them passing with none run, and a named spec that is not there failing
+    the job before Playwright starts. Empty, the whole lane runs."""
+    body = yaml.safe_load((REPO / ".github" / "workflows" / workflow).read_text())
+    specs = body[True]["workflow_dispatch"]["inputs"]["specs"]
+    assert (specs["type"], specs["required"], specs["default"]) == ("string", False, "")
+    for job, given in body["jobs"].items():
+        with_ = given["with"]
+        assert "PROVISA_E2E_SPECS=${{ inputs.specs }}" in with_["env"].splitlines(), job
+        run = with_["run"]
+        assert run.startswith('for spec in $PROVISA_E2E_SPECS; do test -f "${spec%%:*}"'), job
+        assert run.endswith("$PROVISA_E2E_SPECS ${PROVISA_E2E_SPECS:+--pass-with-no-tests}"), job
