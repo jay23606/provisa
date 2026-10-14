@@ -949,14 +949,14 @@ tables:
 有三方共同决定结果有多新，以及一次查询给其后端系统带来多大负载。(REQ-030)
 
 - **上游数据源。** 理想情况下它自行管理背压：连接数上限、语句超时、只读副本。
-- **运维方。** 保护平台（即 Provisa 本身）免受背压。上游无法自我保护时，运维方也保护上游。相关设置位于数据源和表上：`load_protected`、`prefer_materialized`、数据源的 `federation_hints`、大结果重定向阈值、sink 写入的 Kafka 集群，以及每张表注册的 watermark。
+- **运维方。** 保护平台（即 Provisa 本身）免受背压。上游无法自我保护时，运维方也保护上游。相关设置位于数据源和表上：`load_protected`、`replicate`、数据源的 `federation_hints`、大结果重定向阈值、sink 写入的 Kafka 集群，以及每张表注册的 watermark。
 - **最终用户。** 逐个请求地在速度和新鲜度之间取舍。
 
 运维方的设置是下限。请求可以在下限之上移动，走向更旧的数据或更低的负载；选择启用响应缓存就是常见的例子。请求永远不能低于下限。会低于下限的请求提示会被拒绝，错误信息会指明运维方的设置，既不会被悄悄应用，也不会被悄悄丢弃。
 
 | 请求输入 | 允许做什么 | 何时被拒绝 |
 | --- | --- | --- |
-| `@route(engine: DIRECT)`、`-- @provisa route=direct` | 为单个数据源选择直连驱动 | 数据源为 `load_protected` 或 `prefer_materialized` |
+| `@route(engine: DIRECT)`、`-- @provisa route=direct` | 为单个数据源选择直连驱动 | 语句读取的某张表为 `load_protected` 或 `replicate: 0` |
 | `@join`、`@reorder`、`@broadcastSize`、`/*+ ... */` | 设置数据源 `federation_hints` 未设置的引擎会话属性 | 修改了运维方已设置的属性 |
 | `X-Provisa-Redirect-Threshold`、`@redirect(threshold:)` | 更早地重定向结果 | 高于运维方的阈值 |
 | `@sink(broker:)`、`X-Provisa-Sink` 中的 broker | 重复运维方的 broker | 指定了其他 broker，或未配置 `KAFKA_BOOTSTRAP_SERVERS` |
@@ -965,7 +965,55 @@ tables:
 
 拒绝时返回 HTTP 403 及代码 `query.operator_floor`，pgwire 上返回 SQLSTATE `42501`，Flight 和 gRPC 上返回 `PERMISSION_DENIED`。(REQ-030)
 
-`load_protected` 或 `prefer_materialized` 的数据源，在任何传输上都不会被查询实时读取。查询读取的是它已落地的副本。只有落地及其刷新会读取数据源：当 `cache_ttl` 或新鲜度检查要求时才刷新；两者都没有时，副本只落地一次，之后仅通过变更流或调度器刷新。(REQ-1907)(REQ-1141, REQ-826)
+`load_protected` 或 `replicate: 0` 的表，在任何传输上都不会被查询实时读取。查询读取的是它的副本。只有复制及其刷新会读取数据源：当 `cache_ttl` 或新鲜度检查要求时才刷新；两者都没有时，副本只构建一次，之后仅通过变更流或调度器刷新。(REQ-1907)(REQ-1141, REQ-826) [tool-verified: `tests/integration/test_operator_floor_e2e.py`]
+
+### `replicate` 设置
+
+`replicate` 是表上的一个整数。未设置值的表沿用其数据源的值；两者都未设置时，适用全局阈值。副本是数据源表的一份拷贝，保存在引擎的存储中，并按表的时效性设置刷新；它不是持续的变更流。(REQ-826) [tool-verified: `provisa/core/replicate.py`]
+
+| 值 | 名称 | 含义 |
+| --- | --- | --- |
+| 未设置 | 默认 | 适用全局阈值 |
+| `-1` | 从不 | 凡存在实时路径之处均实时读取。仅在引擎无法就地读取数据源时才复制 |
+| 大于 0 的 `N` | Hot-N | 实时读取，直到该表在每个间隔内被 N 条受治理语句读取，之后由其副本提供服务 |
+| `0` | 始终 | 读取来自副本 |
+
+只有“始终”是保证。“从不”和 Hot 值都是尽力而为。`load_protected` 与 `replicate: -1` 同时出现时，会在配置加载和保存时被拒绝。`replicate: 0` 的数据源在任何引擎上都没有实时挂载，因此它的每张表都由其副本提供服务。
+
+下限按语句所读取的表来判断。不读取任何由副本提供服务的表的语句，即使其数据源还有其他被复制的表，也保留直连路由。[tool-verified: `provisa/federation/registry_view.py` `operator_floor`]
+
+副本按其声明的主键，以及其声明的关系所连接的列建立索引，索引在副本落地后构建。这些索引在哪些情况下加速联接、副本应存放何处以及如何选择其新鲜度，参见 [Replicas](replicas.md)。(REQ-2015) [tool-verified: `provisa/federation/replica_indexes.py`]
+
+### Hot 复制
+
+`replicate` 未设置或为大于 0 的 `N` 的表，在繁忙之前一直实时读取。
+
+```yaml
+replication:
+  hot_threshold: 100       # statements per interval for a table left at Default
+  hot_interval: 60         # seconds: the window the count is taken over, and how often it is judged
+  hot_max_rows: 10000000   # a larger table is not replicated for being busy
+```
+
+| 设置 | 环境变量 | 默认值 |
+| --- | --- | --- |
+| `replication.hot_threshold` | `PROVISA_REPLICATION_HOT_THRESHOLD` | 100 |
+| `replication.hot_interval` | `PROVISA_REPLICATION_HOT_INTERVAL` | 60 |
+| `replication.hot_max_rows` | `PROVISA_REPLICATION_HOT_MAX_ROWS` | 10000000 |
+
+这三项都是运维方设置：管理界面在 Hot Tables 下显示它们，保存的值在下一次评估时生效。
+
+表的计数方式：
+
+- 一条受治理语句对其读取的每张表只计一次，无论读取多少次。
+- 由响应缓存应答的语句不计数。它没有给数据源带来负载。
+- 被治理拒绝的语句不计数。
+
+表的计数达到其阈值（其自身的 `N`，否则是其数据源的，否则是 `hot_threshold`）时被提升，计数降到阈值的一半以下时被降级。提升会请求构建副本；在构建完成之前，该表仍实时读取，之后从副本读取。降级会立即让读取回到数据源。
+
+表在下列情况下不会被提升：行数超过 `hot_max_rows`；其变更信号为 `ttl` 或 `ttl_probe`，而它和它的数据源都没有声明 `cache_ttl`；或 Redis 热层已经在管理它。管理界面中该表的摘要会说明是哪一种情况。
+
+计数保存在 Redis 中。使用共享 Redis（`cache.redis_url`）时，计数覆盖部署的所有进程。使用内嵌 Redis 时，计数按进程各自统计，因此只有在单个工作进程处理请求时才会提升；有多个工作进程且没有共享 Redis 时不会提升任何表，摘要中会说明这一点。[tool-verified: `provisa/federation/replica_hot.py`]
 
 ## 认证
 
@@ -1426,6 +1474,8 @@ PROVISA_ENGINE_URL="mysql+pymysql://user:pass@host:3306/db"
 当数据源无法实时挂载（所选引擎没有对应的 ATTACH 连接器）时，它会落地到该引擎的物化存储中。解析顺序：显式的 `PROVISA_MATERIALIZE_URL` → 引擎声明的默认值 → 硬性报错（无静默回退）。[tool-verified: `engine.py` `materialize_store`]
 
 DuckDB 将其嵌入式文件（`~/.provisa/materialize.duckdb`）声明为默认值。所有其他引擎默认使用 `TENANT_DATABASE_URL`（PostgreSQL）。可以用 `PROVISA_MATERIALIZE_URL` 覆盖任意引擎的默认值。
+
+存储决定副本的索引对联接起什么作用：PostgreSQL 存储会为副本建立索引，在其中运行 SQL 的引擎会读取这些索引；而 DuckDB 则在每条语句的副本拷贝之上联接其内嵌文件中的副本。参见 [Replicas](replicas.md#use-a-relational-database-as-the-replica-store-where-the-engine-runs-sql-in-it)。(REQ-2015)
 
 ### 按数据源的联邦提示
 

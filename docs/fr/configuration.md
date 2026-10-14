@@ -759,7 +759,7 @@ relationships:
     refresh_interval: 600          # refresh every 10 minutes
 ```
 
-### Matérialisation automatique
+### Matérialisation automatique {: #auto-materialization }
 
 Définissez `materialize: true` sur une relation pour générer automatiquement une vue matérialisée destinée aux JOIN inter-sources. (REQ-158) Cela évite des requêtes fédérées coûteuses en pré-calculant le résultat du JOIN.
 
@@ -836,7 +836,7 @@ materialized_views:
     enabled: true
 ```
 
-## Vues (jeux de données calculés et gouvernés)
+## Vues (jeux de données calculés et gouvernés) {: #views-governed-computed-datasets }
 
 Les vues sont des jeux de données calculés, définis en SQL, avec une gouvernance complète au niveau des colonnes. (REQ-133) Elles constituent le mécanisme gouverné pour ajouter agrégations, transformations et métriques dérivées au modèle. (REQ-136)
 
@@ -922,7 +922,7 @@ tables:
 
 Définir `cache_enabled: false` sur une source désactive le cache pour toutes les tables de cette source, quel que soit le TTL au niveau table. (REQ-544) Les clés de cache incluent toujours `role_id` et les valeurs du contexte RLS, à des fins de partitionnement de sécurité. (REQ-544)
 
-### Activation par requête
+### Activation par requête {: #per-request-opt-in }
 
 Le cache de réponses est désactivé pour toute requête qui ne le demande pas. (REQ-544) Une requête l'active avec :
 
@@ -944,19 +944,19 @@ L'indication accepte seulement des données plus anciennes en échange de rapidi
 
 Une écriture invalide chaque entrée de cache que l'organisation qui écrit détient pour les tables écrites ; les entrées d'une autre organisation pour la même table ne sont pas touchées. Si l'invalidation échoue, la requête échoue au lieu de laisser des entrées périmées. (REQ-544, REQ-595)
 
-## Fraîcheur et charge : qui décide
+## Fraîcheur et charge : qui décide {: #freshness-and-load-who-decides }
 
 Trois parties déterminent la fraîcheur d'un résultat et la charge qu'une requête impose aux systèmes en aval. (REQ-030)
 
 - **La source amont.** Idéalement, elle gère sa propre contre-pression : limites de connexions, délais d'exécution, réplicas de lecture.
-- **L'opérateur.** Protège la plateforme, Provisa elle-même, de la contre-pression. Quand une source ne peut pas se protéger, l'opérateur la protège aussi. Les réglages correspondants se trouvent sur les sources et les tables : `load_protected`, `prefer_materialized`, les `federation_hints` de la source, le seuil de redirection des grands résultats, le cluster Kafka où écrivent les sinks et le watermark enregistré de chaque table.
+- **L'opérateur.** Protège la plateforme, Provisa elle-même, de la contre-pression. Quand une source ne peut pas se protéger, l'opérateur la protège aussi. Les réglages correspondants se trouvent sur les sources et les tables : `load_protected`, `replicate`, les `federation_hints` de la source, le seuil de redirection des grands résultats, le cluster Kafka où écrivent les sinks et le watermark enregistré de chaque table.
 - **L'utilisateur final.** Arbitre entre vitesse et fraîcheur, requête par requête.
 
 Les réglages de l'opérateur sont le plancher. Une requête peut aller au-dessus, vers des données plus anciennes ou moins de charge ; l'activation du cache de réponses en est l'exemple courant. Elle ne peut jamais descendre en dessous. Un indice de requête qui le ferait est refusé avec une erreur nommant le réglage de l'opérateur, jamais appliqué ni ignoré en silence.
 
 | Entrée de la requête | Ce qu'elle peut faire | Refusée quand |
 | --- | --- | --- |
-| `@route(engine: DIRECT)`, `-- @provisa route=direct` | Choisir le pilote direct pour une source | la source est `load_protected` ou `prefer_materialized` |
+| `@route(engine: DIRECT)`, `-- @provisa route=direct` | Choisir le pilote direct pour une source | une table que lit l'instruction est `load_protected` ou `replicate: 0` |
 | `@join`, `@reorder`, `@broadcastSize`, `/*+ ... */` | Fixer une propriété de session du moteur laissée libre par les `federation_hints` de la source | elle modifie une propriété fixée par l'opérateur |
 | `X-Provisa-Redirect-Threshold`, `@redirect(threshold:)` | Rediriger un résultat plus tôt | elle dépasse le seuil de l'opérateur |
 | `@sink(broker:)`, broker de `X-Provisa-Sink` | Reprendre le broker de l'opérateur | elle nomme un autre broker, ou aucun `KAFKA_BOOTSTRAP_SERVERS` n'est configuré |
@@ -965,7 +965,55 @@ Les réglages de l'opérateur sont le plancher. Une requête peut aller au-dessu
 
 Les refus renvoient HTTP 403 avec le code `query.operator_floor`, SQLSTATE `42501` via pgwire et `PERMISSION_DENIED` via Flight et gRPC. (REQ-030)
 
-Une source `load_protected` ou `prefer_materialized` n'est jamais lue en direct par une requête, quel que soit le transport. Les requêtes lisent sa copie atterrie. Seuls l'atterrissage et ses rafraîchissements lisent la source : un rafraîchissement a lieu quand `cache_ttl` ou un contrôle de fraîcheur l'exige ; sans l'un ni l'autre, la copie atterrit une fois puis n'est rafraîchie que par un flux de changements ou le planificateur. (REQ-1907) (REQ-1141, REQ-826)
+Une table `load_protected` ou `replicate: 0` n'est jamais lue en direct par une requête, quel que soit le transport. Les requêtes lisent sa réplique. Seuls la réplication et ses rafraîchissements lisent la source : un rafraîchissement a lieu quand `cache_ttl` ou un contrôle de fraîcheur l'exige ; sans l'un ni l'autre, la réplique est construite une fois puis n'est rafraîchie que par un flux de changements ou le planificateur. (REQ-1907) (REQ-1141, REQ-826) [tool-verified: `tests/integration/test_operator_floor_e2e.py`]
+
+### Le paramètre `replicate` {: #the-replicate-setting }
+
+`replicate` est un entier sur une table. Une table sans valeur prend celle de sa source, et quand aucune n'est définie, le seuil global s'applique. Une réplique est une copie d'une table source conservée dans le magasin du moteur et rafraîchie selon les paramètres de ponctualité de la table ; ce n'est pas un flux continu de changements. (REQ-826) [tool-verified: `provisa/core/replicate.py`]
+
+| Valeur | Nom | Signification |
+| --- | --- | --- |
+| non définie | Par défaut | Le seuil global s'applique |
+| `-1` | Jamais | Lue en direct partout où un chemin direct existe. Répliquée uniquement sur un moteur qui ne peut pas lire la source sur place |
+| `N` supérieur à 0 | Hot-N | Lue en direct jusqu'à ce que la table dépasse N instructions gouvernées par intervalle, puis servie depuis sa réplique |
+| `0` | Toujours | Les lectures proviennent de la réplique |
+
+Seul Toujours est une garantie. Jamais et les valeurs Hot sont au mieux. `load_protected` avec `replicate: -1` est refusé au chargement et à l'enregistrement de la configuration. Une source avec `replicate: 0` n'a d'attachement direct sur aucun moteur ; chacune de ses tables est donc servie depuis sa réplique.
+
+Le plancher est jugé d'après les tables qu'une instruction lit. Une instruction qui ne lit aucune table servie depuis une réplique conserve sa route directe, même si sa source a d'autres tables répliquées. [tool-verified: `provisa/federation/registry_view.py` `operator_floor`]
+
+Une réplique est indexée sur sa clé primaire déclarée et sur les colonnes sur lesquelles ses relations déclarées font la jointure, index construits après l'atterrissage. Où ces index accélèrent les jointures, où conserver les répliques et comment choisir leur fraîcheur : voir [Répliques](replicas.md). (REQ-2015) [tool-verified: `provisa/federation/replica_indexes.py`]
+
+### Réplication hot {: #hot-replication }
+
+Une table dont `replicate` n'est pas défini, ou vaut `N` supérieur à 0, est lue en direct tant qu'elle n'est pas très sollicitée.
+
+```yaml
+replication:
+  hot_threshold: 100       # statements per interval for a table left at Default
+  hot_interval: 60         # seconds: the window the count is taken over, and how often it is judged
+  hot_max_rows: 10000000   # a larger table is not replicated for being busy
+```
+
+| Paramètre | Variable d'environnement | Valeur par défaut |
+| --- | --- | --- |
+| `replication.hot_threshold` | `PROVISA_REPLICATION_HOT_THRESHOLD` | 100 |
+| `replication.hot_interval` | `PROVISA_REPLICATION_HOT_INTERVAL` | 60 |
+| `replication.hot_max_rows` | `PROVISA_REPLICATION_HOT_MAX_ROWS` | 10000000 |
+
+Les trois sont des paramètres d'opérateur : l'interface d'administration les affiche sous Hot Tables, et une valeur enregistrée s'applique à la prochaine évaluation.
+
+Comment une table est comptée :
+
+- Une instruction gouvernée compte chaque table qu'elle lit une seule fois, quel que soit le nombre de lectures.
+- Une instruction servie depuis le cache de réponses ne compte pas. Elle n'a placé aucune charge sur la source.
+- Une instruction refusée par la gouvernance ne compte pas.
+
+Une table est promue quand son compteur atteint son seuil (son propre `N`, sinon celui de sa source, sinon `hot_threshold`) et rétrogradée quand le compteur tombe sous la moitié de ce seuil. La promotion demande la construction d'une réplique ; la table est lue en direct jusqu'à la fin de cette construction, puis depuis la réplique. La rétrogradation ramène aussitôt les lectures vers la source.
+
+Une table n'est pas promue quand elle contient plus de lignes que `hot_max_rows`, quand son signal de changement est `ttl` ou `ttl_probe` et que ni elle ni sa source ne déclare de `cache_ttl`, ou quand le niveau hot de Redis la gère déjà. Le résumé de la table dans l'interface d'administration indique lequel de ces cas s'applique.
+
+Les compteurs résident dans Redis. Avec un Redis partagé (`cache.redis_url`), ils couvrent tous les processus du déploiement. Avec le Redis embarqué, ils sont par processus ; la promotion ne s'exécute donc que lorsqu'un seul worker sert les requêtes ; avec plusieurs workers et sans Redis partagé, rien n'est promu, et le résumé l'indique. [tool-verified: `provisa/federation/replica_hot.py`]
 
 ## Authentification
 
@@ -1029,7 +1077,7 @@ Activée par défaut avec les valeurs indiquées ; le bloc ne fait que les ajus
 
 Les PAT n'ont besoin d'aucun bloc de configuration — ils sont toujours acceptés, et le magasin est créé avec le reste du schéma du plan de contrôle. (REQ-1263) Ce qui est configurable, c'est l'expiration qu'un utilisateur peut demander à l'émission : de 1 à 366 jours, ou aucune pour un jeton qui n'expire pas. Voir [Modèle de sécurité](security.md#jetons-dacces-personnels).
 
-### TLS mutuel
+### TLS mutuel {: #mutual-tls }
 
 La vérification du certificat client se configure par variable d'environnement plutôt que dans `provisa.yaml`, aux côtés des réglages de certificat TLS qu'elle prolonge. (REQ-1228)
 
@@ -1271,7 +1319,7 @@ db.statement: SELECT * FROM orders WHERE region = ? AND amount > ?
 
 Provisa choisit OTLP/HTTP ou OTLP/gRPC d'après le schéma d'URL de l'endpoint. (REQ-549) Les URL commençant par `http://` ou `https://` utilisent OTLP/HTTP, avec ajout automatique de `/v1/traces`, `/v1/metrics` et `/v1/logs`. (REQ-549) Tout autre schéma utilise OTLP/gRPC avec `insecure=True`. (REQ-549) [tool-verified: `provisa/api/otel_setup.py` lines 60–70]
 
-## Moteur de fédération
+## Moteur de fédération {: #federation-engine }
 
 Configurer un moteur de fédération est facultatif. Le défaut est `duckdb` — sans configuration, en processus, aucun service externe requis (REQ-989). Choisissez un autre moteur lorsque vous avez besoin d'une échelle MPP ou souhaitez réutiliser un entrepôt existant.
 
@@ -1314,7 +1362,7 @@ Précédence : variable d'environnement `PROVISA_ENGINE` → champ de configura
 | `firebird` | Firebird | Selon le dialecte | Non | Aucun (atterrissage seul) | Credentials selon le dialecte |
 | `sqlalchemy` | Autre base relationnelle (par URL de connexion) | Selon le dialecte | Non | Aucun (atterrissage seul) | Credentials selon le dialecte |
 
-### Référence des moteurs
+### Référence des moteurs {: #engine-reference }
 
 #### trino / trino-byo
 
@@ -1426,6 +1474,8 @@ Le magasin de matérialisation vaut par défaut `TENANT_DATABASE_URL`.
 Lorsqu'une source ne peut pas s'attacher en direct (aucun connecteur ATTACH pour le moteur sélectionné), elle atterrit dans le magasin de matérialisation du moteur. Ordre de résolution : `PROVISA_MATERIALIZE_URL` explicite → défaut déclaré du moteur → erreur franche (aucun repli silencieux). [tool-verified: `engine.py` `materialize_store`]
 
 DuckDB déclare son fichier embarqué (`~/.provisa/materialize.duckdb`) comme défaut. Tous les autres moteurs prennent `TENANT_DATABASE_URL` (PostgreSQL) par défaut. Surchargez n'importe quel moteur avec `PROVISA_MATERIALIZE_URL`.
+
+Le magasin détermine ce que les index d'une réplique apportent aux jointures : un magasin PostgreSQL indexe les répliques et un moteur qui exécute le SQL dedans lit ces index, tandis que DuckDB joint les répliques de son fichier embarqué sur une copie par instruction. Voir [Répliques](replicas.md#use-a-relational-database-as-the-replica-store-where-the-engine-runs-sql-in-it). (REQ-2015)
 
 ### Hints de fédération par source
 

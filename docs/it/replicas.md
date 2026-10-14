@@ -1,0 +1,143 @@
+# Repliche
+
+Una replica è una copia di una tabella di origine che Provisa conserva nello store di materializzazione del motore e legge al posto dell'origine. Questa pagina tratta su cosa è indicizzata una replica, dove conservare le repliche e quanto sono aggiornate. Se una tabella sia replicata o meno è stabilito da [`replicate`](configuration.md#the-replicate-setting) e da ciò che il motore può raggiungere; vedere [What an engine changes](engines.md#what-an-engine-changes). (REQ-826)
+
+## Le repliche sono indicizzate
+
+Provisa indicizza una replica nel modo in cui il modello usa la sua tabella. (REQ-2015) [tool-verified: `provisa/federation/replica_indexes.py` `plan`, `join_columns`]
+
+- **La chiave primaria dichiarata**, imposta come chiave.
+- **Le colonne su cui si uniscono le relazioni dichiarate**:
+  - la chiave esterna di ogni relazione la cui origine è questa tabella;
+  - la colonna di destinazione di ogni relazione la cui destinazione è questa tabella, a meno che quella colonna non sia già la chiave;
+  - entrambe le chiavi esterne di una tabella ponte (junction) attraversata da una relazione.
+
+Prendi questa relazione:
+
+```yaml
+relationships:
+  - id: orders-to-customers
+    source_table_id: orders
+    target_table_id: customers
+    source_column: customer_id
+    target_column: id
+    cardinality: many-to-one
+```
+
+La replica di `orders` riceve la sua chiave e un indice su `customer_id`. La replica di `customers` riceve la sua chiave e, quando `id` è quella chiave, non le serve altro. Un join tra le due legge quindi un indice su entrambi i lati, in uno store che usa gli indici per i join (vedere [What each store builds](#what-each-store-builds)). Una relazione su una colonna calcolata che la replica non contiene non riceve alcun indice. [tool-verified: `provisa/federation/replica_indexes.py` `plan`]
+
+Dichiara la chiave con `is_primary_key: true` sulla colonna. Una replica senza chiave dichiarata riceve solo i suoi indici di join. [tool-verified: `provisa/federation/replica_builds.py` `plan_indexes`]
+
+### Leggibile prima, indicizzata dopo
+
+Un caricamento non attende mai gli indici. La replica è leggibile dal momento in cui viene sostituita; il replica runner costruisce poi i suoi indici uno alla volta, in un passaggio separato, sotto un lock di indici per replica. [tool-verified: `provisa/federation/replica_runner.py` `_planned`, `_start_index_builds`] Aspettati che le prime query dopo un caricamento girino senza di essi.
+
+Ogni caricamento registra gli indici richiesti, quelli costruiti e quelli falliti, per nome, nel record della replica nel piano di controllo (`replica_state.index_state`). [tool-verified: `provisa/federation/replica_state.py` `record_index_plan`, `settle_index_state`]
+
+- **Un indice fallito non fa mai fallire il caricamento.** Viene registrato nel log con la causa e richiesto di nuovo dal caricamento successivo. La riga di log recita `replica of <source>.<schema>.<table>: index <name> on (<columns>) failed: <cause>`. [tool-verified: `provisa/federation/replica_indexes.py` `build_due`]
+- **Righe che ripetono una chiave dichiarata sono un errore a sé**, con codice `replica.index_duplicate_key`, che nomina le colonne della chiave. L'origine contiene duplicati di un insieme di colonne che il modello dichiara univoco. Un nuovo tentativo non lo risolve: correggi i dati nell'origine, oppure correggi la chiave dichiarata. [tool-verified: `provisa/federation/replica_indexes.py` `DuplicateKey`, `DUPLICATE_KEY`]
+- **Un caricamento che sostituisce la tabella durante una costruzione** lascia indietro le costruzioni precedenti; si fermano e non registrano nulla, e la nuova tabella ottiene le proprie. Su uno store PostgreSQL la sostituzione annulla una costruzione ancora in corso sulla tabella che sostituisce. [tool-verified: `provisa/federation/replica_target.py` `_pg_swap`; `provisa/federation/replica_indexes.py` `build_due`]
+- **Il piano segue il modello a ogni caricamento.** Una relazione aggiunta in seguito riceve il suo indice al caricamento successivo della replica. [tool-verified: `provisa/federation/replica_builds.py` `plan_indexes`]
+
+L'interfaccia di amministrazione non mostra il record degli indici. Leggi il log del server, oppure la colonna `index_state` della riga della replica. [tool-verified: no reader of `index_state` outside `provisa/federation/replica_state.py` and `replica_indexes.py`]
+
+### Che cosa costruisce ogni store
+
+| Store | Che cosa viene costruito | Come |
+| --- | --- | --- |
+| PostgreSQL: il database proprio del motore `pg`, lo store PostgreSQL di Trino o DuckDB, il motore `sqlalchemy` su PostgreSQL | Indici di chiave e di join | `CREATE INDEX CONCURRENTLY` su una connessione propria, così lettori e scrittori non sono bloccati. La chiave è costruita come indice univoco, poi resa chiave primaria con `ADD CONSTRAINT ... PRIMARY KEY USING INDEX`. Un indice non valido lasciato da una costruzione annullata viene eliminato e ricostruito. |
+| Altri database dietro un motore relazionale (`mysql`, `oracle`, `mssql` e il resto) | Indici di chiave e di join | Il DDL proprio del dialetto. Un database che rifiuta il DDL registra l'indice come fallito. |
+| File DuckDB embedded, MotherDuck | Indici di chiave e di join | Tramite il broker dello store: `ALTER TABLE ... ADD PRIMARY KEY`, `CREATE INDEX IF NOT EXISTS`. |
+| ClickHouse | Solo la chiave di ordinamento | Una replica ClickHouse è ordinata per la sua chiave dichiarata (`ORDER BY`), impostata al caricamento. ClickHouse non ha un indice B-tree secondario da costruire. |
+| Snowflake, BigQuery, Databricks, Fabric, Synapse | Nulla | Il warehouse organizza da sé la tabella. |
+
+[tool-verified: `provisa/federation/replica_target.py` `PostgresIndexer`, `SqlAlchemyIndexer`, `DuckDBStoreIndexer`; `provisa/federation/materialize_broker.py` `_SyncedStore.replica_index`; `provisa/federation/clickhouse_store.py` `create_ddl`; `replica_indexer` in `backend.py`, `pg_backend.py`, `duckdb_backend.py`, `sqlalchemy_backend.py`, `clickhouse_backend.py`, `snowflake_backend.py`, `bigquery_backend.py`, `databricks_backend.py`, `mssql_warehouse_backend.py`]
+
+Un indice aiuta solo un join che gira dove si trova l'indice. Due motori leggono il proprio store senza usarne gli indici per i join:
+
+- **DuckDB con il suo file embedded.** Il motore non collega mai il file. Ogni istruzione legge la propria copia locale di ogni tabella dello store che nomina, rifatta ogni volta che lo store è cambiato. I join girano come hash join su quella copia, quindi gli indici di join non li accelerano; gli indici del file impongono la chiave e servono ciò che legge il file sul posto. [tool-verified: `provisa/federation/duckdb_runtime.py` `_store_is_file`, `_copy_store_table`; `provisa/federation/replica_target.py` `DuckDBStoreIndexer`]
+- **DuckDB con uno store PostgreSQL.** DuckDB legge lo store tramite la sua estensione `postgres` con il filter pushdown disattivato (bug upstream duckdb/duckdb-postgres#564), quindi scansiona la replica e filtra e unisce in DuckDB. Gli indici dello store sono costruiti ma queste letture non li usano. [tool-verified: `provisa/federation/duckdb_extensions.py` `_EXTENSION_SETTINGS`]
+
+Uno store MotherDuck è collegato e letto sul posto. [tool-verified: `provisa/federation/duckdb_runtime.py` `_store_is_file`]
+
+## Usare un database relazionale come store delle repliche dove il motore esegue SQL al suo interno
+
+Quando il motore esegue i suoi join dentro un database relazionale, conserva lì le repliche. I join leggono allora gli indici descritti sopra. Tre configurazioni lo fanno:
+
+- **Il motore `pg`.** Le repliche atterrano nel database PostgreSQL del motore stesso e ogni istruzione gira lì, attraverso i loro indici. [tool-verified: `provisa/federation/pg_backend.py` `replica_target`, `replica_indexer`]
+- **Un motore relazionale** (`mysql`, `oracle`, `mssql`, il generico `sqlalchemy` e il resto). Ogni origine atterra in quel database e vi è interrogata. [tool-verified: `provisa/federation/sqlalchemy_backend.py` `replica_indexer`; [Engine reference](configuration.md#engine-reference)]
+- **Trino con il suo store PostgreSQL.** PostgreSQL è l'unico store che Trino supporta; Trino legge le repliche tramite il suo connettore PostgreSQL. [tool-verified: `provisa/federation/engine.py` `build_trino_engine` `supported_materialize_stores`; `provisa/federation/backend.py` `TrinoBackend.materialize_store_target`] Un filtro o un join che Trino spinge verso PostgreSQL usa gli indici; il lavoro che Trino svolge da sé no. [inferred]
+
+Punta un motore a uno store con `PROVISA_MATERIALIZE_URL` o `materialize_store_url`; lo store registrato da un'organizzazione ha la precedenza su entrambi. [tool-verified: `provisa/federation/engine.py` `materialize_store`, `configured_materialize_url`]
+
+```bash
+PROVISA_MATERIALIZE_URL="postgresql://provisa:secret@replicas.internal:5432/replicas"
+```
+
+È una raccomandazione generale, non una regola. Se convenga dipende dal motore, dalle origini, dallo store e dalle dimensioni delle tabelle. Valuta questi punti:
+
+- **Raggiungibilità per query.** Uno store che il motore raggiunge in rete aggiunge un viaggio di andata e ritorno e un trasferimento a ogni lettura. Il file DuckDB embedded è locale e colonnare, e scansiona veloce. [inferred]
+- **Costo di caricamento.** Scrivere una replica in un database relazionale e poi costruirne gli indici costa più che scrivere un file locale. [inferred]
+- **Il carico del database stesso.** Letture delle repliche, caricamenti e costruzioni di indici girano tutti su quel database. Dimensionalo per essi. [inferred]
+- **Scansioni grandi.** Un indice non fa nulla per una query che legge la maggior parte di una tabella grande. Uno store colonnare la scansiona più velocemente di uno a righe. [inferred]
+
+## Scegliere dove vivono le repliche
+
+Lo store è una leva tra tante, e si sovrappongono. Sistema prima le altre; lo store decide solo ciò che lasciano.
+
+| Leva | Che cosa fa | Dove aiuta |
+| --- | --- | --- |
+| Tabelle hot | Una piccola tabella di lookup è tenuta in Redis e inserita in ogni query che la legge come CTE (common table expression) `VALUES` inline. [tool-verified: `provisa/compiler/sql_gen.py`, `provisa/cache/hot_tables.py`] | Join verso piccoli lookup, su qualsiasi store: le righe viaggiano dentro la query. La destinazione di una relazione molti-a-uno, o una tabella con al più `hot_tables.auto_threshold` righe (1.000 per default), diventa hot alla prima lettura. `hot: true` ve la forza e `hot: false` la esclude. [tool-verified: `provisa/cache/hot_tables.py` `promote_on_read` and the loader that registers candidates; `provisa/core/models.py` `HotTablesConfig`, `Table.hot`] |
+| Viste materializzate che definisci | Una vista con `materialize: true` è memorizzata e aggiornata. Una query che legge la vista è servita dalle righe memorizzate quando è aggiornata e chi legge la vede per intero: nessun input porta una regola di riga più stretta di tutto. [tool-verified: `provisa/mv/view_read.py` module docstring] | Aggregazioni su tabelle grandi. Decidi tu quali esistono; nessuna è creata per te. Vedere [Views](configuration.md#views-governed-computed-datasets). |
+| Relazione con `materialize: true` | Una relazione tra origini ottiene una vista padre-figlio memorizzata e pre-unita. Una richiesta costruita dal compilatore il cui join corrisponde al pattern, in tutto o in parte, viene riscritta per leggerla. [tool-verified: `provisa/api/app_loaders.py` `_load_mv_and_views_config`; `provisa/mv/rewriter.py` `_rewrite_join_mv`; `provisa/pgwire/_pipeline.py` `_prepare_compiled_stage`] | Join su uno store che non costruisce indici di join. Vedere [Auto-Materialization](configuration.md#auto-materialization). |
+| Posizionamento (Placement) | Le origini che il motore può leggere dal vivo sono lette dal vivo; le altre sono replicate. Ciò che finisce nello store dipende dal motore scelto. [tool-verified: `provisa/federation/replica_routing.py`] | La scelta del motore decide la maggior parte di ciò che lo store deve contenere. |
+
+La materializzazione delle relazioni e i join indicizzati rispondono allo stesso bisogno in due modi. Su uno store colonnare o warehouse (il file DuckDB, ClickHouse, Snowflake, BigQuery, Databricks, Fabric, Synapse) non viene costruito alcun indice di join, quindi una vista pre-unita è il modo per rendere economico un join frequente. Su uno store relazionale le colonne di join sono già indicizzate, e gli stessi join possono girare veloci senza materializzarli. [inferred]
+
+Ciò che dipende ancora dallo store: scansioni e join ad hoc su tabelle grandi che nessuna vista materializzata copre e nessuna tabella hot serve. Girano sugli indici dello store in un database relazionale, o sulla sua velocità di scansione in uno colonnare.
+
+I risultati variano con il carico di lavoro. Misura prima e dopo una modifica con lo [strumento di dimensionamento](sizing.md); le sue [esecuzioni live-o-replica](sizing.md#live-or-replica-reads-and-the-ttl) danno il costo di una lettura da replica rispetto a una dal vivo sulla tua distribuzione.
+
+## Freschezza
+
+Fai della freschezza parte della decisione, accanto alla velocità. Quanto vecchia può essere una risposta e quanto costa all'origine tenerla aggiornata decidono se una tabella è letta dal vivo o da una replica, e quindi che cosa lo store deve contenere.
+
+Le origini aziendali raramente supportano il tempo reale. I dati arrivano con caricamenti batch o ETL notturni, i feed di modifiche ritardano e molti sistemi non possono sostenere letture dal vivo al volume delle query. Parti dalla freschezza di cui ogni tabella ha bisogno, poi scegli la strategia più economica che la soddisfa. Le regole lato operatore sono in [Freshness and load: who decides](configuration.md#freshness-and-load-who-decides).
+
+| Strategia | Si imposta con | Che cosa garantisce | Che cosa costa all'origine |
+| --- | --- | --- | --- |
+| Lettura live | `replicate: -1` | Aggiornata al momento della query | Ogni query legge l'origine |
+| TTL | `change_signal: ttl`, `cache_ttl` | Una replica non più vecchia di `cache_ttl` | Una ricostruzione per `cache_ttl`; con un `watermark_column`, solo le righe oltre il watermark |
+| Sonda di modifica | `change_signal: probe` o `ttl_probe`, `cache_ttl` | Ricostruita solo dopo che la sonda segnala una modifica; la sonda gira ogni `cache_ttl` | Una sonda per intervallo e una ricostruzione solo in caso di modifica |
+| Feed di modifiche in push | Un'origine Kafka o WebSocket; `change_signal: native` su MongoDB o Cosmos DB | Aggiornata entro il ritardo del feed e il debounce | Kafka e WebSocket: nulla, il feed porta le righe. MongoDB e Cosmos DB: una ricostruzione per raffica di modifiche |
+| TTL per ruolo | `role_ttl` su una tabella | Un ruolo elencato accetta una replica fino al proprio TTL; il `cache_ttl` della tabella resta il minimo | Meno ricostruzioni: la lettura di un ruolo tollerante non ne richiede una |
+| Protezione dal carico | `load_protected: true`, con `cache_ttl` o una sonda | Le query non leggono mai l'origine; solo il runner aggiorna la replica | Solo gli aggiornamenti pianificati |
+| Freshness gate | `freshness_gate: true` su un'origine | Ogni lettura è prima verificata rispetto a `change_signal` e `cache_ttl` dell'origine; un verdetto di obsolescenza aggiorna prima della lettura | Un aggiornamento nel percorso di lettura quando obsoleta |
+
+[tool-verified: `provisa/core/replicate.py`; `provisa/federation/replica_builds.py` `_next_refresh_at`, `_probe_decides`; `provisa/federation/query_residency.py` `freshness_verdict`, `is_stale_of`; `provisa/federation/role_ttl.py` `effective_ttl`; `provisa/freshness/source_gate.py` `gate_source`; `provisa/events/push_wiring.py` `wire_push_listeners`, `_run_change_stream`]
+
+Una sonda che non ha nulla da confrontare (nessun watermark, sentinel o query di sonda) degrada al TTL. [tool-verified: `provisa/federation/replica_builds.py` `_probe_decides`]
+
+### Quasi tempo reale da un feed di modifiche
+
+Quando un'origine non può sostenere carico di query dal vivo ma pubblica già le proprie modifiche, un feed di modifiche dà dati quasi in tempo reale senza toccare l'origine al momento della query. Le query leggono la replica locale, che è veloce e non carica l'origine, mentre il ciclo di eventi applica le modifiche man mano che arrivano. I dati ritardano solo del feed, in genere secondi. [inferred: the lag figure]
+
+La presenza del feed non basta. Provisa lo segue solo per una tabella collegata ad esso:
+
+- **Un'origine Kafka.** La tabella indica il proprio topic e ogni modifica è applicata alla replica per chiave primaria, cancellazioni incluse. [tool-verified: `provisa/events/push_wiring.py` `_build_provider`, `_run_listener`; `provisa/subscriptions/cdc_landing.py`]
+
+    ```yaml
+  live:
+    strategy: kafka
+    kafka:
+      topic: orders.cdc
+  push_debounce_quiet: 0      # seconds of quiet before a batch lands; 0 lands each message
+  push_debounce_max_delay: 5  # a batch never waits longer than this
+  ```
+
+- **Un'origine WebSocket.** Il suo flusso è applicato allo stesso modo. [tool-verified: `provisa/events/push_wiring.py` `_build_provider`]
+- **Una tabella MongoDB o Cosmos DB con `change_signal: native`** (sulla tabella o sulla sua origine). Ogni raffica di modifiche sul change stream richiede una ricostruzione della replica. [tool-verified: `provisa/events/push_wiring.py` `_change_feed_opted_in`, `_run_change_stream`]
+
+Una tabella in push richiede una chiave primaria dichiarata; una senza viene saltata e registrata nel log. [tool-verified: `provisa/events/push_wiring.py` `wire_push_listeners`]
+
+Una tabella con un segnale di modifica in push conta come aggiornata nel percorso di lettura, perché il suo feed è il suo controllo di freschezza. [tool-verified: `provisa/federation/query_residency.py` `freshness_verdict`] Dichiara un segnale push solo su una tabella servita davvero da uno dei feed sopra.

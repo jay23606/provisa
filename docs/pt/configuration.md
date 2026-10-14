@@ -948,14 +948,14 @@ Uma gravação invalida toda entrada de cache que a organização que grava mant
 Três partes influenciam o quão recente é um resultado e quanta carga uma consulta coloca nos sistemas por trás dela. (REQ-030)
 
 - **A fonte de origem.** Idealmente, gerencia a própria contrapressão: limites de conexão, tempos limite de instrução, réplicas de leitura.
-- **O operador.** Protege a plataforma, o próprio Provisa, da contrapressão. Quando uma fonte não consegue se proteger, o operador a protege também. As configurações ficam em fontes e tabelas: `load_protected`, `prefer_materialized`, os `federation_hints` da fonte, o limite de redirecionamento de resultados grandes, o cluster Kafka em que os sinks escrevem e o watermark registrado de cada tabela.
+- **O operador.** Protege a plataforma, o próprio Provisa, da contrapressão. Quando uma fonte não consegue se proteger, o operador a protege também. As configurações ficam em fontes e tabelas: `load_protected`, `replicate`, os `federation_hints` da fonte, o limite de redirecionamento de resultados grandes, o cluster Kafka em que os sinks escrevem e o watermark registrado de cada tabela.
 - **O usuário final.** Equilibra velocidade e atualidade, uma requisição por vez.
 
 As configurações do operador são o piso. Uma requisição pode ir acima dele, rumo a dados mais antigos ou menos carga; ativar o cache de respostas é o exemplo comum. Nunca pode ir abaixo. Uma dica de requisição que faria isso é recusada com um erro que nomeia a configuração do operador, sem ser aplicada nem descartada em silêncio.
 
 | Entrada da requisição | O que pode fazer | Recusada quando |
 | --- | --- | --- |
-| `@route(engine: DIRECT)`, `-- @provisa route=direct` | Escolher o driver direto para uma fonte | a fonte é `load_protected` ou `prefer_materialized` |
+| `@route(engine: DIRECT)`, `-- @provisa route=direct` | Escolher o driver direto para uma fonte | uma tabela lida pela instrução é `load_protected` ou `replicate: 0` |
 | `@join`, `@reorder`, `@broadcastSize`, `/*+ ... */` | Definir uma propriedade de sessão do motor que os `federation_hints` da fonte deixaram livre | altera uma propriedade definida pelo operador |
 | `X-Provisa-Redirect-Threshold`, `@redirect(threshold:)` | Redirecionar um resultado mais cedo | é maior que o limite do operador |
 | `@sink(broker:)`, broker de `X-Provisa-Sink` | Repetir o broker do operador | nomeia outro broker, ou não há `KAFKA_BOOTSTRAP_SERVERS` configurado |
@@ -964,7 +964,55 @@ As configurações do operador são o piso. Uma requisição pode ir acima dele,
 
 As recusas retornam HTTP 403 com o código `query.operator_floor`, SQLSTATE `42501` via pgwire e `PERMISSION_DENIED` via Flight e gRPC. (REQ-030)
 
-Uma fonte `load_protected` ou `prefer_materialized` nunca é lida ao vivo por uma consulta, em nenhum transporte. As consultas leem sua cópia carregada. Só o carregamento e suas atualizações leem a fonte: uma atualização ocorre quando `cache_ttl` ou uma verificação de atualidade a exige; sem nenhum dos dois, a cópia é carregada uma vez e depois só é atualizada por um feed de mudanças ou pelo agendador. (REQ-1907) (REQ-1141, REQ-826)
+Uma tabela `load_protected` ou com `replicate: 0` nunca é lida ao vivo por uma consulta, em nenhum transporte. As consultas leem sua réplica. Só a replicação e suas atualizações leem a fonte: uma atualização ocorre quando `cache_ttl` ou uma verificação de atualidade a exige; sem nenhum dos dois, a réplica é construída uma vez e depois só é atualizada por um feed de mudanças ou pelo agendador. (REQ-1907) (REQ-1141, REQ-826) [tool-verified: `tests/integration/test_operator_floor_e2e.py`]
+
+### A configuração `replicate`
+
+`replicate` é um inteiro em uma tabela. Uma tabela sem valor assume o de sua fonte e, quando nenhum dos dois está definido, vale o limite global. Uma réplica é uma cópia de uma tabela de origem mantida no armazenamento do motor e atualizada conforme as configurações de tempestividade da tabela; não é um fluxo contínuo de mudanças. (REQ-826) [tool-verified: `provisa/core/replicate.py`]
+
+| Valor | Nome | Significado |
+| --- | --- | --- |
+| não definido | Padrão | Vale o limite global |
+| `-1` | Never | Lida ao vivo onde existir um caminho ao vivo. Replicada apenas em um motor que não consegue ler a fonte no local |
+| `N` maior que 0 | Hot-N | Lida ao vivo até a tabela passar de N instruções governadas por intervalo; depois, servida pela sua réplica |
+| `0` | Always | As leituras vêm da réplica |
+
+Só Always é uma garantia. Never e os valores Hot são de melhor esforço. `load_protected` com `replicate: -1` é recusado no carregamento da configuração e ao salvar. Uma fonte com `replicate: 0` não tem attach ao vivo em nenhum motor, de modo que toda tabela dela é servida pela sua réplica.
+
+O piso é avaliado pelas tabelas que uma instrução lê. Uma instrução que não lê nenhuma tabela servida por réplica mantém sua rota direta mesmo quando a fonte tem outras tabelas replicadas. [tool-verified: `provisa/federation/registry_view.py` `operator_floor`]
+
+Uma réplica é indexada pela chave primária declarada e pelas colunas em que os relacionamentos declarados fazem junção, com índices construídos depois que ela pousa. Onde esses índices aceleram junções, onde manter réplicas e como escolher a atualidade delas estão em [Replicas](replicas.md). (REQ-2015) [tool-verified: `provisa/federation/replica_indexes.py`]
+
+### Replicação hot
+
+Uma tabela cujo `replicate` não está definido, ou é `N` maior que 0, é lida ao vivo até ficar movimentada.
+
+```yaml
+replication:
+  hot_threshold: 100       # statements per interval for a table left at Default
+  hot_interval: 60         # seconds: the window the count is taken over, and how often it is judged
+  hot_max_rows: 10000000   # a larger table is not replicated for being busy
+```
+
+| Configuração | Variável de ambiente | Padrão |
+| --- | --- | --- |
+| `replication.hot_threshold` | `PROVISA_REPLICATION_HOT_THRESHOLD` | 100 |
+| `replication.hot_interval` | `PROVISA_REPLICATION_HOT_INTERVAL` | 60 |
+| `replication.hot_max_rows` | `PROVISA_REPLICATION_HOT_MAX_ROWS` | 10000000 |
+
+As três são configurações do operador: a interface de administração as mostra em Hot Tables, e um valor salvo vale a partir da próxima avaliação.
+
+Como uma tabela é contada:
+
+- Uma instrução governada conta cada tabela que lê uma única vez, não importa quantas vezes a leia.
+- Uma instrução atendida pelo cache de respostas não conta. Ela não colocou carga na fonte.
+- Uma instrução recusada pela governança não conta.
+
+Uma tabela é promovida quando sua contagem atinge o limite dela (o `N` próprio, senão o da fonte, senão `hot_threshold`) e rebaixada quando a contagem cai abaixo da metade dele. A promoção solicita a construção de uma réplica; a tabela é lida ao vivo até a construção terminar, depois pela réplica. O rebaixamento devolve as leituras à fonte imediatamente.
+
+Uma tabela não é promovida quando tem mais linhas que `hot_max_rows`, quando seu sinal de mudança é `ttl` ou `ttl_probe` e nem ela nem sua fonte declaram `cache_ttl`, ou quando a camada hot do Redis já a gerencia. O resumo da tabela na interface de administração informa qual caso se aplica.
+
+As contagens ficam no Redis. Com um Redis compartilhado (`cache.redis_url`), cobrem todos os processos da implantação. Com o Redis embutido, são por processo; assim, a promoção só ocorre quando um único worker atende as requisições; com vários workers e sem Redis compartilhado nada é promovido, e o resumo informa isso. [tool-verified: `provisa/federation/replica_hot.py`]
 
 ## Autenticação
 
@@ -1425,6 +1473,8 @@ O armazenamento de materialização usa `TENANT_DATABASE_URL` como padrão.
 Quando uma fonte não pode conectar (attach) ao vivo (sem conector ATTACH para o motor selecionado), ela pousa no armazenamento de materialização do motor. Ordem de resolução: `PROVISA_MATERIALIZE_URL` explícito → padrão declarado do motor → erro explícito (sem fallback silencioso). [tool-verified: `engine.py` `materialize_store`]
 
 O DuckDB declara seu arquivo embutido (`~/.provisa/materialize.duckdb`) como padrão. Todos os outros motores usam `TENANT_DATABASE_URL` (PostgreSQL) como padrão. Sobreponha qualquer motor com `PROVISA_MATERIALIZE_URL`.
+
+O armazenamento decide o que os índices de uma réplica fazem pelas junções: um armazenamento PostgreSQL indexa as réplicas e um motor que executa SQL nele lê esses índices, enquanto o DuckDB faz junções das réplicas do seu arquivo embutido sobre uma cópia por instrução. Veja [Replicas](replicas.md#use-a-relational-database-as-the-replica-store-where-the-engine-runs-sql-in-it). (REQ-2015)
 
 ### Hints de federação por fonte
 

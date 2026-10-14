@@ -758,7 +758,7 @@ relationships:
     refresh_interval: 600          # refresh every 10 minutes
 ```
 
-### Auto-Materialisierung
+### Auto-Materialisierung {: #auto-materialization }
 
 Setzen Sie `materialize: true` auf einer Beziehung, um automatisch eine materialisierte Sicht für quellenübergreifende JOINs zu generieren. (REQ-158) Dies vermeidet teure föderierte Abfragen, indem das JOIN-Ergebnis vorab berechnet wird.
 
@@ -835,9 +835,9 @@ materialized_views:
     enabled: true
 ```
 
-## Sichten (Regierte berechnete Datasets)
+## Sichten (Regierte berechnete Datasets) {: #views-governed-computed-datasets }
 
-Sichten sind SQL-definierte berechnete Datasets mit vollständiger spaltenweiser Governance. (REQ-133) Sie sind der regierte Mechanismus zum Hinzufügen von Aggregationen, Transformationen und abgeleiteten Kennzahlen zur Modell. (REQ-136)
+Sichten sind SQL-definierte berechnete Datasets mit vollständiger spaltenweiser Governance. (REQ-133) Sie sind der regierte Mechanismus zum Hinzufügen von Aggregationen, Transformationen und abgeleiteten Kennzahlen zum Modell. (REQ-136)
 
 ```yaml
 views:
@@ -921,7 +921,7 @@ tables:
 
 Das Setzen von `cache_enabled: false` auf einer Quelle deaktiviert das Caching für alle Tabellen dieser Quelle, unabhängig von der Tabellen-TTL. (REQ-544) Cache-Schlüssel enthalten immer `role_id` + RLS-Kontextwerte zur Sicherheitspartitionierung. (REQ-544)
 
-### Opt-in pro Anfrage
+### Opt-in pro Anfrage {: #per-request-opt-in }
 
 Der Antwort-Cache ist für jede Anfrage aus, die ihn nicht anfordert. (REQ-544) Eine Anfrage meldet sich so an:
 
@@ -943,19 +943,19 @@ Der Hinweis nimmt nur ältere Daten im Tausch gegen Geschwindigkeit in Kauf. Er 
 
 Ein Schreibvorgang invalidiert jeden Cache-Eintrag, den die schreibende Organisation für die geschriebenen Tabellen hält; die Einträge einer anderen Organisation für dieselbe Tabelle bleiben unberührt. Schlägt die Invalidierung fehl, schlägt die Anfrage fehl, statt veraltete Einträge zurückzulassen. (REQ-544, REQ-595)
 
-## Aktualität und Last: wer entscheidet
+## Aktualität und Last: wer entscheidet {: #freshness-and-load-who-decides }
 
 Drei Parteien bestimmen mit, wie aktuell ein Ergebnis ist und wie viel Last eine Abfrage auf den Systemen dahinter erzeugt. (REQ-030)
 
 - **Die Upstream-Quelle.** Idealerweise regelt sie ihren Rückstau selbst: Verbindungslimits, Statement-Timeouts, Lesereplikate.
-- **Der Betreiber.** Schützt die Plattform, also Provisa selbst, vor Rückstau. Kann sich eine Quelle nicht selbst schützen, schützt der Betreiber auch sie. Die Einstellungen dafür liegen an Quellen und Tabellen: `load_protected`, `prefer_materialized`, `federation_hints` der Quelle, der Schwellenwert für die Umleitung großer Ergebnisse, der Kafka-Cluster, in den Sinks schreiben, und das registrierte Watermark jeder Tabelle.
+- **Der Betreiber.** Schützt die Plattform, also Provisa selbst, vor Rückstau. Kann sich eine Quelle nicht selbst schützen, schützt der Betreiber auch sie. Die Einstellungen dafür liegen an Quellen und Tabellen: `load_protected`, `replicate`, `federation_hints` der Quelle, der Schwellenwert für die Umleitung großer Ergebnisse, der Kafka-Cluster, in den Sinks schreiben, und das registrierte Watermark jeder Tabelle.
 - **Der Endnutzer.** Wägt Geschwindigkeit gegen Aktualität ab, Anfrage für Anfrage.
 
 Die Einstellungen des Betreibers sind die Untergrenze. Eine Anfrage kann darüber hinausgehen, hin zu älteren Daten oder weniger Last; das Opt-in in den Antwort-Cache ist das übliche Beispiel. Darunter kann sie nie gehen. Ein Anfrage-Hinweis, der das täte, wird mit einem Fehler abgelehnt, der die Betreibereinstellung nennt, und weder stillschweigend angewendet noch stillschweigend verworfen.
 
 | Anfrage-Eingabe | Was sie darf | Abgelehnt, wenn |
 | --- | --- | --- |
-| `@route(engine: DIRECT)`, `-- @provisa route=direct` | Den direkten Treiber für eine Quelle wählen | die Quelle `load_protected` oder `prefer_materialized` ist |
+| `@route(engine: DIRECT)`, `-- @provisa route=direct` | Den direkten Treiber für eine Quelle wählen | eine Tabelle, die die Anweisung liest, `load_protected` oder `replicate: 0` ist |
 | `@join`, `@reorder`, `@broadcastSize`, `/*+ ... */` | Eine Engine-Session-Eigenschaft setzen, die die `federation_hints` der Quelle offen ließen | sie eine vom Betreiber gesetzte Eigenschaft ändert |
 | `X-Provisa-Redirect-Threshold`, `@redirect(threshold:)` | Ein Ergebnis früher umleiten | der Wert über dem Schwellenwert des Betreibers liegt |
 | `@sink(broker:)`, Broker in `X-Provisa-Sink` | Den Broker des Betreibers wiederholen | ein anderer Broker genannt wird oder `KAFKA_BOOTSTRAP_SERVERS` fehlt |
@@ -964,7 +964,55 @@ Die Einstellungen des Betreibers sind die Untergrenze. Eine Anfrage kann darübe
 
 Ablehnungen liefern HTTP 403 mit dem Code `query.operator_floor`, SQLSTATE `42501` über pgwire und `PERMISSION_DENIED` über Flight und gRPC. (REQ-030)
 
-Eine Quelle mit `load_protected` oder `prefer_materialized` wird von keiner Abfrage über irgendeinen Transport live gelesen. Abfragen lesen ihre gelandete Kopie. Nur das Landen und die Refreshes lesen die Quelle: Ein Refresh läuft, wenn `cache_ttl` oder eine Aktualitätsprüfung es verlangt; ohne beides landet die Kopie einmal und wird danach nur über einen Change-Feed oder den Scheduler aktualisiert. (REQ-1907) (REQ-1141, REQ-826)
+Eine Tabelle mit `load_protected` oder `replicate: 0` wird von keiner Abfrage über irgendeinen Transport live gelesen. Abfragen lesen ihr Replikat. Nur die Replikation und ihre Refreshes lesen die Quelle: Ein Refresh läuft, wenn `cache_ttl` oder eine Aktualitätsprüfung es verlangt; ohne beides wird das Replikat einmal aufgebaut und danach nur über einen Change-Feed oder den Scheduler aktualisiert. (REQ-1907) (REQ-1141, REQ-826) [tool-verified: `tests/integration/test_operator_floor_e2e.py`]
+
+### Die Einstellung `replicate` {: #the-replicate-setting }
+
+`replicate` ist eine Ganzzahl an einer Tabelle. Eine Tabelle ohne Wert übernimmt den ihrer Quelle; ist keiner von beiden gesetzt, gilt der globale Schwellenwert. Ein Replikat ist eine Kopie einer Quelltabelle, die im Store der Engine liegt und nach den Aktualitätseinstellungen der Tabelle aktualisiert wird; es ist kein kontinuierlicher Änderungsstrom. (REQ-826) [tool-verified: `provisa/core/replicate.py`]
+
+| Wert | Name | Bedeutung |
+| --- | --- | --- |
+| nicht gesetzt | Standard | Der globale Schwellenwert gilt |
+| `-1` | Nie | Live gelesen, wo immer ein Live-Pfad existiert. Nur repliziert auf einer Engine, die die Quelle nicht an Ort und Stelle lesen kann |
+| `N` über 0 | Hot-N | Live gelesen, bis die Tabelle N regierte Anweisungen pro Intervall überschreitet; danach aus ihrem Replikat bedient |
+| `0` | Immer | Lesezugriffe kommen aus dem Replikat |
+
+Nur „Immer“ ist eine Garantie. „Nie“ und die Hot-Werte sind Best Effort. `load_protected` mit `replicate: -1` wird beim Laden und beim Speichern der Konfiguration abgelehnt. Eine Quelle mit `replicate: 0` hat auf keiner Engine ein Live-Attach, daher wird jede ihrer Tabellen aus ihrem Replikat bedient.
+
+Der Floor wird anhand der Tabellen beurteilt, die eine Anweisung liest. Eine Anweisung, die keine aus einem Replikat bediente Tabelle liest, behält ihre direkte Route, auch wenn die Quelle andere replizierte Tabellen hat. [tool-verified: `provisa/federation/registry_view.py` `operator_floor`]
+
+Ein Replikat wird auf seinem deklarierten Primärschlüssel und auf den Spalten indiziert, über die seine deklarierten Beziehungen joinen; die Indizes werden nach dem Landen aufgebaut. Wo diese Indizes Joins beschleunigen, wo Replikate abzulegen sind und wie ihre Aktualität zu wählen ist, steht unter [Replikate](replicas.md). (REQ-2015) [tool-verified: `provisa/federation/replica_indexes.py`]
+
+### Hot-Replikation {: #hot-replication }
+
+Eine Tabelle, deren `replicate` nicht gesetzt ist oder `N` über 0 beträgt, wird live gelesen, bis sie stark beansprucht wird.
+
+```yaml
+replication:
+  hot_threshold: 100       # statements per interval for a table left at Default
+  hot_interval: 60         # seconds: the window the count is taken over, and how often it is judged
+  hot_max_rows: 10000000   # a larger table is not replicated for being busy
+```
+
+| Einstellung | Umgebungsvariable | Standard |
+| --- | --- | --- |
+| `replication.hot_threshold` | `PROVISA_REPLICATION_HOT_THRESHOLD` | 100 |
+| `replication.hot_interval` | `PROVISA_REPLICATION_HOT_INTERVAL` | 60 |
+| `replication.hot_max_rows` | `PROVISA_REPLICATION_HOT_MAX_ROWS` | 10000000 |
+
+Alle drei sind Betreibereinstellungen: Die Admin-UI zeigt sie unter „Hot Tables“, und ein gespeicherter Wert gilt ab der nächsten Auswertung.
+
+So wird eine Tabelle gezählt:
+
+- Eine regierte Anweisung zählt jede Tabelle, die sie liest, einmal, egal wie oft sie sie liest.
+- Eine Anweisung, die aus dem Antwort-Cache beantwortet wird, zählt nicht. Sie hat die Quelle nicht belastet.
+- Eine Anweisung, die die Governance abgelehnt hat, zählt nicht.
+
+Eine Tabelle wird befördert, wenn ihr Zähler ihren Schwellenwert erreicht (ihr eigenes `N`, sonst das ihrer Quelle, sonst `hot_threshold`), und zurückgestuft, wenn der Zähler unter die Hälfte davon fällt. Die Beförderung fordert einen Replikat-Aufbau an; die Tabelle wird live gelesen, bis dieser Aufbau abgeschlossen ist, danach aus dem Replikat. Die Rückstufung lenkt Lesezugriffe sofort wieder auf die Quelle.
+
+Eine Tabelle wird nicht befördert, wenn sie mehr Zeilen enthält als `hot_max_rows`, wenn ihr Änderungssignal `ttl` oder `ttl_probe` ist und weder sie noch ihre Quelle ein `cache_ttl` deklariert, oder wenn die Redis-Hot-Stufe sie bereits verwaltet. Die Zusammenfassung der Tabelle in der Admin-UI nennt, welcher Fall zutrifft.
+
+Die Zähler liegen in Redis. Mit einem gemeinsamen Redis (`cache.redis_url`) umfassen sie jeden Prozess des Deployments. Mit dem eingebetteten Redis gelten sie pro Prozess, daher läuft die Beförderung nur, wenn ein einziger Worker Anfragen bedient; bei mehreren Workern und ohne gemeinsames Redis wird nichts befördert, und die Zusammenfassung weist darauf hin. [tool-verified: `provisa/federation/replica_hot.py`]
 
 ## Authentifizierung
 
@@ -1028,7 +1076,7 @@ Standardmäßig aktiv mit den gezeigten Werten; der Block justiert sie lediglich
 
 PATs benötigen keinen Konfigurationsblock — sie werden stets akzeptiert, und der Speicher wird mit dem übrigen Control-Plane-Schema angelegt. (REQ-1263) Konfigurierbar ist die Gültigkeitsdauer, die ein Nutzer bei der Ausstellung anfordern darf: 1 bis 366 Tage oder keine für ein Token ohne Ablauf. Siehe [Sicherheitsmodell](security.md#personal-access-tokens).
 
-### Gegenseitiges TLS
+### Gegenseitiges TLS {: #mutual-tls }
 
 Die Client-Zertifikatsprüfung wird über Umgebungsvariablen konfiguriert statt in `provisa.yaml`, neben den TLS-Zertifikatseinstellungen, die sie erweitert. (REQ-1228)
 
@@ -1313,7 +1361,7 @@ Vorrang: `PROVISA_ENGINE`-Umgebungsvariable → persistiertes Admin-UI-Konfigura
 | `firebird` | Firebird | Pro Dialekt | Nein | Keiner (nur Landing) | Anmeldedaten pro Dialekt |
 | `sqlalchemy` | Andere relationale Datenbank (per Connection-URL) | Pro Dialekt | Nein | Keiner (nur Landing) | Anmeldedaten pro Dialekt |
 
-### Engine-Referenz
+### Engine-Referenz {: #engine-reference }
 
 #### trino / trino-byo
 
@@ -1425,6 +1473,8 @@ Der Materialisierungs-Store ist standardmäßig `TENANT_DATABASE_URL`.
 Wenn eine Quelle nicht live angehängt werden kann (kein ATTACH-Connector für die gewählte Engine), landet sie im Materialisierungs-Store der Engine. Auflösungsreihenfolge: explizites `PROVISA_MATERIALIZE_URL` → deklarierter Standard der Engine → harter Fehler (kein stiller Fallback). [tool-verified: `engine.py` `materialize_store`]
 
 DuckDB deklariert seine eingebettete Datei (`~/.provisa/materialize.duckdb`) als Standard. Alle anderen Engines nutzen standardmäßig `TENANT_DATABASE_URL` (PostgreSQL). Überschreiben Sie jede Engine mit `PROVISA_MATERIALIZE_URL`.
+
+Der Store bestimmt, was die Indizes eines Replikats für Joins bewirken: Ein PostgreSQL-Store indiziert Replikate, und eine Engine, die SQL darin ausführt, liest diese Indizes, während DuckDB die Replikate seiner eingebetteten Datei über eine Kopie pro Anweisung joint. Siehe [Replikate](replicas.md#use-a-relational-database-as-the-replica-store-where-the-engine-runs-sql-in-it). (REQ-2015)
 
 ### Pro-Quelle-Föderations-Hints
 

@@ -1,6 +1,6 @@
 {
   "index.md": "4cbac363f6fa23ce33689fd4ee8a34483a8c801858556d9b144335e18998a9e2",
-  "configuration.md": "3b2807cc0a99a754a0c9cce0227a90ac5b7602be417b0017cbedca83c286462e",
+  "configuration.md": "b2baf4e283a732a87c93db770144b6f0f085f0ca69f6efc2373270af6739b69a",
   "api-reference.md": "666f81b1f5abf24fada591a5451fac61ef9092c8506f17cd214927c9faf83253",
   "sources.md": "9e54f09895edf8c49c9894df5b4eb1116af10daff520159d416b364bccfd085a",
   "python-client.md": "54a48f28498d40aaba91b5c4163d55dcd7d3b35122cb0a4c1e3feca1d68c2bcd",
@@ -25,5 +25,7 @@
   "secrets.md": "b2aaac449244bba69fd476ec8e4cafafb2ff9b01a2f0161510cc0e201fe6d14f",
   "glossary.md": "eabb5db20b3b1af1b33747cbb3de11aa2ea6877146622d21619fcc9b1298f64a",
   "environments.md": "523782dd3fc1ece2bb7f34c226ec5ecd67fc199acd3c875656d91986ae358687",
-  "data-products.md": "e4e3f97573bc72cfc6b28c38addd323c88b4d6aa662228a78c9628be42bb7834"
+  "data-products.md": "e4e3f97573bc72cfc6b28c38addd323c88b4d6aa662228a78c9628be42bb7834",
+  "replicas.md": "4172b73647448f595f5292189a5aab19a181f9b0f3f3e91ac62b4b605832e9d4",
+  "sizing.md": "c8c6f94e2ad84a9b9889f4fef2cf56c721bac02f8afa398511446e759615bcf0"
 }
