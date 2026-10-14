@@ -490,8 +490,11 @@ export async function runSqlOnPage(
   await page.getByTestId("sql-run").click();
   const resp = await runResp;
   expect(resp.ok(), await resp.text()).toBeTruthy();
-  // The first query on a materialize-only source lands it first; allow for that.
-  await expect(page.getByTestId("download-csv-btn")).toBeVisible({ timeout: 120000 });
+  // The first query on a materialize-only source lands it first; allow for that. A statement that
+  // matched nothing is answered too, with no grid: a caller polling for rows asks again.
+  const grid = page.getByTestId("download-csv-btn");
+  await expect(grid.or(page.getByTestId("sql-results-empty"))).toBeVisible({ timeout: 120000 });
+  if (!(await grid.isVisible())) return [];
   const rows = page.locator(".sql-results-table tbody tr");
   return rows.evaluateAll((trs) =>
     trs.map((tr) =>
