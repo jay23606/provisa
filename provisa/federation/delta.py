@@ -107,6 +107,7 @@ SKIP_DEFINITION = "definition_changed"  # columns/key/address changed, or reason
 SKIP_OPERATOR = "operator_requested"  # an operator start-build
 SKIP_REBUILD_EVERY = "rebuild_interval_elapsed"
 SKIP_STORE = "store_cannot_apply_delta"
+SKIP_PREFLIGHT = "preflight_check"  # REQ-1165: a checked table is rebuilt whole, checked
 
 
 def delta_build_reason(

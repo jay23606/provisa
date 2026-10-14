@@ -383,7 +383,10 @@ class ReplicaJob:
         batch_bytes: int = BATCH_BYTES,
         prior_hash: str | None,
         still_wanted: Callable[[], Awaitable[None]] | None = None,
+        check: Any = None,
     ) -> None:
+        if check is not None and method is Method.ENGINE_STATEMENT:
+            raise ValueError("a table with a preflight check is streamed, not copied by its engine")
         self.method = method
         self._source = source
         self._target = target
@@ -392,6 +395,8 @@ class ReplicaJob:
         self._batch_bytes = batch_bytes
         self._prior_hash = prior_hash
         self._still_wanted = still_wanted
+        # REQ-1165: the table's check, run over the rows this build streams (replica_preflight).
+        self._check = check
 
     async def run(self, progress: Progress) -> BuildOutcome:
         if self.method is Method.ENGINE_STATEMENT:
@@ -412,13 +417,18 @@ class ReplicaJob:
         digest = RowSetHash()
         copied = 0
         swapped = False
+        check = self._check
         try:
             # Inside the try: a target that fails while opening is aborted like any other.
             await self._target.begin()
+            if check is not None:
+                check.start()
             async for read in self._source.batches(self._batch_rows):
                 for batch in _within_bytes(read, self._batch_bytes):
                     rows = batch.to_pylist()
                     digest.update(rows)
+                    if check is not None:
+                        await check.feed(rows)
                     await self._target.write(batch, rows)
                     copied += len(rows)
                     await progress(copied)
@@ -436,6 +446,11 @@ class ReplicaJob:
                     notes=notes,
                     committed=committed,
                 )
+            if check is not None:
+                # REQ-1165: the check's verdict on the whole table; ABORT and QUARANTINE raise,
+                # so the build table is removed (the finally below) and the replica is unchanged.
+                await check.end()
+                check = None
             if self._still_wanted is not None:
                 # Raises when the model stopped declaring the table while it was copied: the
                 # build table is removed (the finally below) and nothing is swapped.
@@ -443,6 +458,8 @@ class ReplicaJob:
             await self._target.swap()
             swapped = True
         finally:
+            if check is not None:
+                check.abandon()  # no swap, or no verdict asked for: the hook is fed no more
             if not swapped:
                 await self._target.abort()
         await self._engine.after_swap()
@@ -484,6 +501,8 @@ class GroupPart:
     engine: _Engine
     prior_hash: str | None = None
     still_wanted: Callable[[], Awaitable[None]] | None = None
+    #: REQ-1165: the table's check over the rows the read gives it (replica_preflight).
+    check: Any = None
 
 
 #: A group build's progress: the table, and the rows copied into it so far.
@@ -542,6 +561,8 @@ class ReplicaGroupJob:
             for table, part in self._parts.items():
                 await part.target.begin()
                 open_targets.append(table)
+                if part.check is not None:
+                    part.check.start()
             async for table, read in self._source.batches(self._batch_rows):
                 part = self._parts.get(table)
                 if part is None:
@@ -549,6 +570,8 @@ class ReplicaGroupJob:
                 for batch in _within_bytes(read, self._batch_bytes):
                     rows = batch.to_pylist()
                     digests[table].update(rows)
+                    if part.check is not None:
+                        await part.check.feed(rows)
                     await part.target.write(batch, rows)
                     copied[table] += len(rows)
                     await progress(table, copied[table])
@@ -559,6 +582,8 @@ class ReplicaGroupJob:
             # table is removed, whatever one of the removals does: the read's own failure is
             # what the build reports.
             for table in open_targets:
+                if self._parts[table].check is not None:
+                    self._parts[table].check.abandon()
                 try:
                     await self._parts[table].target.abort()
                 except Exception:  # allow-ble: a build table that could not be removed must not hide why the read failed, nor leave the others standing
@@ -593,6 +618,7 @@ class ReplicaGroupJob:
         whenever it is not swapped."""
         method = self.methods[table].value
         swapped = False
+        check = part.check
         try:
             if content_hash == part.prior_hash:
                 return BuildOutcome(
@@ -602,6 +628,10 @@ class ReplicaGroupJob:
                     changed=False,
                     notes=notes,
                 )
+            if check is not None:
+                # REQ-1165: this table's verdict; ABORT and QUARANTINE are its outcome, unswapped.
+                await check.end()
+                check = None
             if part.still_wanted is not None:
                 await part.still_wanted()
             await part.target.swap()
@@ -610,6 +640,8 @@ class ReplicaGroupJob:
         except Exception as exc:  # allow-ble: one table's failure is its own outcome; the other tables of the read, already whole, are still swapped
             return exc
         finally:
+            if check is not None:
+                check.abandon()
             if not swapped:
                 await part.target.abort()
         return BuildOutcome(
@@ -639,6 +671,7 @@ def data_replicator(
     batch_bytes: int = BATCH_BYTES,
     prior_hash: str | None = None,
     still_wanted: Callable[[], Awaitable[None]] | None = None,
+    check: Any = None,
 ) -> ReplicaJob:
     """The job that builds one replica from ``source`` into ``target`` on ``engine``.
 
@@ -647,8 +680,12 @@ def data_replicator(
     ``copy`` and ``after_swap``. The method is :func:`choose_method` of the three declarations;
     a combination no method serves raises :class:`NoReplicationMethod`. ``prior_hash`` is the
     content hash of the replica's last build, when it has one. ``still_wanted`` is awaited
-    just before a streamed build swaps and raises when the table is no longer declared."""
+    just before a streamed build swaps and raises when the table is no longer declared.
+    ``check`` is the table's preflight (``replica_preflight.RowCheck``): a table with one is
+    streamed, never copied by the engine's own statement, which swaps with no moment to check."""
     method = choose_method(source.caps, target.caps, engine.caps)
+    if check is not None and method is Method.ENGINE_STATEMENT:
+        method = choose_method(source.caps, target.caps, replace(engine.caps, runs=frozenset()))
     return ReplicaJob(
         method,
         source,
@@ -658,4 +695,5 @@ def data_replicator(
         batch_bytes=batch_bytes,
         prior_hash=prior_hash,
         still_wanted=still_wanted,
+        check=check,
     )

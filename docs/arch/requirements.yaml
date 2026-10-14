@@ -36185,7 +36185,7 @@
     This avoids full materialization of large inputs; the hook consumes batches lazily and short-circuits
     early. If an engine lacks EngineCapability.ARROW_STREAM and a preflight is declared, the system fails
     loud at wiring/boot time (no silent skip, no materialize fallback). The land/generate path remains
-    unchanged, using independent streamed reads.'
+    unchanged, using independent streamed reads. A source table''s check runs in its replica build (REQ-1915): once, over the rows the build streams (a bounded queue of batches, the hook reading the whole table lazily), its verdict awaited before the swap; ABORT or a hook that raises fails the build by its reason and QUARANTINE holds it, each leaving the replica as it was; a checked table is streamed, never copied by the engine''s own statement, by a delta, by a pipeline or a part at a time in place.'
   use_case: Rescoping from stateful row transform to stateless verdict gate simplifies the contract, improves
     memory efficiency, and allows evaluation to scale via engine pushdown (SQL assertions) or streaming
     short-circuit (non-SQL predicates) rather than buffering the entire dataset in memory before applying

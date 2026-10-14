@@ -208,11 +208,11 @@ def build_source_node_spec(
     from provisa.core.change_signal import REPLACE as _REPLACE
 
     whole_copy = probe_shape(args.probe_type) == _REPLACE
-    if replica_build is not None and whole_copy and getattr(tbl, "mv_preprocess", None) is None:
+    if replica_build is not None and whole_copy:
         # REQ-1915: a whole copy of a source table is the data replicator's. The node asks for
         # the build and re-posts the change when the build has completed; no row passes here.
-        # (A table that declares a preflight check over its rows keeps the fetch-and-land below:
-        # the check runs on the rows this process fetched.)
+        # REQ-1165: a table that declares a preflight check is checked by the build, over the
+        # rows it streams, before its swap (federation/replica_preflight).
         handle = replica_build((src.id, tbl.schema_name, tbl.table_name))
     else:
         handle = make_source_land(

@@ -189,9 +189,11 @@ def test_an_append_source_node_keeps_its_own_land(monkeypatch):
     assert built == [] and not hasattr(spec.handle, "replica_key")
 
 
-def test_a_table_with_a_preflight_check_over_its_rows_keeps_its_own_land(monkeypatch):
+def test_a_table_with_a_preflight_check_over_its_rows_is_built_by_the_replicator(monkeypatch):
+    """REQ-1165: the build checks the rows it streams before its swap (replica_preflight), so a
+    checked table is no longer fetched whole and landed here."""
     spec, built = _spec(monkeypatch, preprocess="def preflight(streams, ctx): return None")
-    assert built == [] and not hasattr(spec.handle, "replica_key")
+    assert built == [KEY] and spec.handle.replica_key == KEY
 
 
 def _seed(posted: datetime) -> list[dict]:

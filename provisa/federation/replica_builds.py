@@ -149,13 +149,23 @@ class _EngineReached:
         return self._reader.batches(batch_rows)
 
 
+def _prior_hash(state: Any, record: Any) -> str | None:
+    """The last build's content hash, which says "unchanged" only of the replica standing in
+    THIS store."""
+    if record is not None and record.exists_in(store_identity(state)):
+        return record.content_hash
+    return None
+
+
 async def build_replica(state: Any, key: ReplicaKey, progress: Progress) -> BuildOutcome:
     """Build the replica of the table ``key`` names, in the org and environment ``state``
     serves: read its source as the source allows, write the engine's store through its write
     face, replace the replica atomically. Returns what the build did."""
     from provisa.events.app_wiring import build_adapter_loaders, build_keyed_adapter_loaders
     from provisa.events.land_lock import land_lock
+    from provisa.events.nodes import source_node
     from provisa.events.source_loader import SourceRowLoader
+    from provisa.federation.replica_preflight import row_check
     from provisa.federation.residency import resolve_landing_args
     from provisa.federation.source_vault import org_vault
 
@@ -170,12 +180,21 @@ async def build_replica(state: Any, key: ReplicaKey, progress: Progress) -> Buil
     )
     async with state.tenant_db.acquire() as conn:
         record = await replica_state.read(conn, key)
+    # REQ-1165: the table's check runs over the rows this build streams, before its swap. A
+    # table with one is built whole and streamed: no pipeline, no delta, no engine statement.
+    check = row_check(
+        table,
+        node=source_node(*key),
+        columns=args.columns,
+        prior_hash=_prior_hash(state, record),
+    )
 
     # REQ-990/REQ-848: a SingleStore store whose write face for this origin is PIPELINE_LAND loads
     # the origin itself through a one-shot pipeline; no row passes through Provisa.
-    pipelined = await _build_by_pipeline(state, key, source, table, sources, args, address)
-    if pipelined is not None:
-        return pipelined
+    if check is None:
+        pipelined = await _build_by_pipeline(state, key, source, table, sources, args, address)
+        if pipelined is not None:
+            return pipelined
 
     # REQ-874: a declared delta refreshes the whole-copy replica incrementally -- read only the
     # rows past the stored cursor from the SQL source and apply them by key -- when the rule allows;
@@ -212,6 +231,8 @@ async def build_replica(state: Any, key: ReplicaKey, progress: Progress) -> Buil
             store_applies_delta=store_applies and state.source_pools.has(source.id),
             rebuild_due=_delta_rebuild_due(record, delta_cfg),
         )
+        if delta_skipped is None and check is not None:
+            delta_skipped = _delta.SKIP_PREFLIGHT
         if delta_skipped is None and cursor_raw is not None:
             import json
 
@@ -255,11 +276,8 @@ async def build_replica(state: Any, key: ReplicaKey, progress: Progress) -> Buil
             batch_rows=BATCH_ROWS,
             still_wanted=still_wanted,
             # The last build's hash says "unchanged" only of the replica standing in THIS store.
-            prior_hash=(
-                record.content_hash
-                if record is not None and record.exists_in(store_identity(state))
-                else None
-            ),
+            prior_hash=_prior_hash(state, record),
+            check=check,
         )
         # How this build copies, recorded as it starts so an operator sees it while it runs.
         async with state.tenant_db.acquire() as conn:
@@ -500,6 +518,7 @@ async def build_group(
     from provisa.events.land_lock import land_lock
     from provisa.events.nodes import source_node
     from provisa.federation.data_replicator import GroupPart, GroupReadFailed, ReplicaGroupJob
+    from provisa.federation.replica_preflight import row_check
     from provisa.federation.residency import resolve_landing_args
     from provisa.federation.source_vault import org_vault
 
@@ -560,12 +579,14 @@ async def build_group(
                     target,
                     engine_party,
                     # The last build's hash says "unchanged" only of the replica in THIS store.
-                    prior_hash=(
-                        record.content_hash
-                        if record is not None and record.exists_in(store_identity(state))
-                        else None
-                    ),
+                    prior_hash=_prior_hash(state, record),
                     still_wanted=_still_wanted(key),
+                    check=row_check(
+                        table,
+                        node=nodes[key],
+                        columns=args.columns,
+                        prior_hash=_prior_hash(state, record),
+                    ),
                 )
             reader = loader.replica_group_source(
                 source,
@@ -650,6 +671,10 @@ async def _kept_in_place(
     ``replica_key_columns``), and no table's replica was built from another definition
     (changed columns are a whole rebuild)."""
     if getattr(loader, "replica_unit_source", None) is None:
+        return False
+    # REQ-1165: a part kept in place is readable at once, with no swap to check before; a table
+    # with a check is copied whole and checked before it is swapped in.
+    if any(getattr(table, "mv_preprocess", None) for _s, table, _a, _d in prepared.values()):
         return False
     store = store_identity(state)
     async with state.tenant_db.acquire() as conn:
