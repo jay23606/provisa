@@ -211,7 +211,7 @@ def server(stack, run, tmp_path_factory):
     )
     srv.start(timeout=300)
     try:
-        await_logs_landed(srv)
+        await_logs_landed(srv, stack.home / "logs")
         yield srv
     except BaseException:
         print(srv.dump_stderr_debug()[-6000:])

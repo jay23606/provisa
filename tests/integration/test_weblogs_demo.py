@@ -130,19 +130,38 @@ def query(server: Any, sql: str) -> list[dict[str, Any]]:
     return body["data"]["sql"]
 
 
-def await_logs_landed(server: Any, deadline_s: float = 300) -> None:
-    """Wait until both logs are read in: every request the seeder sent is a row of the access
-    log, and the database log has rows."""
+def _statements_logged(logs: Path) -> int:
+    """The statement records the database wrote to its log files, as view_request_sql selects
+    them: a duration record of a statement that names its request."""
+    count = 0
+    for path in sorted((logs / "postgres").glob("postgresql-*.json")):
+        for line in path.read_text().splitlines():
+            message = json.loads(line).get("message", "")
+            count += message.startswith("duration: ") and "request_id=" in message
+    return count
+
+
+def await_logs_landed(server: Any, logs: Path, deadline_s: float = 300) -> None:
+    """Wait until both logs are read in whole: every request the seeder sent is a row of the
+    access log, and every statement record the database wrote to its log files is a row of the
+    database log. The seeder has finished before the server starts, so the files are whole; a
+    Logs source lands them a part at a time, a file at a time, so a database log with some rows
+    can still hold none of the statements (only the database's own start-up records)."""
+    statements = _statements_logged(logs)
+    assert statements > _REQUESTS, f"the database logged {statements} statements"
     deadline = time.monotonic() + deadline_s
     seen: tuple[Any, Any] = (None, None)
     while time.monotonic() < deadline:
         access = query(server, 'SELECT COUNT(*) AS n FROM "shop"."access_log"')[0]["n"]
-        db = query(server, 'SELECT COUNT(*) AS n FROM "shop"."db_log"')[0]["n"]
-        seen = (access, db)
-        if access == _REQUESTS and db > 0:
+        landed = query(server, 'SELECT COUNT(*) AS n FROM "shop"."view_request_sql"')[0]["n"]
+        seen = (access, landed)
+        if access == _REQUESTS and landed == statements:
             return
         time.sleep(3)
-    raise AssertionError(f"the logs never landed whole: access_log, db_log rows = {seen}")
+    raise AssertionError(
+        f"the logs never landed whole: access_log rows, statements = {seen}, "
+        f"expected ({_REQUESTS}, {statements})"
+    )
 
 
 @pytest.fixture(scope="module")
@@ -160,7 +179,7 @@ def server(stack):
     srv = provisa_server(stack, "weblogs_demo")
     srv.start(timeout=300)
     try:
-        await_logs_landed(srv)
+        await_logs_landed(srv, stack.home / "logs")
         yield srv
     except BaseException:
         print(srv.dump_stderr_debug()[-6000:])
