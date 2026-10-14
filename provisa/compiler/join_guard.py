@@ -113,6 +113,15 @@ def _selects(scope: Scope) -> list[exp.Expr]:
     return query.selects
 
 
+def _bodies(scope: Scope) -> list[Scope]:
+    """``scope`` and every branch of it, at any depth: a UNION of more than two branches is a
+    tree of two-branch unions."""
+    found = [scope]
+    for branch in scope.union_scopes:
+        found += _bodies(branch)
+    return found
+
+
 class _Resolver:
     def __init__(self, resolve_table_id: Any, columns_of: Any) -> None:
         self._table_id = resolve_table_id
@@ -147,7 +156,7 @@ class _Resolver:
                 self.table_of[instance] = view_id
                 self._view_instances.add(instance)
                 self._view_sources.add(id(source))
-                for body in [source, *source.union_scopes]:
+                for body in _bodies(source):
                     self._view_scopes[id(body)] = (instance, view_id)
 
     def _rows_of(self, source: Any) -> Any:
