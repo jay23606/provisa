@@ -106,6 +106,22 @@ export async function submitSourceAndExpectListed(page: Page, sourceId: string) 
   await expect(page.getByTestId("source-detail-edit")).toBeVisible({ timeout: 60000 });
 }
 
+/**
+ * Open the schema discovery of a source whose detail panel is open. Its Discover button is in the
+ * panel's head, which shows no actions in edit, and a just-created source opens in edit: the edit
+ * is left first.
+ */
+export async function openSourceDiscovery(page: Page, sourceId: string) {
+  const discover = page.getByTestId(`sources-discover-${sourceId}`);
+  const cancelEdit = page.getByTestId("sources-edit-cancel");
+  // A just-created source's edit opens once the list has it again; a source left in its read
+  // view shows Discover. The head never shows both.
+  await expect(cancelEdit.or(discover)).toBeVisible({ timeout: 60000 });
+  if (await cancelEdit.isVisible()) await cancelEdit.click();
+  await discover.click();
+  await expect(page.getByTestId("schema-discovery")).toBeVisible({ timeout: 10000 });
+}
+
 export async function openRegisterForm(page: Page, sourceId: string, domain: string = DOMAIN) {
   await page.goto("/tables");
   await page.waitForSelector(".page-header", { timeout: 15000 });

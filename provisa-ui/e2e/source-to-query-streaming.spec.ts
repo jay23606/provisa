@@ -35,6 +35,7 @@ import { test, expect } from "./coverage";
 import {
   expectDiscoveredColumns,
   openRegisterForm,
+  openSourceDiscovery,
   openSourcesForm,
   pickSchemaAndTable,
   runSqlOnPage,
@@ -589,8 +590,7 @@ test.describe("source to query through the UI: kafka (REQ-1739/REQ-1745/REQ-1766
 
     // 2. Sources page's own "Discover" flow (DISCOVERABLE_TYPES) — topic + registry URL hints,
     // then the REAL discovered columns (not the id/value placeholder), then register directly.
-    await page.getByTestId(`sources-discover-${sourceId}`).click();
-    await expect(page.getByTestId("schema-discovery")).toBeVisible({ timeout: 10000 });
+    await openSourceDiscovery(page, sourceId);
     await page.getByTestId("discover-kafka-topic").fill(topic);
     await page
       .getByTestId("discover-kafka-registry-url")
@@ -730,8 +730,7 @@ test.describe("source to query through the UI: kafka (REQ-1739/REQ-1745/REQ-1766
     // 2. Discover flow — topic filled, Schema Registry URL left BLANK (the trigger for sample
     // mode server-side) and bootstrapServers filled explicitly to prove that field is genuinely
     // reachable through the real UI, not just a backend default path.
-    await page.getByTestId(`sources-discover-${sourceId}`).click();
-    await expect(page.getByTestId("schema-discovery")).toBeVisible({ timeout: 10000 });
+    await openSourceDiscovery(page, sourceId);
     await page.getByTestId("discover-kafka-topic").fill(topic);
     await page.getByTestId("discover-kafka-bootstrap-servers").fill(`localhost:${E2E_KAFKA_PORT}`);
     await expect(page.getByTestId("discover-kafka-registry-url")).toHaveValue("");
