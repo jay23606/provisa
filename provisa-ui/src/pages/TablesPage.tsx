@@ -637,21 +637,27 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
         setEditingTable(null);
         return;
       }
+      // Each of the table's own settings below is saved on its own, and only when it changed: every
+      // one of them rebuilds the model and refetches what is shown, so a save that sent them all
+      // took four rebuilds for a one-field edit -- past 15s on a loaded CI runner.
+      const saved = tables.find((tbl) => tbl.id === editingTable.id);
       // Apply naming convention directly — skip handleNamingChange to avoid its intermediate
       // reload() call which fires refetchTables() and races with updateTable's refetchQueries.
       const _namingVal = editingTable.gqlNamingConvention ?? "";
-      const namingResult = await updateTableNaming(
-        editingTable.id,
-        _namingVal === "" ? null : _namingVal,
-      );
-      if (!namingResult.success) {
-        setError(serverMessage(namingResult, namingResult.message));
-        return;
+      if ((saved?.gqlNamingConvention ?? "") !== _namingVal) {
+        const namingResult = await updateTableNaming(
+          editingTable.id,
+          _namingVal === "" ? null : _namingVal,
+        );
+        if (!namingResult.success) {
+          setError(serverMessage(namingResult, namingResult.message));
+          return;
+        }
       }
       const ttlEdit = cacheTtlEdits[editingTable.id];
       if (ttlEdit?.dirty) await handleSaveTableCache(editingTable.id);
       // REQ-1907: persist the role → TTL list (full replace) only when it changed.
-      const savedRoleTtl = tables.find((tbl) => tbl.id === editingTable.id)?.roleTtl;
+      const savedRoleTtl = saved?.roleTtl;
       const roleTtlChanged =
         JSON.stringify(savedRoleTtl?.map(({ role, ttl }) => ({ role, ttl }))) !==
         JSON.stringify(editingTable.roleTtl.map(({ role, ttl }) => ({ role, ttl })));
@@ -663,7 +669,7 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
         }
       }
       // REQ-318: persist the table's paging only when it changed; nothing declared clears it.
-      const savedPaging = tables.find((tbl) => tbl.id === editingTable.id)?.pagination ?? null;
+      const savedPaging = saved?.pagination ?? null;
       if (pagingChanged(savedPaging, editingTable.pagination)) {
         const pagingResult = await updateTablePaging(
           editingTable.id,
@@ -678,7 +684,6 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
       // REQ-1921: draft and region are saved on their own, each only when it changed. Going to
       // draft is saved before a region change and a release after it: a draft table is claimed
       // by its destination alone, so a move between regions is draft, re-region, release.
-      const saved = tables.find((tbl) => tbl.id === editingTable.id);
       const savedRegion = saved?.region ?? null;
       const savedDraft = saved?.draft ?? false;
       const saveDraft = async () => {
@@ -708,13 +713,25 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
           editingTable.offPeakWindow,
           editingTable.offPeakTz,
         );
-      const saves = effectiveLoadProtected
-        ? [saveReplicate, saveLoadProtection]
-        : [saveLoadProtection, saveReplicate];
-      for (const save of saves) {
-        const saved = await save();
-        if (!saved.success) {
-          setError(serverMessage(saved, saved.message));
+      const replicateChanged = (saved?.replicate ?? null) !== editingTable.replicate;
+      const loadProtectionChanged =
+        (saved?.loadProtected ?? null) !== editingTable.loadProtected ||
+        (saved?.offPeakWindow ?? null) !== editingTable.offPeakWindow ||
+        (saved?.offPeakTz ?? null) !== editingTable.offPeakTz;
+      const saves: [boolean, typeof saveReplicate][] = effectiveLoadProtected
+        ? [
+            [replicateChanged, saveReplicate],
+            [loadProtectionChanged, saveLoadProtection],
+          ]
+        : [
+            [loadProtectionChanged, saveLoadProtection],
+            [replicateChanged, saveReplicate],
+          ];
+      for (const [changed, save] of saves) {
+        if (!changed) continue;
+        const result = await save();
+        if (!result.success) {
+          setError(serverMessage(result, result.message));
           return;
         }
       }
