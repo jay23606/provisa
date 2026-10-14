@@ -11,6 +11,7 @@
 // REQ-2006: opening a demo sandbox, and the limits every demo sandbox runs under.
 
 import { serverMessage, requestFailed } from "../i18n/serverMessage";
+import { anonymousFetch } from "../lib/authFetch";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "";
 
@@ -30,9 +31,10 @@ export class SandboxRefused extends Error {
   }
 }
 
-/** Open a visitor's sandbox of the published demo ``name``: no sign-in. */
+/** Open a visitor's sandbox of the published demo ``name``: no sign-in, and a login held in this
+ * browser is not sent. */
 export async function openDemoSandbox(name: string): Promise<OpenedSandbox> {
-  const res = await fetch(`${API_BASE}/public/demos/${encodeURIComponent(name)}`, {
+  const res = await anonymousFetch(`${API_BASE}/public/demos/${encodeURIComponent(name)}`, {
     method: "POST",
   });
   if (res.ok) return res.json();

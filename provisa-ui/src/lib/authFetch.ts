@@ -100,6 +100,15 @@ async function repairStaleEnv(res: Response): Promise<void> {
   window.location.reload();
 }
 
+// The installed interceptor's request without its decoration: no bearer, no org, no environment.
+let undecoratedFetch: typeof window.fetch | null = null;
+
+/** A request that carries no login (REQ-2006: a live demo is opened anonymously). Before the
+ * interceptor is installed window.fetch is itself undecorated, so that is what it sends. */
+export function anonymousFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  return (undecoratedFetch ?? window.fetch)(input, init);
+}
+
 /** Wrap window.fetch to attach `Authorization: Bearer <provisa_token>` to same-origin requests. */
 export function installAuthFetch(): void {
   const originalFetch = window.fetch.bind(window);
@@ -144,8 +153,16 @@ export function installAuthFetch(): void {
     }
   };
 
+  const urlOf = (input: RequestInfo | URL): string =>
+    typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+
+  undecoratedFetch = (input, init) => {
+    const url = urlOf(input);
+    return sampled(input, init, isSameOrigin(url), url);
+  };
+
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    const url = urlOf(input);
     const sameOrigin = isSameOrigin(url);
 
     const token = await currentBearer();

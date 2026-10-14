@@ -23,6 +23,7 @@ vi.mock("../lib/firebase", () => ({
   currentFirebaseToken: () => Promise.resolve("firebase-login-token"),
 }));
 
+import { openDemoSandbox } from "../api/demoSandbox";
 import { installAuthFetch } from "../lib/authFetch";
 import { endVisit, getStored, setStored, visitorActive } from "../lib/browserStorage";
 import { adoptSandboxTokenFromLocation } from "../lib/sandboxSession";
@@ -75,6 +76,26 @@ describe("a live demo's visitor, in a browser signed in to Provisa", () => {
     await window.fetch("/auth/me");
     expect(sent[0].get("authorization")).toBe("Bearer provisa_pat_visitor");
     expect(sent[0].get("x-org-provisa")).toBe("sbx0123456789ab");
+    vi.unstubAllGlobals();
+  });
+
+  it("is opened anonymously: the login held in the browser is not sent", async () => {
+    const sent: Headers[] = [];
+    const underlying = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      sent.push(new Headers(init?.headers));
+      return new Response(JSON.stringify({ org_id: "sbx1", demo: "weblogs", token: "t" }), {
+        status: 200,
+      });
+    });
+    vi.stubGlobal("fetch", underlying);
+    window.fetch = underlying as unknown as typeof fetch;
+    installAuthFetch();
+    await window.fetch("/auth/me"); // the login does ride on the browser's other requests
+    expect(sent[0].get("authorization")).toBe("Bearer firebase-login-token");
+    await openDemoSandbox("weblogs");
+    expect(String(underlying.mock.calls[1][0])).toMatch(/\/public\/demos\/weblogs$/);
+    expect(sent[1].get("authorization")).toBeNull();
+    expect(sent[1].get("x-org-provisa")).toBeNull();
     vi.unstubAllGlobals();
   });
 
