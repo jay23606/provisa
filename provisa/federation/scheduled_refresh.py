@@ -123,6 +123,24 @@ def window_last_open_epoch(window: OffPeakWindow, now: float) -> float:
     return start_today.timestamp()
 
 
+def next_window_open(window: OffPeakWindow, now: float) -> float:
+    """Epoch of the first window-OPEN boundary strictly after ``now`` (REQ-1141): where a
+    refresh that may not run now waits until."""
+    tz = ZoneInfo(window.tz)
+    local = datetime.fromtimestamp(now, tz=tz)
+    start = local.replace(
+        hour=window.start_minute // 60,
+        minute=window.start_minute % 60,
+        second=0,
+        microsecond=0,
+    )
+    if start.timestamp() <= now:
+        # Arithmetic on a zoned datetime is wall-clock: the same local time the next day,
+        # across a DST change too.
+        start = start + _one_day()
+    return start.timestamp()
+
+
 def _one_day():
     from datetime import timedelta
 

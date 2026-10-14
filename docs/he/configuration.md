@@ -965,7 +965,7 @@ tables:
 
 דחיות מחזירות HTTP 403 עם הקוד `query.operator_floor`, SQLSTATE `42501` ב-pgwire, ו-`PERMISSION_DENIED` ב-Flight וב-gRPC. (REQ-030)
 
-טבלה שהיא `load_protected` או `replicate: 0` לעולם אינה נקראת ישירות על ידי שאילתה, בשום ערוץ. שאילתות קוראות את הרפליקה שלה. רק יצירת הרפליקה והרענונים שלה קוראים את המקור: רענון מתבצע כש-`cache_ttl` או בדיקת עדכניות מחייבים זאת; בלי אף אחד מהם הרפליקה נבנית פעם אחת ולאחר מכן מתרעננת רק דרך הזנת שינויים או המתזמן. (REQ-1907) (REQ-1141, REQ-826) [tool-verified: `tests/integration/test_operator_floor_e2e.py`]
+טבלה שהיא `load_protected` או `replicate: 0` לעולם אינה נקראת ישירות על ידי שאילתה, בשום ערוץ. שאילתות קוראות את הרפליקה שלה. רק יצירת הרפליקה והרענונים שלה קוראים את המקור: רענון מתבצע כש-`cache_ttl` או בדיקת עדכניות מחייבים זאת; בלי אף אחד מהם הרפליקה נבנית פעם אחת ולאחר מכן מתרעננת רק דרך הזנת שינויים או המתזמן. (REQ-1907) (REQ-1141, REQ-826) [tool-verified: `tests/integration/test_operator_floor_e2e.py`] בטבלה כזו עם `off_peak_window` (בטבלה או במקור שלה, לפי `off_peak_tz`), ריענון רץ רק כשהחלון פתוח: ריענון שמגיע מועדו או מתבקש מחוצה לו ממתין לפתיחה הבאה של החלון, וחלון ללא `cache_ttl` מרענן פעם אחת בכל פתיחה. הבנייה הראשונה לעולם אינה מעוכבת, כי קריאות הטבלה ממתינות לה. [tool-verified: `provisa/federation/replica_builds.py` `_deferred_until`, `_next_refresh_at`; `tests/integration/test_off_peak_window_refresh_e2e.py`]
 
 ### הגדרת `replicate`
 

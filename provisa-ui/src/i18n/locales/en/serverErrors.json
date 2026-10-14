@@ -249,6 +249,7 @@
       "row_limit_reached": "The replica of {{table}} was not built: a read of it stops at max_rows={{max_rows}} (graphql_remote.max_rows), and the remote had more after {{rows}} rows. A replica is the whole table, so it is not cut at the bound. Raise graphql_remote.max_rows.",
       "spool_full": "The replica build of {{table}} was refused: spooling its source's answer needs {{needed}} bytes of this node's spool directory, over the limit of {{limit}} (replication.spool_max_bytes).",
       "table_gone": "Table {{schema}}.{{table}} of source {{source}} is no longer registered, so its replica is not built.",
+      "waiting_off_peak_window": "the table is load-protected and its off-peak window is closed; it is refreshed when the window opens",
       "waiting_engine_jobs": "the engine is at its background job cap (replication.engine_jobs)",
       "waiting_source_cap": "the source is at its live-read cap (max_live_concurrency)",
       "waiting_shutdown": "the node that claimed it was shutting down; the next pass builds it"

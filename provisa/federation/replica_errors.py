@@ -43,7 +43,10 @@ def coded(exc: BaseException) -> tuple[str | None, dict[str, Any] | None]:
 WAITING_ENGINE = "replication.waiting_engine_jobs"
 WAITING_SOURCE = "replication.waiting_source_cap"
 WAITING_SHUTDOWN = "replication.waiting_shutdown"
+WAITING_WINDOW = "replication.waiting_off_peak_window"
 WAITING = {
+    WAITING_WINDOW: "the table is load-protected and its off-peak window is closed; it is "
+    "refreshed when the window opens",
     WAITING_ENGINE: "the engine is at its background job cap (replication.engine_jobs)",
     WAITING_SOURCE: "the source is at its live-read cap (max_live_concurrency)",
     WAITING_SHUTDOWN: "the node that claimed it was shutting down; the next pass builds it",

@@ -118,6 +118,8 @@ async def test_registered_tables_carry_the_settings_their_rows_hold(monkeypatch)
             "pagination": None,  # REQ-318: the table sets no paging
             "replicate": None,
             "load_protected": None,
+            "off_peak_window": None,
+            "off_peak_tz": None,
             "change_signal": "ttl",  # REQ-929: saved on the row by the seed
             "region": None,  # REQ-1921: it names no region
             "cache_ttl": 30,
@@ -150,6 +152,8 @@ async def test_registered_tables_carry_the_settings_their_rows_hold(monkeypatch)
             "pagination": None,  # REQ-318: the table sets no paging
             "replicate": None,
             "load_protected": None,
+            "off_peak_window": None,
+            "off_peak_tz": None,
             "change_signal": None,  # REQ-929: the table sets none
             "region": None,  # REQ-1921: it names no region
             "cache_ttl": None,

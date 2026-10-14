@@ -57,6 +57,7 @@ from provisa.federation.data_replicator import (
 from provisa.federation.replica_errors import (
     WAITING_ENGINE,
     WAITING_SHUTDOWN,
+    WAITING_WINDOW,
     WAITING_SOURCE,
     coded,
 )
@@ -152,6 +153,7 @@ class ReplicaRunner:
         ]
         | None = None,
         plan_indexes: Callable[[ReplicaKey, datetime], Awaitable[None]] | None = None,
+        deferred_until: Callable[[ReplicaKey, datetime], Awaitable[datetime | None]] | None = None,
         build_indexes: Callable[[Any], Awaitable[None]] | None = None,
     ) -> None:
         self._db = db
@@ -177,6 +179,9 @@ class ReplicaRunner:
         # ``build_indexes`` builds those still due, after the landing, under the replica's index
         # lock (never its build lock: a landing does not wait on its indexes).
         self._plan_indexes = plan_indexes
+        # REQ-1141: when a build that may not run now may run (a load-protected table's
+        # off-peak window), or None when it may run now.
+        self._deferred_until = deferred_until
         self._build_indexes = build_indexes
         self._holder = f"{socket.gethostname()}:{os.getpid()}"
         # Set when the process shuts down: no build is claimed or started after it, so nothing
@@ -317,6 +322,13 @@ class ReplicaRunner:
     async def _claim_key(self, claim: BuildClaim, key: ReplicaKey, now: datetime) -> _Job | None:
         if not claim.try_replica(self._org_id, key):
             return None  # another runner is building it
+        if self._deferred_until is not None:
+            until = await self._deferred_until(key, now)
+            if until is not None:
+                claim.release_replica(self._org_id, key)
+                async with self._db.acquire() as conn:
+                    await build_state.defer(conn, key, until=until, waiting_on=WAITING_WINDOW)
+                return None
         started = False
         try:
             async with self._db.acquire() as conn:

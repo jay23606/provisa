@@ -249,6 +249,7 @@
       "row_limit_reached": "Das Replikat von {{table}} wurde nicht gebaut: Ein Lesevorgang endet bei max_rows={{max_rows}} (graphql_remote.max_rows), und die Gegenstelle hatte nach {{rows}} Zeilen noch weitere Daten. Ein Replikat ist die ganze Tabelle und wird daher nicht an der Obergrenze abgeschnitten. Erhöhen Sie graphql_remote.max_rows.",
       "spool_full": "Der Replikat-Build von {{table}} wurde abgelehnt: Das Zwischenspeichern der Antwort der Quelle benötigt {{needed}} Bytes im Spool-Verzeichnis dieses Knotens und überschreitet das Limit von {{limit}} (replication.spool_max_bytes).",
       "table_gone": "Die Tabelle {{schema}}.{{table}} der Quelle {{source}} ist nicht mehr registriert, daher wird ihr Replikat nicht gebaut.",
+      "waiting_off_peak_window": "die Tabelle ist lastgeschützt und ihr Off-Peak-Fenster ist geschlossen; sie wird aktualisiert, sobald das Fenster öffnet",
       "waiting_engine_jobs": "die Engine hat ihre Obergrenze für Hintergrundjobs erreicht (replication.engine_jobs)",
       "waiting_source_cap": "die Quelle hat ihre Obergrenze für Live-Lesezugriffe erreicht (max_live_concurrency)",
       "waiting_shutdown": "Der Knoten, der ihn übernommen hatte, wurde heruntergefahren; der nächste Durchlauf erstellt ihn"

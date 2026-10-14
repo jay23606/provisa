@@ -3915,6 +3915,7 @@
   "ja/serverErrors.json::serverErrors.replication.spool_full": "The replica build of {{table}} was refused: spooling its source's answer needs {{needed}} bytes of this node's spool directory, over the limit of {{limit}} (replication.spool_max_bytes).",
   "ja/serverErrors.json::serverErrors.replication.table_gone": "Table {{schema}}.{{table}} of source {{source}} is no longer registered, so its replica is not built.",
   "ja/serverErrors.json::serverErrors.replication.waiting_engine_jobs": "the engine is at its background job cap (replication.engine_jobs)",
+  "ja/serverErrors.json::serverErrors.replication.waiting_off_peak_window": "the table is load-protected and its off-peak window is closed; it is refreshed when the window opens",
   "ja/serverErrors.json::serverErrors.replication.waiting_shutdown": "the node that claimed it was shutting down; the next pass builds it",
   "ja/serverErrors.json::serverErrors.replication.waiting_source_cap": "the source is at its live-read cap (max_live_concurrency)",
   "ja/serverErrors.json::serverErrors.requests.already_approved": "You have already approved this request",

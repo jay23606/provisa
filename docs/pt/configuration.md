@@ -964,7 +964,7 @@ As configurações do operador são o piso. Uma requisição pode ir acima dele,
 
 As recusas retornam HTTP 403 com o código `query.operator_floor`, SQLSTATE `42501` via pgwire e `PERMISSION_DENIED` via Flight e gRPC. (REQ-030)
 
-Uma tabela `load_protected` ou com `replicate: 0` nunca é lida ao vivo por uma consulta, em nenhum transporte. As consultas leem sua réplica. Só a replicação e suas atualizações leem a fonte: uma atualização ocorre quando `cache_ttl` ou uma verificação de atualidade a exige; sem nenhum dos dois, a réplica é construída uma vez e depois só é atualizada por um feed de mudanças ou pelo agendador. (REQ-1907) (REQ-1141, REQ-826) [tool-verified: `tests/integration/test_operator_floor_e2e.py`]
+Uma tabela `load_protected` ou com `replicate: 0` nunca é lida ao vivo por uma consulta, em nenhum transporte. As consultas leem sua réplica. Só a replicação e suas atualizações leem a fonte: uma atualização ocorre quando `cache_ttl` ou uma verificação de atualidade a exige; sem nenhum dos dois, a réplica é construída uma vez e depois só é atualizada por um feed de mudanças ou pelo agendador. (REQ-1907) (REQ-1141, REQ-826) [tool-verified: `tests/integration/test_operator_floor_e2e.py`] Numa tabela assim com uma `off_peak_window` (na tabela ou na sua fonte, lida em `off_peak_tz`), uma atualização só roda enquanto a janela está aberta: uma que vence ou é pedida fora dela espera a próxima abertura da janela, e uma janela sem `cache_ttl` atualiza uma vez por abertura. A primeira construção nunca é retida, porque as leituras da tabela esperam por ela. [tool-verified: `provisa/federation/replica_builds.py` `_deferred_until`, `_next_refresh_at`; `tests/integration/test_off_peak_window_refresh_e2e.py`]
 
 ### A configuração `replicate`
 

@@ -156,6 +156,8 @@ def _state(*, ready=True):
             "pagination": None,  # REQ-318: the table sets no paging
             "replicate": None,
             "load_protected": None,
+            "off_peak_window": None,
+            "off_peak_tz": None,
             "change_signal": None,  # REQ-929: the table sets none
             "region": None,  # REQ-1921: it names no region
             # REQ-1919: the landing settings are the row's, as the seed stored them.
@@ -322,6 +324,8 @@ async def test_registered_checker_table_carries_its_contract_to_the_loop(monkeyp
                 "pagination": None,  # REQ-318: the table sets no paging
                 "replicate": None,
                 "load_protected": None,
+                "off_peak_window": None,
+                "off_peak_tz": None,
                 "change_signal": None,  # REQ-929: the table sets none
                 "region": None,  # REQ-1921: it names no region
                 "cache_ttl": None,

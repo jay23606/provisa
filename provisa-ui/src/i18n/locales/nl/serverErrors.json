@@ -249,6 +249,7 @@
       "row_limit_reached": "De replica van {{table}} is niet gebouwd: een leesactie stopt bij max_rows={{max_rows}} (graphql_remote.max_rows), en de remote had meer gegevens na {{rows}} rijen. Een replica is de hele tabel en wordt dus niet afgekapt bij de limiet. Verhoog graphql_remote.max_rows.",
       "spool_full": "De replica-build van {{table}} is geweigerd: het spoolen van het antwoord van de bron vereist {{needed}} bytes in de spoolmap van dit knooppunt, boven de limiet van {{limit}} (replication.spool_max_bytes).",
       "table_gone": "Tabel {{schema}}.{{table}} van bron {{source}} is niet meer geregistreerd, dus de replica ervan wordt niet gebouwd.",
+      "waiting_off_peak_window": "de tabel is tegen belasting beschermd en het daluurvenster is gesloten; hij wordt vernieuwd zodra het venster opent",
       "waiting_engine_jobs": "de engine zit aan zijn limiet voor achtergrondtaken (replication.engine_jobs)",
       "waiting_source_cap": "de bron zit aan zijn limiet voor live-leesbewerkingen (max_live_concurrency)",
       "waiting_shutdown": "het knooppunt dat het had geclaimd werd afgesloten; de volgende ronde bouwt het"

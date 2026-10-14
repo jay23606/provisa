@@ -649,6 +649,17 @@ async def unclaim(conn: "Connection", key: ReplicaKey, *, waiting_on: str) -> No
     )
 
 
+async def defer(conn: "Connection", key: ReplicaKey, *, until: datetime, waiting_on: str) -> None:
+    """Hold a requested or due build of ``key`` until ``until`` (REQ-1141: a load-protected
+    table is refreshed only in its off-peak window): the record goes idle, due then, saying why.
+    A build already running is left as it is."""
+    await conn.execute_core(
+        update(replica_state)
+        .where(_is(key), _t.build_state.in_((REQUESTED, IDLE)))
+        .values(build_state=IDLE, next_refresh_at=until, waiting_on=waiting_on)
+    )
+
+
 async def set_waiting(conn: "Connection", keys: list[ReplicaKey], *, waiting_on: str) -> None:
     """Record why the requested builds ``keys`` were not started on this pass."""
     for key in keys:

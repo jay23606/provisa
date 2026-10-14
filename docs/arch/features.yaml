@@ -738,7 +738,8 @@
       MongoDB or Cosmos DB table that opts into its database's own change stream is rebuilt on each
       burst of changes. For databases
       that cannot absorb heavy reads, a steward can mark a source load-sensitive, so queries never read it
-      and only its scheduled refreshes, on a cadence or a change probe, do. The table's detail page shows
+      and only its scheduled refreshes, on a cadence or a change probe and, where it names one, only in
+      its off-peak window, do. The table's detail page shows
       the resulting policy in plain words.
   - id: replicas-and-freshness-materialized-views
     text: 'A materialized view stores the result of a view so queries that match it read the stored rows.

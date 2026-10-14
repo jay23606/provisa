@@ -111,7 +111,7 @@ PROVISA_MATERIALIZE_URL="postgresql://provisa:secret@replicas.internal:5432/repl
 | 變更探測 | `change_signal: probe` 或 `ttl_probe`，`cache_ttl` | 僅在探測報告有變更後才重建；探測每個 `cache_ttl` 執行一次 | 每個間隔一次探測，僅在有變更時重建 |
 | 推送變更串流 | Kafka 或 WebSocket 資料來源；帶 `cdc` 區塊的資料來源上的 `change_signal: debezium`；PostgreSQL、MongoDB 或 Cosmos DB 上的 `change_signal: native` | 新鮮度在變更串流延遲與防彈跳範圍之內 | Kafka、WebSocket 和 Debezium：首次建置後無，變更串流自帶資料列。PostgreSQL、MongoDB 和 Cosmos DB：每一批變更重建一次 |
 | 按角色 TTL | 表上的 `role_ttl` | 列出的角色接受不超過其自身 TTL 的複本；表的 `cache_ttl` 仍是下限 | 重建更少：寬容角色的讀取從不請求重建 |
-| 負載保護 | `load_protected: true`，配合 `cache_ttl` 或探測 | 查詢從不讀取資料來源；僅由執行器刷新複本 | 僅計劃內的刷新 |
+| 負載保護 | `load_protected: true`，配合 `cache_ttl`、探測或 `off_peak_window` | 查詢從不讀取資料來源；僅由執行器刷新複本，有非尖峰視窗時僅在視窗開啟期間刷新 | 僅計劃內的刷新 |
 | 新鮮度閘門 | 資料來源上的 `freshness_gate: true` | 每次讀取都先對照資料來源的 `change_signal` 和 `cache_ttl` 檢查；判定為過期則在讀取前先刷新 | 過期時在讀取路徑中進行一次刷新 |
 
 [tool-verified: `provisa/core/replicate.py`; `provisa/federation/replica_builds.py` `_next_refresh_at`, `_probe_decides`; `provisa/federation/query_residency.py` `freshness_verdict`, `is_stale_of`; `provisa/federation/role_ttl.py` `effective_ttl`; `provisa/freshness/source_gate.py` `gate_source`; `provisa/events/push_wiring.py` `wire_push_listeners`, `_run_change_stream`]
