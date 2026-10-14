@@ -15,7 +15,6 @@
 
 import type { ResultRedirect } from "../../api/admin";
 import type { Relationship } from "../../types/admin";
-import { getStored, setStored } from "../../lib/browserStorage";
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 export const PALETTE = [
@@ -80,56 +79,6 @@ export const PALETTE = [
   "#ff8787",
   "#63e6be",
 ];
-
-// ── Stable node ID ────────────────────────────────────────────────────────────
-const LS_IDS = "provisa_stable_node_ids";
-const LS_CTR = "provisa_stable_node_id_counter";
-
-function _stableKey(
-  node: { label: string; properties: Record<string, unknown> },
-  pkMap: Record<string, string[]>,
-): string {
-  const pkCols = pkMap[node.label] ?? [];
-  if (pkCols.length > 0) {
-    const pkVal = pkCols.map((c) => String(node.properties[c] ?? "")).join(":");
-    return `${node.label}::${pkVal}`;
-  }
-  // Fallback: hash all property values deterministically
-  const sorted = Object.keys(node.properties)
-    .sort()
-    .map((k) => `${k}=${String(node.properties[k])}`)
-    .join("|");
-  return `${node.label}::${sorted}`;
-}
-
-export function getStableNodeId(
-  node: { label: string; properties: Record<string, unknown> },
-  pkMap: Record<string, string[]>,
-): number {
-  const key = _stableKey(node, pkMap);
-  let map: Record<string, number> = {};
-  try {
-    map = JSON.parse(getStored(LS_IDS) ?? "{}");
-  } catch {
-    /* */
-  }
-  if (key in map) return map[key];
-  let ctr = 0;
-  try {
-    ctr = parseInt(getStored(LS_CTR) ?? "0", 10) || 0;
-  } catch {
-    /* */
-  }
-  ctr += 1;
-  map[key] = ctr;
-  try {
-    setStored(LS_IDS, JSON.stringify(map));
-    setStored(LS_CTR, String(ctr));
-  } catch {
-    /* */
-  }
-  return ctr;
-}
 
 export function labelColor(label: string): string {
   let h = 0;

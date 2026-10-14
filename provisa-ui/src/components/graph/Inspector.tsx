@@ -26,7 +26,8 @@ import {
 } from "@mantine/core";
 import { Braces, Check, ChevronRight, Copy, X } from "lucide-react";
 import type { Relationship } from "../../types/admin";
-import { PALETTE, labelColor, getStableNodeId } from "./graph-model";
+import { PALETTE, labelColor } from "./graph-model";
+import { getStableNodeId } from "./stableNodeId";
 import type { GNode, GEdge, GraphStats } from "./graph-model";
 import { cypherRelType } from "../../naming";
 import CodeMirror from "@uiw/react-codemirror";
