@@ -16,6 +16,8 @@ Three reference forms are valid wherever Provisa resolves credentials:
 | `${secret:NAME}` | The org vault — shared by all members | Any field that accepts a credential reference |
 | `${user:NAME}` | The acting person's personal vault | Any field that accepts a credential reference |
 
+On a multi-tenant deployment, keep platform credentials in a secrets service rather than in environment variables. A tenant admin can write `${env:...}` into a credential field of their own, so any value in the process environment is within reach of every tenant. Leave only the secrets backend's own credential in the environment.
+
 Resolution is fail-closed throughout. An unknown provider name, an unset name, and an unreachable backend all raise an error. A reference that could not be resolved is never silently replaced with an empty string. (REQ-1557) [tool-verified: `provisa/core/secrets.py:92-117`]
 
 ### Name format
