@@ -123,3 +123,12 @@ class TestClaimsAndFailures:
         s = _flat(chat_mod._SYSTEM)
         assert "`question` is all the user sees beside the options" in s
         assert "the user never sees it" in s
+
+
+def test_a_failed_catalog_search_is_followed_by_browsing_the_catalog():
+    # On the bake-off's server (no embedding model), GPT-5.4 mini's search_catalog failed on every
+    # question and it answered "I couldn't search the catalog" eleven times instead of listing
+    # the tables, which the other models did.
+    s = _flat(chat_mod._SYSTEM)
+    assert "A search that fails (no embedding model is enabled, say) is no answer either" in s
+    assert "find the data with list_schemas, list_tables and describe_table instead" in s
