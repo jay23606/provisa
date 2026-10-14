@@ -117,3 +117,9 @@ class TestClaimsAndFailures:
         s = _flat(chat_mod._SYSTEM)
         assert "Never offer a choice between a picture in the chat and the Graph page" in s
         assert "do both in the same turn: render_graph, and navigate to /graph" in s
+
+    def test_a_choice_carries_all_the_user_needs_in_its_question(self):
+        # Text beside the present_choice call is not shown, so the widget's question is all there is.
+        s = _flat(chat_mod._SYSTEM)
+        assert "`question` is all the user sees beside the options" in s
+        assert "the user never sees it" in s

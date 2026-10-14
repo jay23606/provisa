@@ -696,8 +696,9 @@ _SYSTEM = (
     "chat. State only what a tool result "
     "confirms: when a result says only that something was requested or navigated to, say what "
     "you requested, never that it worked or how it now looks. Text you write in the same message "
-    "as a tool call is written before that call's result exists: never say there that anything "
-    "is done, open, running, shown or fixed -- report the outcome only after the result says so. "
+    "as a tool call is written before that call's result exists, and the user never sees it: "
+    "never say there that anything is done, open, running, shown or fixed, and never put there "
+    "anything the user needs -- report the outcome only after the result says so. "
     "Explain a failure only from its error text and the tool results: never invent a cause, a "
     "mechanism, or UI state (a search box, a filter, a stuck setting) the error does not name, "
     "and never tell the user to change something you have not seen. An error from Provisa's "
@@ -707,7 +708,9 @@ _SYSTEM = (
     "registered view), never a step for the user to fix it. When you're offering the user a decision among a handful of concrete options — which "
     "source, which table, proceed or not, pick some of these — call present_choice rather than "
     "listing options in prose and waiting for a typed reply; it's a real UI widget (multiple "
-    "choice, checklist, or yes/no) and reads better than typing a number or a name back. Never "
+    "choice, checklist, or yes/no) and reads better than typing a number or a name back. Its "
+    "`question` is all the user sees beside the options: put in it everything they need to "
+    "choose, since text you write beside the call is not shown. Never "
     "offer a choice between a picture in the chat and the Graph page, or between either and a "
     "Graph page view: do all that was asked (see PICTURES AND FILES). Once a "
     "tool call succeeds and accomplishes what the user actually asked for, the task is done — "
@@ -1311,25 +1314,6 @@ def _openai_message_to_wire_blocks(message: Any) -> list[dict]:
     return blocks
 
 
-class _TurnText:
-    """The model's text across the rounds of one turn, as the chat receives it: a round's text
-    after an earlier round's text opens a new paragraph, so what the model says before a tool call
-    never runs into what it says after it ("...the registered sources.Here are...")."""
-
-    def __init__(self) -> None:
-        self._earlier = False
-        self._this_round = False
-
-    def next_round(self) -> None:
-        self._earlier = self._earlier or self._this_round
-        self._this_round = False
-
-    def event(self, text: str) -> dict:
-        lead = "\n\n" if self._earlier and not self._this_round else ""
-        self._this_round = True
-        return {"type": "text", "text": lead + text}
-
-
 def _unquoted_note(error: str) -> str:
     return f"The SQL could not be read to quote its names, so it is used as written: {error}"
 
@@ -1491,10 +1475,8 @@ async def _run_chat_anthropic(
     prior_messages: list[Any] = []
     # REQ-2012: the turn's token usage, summed over every call, tool round trips included.
     usage = polly_usage.Usage()
-    turn_text = _TurnText()
 
     for _ in range(max_iterations):
-        turn_text.next_round()
         # REQ-1838: adaptive thinking's budget shares the max_tokens cap — 8192 let a heavily-
         # reasoning turn (many tools + a long system prompt) exhaust the budget mid-thought,
         # before the model ever emitted its tool_use block. stop_reason came back "max_tokens",
@@ -1514,33 +1496,18 @@ async def _run_chat_anthropic(
             thinking={"type": "adaptive"},
             messages=_with_cache_breakpoint(convo),
         ) as stream:
-            # REQ-1839: yield text AND hosted-tool badges in true chronological order by walking
-            # the raw event stream, not just `.text_stream` in isolation — a response with a
-            # web_search before its answer text must show the search badge BEFORE the text that
-            # depends on it, not after (get_final_message() alone, or `.text_stream` alone with
-            # badges appended afterward, both collapse to "all text first" regardless of the real
-            # block order). useMcpChat.ts's beginAssistantTurn already appends chunks incrementally
-            # (built for REQ-1795's tool-loop rounds, but a chunk is a chunk), so real token
-            # streaming needed no frontend change.
-            # REQ-1839 fix: this live event-driven badge/delta walk is a strictly-better-when-it-
-            # works PRESENTATION detail — REQ-1838's "never go silent" guarantee must not depend on
-            # it. Verified live: a real Opus 4.6 call with adaptive thinking + several tools raised
-            # partway through this loop (root cause not yet isolated — some event/snapshot shape
-            # this loop didn't anticipate), and since the exception propagated out of `async with`
-            # before `get_final_message()` ever ran, the ENTIRE round's real content was thrown
-            # away — reproduced via e2e (chat-panel-streaming.spec.ts) as a turn silently stuck at
-            # 1-12 characters of the true response, no error shown. Falling back to the complete,
-            # already-fully-generated response (still available via get_final_message() even after
-            # this loop errors — the underlying generation already finished) means a bug HERE only
-            # costs live incremental rendering for that one round, never the content itself.
-            live_text = []
-            live_walk_failed = False
+            # REQ-1839: hosted-tool badges are yielded as their blocks complete, by walking the
+            # raw event stream, so a search shows before the answer that depends on it. The walk
+            # is presentation only: verified live, it once raised partway through a real Opus 4.6
+            # round (an event shape it did not anticipate), so a failure here is logged and the
+            # round's content still comes from get_final_message().
+            # The round's text is not streamed as it comes: text the model writes beside a tool
+            # call is written before that call's result exists ("Done -- the Graph page is now
+            # running this"), so it is never shown. A round's text is sent once the round ends
+            # without a tool call, from the complete response; the text beside a call stays in
+            # assistant_content and the model's history.
             try:
                 async for event in stream:
-                    if event.type == "content_block_delta" and event.delta.type == "text_delta":
-                        live_text.append(event.delta.text)
-                        yield turn_text.event(event.delta.text)
-                        continue
                     if event.type != "content_block_stop":
                         continue
                     block = stream.current_message_snapshot.content[event.index]
@@ -1563,28 +1530,16 @@ async def _run_chat_anthropic(
                             "is_error": content_type == "web_fetch_tool_result_error",
                         }
             except Exception:
-                live_walk_failed = True
                 logging.getLogger(__name__).exception(
-                    "REQ-1839 live event walk failed mid-stream; falling back to the complete "
-                    "response instead of losing this round's content"
+                    "REQ-1839 live event walk failed mid-stream; the round's text is still sent "
+                    "from the complete response"
                 )
             resp = await stream.get_final_message()
             usage = usage + polly_usage.from_anthropic(resp.usage)
-            if live_walk_failed:
-                # Recover whatever text the live walk didn't get to send — the full generation
-                # already completed regardless of this loop's own bug, so it's still available via
-                # get_final_message(). Send only the part not already streamed live when the
-                # already-sent prefix matches (the common case); if it doesn't line up exactly,
-                # sending the whole thing again is a rare, harmless duplicate — never dropped text.
-                already_sent = "".join(live_text)
-                full_text = "".join(b.text for b in resp.content if b.type == "text" and b.text)
-                remainder = (
-                    full_text[len(already_sent) :]
-                    if full_text.startswith(already_sent)
-                    else full_text
-                )
-                if remainder:
-                    yield turn_text.event(remainder)
+            if not any(b.type == "tool_use" for b in resp.content):
+                text = "".join(b.text for b in resp.content if b.type == "text" and b.text)
+                if text:
+                    yield {"type": "text", "text": text}
 
         if resp.stop_reason == "max_tokens":
             # REQ-1838: never end the turn silently on this — the user sees exactly the same
@@ -1845,10 +1800,8 @@ async def _run_chat_aisuite(
     prior_messages: list[Any] = []  # REQ-1850, same reasoning as the Anthropic loop above
     usage = polly_usage.Usage()
     billed: float | None = None
-    turn_text = _TurnText()
 
     for _ in range(max_iterations):
-        turn_text.next_round()
         oa_messages = [system_message, *_wire_convo_to_openai_messages(convo)]
         # aisuite providers are synchronous (no async client) — off the event loop, same reasoning
         # as every other sync-SDK call in this codebase (e.g. provisa/llm/client.py).
@@ -1865,12 +1818,15 @@ async def _run_chat_aisuite(
         if call_cost is not None:
             billed = (billed or 0.0) + float(call_cost)
         message = resp.choices[0].message
-        if message.content:
-            yield turn_text.event(message.content)
+        calls_tools = resp.choices[0].finish_reason == "tool_calls" and bool(
+            getattr(message, "tool_calls", None)
+        )
+        # Text beside a tool call is never shown (see the Anthropic loop); it stays in the
+        # assistant content the model's history carries.
+        if message.content and not calls_tools:
+            yield {"type": "text", "text": message.content}
 
-        if resp.choices[0].finish_reason != "tool_calls" or not getattr(
-            message, "tool_calls", None
-        ):
+        if not calls_tools:
             break
 
         wire_blocks = _openai_message_to_wire_blocks(message)
