@@ -402,9 +402,12 @@ def rewrite_semantic_to_physical(sql: str, ctx: CompilationContext) -> str:  # R
     from provisa.compiler.naming import domain_to_sql_name
 
     replacements: dict[str, str] = {}
-    seen: set[tuple[str, str]] = set()
+    seen: set[tuple[str, str, str]] = set()
     for meta in ctx.tables.values():
-        key = (meta.schema_name, meta.table_name)
+        # One table of one source, however many field names reach it. Two sources' tables can
+        # share schema and name (two DuckDB files' main.widgets): each keeps its own semantic
+        # name to lower, or the second's reaches its source unlowered.
+        key = (meta.catalog_name, meta.schema_name, meta.table_name)
         if key in seen:
             continue
         seen.add(key)

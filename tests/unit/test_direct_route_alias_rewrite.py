@@ -60,3 +60,33 @@ def test_column_qualifiers_resolve_against_the_emitted_alias(ops_ctx):
     aliases = {t.alias_or_name for t in tree.find_all(exp.Table)}
     qualifiers = {c.table for c in tree.find_all(exp.Column) if c.table}
     assert qualifiers <= aliases, f"stranded qualifiers {qualifiers - aliases} in {out}"
+
+
+def _widgets(table_id: int, source_id: str, field_name: str) -> TableMeta:
+    return TableMeta(
+        table_id=table_id,
+        field_name=field_name,
+        type_name=field_name.capitalize(),
+        source_id=source_id,
+        catalog_name=source_id,
+        schema_name="main",
+        table_name="widgets",
+        domain_id="pet-store",
+    )
+
+
+@pytest.mark.parametrize("first", [True, False], ids=["aliased_second", "aliased_first"])
+def test_two_sources_tables_of_one_schema_and_name_each_lower_to_their_own(first):
+    """Two DuckDB files each hold main.widgets: the second registered in pet-store takes an alias
+    (the plain name was taken there, REQ-1933). Both lower to "main"."widgets" -- the DIRECT
+    connection is the source's own -- and the aliased one used to be skipped as the same table,
+    so its semantic name reached the source ("schema pet_store does not exist")."""
+    plain = _widgets(1, "cext_a", "widgets")
+    aliased = _widgets(2, "cext_b", "e2e_cext_duckdb_b_widgets")
+    tables = [plain, aliased] if first else [aliased, plain]
+    ctx = CompilationContext(tables={m.field_name: m for m in tables})
+    for meta in (plain, aliased):
+        sql = f'SELECT "id", "name" FROM "pet_store"."{meta.field_name}"'
+        out = rewrite_semantic_to_physical(sql, ctx)
+        assert '"main"."widgets"' in out, out
+        assert '"pet_store"' not in out, out
