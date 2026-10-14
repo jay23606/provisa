@@ -90,6 +90,18 @@ class BundleManifest:
         return cls(data["demo"], data["version"], data["commit"], data["requires_provisa"])
 
 
+def seeding_run() -> bool:
+    """Whether this process is a bundle build's seeding run (``PROVISA_DEMO_SEED_EXPORT=true``,
+    scripts/demo_bundle.py): a throwaway sandbox tier that lands each demo's template from the
+    demo's own sources and writes the seed. It serves no organization but the demos'."""
+    import os
+
+    value = os.environ.get("PROVISA_DEMO_SEED_EXPORT", "false")
+    if value not in ("true", "false"):
+        raise ValueError(f"PROVISA_DEMO_SEED_EXPORT must be true or false, got {value!r}")
+    return value == "true"
+
+
 def provisa_version_key(version: str) -> tuple[int, int, int, int, int]:
     """``version`` ordered as PEP 440 orders a release and its pre-releases."""
     match = _PROVISA_VERSION.match(version)

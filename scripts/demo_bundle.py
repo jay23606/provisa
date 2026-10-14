@@ -73,6 +73,8 @@ _NAMED = _REPO / "demo" / "named"
 # What a build leaves behind in a demo's directory that is not the demo's: an earlier build's seed
 # and dumps, and the seeder's marker volume.
 _NOT_COPIED = ("seeded", "dump", "data")
+# A small image to hand the stores' files back with (Stores.down).
+_CHOWN_IMAGE = "busybox:1.36.1"
 _PORT_VAR = re.compile(r"\$\{([A-Z][A-Z0-9_]*_PORT):-\d+\}")
 
 
@@ -161,8 +163,26 @@ class Stores:
         return dumped
 
     def down(self) -> None:
-        if self.compose_file.exists():
-            self._compose("down", "--volumes", "--remove-orphans")
+        if not self.compose_file.exists():
+            return
+        self._compose("down", "--volumes", "--remove-orphans")
+        # What the stores' containers wrote into the copy (the seeder's marker, the log files) is
+        # root's on Linux: given back to this user, so it can be packed and the copy removed.
+        subprocess.run(
+            [
+                "docker",
+                "run",
+                "--rm",
+                "-v",
+                f"{self.demo}:/demo",
+                _CHOWN_IMAGE,
+                "chown",
+                "-R",
+                f"{os.getuid()}:{os.getgid()}",
+                "/demo",
+            ],
+            check=True,
+        )
 
 
 def _control_plane(work: Path) -> tuple[str, str]:

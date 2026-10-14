@@ -227,10 +227,9 @@ def seeding_release() -> bool:
     """Whether this process is a bundle build's seeding run (``PROVISA_DEMO_SEED_EXPORT=true``):
     each template is landed from its demo's own sources and written out as the demo's seed
     (demo_replicas.export_seed). Otherwise a template is landed from the seed its bundle carries."""
-    value = os.environ.get("PROVISA_DEMO_SEED_EXPORT", "false")
-    if value not in ("true", "false"):
-        raise ValueError(f"PROVISA_DEMO_SEED_EXPORT must be true or false, got {value!r}")
-    return value == "true"
+    from provisa.core.demo_bundles import seeding_run
+
+    return seeding_run()
 
 
 async def land_from_seed(org_id: str) -> None:
