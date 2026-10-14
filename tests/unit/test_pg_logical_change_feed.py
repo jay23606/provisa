@@ -29,25 +29,36 @@ import psycopg
 import pytest
 
 from provisa.subscriptions import pg_logical
-from tests.embedded_pg import DATABASE, PASSWORD, ROLE, start_local_postgres
+from tests.embedded_pg import PASSWORD, ROLE
+
+
+_DB = "logical_feed"
 
 
 @pytest.fixture(scope="module")
-def logical_pg():
-    pg = start_local_postgres(settings={"wal_level": "logical", "synchronous_commit": "on"})
-    yield pg
-    pg.stop()
+def logical_pg(embedded_postgres):
+    """The session's cluster (run with wal_level=logical), and a database of this module's own."""
+    with psycopg.connect(embedded_postgres.dsn(), autocommit=True) as c:
+        c.execute(f"DROP DATABASE IF EXISTS {_DB}")
+        c.execute(f"CREATE DATABASE {_DB}")
+    yield embedded_postgres
+    with psycopg.connect(embedded_postgres.dsn(), autocommit=True) as c:
+        c.execute(f"DROP DATABASE {_DB} WITH (FORCE)")
 
 
 @pytest.fixture
 def conn(logical_pg):
-    with psycopg.connect(logical_pg.dsn(), autocommit=True) as c:
+    with psycopg.connect(logical_pg.dsn(_DB), autocommit=True) as c:
+        # A change is decoded once its WAL is flushed: commit waits for that here.
+        c.execute("SET synchronous_commit = on")
         c.execute('DROP TABLE IF EXISTS orders, refunds, "Mixed ""Case"""')
         c.execute("CREATE TABLE orders (id integer PRIMARY KEY)")
         c.execute("CREATE TABLE refunds (id integer PRIMARY KEY)")
         c.execute('CREATE TABLE "Mixed ""Case""" (id integer PRIMARY KEY)')
         yield c
-        for (slot,) in c.execute("SELECT slot_name FROM pg_replication_slots").fetchall():
+        for (slot,) in c.execute(
+            "SELECT slot_name FROM pg_replication_slots WHERE database = %s", (_DB,)
+        ).fetchall():
             c.execute("SELECT pg_drop_replication_slot(%s)", (slot,))
         for (pub,) in c.execute("SELECT pubname FROM pg_publication").fetchall():
             c.execute(f'DROP PUBLICATION "{pub}"')
@@ -59,7 +70,7 @@ def _source(pg, source_id: str = "shop") -> SimpleNamespace:
         type="postgresql",
         host="127.0.0.1",
         port=pg.port,
-        database=DATABASE,
+        database=_DB,
         username=ROLE,
         password=PASSWORD,
     )
@@ -80,13 +91,26 @@ def test_a_database_that_cannot_give_a_slot_is_refused_by_name(logical_pg, conn)
     assert refused.value.params["source"] == "shop"
 
 
-def test_a_database_without_logical_wal_is_refused_by_name():
-    plain = start_local_postgres()
-    try:
-        with pytest.raises(pg_logical.LogicalReplicationRefused, match="wal_level is 'replica'"):
-            pg_logical.require(_source(plain))
-    finally:
-        plain.stop()
+def test_a_database_without_logical_wal_or_on_a_replica_is_refused():
+    """What the database says decides: its wal_level, whether it is a read replica, and the
+    connecting role's replication right."""
+
+    class _Says:
+        def __init__(self, row):
+            self._row = row
+
+        def execute(self, sql):
+            return self
+
+        def fetchone(self):
+            return self._row
+
+    assert pg_logical.refusal(_Says(("logical", False, True))) is None
+    assert pg_logical.refusal(_Says(("replica", False, True))) == (
+        "its wal_level is 'replica', not 'logical'"
+    )
+    assert "read replica" in (pg_logical.refusal(_Says(("logical", True, True))) or "")
+    assert "replication right" in (pg_logical.refusal(_Says(("logical", False, False))) or "")
 
 
 def test_the_slot_reports_the_followed_tables_that_changed(conn):
@@ -182,6 +206,45 @@ def test_a_source_whose_tables_stop_following_it_has_its_slot_dropped(logical_pg
     state = SimpleNamespace(
         active_org_id="default", logical_slot_sources={"shop": _source(logical_pg)}
     )
-    asyncio.run(push_wiring._drop_unfollowed_slots(state, {}, log=logging.getLogger("test")))
-    assert conn.execute("SELECT count(*) FROM pg_replication_slots").fetchone() == (0,)
+    asyncio.run(push_wiring._drop_unfollowed_slots(state, {}, {}, log=logging.getLogger("test")))
+    assert _held(conn) == (0, 0)
     assert state.logical_slot_sources == {}
+
+
+def _held(conn) -> tuple[int, int]:
+    row = conn.execute(
+        "SELECT (SELECT count(*) FROM pg_replication_slots), (SELECT count(*) FROM pg_publication)"
+    ).fetchone()
+    assert row is not None
+    return row
+
+
+def test_a_slot_left_while_no_process_ran_is_dropped_at_the_first_wiring(logical_pg, conn):
+    """A configuration changed while no process ran -- the source set off the native signal in
+    its file -- left the slot: the first wiring of the next process finds it on a registered
+    PostgreSQL source that no native table follows, and drops it with its publication."""
+    from provisa.events import push_wiring
+
+    pg_logical.ensure_slot(conn, pg_logical.slot_name("shop"), [("public", "orders")])
+    state = SimpleNamespace(active_org_id="default")  # a new process: nothing wired before
+    registered = {"shop": _source(logical_pg), "other": _source(logical_pg, "other")}
+    asyncio.run(
+        push_wiring._drop_unfollowed_slots(state, {}, registered, log=logging.getLogger("test"))
+    )
+    assert _held(conn) == (0, 0)
+
+
+def test_a_followed_sources_slot_is_kept_at_the_first_wiring(logical_pg, conn):
+    from provisa.events import push_wiring
+
+    pg_logical.ensure_slot(conn, pg_logical.slot_name("shop"), [("public", "orders")])
+    state = SimpleNamespace(active_org_id="default")
+    source = _source(logical_pg)
+    followed = {"shop": (source, [("public", "orders", 1)])}
+    asyncio.run(
+        push_wiring._drop_unfollowed_slots(
+            state, followed, {"shop": source}, log=logging.getLogger("test")
+        )
+    )
+    assert _held(conn) == (1, 1)
+    assert state.logical_slot_sources == {"shop": source}

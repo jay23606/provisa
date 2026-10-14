@@ -65,6 +65,19 @@ def native_signal_refusal(source_type: str, signal: str | None) -> str | None:
     )
 
 
+def kafka_topic_refusal(source_type: str, signal: str | None, topic: str | None) -> str | None:
+    """Why a table of a ``source_type`` source on ``signal`` has nothing to read, or None. The
+    ``kafka`` signal on a source that is not itself Kafka reads the table's changes from the
+    topic its ``live.kafka.topic`` names, on the source's CDC transport; with no topic named,
+    nothing would be read and the table would still be counted fresh."""
+    if signal != "kafka" or source_type == "kafka" or topic:
+        return None
+    return (
+        f"change_signal 'kafka' on a {source_type!r} source reads the table's changes from the "
+        "topic its live.kafka.topic names, and the table names none"
+    )
+
+
 def push_signal_for_source_type(source_type: str) -> str:
     """The push change_signal a push source type carries, derived from the push transport each one
     declares in push_wiring and the push vocabulary (:data:`PUSH_SIGNALS`):

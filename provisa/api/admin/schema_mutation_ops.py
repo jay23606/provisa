@@ -436,7 +436,11 @@ async def register_table(
         from provisa.api.admin._change_feed import table_change_feed_refusal
 
         _feed_refusal = await table_change_feed_refusal(  # REQ-1861
-            _conn, model.source_id, model.change_signal
+            _conn,
+            model.source_id,
+            model.change_signal,
+            kafka_topic=model.live.kafka.topic if model.live and model.live.kafka else None,
+            table_name=model.table_name,
         )
         if _feed_refusal is not None:
             return _feed_refusal

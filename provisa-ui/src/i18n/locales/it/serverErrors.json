@@ -315,6 +315,7 @@
       "relationship_saved": "Relazione '{{relationship}}' salvata",
       "remigrated": "Ripetuta la migrazione di {{source}}.{{table}}",
       "logical_replication_refused": "Il segnale di modifica nativo dell'origine '{{source}}' richiede la replica logica del suo database, e {{reason}}.",
+      "change_signal_no_topic": "La tabella '{{table}}' dell'origine '{{source}}' usa il segnale di modifica kafka ma non indica alcun topic in live.kafka.topic, quindi nulla la aggiornerebbe.",
       "change_signal_no_receiver": "Provisa non riceve il segnale di modifica {{signal}} da un'origine di tipo {{type}}, quindi una tabella dell'origine '{{source}}' non verrebbe mai aggiornata da esso. Acquisisci l'origine con Debezium e usa debezium.",
       "change_signal_not_honoured": "Un'origine di tipo {{type}} non può ancora essere controllata per rilevare modifiche, quindi il segnale di modifica {{signal}} non verrebbe mai interrogato. Usa ttl per l'origine '{{source}}'.",
       "sentinel_path_not_applicable": "Un'origine di tipo {{type}} non può avere un percorso sentinella: nessun tuo produttore può segnalare una modifica dei suoi dati, oppure l'origine non viene sondata. Rimuovi il percorso sentinella dall'origine '{{source}}'.",

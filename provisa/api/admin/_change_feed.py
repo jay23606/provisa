@@ -57,9 +57,37 @@ async def _check(source: Any) -> MutationResult | None:
     return None
 
 
+async def _inherited_kafka_refusal(conn: Any, input: Any) -> MutationResult | None:
+    """A source saved on the ``kafka`` signal: each registered table of it that inherits the
+    signal names the topic its changes are read from, or the save is refused, naming it."""
+    from provisa.core.change_signal import kafka_topic_refusal
+
+    rows = await conn.execute_core(
+        select(registered_tables.c.table_name, registered_tables.c.live).where(
+            registered_tables.c.source_id == input.id,
+            registered_tables.c.change_signal.is_(None),
+        )
+    )
+    for table_name, live in rows.fetchall():
+        topic = ((live or {}).get("kafka") or {}).get("topic")
+        refused = kafka_topic_refusal(input.type, input.change_signal, topic)
+        if refused is not None:
+            return MutationResult(
+                success=False,
+                message=f"Source {input.id!r}, table {table_name!r}: {refused}",
+                code="schema.change_signal_no_topic",
+                params={"source": input.id, "table": table_name},
+            )
+    return None
+
+
 async def source_change_feed_refusal(conn: Any, input: Any) -> MutationResult | None:
-    """For a source save: refused when the source is MongoDB and it, or a table of it already
-    registered, follows the change feed, and its server serves no change streams."""
+    """For a source save: refused when a registered table that inherits the ``kafka`` signal
+    names no topic, or when the source follows its own change feed -- itself or a table of it
+    already registered -- and cannot serve it."""
+    inherited = await _inherited_kafka_refusal(conn, input)
+    if inherited is not None:
+        return inherited
     if input.type not in CHANGE_FEED_TYPES:
         return None
     rows = await conn.execute_core(
@@ -82,14 +110,18 @@ async def source_change_feed_refusal(conn: Any, input: Any) -> MutationResult | 
 
 
 async def table_change_feed_refusal(
-    conn: Any, source_id: str, table_signal: str | None
+    conn: Any,
+    source_id: str,
+    table_signal: str | None,
+    kafka_topic: str | None = None,
+    table_name: str = "",
 ) -> MutationResult | None:
     """For a table save: refused when its change signal is ``native`` on a source type whose
     change feed nothing receives, or when it follows its MongoDB source's change feed and the
     source's server serves no change streams."""
     from provisa.core.repositories import source as source_repo
 
-    from provisa.core.change_signal import native_signal_refusal
+    from provisa.core.change_signal import kafka_topic_refusal, native_signal_refusal
 
     source = await source_repo.get(conn, source_id)
     # A table of a source that is not registered is refused by the save's own source check.
@@ -103,6 +135,14 @@ async def table_change_feed_refusal(
             message=f"Table of source {source_id!r}: {refused}",
             code="schema.change_signal_no_receiver",
             params={"source": source_id, "type": source["type"], "signal": signal},
+        )
+    no_topic = kafka_topic_refusal(source["type"], signal, kafka_topic)
+    if no_topic is not None:
+        return MutationResult(
+            success=False,
+            message=f"Source {source_id!r}, table {table_name!r}: {no_topic}",
+            code="schema.change_signal_no_topic",
+            params={"source": source_id, "table": table_name},
         )
     if not follows_change_feed(source["type"], table_signal, source["change_signal"]):
         return None

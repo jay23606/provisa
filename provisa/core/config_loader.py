@@ -1158,7 +1158,11 @@ def _validate_watermark_columns(config) -> None:  # REQ-924, REQ-925
 def _validate_change_signal(config) -> None:  # REQ-932
     """Capability-gate change_signal. Push transports (debezium/kafka) require the source's cdc
     block (a "kafka" source type carries its own transport). The signal resolves table → source."""
-    from provisa.core.change_signal import native_signal_refusal, resolve  # noqa: PLC0415
+    from provisa.core.change_signal import (  # noqa: PLC0415
+        kafka_topic_refusal,
+        native_signal_refusal,
+        resolve,
+    )
 
     sources_by_id = {s.id: s for s in config.sources}
     for table in config.tables:
@@ -1168,6 +1172,12 @@ def _validate_change_signal(config) -> None:  # REQ-932
         stype = getattr(source, "type", None) if source else None
         stype_val = getattr(stype, "value", stype)
         refused = native_signal_refusal(str(stype_val), sig) if source is not None else None
+        if refused is None and source is not None:
+            live = getattr(table, "live", None)
+            kafka = getattr(live, "kafka", None) if live is not None else None
+            refused = kafka_topic_refusal(
+                str(stype_val), sig, getattr(kafka, "topic", None) if kafka is not None else None
+            )
         if refused is not None:
             raise ValueError(f"Table {table.table_name!r}: {refused}")
         if sig not in ("debezium", "kafka"):

@@ -315,6 +315,7 @@
       "relationship_saved": "Relacionamento '{{relationship}}' salvo",
       "remigrated": "{{source}}.{{table}} migrado novamente",
       "logical_replication_refused": "O sinal de alteração nativo da origem '{{source}}' precisa da replicação lógica do seu banco de dados, e {{reason}}.",
+      "change_signal_no_topic": "A tabela '{{table}}' da origem '{{source}}' usa o sinal de alteração kafka, mas não indica nenhum topic em live.kafka.topic, então nada a atualizaria.",
       "change_signal_no_receiver": "O Provisa não recebe o sinal de alteração {{signal}} de uma origem do tipo {{type}}, portanto uma tabela da origem '{{source}}' nunca seria atualizada por ele. Capture a origem com o Debezium e use debezium.",
       "change_signal_not_honoured": "Uma fonte do tipo {{type}} ainda não pode ser verificada quanto a alterações, pelo que o sinal de alteração {{signal}} nunca seria consultado. Use ttl para a fonte '{{source}}'.",
       "sentinel_path_not_applicable": "Uma fonte do tipo {{type}} não pode ter um caminho sentinela: nenhum produtor seu pode assinalar uma alteração nos seus dados, ou a fonte não é sondada. Remova o caminho sentinela da fonte '{{source}}'.",

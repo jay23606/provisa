@@ -204,3 +204,18 @@ class TestChangeSignalValidation:
     )
     def test_native_on_a_type_whose_feed_is_followed_is_accepted(self, stype):
         _validate_change_signal(self._cfg(Source(id="s1", type=stype, database="app"), "native"))
+
+    def test_kafka_on_a_database_source_needs_the_topic_its_changes_are_read_from(self):
+        """On a non-Kafka source the kafka signal reads the table's delta topic over the
+        source's CDC transport: a table that names none would read nothing and still be counted
+        fresh, so it is refused by name."""
+        src = _source_with_cdc("mysql")
+        with pytest.raises(ValueError, match="names none"):
+            _validate_change_signal(self._cfg(src, "kafka"))
+        table = SimpleNamespace(
+            source_id=src.id,
+            table_name="orders",
+            change_signal="kafka",
+            live=SimpleNamespace(kafka=SimpleNamespace(topic="orders.deltas")),
+        )
+        _validate_change_signal(SimpleNamespace(sources=[src], tables=[table]))
