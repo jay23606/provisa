@@ -835,11 +835,13 @@ async def plan_indexes(state: Any, key: ReplicaKey, landed_at: datetime) -> None
         source, table, platform=state.federation_engine.engine.backend.dialect
     )
     pk = list(args.pk_columns or ())
-    async with state.tenant_db.acquire() as conn:
+    # The relationships are the model's (its store); the plan is this store's replica state.
+    async with state.model_db.acquire() as conn:
         joins = await replica_indexes.join_columns(conn, key, pk)
-        specs = replica_indexes.plan(
-            f"{address.schema}.{address.table}", [name for name, _ in args.columns], pk, joins
-        )
+    specs = replica_indexes.plan(
+        f"{address.schema}.{address.table}", [name for name, _ in args.columns], pk, joins
+    )
+    async with state.tenant_db.acquire() as conn:
         await replica_indexes.record_plan(conn, key, landed_at, specs)
 
 

@@ -425,6 +425,47 @@ async def test_a_relationship_added_after_a_landing_is_indexed_by_the_next(contr
     assert new[: len(old)] == old  # the indexes it had keep their names
 
 
+async def test_a_landing_is_planned_from_the_model_store_into_the_state_store(
+    control_plane, monkeypatch
+):
+    """An org keeps its model and its replica state in separate stores, each behind a handle
+    that refuses the other's tables: the plan reads the relationships through the model's
+    handle and records the indexes through the state's."""
+    from types import SimpleNamespace
+
+    from provisa.federation import replica_builds, residency
+
+    model_db, state_db = control_plane.org(holds="model"), control_plane.org(holds="state")
+    await _model(model_db)
+    landed = datetime.now(UTC)
+    await _landed(state_db, ORDERS, landed)
+    address = SimpleNamespace(schema="replicas", table="shop__orders")
+
+    async def _indexed(state, key):
+        return SimpleNamespace(), SimpleNamespace(), address, _Indexer()
+
+    monkeypatch.setattr(replica_builds, "_indexed_replica", _indexed)
+    monkeypatch.setattr(
+        residency,
+        "resolve_landing_args",
+        lambda source, table, platform: SimpleNamespace(
+            columns=[("id", "bigint"), ("customer_id", "bigint")], pk_columns=["id"]
+        ),
+    )
+    state = SimpleNamespace(
+        model_db=model_db,
+        tenant_db=state_db,
+        federation_engine=SimpleNamespace(
+            engine=SimpleNamespace(backend=SimpleNamespace(dialect="postgres"))
+        ),
+    )
+    await replica_builds.plan_indexes(state, ORDERS, landed)
+    async with state_db.acquire() as conn:
+        (due,) = await ri.due(conn)
+    assert due.key == ORDERS
+    assert [s.columns for s in due.specs] == [("id",), ("customer_id",)]
+
+
 def test_every_engine_that_keeps_its_own_replicas_says_how_they_are_indexed():
     """An engine whose replicas live somewhere of its own (it overrides ``replica_target``) says
     how they are indexed there, or that they are not: the base indexer looks at the engine's
