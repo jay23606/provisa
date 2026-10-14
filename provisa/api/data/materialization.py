@@ -1102,9 +1102,10 @@ def would_materialize_optimize(exec_sql: str, state, *, table_ids: Iterable[int]
     row_materialize table is skipped). A table registered as a (non-hot) API endpoint is ALWAYS
     live here: its TTL cache can go stale between calls.
     """
-    from provisa.compiler.nf_extractor import find_api_table_names
+    from provisa.compiler.nf_extractor import find_api_table_names, read_base
 
-    table_names = find_api_table_names(exec_sql)
+    # A read named for itself (nf_extractor.separate_parameter_reads) is its table's.
+    table_names = [read_base(tn) for tn in find_api_table_names(exec_sql)]
     if not table_names:
         return False
     hot = _StatementHot(getattr(state, "hot_manager", None), state, table_ids)
@@ -1141,6 +1142,7 @@ async def _materialize_api_to_engine_cache(
     *,
     table_ids: Iterable[int],
     ctx=None,
+    read_args: dict | None = None,
 ) -> tuple[dict, dict, dict[str, str]]:
     """Materialize API-backed tables into the engine cache (VARCHAR columns) before the engine SQL runs.
 
@@ -1155,6 +1157,10 @@ async def _materialize_api_to_engine_cache(
 
     ``table_ids`` are the registered tables the statement reads, as the pipeline resolved them:
     the hot rows substituted are theirs, and rows fetched here are held under them.
+
+    ``read_args``: each read the statement names for itself (nf_extractor.separate_parameter_reads
+    -- one table read under several sets of arguments), as (the table it reads, its arguments).
+    Such a read is answered under its own arguments and put in for itself alone.
       dropped_tables: {physical_table_name: reason} whose UNION branches should be dropped -- a
         table the query cannot address because it gives none of the table's required filter /
         path parameters. A table with no UNION to drop from survives the branch-drop, and
@@ -1192,33 +1198,37 @@ async def _materialize_api_to_engine_cache(
 
     params_of = _parameter_tables(state, table_ids)
     pipelines = _pipeline_tables(state, table_ids)
+    statement_args = nf_args
     for tn in table_names:
+        # A read named for itself is its table's, under its own arguments; its rows are put in
+        # under its own name, so the statement's other reads of the table keep theirs.
+        table, nf_args = (read_args or {}).get(tn, (tn, statement_args))
         # REQ-1986: a table read without a value for a required parameter is refused before
         # anything is sent to its source -- every source kind, one rule.
-        missing = _missing_parameters(params_of, tn, endpoints.get(tn), nf_args, ctx)
+        missing = _missing_parameters(params_of, table, endpoints.get(table), nf_args, ctx)
         if missing:
             _refuse_or_drop(exec_sql, tn, missing, dropped_tables)
             continue
-        if tn in _row_materialize_table_names:
+        if table in _row_materialize_table_names:
             continue
         # REQ-1980: a MongoDB pipeline table is run by the native reader on every engine; no
         # engine connector runs a pipeline.
-        pipeline_table = pipelines.get(_sql_name(tn))
+        pipeline_table = pipelines.get(_sql_name(table))
         if pipeline_table is not None:
             await _mat_pipeline_table(
                 tn, pipeline_table, state, cache_rewrites, values_cte_entries, nf_args
             )
             continue
         # Hot cache: inline rows as VALUES CTE — avoids cross-catalog JOIN entirely
-        entry = hot.entries.get(tn)
+        entry = hot.entries.get(table)
         if entry is not None:
             values_cte_entries[tn] = entry
             log.warning("[MAT] hot VALUES CTE for %s (%d rows inline)", tn, len(entry.rows))
             continue
 
-        ep = endpoints.get(tn)
+        ep = endpoints.get(table)
         if ep is None:
-            gql_reg, gql_tbl = _lookup_gql_remote_table(state, tn)
+            gql_reg, gql_tbl = _lookup_gql_remote_table(state, table)
             if gql_reg is not None:
                 assert gql_tbl is not None
                 assert isinstance(gql_tbl, dict)
@@ -1258,7 +1268,7 @@ async def _materialize_api_to_engine_cache(
                 )
                 continue
 
-            grpc_source_id, grpc_reg, grpc_query = _lookup_grpc_remote_table(state, tn)
+            grpc_source_id, grpc_reg, grpc_query = _lookup_grpc_remote_table(state, table)
             if grpc_reg is not None and grpc_query is not None:
                 assert grpc_source_id is not None
                 await _mat_grpc_remote_table(  # a failed fetch fails the query (REQ-1661)

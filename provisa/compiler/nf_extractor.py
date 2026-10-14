@@ -170,6 +170,94 @@ def extract_nf_args(
     return clean_sql, clean_params, nf_args
 
 
+#: The suffix a read of a parameter table is renamed with when a statement reads that table more
+#: than once under arguments of its own (:func:`separate_parameter_reads`).
+_READ_SUFFIX = re.compile(r"__nf\d+$")
+
+
+def read_base(table_name: str) -> str:
+    """The registered table a read named by :func:`separate_parameter_reads` reads."""
+    return _READ_SUFFIX.sub("", table_name)
+
+
+def _own_sources(select: exp.Select) -> dict[str, exp.Table]:  # pyright: ignore[reportPrivateImportUsage]  # lib omits __all__
+    """The tables ``select`` itself reads in its FROM and JOINs, by the name a column qualifies
+    them with (their alias, else their name)."""
+    found: dict[str, exp.Table] = {}  # pyright: ignore[reportPrivateImportUsage]  # lib omits __all__
+    from_ = select.args.get("from") or select.args.get("from_")
+    candidates = [from_.this] if from_ is not None else []
+    candidates += [join.this for join in select.args.get("joins") or []]
+    for node in candidates:
+        if isinstance(node, exp.Table) and node.name:
+            found[node.alias_or_name] = node
+    return found
+
+
+def separate_parameter_reads(
+    sql: str, parameters: Collection[str]
+) -> tuple[str, dict[str, tuple[str, dict[str, Any]]]]:  # REQ-1986, REQ-1983
+    """A statement that reads parameter tables more than once, each read under literal arguments
+    of its own -- the union of several views over one search table, each with its own phrase --
+    names each such read for itself: ``<table>__nf<k>``, keeping the name its columns are
+    qualified by, and its argument conditions taken out of its own SELECT's WHERE. Returns the
+    statement and, for each read so named, (the table it reads, its arguments by bare parameter
+    name), for the API stage to read each one under its own arguments.
+
+    A statement with at most one such read is returned as it is, with nothing named:
+    :func:`extract_nf_args` takes its arguments, as ever."""
+    if _NF_PREFIX not in sql:
+        return sql, {}
+    known = {p.lower() for p in parameters if p.startswith(_NF_PREFIX)}
+    ast = sqlglot.parse_one(sql, dialect="postgres")
+    # (the read, its arguments, the conditions holding them, the WHERE they are in)
+    reads: list[tuple[exp.Table, dict[str, Any], list[exp.Expr], exp.Where]] = []  # pyright: ignore[reportPrivateImportUsage]  # lib omits __all__
+    for select in ast.find_all(exp.Select):
+        where = select.args.get("where")
+        if where is None:
+            continue
+        sources = _own_sources(select)
+        held: dict[int, tuple[exp.Table, dict[str, Any], list[exp.Expr]]] = {}  # pyright: ignore[reportPrivateImportUsage]  # lib omits __all__
+        for cond in _flatten_and(where.this):
+            if not isinstance(cond, exp.EQ):
+                continue
+            column, value = cond.left, cond.right
+            if not (isinstance(column, exp.Column) and column.name.lower() in known):
+                column, value = cond.right, cond.left
+            if not (isinstance(column, exp.Column) and column.name.lower() in known):
+                continue
+            literal = _literal(value)
+            if literal is _NOT_LITERAL:
+                continue
+            if column.table:
+                table = sources.get(column.table)
+            else:
+                table = next(iter(sources.values())) if len(sources) == 1 else None
+            if table is None:
+                continue
+            entry = held.setdefault(id(table), (table, {}, []))
+            entry[1][column.name[len(_NF_PREFIX) :]] = literal
+            entry[2].append(cond)
+        reads += [(table, args, conds, where) for table, args, conds in held.values()]
+    if len(reads) < 2:
+        return sql, {}
+    named: dict[str, tuple[str, dict[str, Any]]] = {}
+    for k, (table, args, conds, where) in enumerate(reads, start=1):
+        base = table.name
+        if not table.alias:
+            # Its columns are qualified by its name: it keeps that name as its alias.
+            table.set("alias", exp.TableAlias(this=exp.to_identifier(base)))
+        name = f"{base}__nf{k}"
+        table.set("this", exp.to_identifier(name, quoted=table.this.quoted))
+        named[name] = (base, args)
+        keep = [c for c in _flatten_and(where.this) if all(c is not held_c for held_c in conds)]
+        rebuilt = _rebuild_and(keep)
+        if rebuilt is None:
+            where.pop()
+        else:
+            where.set("this", rebuilt)
+    return ast.sql(dialect="postgres"), named
+
+
 @functools.lru_cache(maxsize=4096)
 def _table_names(sql: str) -> tuple[str, ...]:
     ast = sqlglot.parse_one(sql, dialect="postgres")
