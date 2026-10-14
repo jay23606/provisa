@@ -757,6 +757,12 @@
           "cache_write": "Cache-Schreiben"
         }
       }
+    },
+    "demo": {
+      "setup_completed": {
+        "label": "Bereits eingerichtete Demos",
+        "help": "Die benannten Demos, deren Einrichtung in dieser Bereitstellung gelaufen ist. Eine hier aufgeführte Demo wird beim Start nicht erneut eingerichtet; entfernen Sie sie, um sie beim nächsten Start erneut einzurichten."
+      }
     }
   }
 }

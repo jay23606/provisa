@@ -757,6 +757,12 @@
           "cache_write": "Escritura de caché"
         }
       }
+    },
+    "demo": {
+      "setup_completed": {
+        "label": "Demos ya configuradas",
+        "help": "Las demos con nombre cuya configuración se ha ejecutado en esta implementación. Una demo que figura aquí no se vuelve a configurar al iniciarse; quítela para configurarla de nuevo en su próximo inicio."
+      }
     }
   }
 }

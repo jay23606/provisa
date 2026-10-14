@@ -1,0 +1,305 @@
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+#
+# The WHOLE config of the named demo "sonnets" (start-ui-install.sh --demo sonnets; REQ-2016):
+# Shakespeare's 154 sonnets in Postgres, embedded into Qdrant, searched by meaning, grown into a
+# graph. docker-compose.yml brings up the database and an empty collection; setup.yaml then runs,
+# once, the commands below that fill the collection and the echo table and build the theme views.
+#
+#   sonnets  the sonnets' Postgres: sonnet, line, theme, and echo (empty until link_echoes runs).
+#   vectors  Qdrant: sonnet_lines, one point a line, its vector the line's embedding; and
+#            lines_like, a search of it by a phrase, read live under its arguments.
+#
+# embed_lines writes every line's embedding into sonnet_lines; link_echoes writes each line's three
+# nearest lines in other sonnets into echo. Each theme view stores one fixed search, joined back
+# to the lines it found. The relationships make the lines, sonnets and themes a graph.
+auth:
+  assignments_source: provisa
+  default_assignments:
+  - domain_id: '*'
+    role_id: org_admin
+  provider: none
+cache:
+  default_ttl: 300
+  enabled: true
+domains:
+- id: sonnets
+  description: Shakespeare's 154 sonnets, line by line, with the embedding of every line and what
+    their meanings tie together -- the themes they share and the lines that echo each other
+federation_engine: duckdb
+naming:
+  domain_prefix: true
+  rules: []
+roles: []
+server:
+  limits:
+    default_row_limit: 100
+    request_timeout: 120
+    trino_query_timeout: 120
+vector_models:
+# A local sentence-transformers model: no key, no network once it is cached (provisa[vector],
+# which demo.yaml declares).
+- id: sentence-transformers/all-MiniLM-L6-v2
+  provider: huggingface
+  dimensions: 384
+  enabled: true
+sources:
+- id: sonnets
+  type: postgresql
+  host: ${env:SONNETS_PG_HOST:-localhost}
+  port: ${env:SONNETS_PG_PORT:-28532}
+  database: sonnets
+  username: provisa
+  password: provisa
+  description: Shakespeare's sonnets, a row a sonnet and a row a line, from Project Gutenberg
+- id: vectors
+  type: qdrant
+  host: http://${env:SONNETS_QDRANT_HOST:-localhost}:${env:SONNETS_QDRANT_PORT:-28533}
+  description: The vector store holding the embedding of every line
+tables:
+- source_id: sonnets
+  domain_id: sonnets
+  schema: sonnets
+  table: sonnet
+  description: One row a sonnet
+  columns:
+  - {name: number, data_type: integer, is_primary_key: true, description: 'The sonnet''s number, 1 to 154', visible_to: [org_admin]}
+  - {name: first_line, data_type: varchar, description: The sonnet's first line, by which it is known, visible_to: [org_admin]}
+  - {name: sequence, data_type: varchar, description: 'Fair Youth for sonnets 1 to 126, Dark Lady for 127 to 154', visible_to: [org_admin]}
+- source_id: sonnets
+  domain_id: sonnets
+  schema: sonnets
+  table: line
+  description: One row a line of a sonnet
+  columns:
+  - {name: id, data_type: integer, is_primary_key: true, description: 'The line''s id: its sonnet''s number times 100 plus its line number, so 3613 is sonnet 36, line 13', visible_to: [org_admin]}
+  - {name: sonnet_number, data_type: integer, description: The sonnet the line is in, visible_to: [org_admin]}
+  - {name: line_no, data_type: integer, description: 'The line''s place in its sonnet, from 1', visible_to: [org_admin]}
+  - {name: text, data_type: varchar, description: The line's words, visible_to: [org_admin]}
+- source_id: sonnets
+  domain_id: sonnets
+  schema: sonnets
+  table: theme
+  description: A theme the lines are searched for, by a phrase of its own
+  columns:
+  - {name: id, data_type: varchar, is_primary_key: true, description: The theme's id, visible_to: [org_admin]}
+  - {name: name, data_type: varchar, description: The theme's name, visible_to: [org_admin]}
+  - {name: phrase, data_type: varchar, description: The phrase the lines nearest the theme are found by, visible_to: [org_admin]}
+- source_id: sonnets
+  domain_id: sonnets
+  schema: sonnets
+  table: echo
+  description: Each line's three nearest lines in other sonnets, by meaning, with their similarity;
+    written by link_echoes
+  columns:
+  - {name: line_id, data_type: integer, is_primary_key: true, description: The line, visible_to: [org_admin], writable_by: [org_admin]}
+  - {name: echo_line_id, data_type: integer, is_primary_key: true, description: A line of another sonnet near it in meaning, visible_to: [org_admin], writable_by: [org_admin]}
+  - {name: score, data_type: double, description: 'How near in meaning, by cosine similarity: 1 the same', visible_to: [org_admin], writable_by: [org_admin]}
+- source_id: vectors
+  domain_id: sonnets
+  schema: default
+  table: sonnet_lines
+  description: One point a line, its vector the embedding of the line's words; written by embed_lines
+  columns:
+  - {name: id, data_type: bigint, path: '@id', is_primary_key: true, description: The line's id, visible_to: [org_admin], writable_by: [org_admin]}
+  - {name: sonnet_number, data_type: integer, description: The sonnet the line is in, visible_to: [org_admin], writable_by: [org_admin]}
+  - {name: text_vec, data_type: json, path: '@vector.text', embedding: true, embedding_model: sentence-transformers/all-MiniLM-L6-v2, description: The embedding of the line's words, visible_to: [org_admin], writable_by: [org_admin]}
+- source_id: vectors
+  domain_id: sonnets
+  schema: default
+  table: lines_like
+  description: The lines nearest a phrase in meaning, nearest first, searched in Qdrant under its
+    arguments
+  query_template: '{"collection": "sonnet_lines", "query": "@query", "using": "text", "model": "sentence-transformers/all-MiniLM-L6-v2", "limit": "@k"}'
+  columns:
+  - {name: id, data_type: bigint, path: '@id', description: The line's id, visible_to: [org_admin]}
+  - {name: score, data_type: double, path: '@score', description: 'How near the line is to the phrase, by cosine similarity: 1 the same', visible_to: [org_admin]}
+  - {name: sonnet_number, data_type: integer, description: The sonnet the line is in, visible_to: [org_admin]}
+  - {name: _nf_query, data_type: array(double), native_filter_type: query_arg, native_filter_required: true, description: The phrase to search for, visible_to: []}
+  - {name: _nf_k, data_type: integer, native_filter_type: query_arg, native_filter_required: false, description: How many lines to find, visible_to: []}
+functions:
+# Every line's embedding, written to Qdrant: embed() embeds each line's words with the model, and
+# the rows are written to the collection through its write route.
+- name: embed_lines
+  function_name: embed_lines
+  impl_kind: statement
+  domain_id: sonnets
+  description: Embed every line of the sonnets and write each embedding to the sonnet_lines collection
+  source_id: ''
+  returns: ''
+  visible_to: [org_admin]
+  binding:
+    sql: >-
+      INSERT INTO "sonnets"."sonnet_lines" (id, sonnet_number, text_vec)
+      SELECT l.id, l.sonnet_number, embed('sentence-transformers/all-MiniLM-L6-v2', l.text)
+      FROM "sonnets"."line" AS l
+# Each line's three nearest lines in other sonnets, as the vector store finds them, written to
+# the echo table (echoes.py).
+- name: link_echoes
+  function_name: link_echoes
+  impl_kind: python
+  kind: mutation
+  domain_id: sonnets
+  description: Find each line's three nearest lines in other sonnets in the vector store, and write them with their similarity to the echo table
+  source_id: ''
+  returns: ''
+  visible_to: [org_admin]
+  binding:
+    callable: demo.named.sonnets.echoes:link_echoes
+views:
+# The lines nearest "the ravages of time": one fixed search, stored, joined back to its lines.
+- id: theme_time
+  domain_id: sonnets
+  materialize: true
+  description: The twenty lines nearest in meaning to the phrase "the ravages of time", nearest first
+  sql: >-
+    SELECT l.id AS line_id, l.sonnet_number, l.line_no, l.text, s.score, 'time' AS theme_id
+    FROM "sonnets"."lines_like" AS s
+    JOIN "sonnets"."line" AS l ON l.id = s.id
+    WHERE s._nf_query = 'the ravages of time' AND s._nf_k = 20
+  columns:
+  - {name: line_id, data_type: integer, description: The line, visible_to: [org_admin]}
+  - {name: sonnet_number, data_type: integer, description: The sonnet the line is in, visible_to: [org_admin]}
+  - {name: line_no, data_type: integer, description: 'The line''s place in its sonnet, from 1', visible_to: [org_admin]}
+  - {name: text, data_type: varchar, description: The line's words, visible_to: [org_admin]}
+  - {name: score, data_type: double, description: 'How near the line is to the theme''s phrase: 1 the same', visible_to: [org_admin]}
+  - {name: theme_id, data_type: varchar, description: The theme, visible_to: [org_admin]}
+# The lines nearest "beauty": one fixed search, stored, joined back to its lines.
+- id: theme_beauty
+  domain_id: sonnets
+  materialize: true
+  description: The twenty lines nearest in meaning to the phrase "beauty", nearest first
+  sql: >-
+    SELECT l.id AS line_id, l.sonnet_number, l.line_no, l.text, s.score, 'beauty' AS theme_id
+    FROM "sonnets"."lines_like" AS s
+    JOIN "sonnets"."line" AS l ON l.id = s.id
+    WHERE s._nf_query = 'beauty' AND s._nf_k = 20
+  columns:
+  - {name: line_id, data_type: integer, description: The line, visible_to: [org_admin]}
+  - {name: sonnet_number, data_type: integer, description: The sonnet the line is in, visible_to: [org_admin]}
+  - {name: line_no, data_type: integer, description: 'The line''s place in its sonnet, from 1', visible_to: [org_admin]}
+  - {name: text, data_type: varchar, description: The line's words, visible_to: [org_admin]}
+  - {name: score, data_type: double, description: 'How near the line is to the theme''s phrase: 1 the same', visible_to: [org_admin]}
+  - {name: theme_id, data_type: varchar, description: The theme, visible_to: [org_admin]}
+# The lines nearest "mortality and death": one fixed search, stored, joined back to its lines.
+- id: theme_mortality
+  domain_id: sonnets
+  materialize: true
+  description: The twenty lines nearest in meaning to the phrase "mortality and death", nearest first
+  sql: >-
+    SELECT l.id AS line_id, l.sonnet_number, l.line_no, l.text, s.score, 'mortality' AS theme_id
+    FROM "sonnets"."lines_like" AS s
+    JOIN "sonnets"."line" AS l ON l.id = s.id
+    WHERE s._nf_query = 'mortality and death' AND s._nf_k = 20
+  columns:
+  - {name: line_id, data_type: integer, description: The line, visible_to: [org_admin]}
+  - {name: sonnet_number, data_type: integer, description: The sonnet the line is in, visible_to: [org_admin]}
+  - {name: line_no, data_type: integer, description: 'The line''s place in its sonnet, from 1', visible_to: [org_admin]}
+  - {name: text, data_type: varchar, description: The line's words, visible_to: [org_admin]}
+  - {name: score, data_type: double, description: 'How near the line is to the theme''s phrase: 1 the same', visible_to: [org_admin]}
+  - {name: theme_id, data_type: varchar, description: The theme, visible_to: [org_admin]}
+# The lines nearest "jealousy": one fixed search, stored, joined back to its lines.
+- id: theme_jealousy
+  domain_id: sonnets
+  materialize: true
+  description: The twenty lines nearest in meaning to the phrase "jealousy", nearest first
+  sql: >-
+    SELECT l.id AS line_id, l.sonnet_number, l.line_no, l.text, s.score, 'jealousy' AS theme_id
+    FROM "sonnets"."lines_like" AS s
+    JOIN "sonnets"."line" AS l ON l.id = s.id
+    WHERE s._nf_query = 'jealousy' AND s._nf_k = 20
+  columns:
+  - {name: line_id, data_type: integer, description: The line, visible_to: [org_admin]}
+  - {name: sonnet_number, data_type: integer, description: The sonnet the line is in, visible_to: [org_admin]}
+  - {name: line_no, data_type: integer, description: 'The line''s place in its sonnet, from 1', visible_to: [org_admin]}
+  - {name: text, data_type: varchar, description: The line's words, visible_to: [org_admin]}
+  - {name: score, data_type: double, description: 'How near the line is to the theme''s phrase: 1 the same', visible_to: [org_admin]}
+  - {name: theme_id, data_type: varchar, description: The theme, visible_to: [org_admin]}
+# The lines nearest "my verse shall live": one fixed search, stored, joined back to its lines.
+- id: theme_verse
+  domain_id: sonnets
+  materialize: true
+  description: The twenty lines nearest in meaning to the phrase "my verse shall live", nearest first
+  sql: >-
+    SELECT l.id AS line_id, l.sonnet_number, l.line_no, l.text, s.score, 'verse' AS theme_id
+    FROM "sonnets"."lines_like" AS s
+    JOIN "sonnets"."line" AS l ON l.id = s.id
+    WHERE s._nf_query = 'my verse shall live' AND s._nf_k = 20
+  columns:
+  - {name: line_id, data_type: integer, description: The line, visible_to: [org_admin]}
+  - {name: sonnet_number, data_type: integer, description: The sonnet the line is in, visible_to: [org_admin]}
+  - {name: line_no, data_type: integer, description: 'The line''s place in its sonnet, from 1', visible_to: [org_admin]}
+  - {name: text, data_type: varchar, description: The line's words, visible_to: [org_admin]}
+  - {name: score, data_type: double, description: 'How near the line is to the theme''s phrase: 1 the same', visible_to: [org_admin]}
+  - {name: theme_id, data_type: varchar, description: The theme, visible_to: [org_admin]}
+# Every theme's lines together: what the EVOKES relationship walks.
+- id: evokes
+  domain_id: sonnets
+  description: Each line a theme's search found, with how near it is to the theme
+  sql: >-
+    SELECT line_id, theme_id, score FROM "sonnets"."view_theme_time"
+    UNION ALL
+    SELECT line_id, theme_id, score FROM "sonnets"."view_theme_beauty"
+    UNION ALL
+    SELECT line_id, theme_id, score FROM "sonnets"."view_theme_mortality"
+    UNION ALL
+    SELECT line_id, theme_id, score FROM "sonnets"."view_theme_jealousy"
+    UNION ALL
+    SELECT line_id, theme_id, score FROM "sonnets"."view_theme_verse"
+  columns:
+  - {name: line_id, data_type: integer, description: The line, visible_to: [org_admin]}
+  - {name: theme_id, data_type: varchar, description: The theme, visible_to: [org_admin]}
+  - {name: score, data_type: double, description: 'How near the line is to the theme''s phrase: 1 the same', visible_to: [org_admin]}
+# Each echo with the words of both lines and the sonnets they are in.
+- id: echo_lines
+  domain_id: sonnets
+  enable_aggregates: true
+  enable_group_by: true
+  description: Each line's nearest lines in other sonnets, with both lines' words and sonnets, and how near they are
+  sql: >-
+    SELECT e.score, a.sonnet_number AS sonnet, a.line_no, a.text,
+      b.sonnet_number AS echo_sonnet, b.line_no AS echo_line_no, b.text AS echo_text
+    FROM "sonnets"."echo" AS e
+    JOIN "sonnets"."line" AS a ON a.id = e.line_id
+    JOIN "sonnets"."line" AS b ON b.id = e.echo_line_id
+  columns:
+  - {name: score, data_type: double, description: 'How near in meaning the two lines are: 1 the same', visible_to: [org_admin]}
+  - {name: sonnet, data_type: integer, description: The sonnet the line is in, visible_to: [org_admin]}
+  - {name: line_no, data_type: integer, description: 'The line''s place in its sonnet', visible_to: [org_admin]}
+  - {name: text, data_type: varchar, description: The line's words, visible_to: [org_admin]}
+  - {name: echo_sonnet, data_type: integer, description: The other sonnet, which echoes it, visible_to: [org_admin]}
+  - {name: echo_line_no, data_type: integer, description: 'The echoing line''s place in its sonnet', visible_to: [org_admin]}
+  - {name: echo_text, data_type: varchar, description: The echoing line's words, visible_to: [org_admin]}
+# Each line a theme's search found, with the theme's name and the sequence of the sonnet it is in.
+- id: theme_lines
+  domain_id: sonnets
+  enable_aggregates: true
+  enable_group_by: true
+  description: The lines each theme's search found, with the theme, the sonnet's sequence and how near each line is
+  sql: >-
+    SELECT t.name AS theme, s.sequence, l.sonnet_number AS sonnet, l.line_no, l.text, e.score
+    FROM "sonnets"."view_evokes" AS e
+    JOIN "sonnets"."theme" AS t ON t.id = e.theme_id
+    JOIN "sonnets"."line" AS l ON l.id = e.line_id
+    JOIN "sonnets"."sonnet" AS s ON s.number = l.sonnet_number
+  columns:
+  - {name: theme, data_type: varchar, description: The theme, visible_to: [org_admin]}
+  - {name: sequence, data_type: varchar, description: 'Fair Youth or Dark Lady: the sequence of the sonnet the line is in', visible_to: [org_admin]}
+  - {name: sonnet, data_type: integer, description: The sonnet the line is in, visible_to: [org_admin]}
+  - {name: line_no, data_type: integer, description: 'The line''s place in its sonnet', visible_to: [org_admin]}
+  - {name: text, data_type: varchar, description: The line's words, visible_to: [org_admin]}
+  - {name: score, data_type: double, description: 'How near the line is to the theme''s phrase: 1 the same', visible_to: [org_admin]}
+relationships:
+- {id: line-in-sonnet, alias: IN, cardinality: many-to-one, source_table_id: line, source_column: sonnet_number, target_table_id: sonnet, target_column: number}
+- {id: line-echoes-line, alias: ECHOES, cardinality: one-to-many, source_table_id: line, source_column: id, target_table_id: line, target_column: id, via_table: echo, via_source_column: line_id, via_target_column: echo_line_id, via_label_source: fixed}
+- {id: line-evokes-theme, alias: EVOKES, cardinality: one-to-many, source_table_id: line, source_column: id, target_table_id: theme, target_column: id, via_table: view_evokes, via_source_column: line_id, via_target_column: theme_id, via_label_source: fixed}
+- {id: echo-of-line, alias: ECHO_OF, graphql_alias: line, cardinality: many-to-one, source_table_id: echo, source_column: line_id, target_table_id: line, target_column: id}
+- {id: echo-to-line, alias: ECHOED_BY, graphql_alias: echoLine, cardinality: many-to-one, source_table_id: echo, source_column: echo_line_id, target_table_id: line, target_column: id}
+- {id: search-to-line, alias: FOUND, cardinality: many-to-one, source_table_id: lines_like, source_column: id, target_table_id: line, target_column: id}
+- {id: lines-self, alias: VECTOR_OF, cardinality: one-to-one, source_table_id: sonnet_lines, source_column: id, target_table_id: line, target_column: id}

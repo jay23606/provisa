@@ -757,6 +757,12 @@
           "cache_write": "Gravação de cache"
         }
       }
+    },
+    "demo": {
+      "setup_completed": {
+        "label": "Demos já configuradas",
+        "help": "As demos nomeadas cuja configuração já foi executada nesta implantação. Uma demo listada aqui não é configurada de novo ao iniciar; remova-a para configurá-la de novo no próximo início."
+      }
     }
   }
 }

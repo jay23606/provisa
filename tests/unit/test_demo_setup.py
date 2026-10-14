@@ -1,0 +1,167 @@
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+"""REQ-2016: a named demo's setup.yaml runs once per control plane, in order, through the API; the
+first step that fails stops it, naming the step. A demo's demo.yaml names the optional groups it
+needs installed, and start-ui-install.sh installs them for that demo alone."""
+
+# Requirements: REQ-2016
+
+from __future__ import annotations
+
+import importlib.util
+import json
+from pathlib import Path
+
+import httpx
+import pytest
+import yaml
+
+_REPO = Path(__file__).resolve().parents[2]
+_LAUNCHER = (_REPO / "start-ui-install.sh").read_text()
+
+
+def _script(name: str):
+    spec = importlib.util.spec_from_file_location(name, _REPO / "scripts" / f"{name}.py")
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+setup = _script("run_demo_setup")
+extras = _script("demo_extras")
+
+
+class _Server:
+    """The API calls a setup makes, answered as a server answers them, and recorded."""
+
+    def __init__(self, done: list[str], fail: str | None = None) -> None:
+        self.done = done
+        self.fail = fail
+        self.calls: list[str] = []
+        self.stored: list | None = None
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path == "/admin/settings/catalog" and request.method == "GET":
+            setting = {"key": setup.SETTING, "value": self.done}
+            return httpx.Response(200, json={"cards": [{"id": "bootstrap", "settings": [setting]}]})
+        if path == "/admin/settings/catalog":
+            self.stored = json.loads(request.content)["values"][setup.SETTING]
+            return httpx.Response(200, json={"updated": [setup.SETTING]})
+        query = json.loads(request.content)["query"]
+        if "__schema" in query:
+            fields = [
+                {"name": "sonnets__embedLines", "type": {"kind": "SCALAR", "name": "JSON"}},
+                {"name": "sonnets__linkEchoes", "type": {"kind": "SCALAR", "name": "JSON"}},
+            ]
+            return httpx.Response(
+                200, json={"data": {"__schema": {"mutationType": {"fields": fields}}}}
+            )
+        self.calls.append(query)
+        if self.fail is not None and self.fail in query:
+            return httpx.Response(200, json={"errors": [{"message": "it broke"}]})
+        if "refreshMv" in query:
+            return httpx.Response(
+                200, json={"data": {"refreshMv": {"success": True, "message": "refreshed"}}}
+            )
+        field = query.split("{", 1)[1].split()[0]
+        return httpx.Response(200, json={"data": {field: [{"rows_affected": 3}]}})
+
+
+@pytest.fixture
+def demo(tmp_path: Path) -> Path:
+    home = tmp_path / "sonnets"
+    home.mkdir()
+    (home / "setup.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "steps": [
+                    {"command": "embed_lines"},
+                    {"command": "link_echoes"},
+                    {"refresh": "theme_time"},
+                ]
+            }
+        )
+    )
+    return home
+
+
+def _run(monkeypatch, demo: Path, server: _Server) -> int:
+    real = httpx.Client
+
+    def _client(**kw):
+        return real(transport=httpx.MockTransport(server), **kw)
+
+    monkeypatch.setattr(setup.httpx, "Client", _client)
+    return setup.run(demo, "http://provisa.test")
+
+
+def test_the_steps_run_in_order_and_the_demo_is_marked_set_up(monkeypatch, demo):
+    server = _Server(done=["weblogs"])
+    assert _run(monkeypatch, demo, server) == 0
+    assert [c.split("{", 2)[1].split()[0] for c in server.calls] == [
+        "sonnets__embedLines",
+        "sonnets__linkEchoes",
+        "refreshMv(mvId:",
+    ]
+    assert 'refreshMv(mvId: "view-view_theme_time")' in server.calls[2]
+    assert server.stored == ["weblogs", "sonnets"]
+
+
+def test_a_demo_already_set_up_runs_nothing(monkeypatch, demo):
+    server = _Server(done=["sonnets"])
+    assert _run(monkeypatch, demo, server) == 0
+    assert server.calls == [] and server.stored is None
+
+
+def test_the_first_step_that_fails_stops_the_run_naming_it(monkeypatch, demo, capsys):
+    server = _Server(done=[], fail="linkEchoes")
+    assert _run(monkeypatch, demo, server) == 1
+    assert len(server.calls) == 2  # the view is never built
+    assert server.stored is None  # and the demo is not marked set up
+    assert "{'command': 'link_echoes'}" in capsys.readouterr().err
+
+
+def test_a_step_that_is_neither_a_command_nor_a_refresh_is_refused(tmp_path):
+    (tmp_path / "setup.yaml").write_text(yaml.safe_dump({"steps": [{"sql": "SELECT 1"}]}))
+    with pytest.raises(SystemExit, match="'command: <name>' or 'refresh: <view>'"):
+        setup.steps(tmp_path)
+
+
+def test_a_demo_with_no_setup_has_nothing_to_run(tmp_path):
+    assert setup.steps(tmp_path) == []
+
+
+def test_the_sonnets_setup_names_its_own_commands_and_views():
+    home = _REPO / "demo" / "named" / "sonnets"
+    config = yaml.safe_load((home / "config.yaml").read_text())
+    commands = {f["name"] for f in config["functions"]}
+    stored = {v["id"] for v in config["views"] if v.get("materialize")}
+    for step in setup.steps(home):
+        if "command" in step:
+            assert step["command"] in commands, step
+        else:
+            assert step["refresh"] in stored, step
+
+
+def test_a_demo_s_extras_are_the_packages_of_the_groups_it_names(tmp_path):
+    assert extras.requirements(_REPO / "demo" / "named" / "sonnets") == ["sentence-transformers"]
+    assert extras.requirements(_REPO / "demo" / "named" / "weblogs") == []
+    (tmp_path / "demo.yaml").write_text("extras: [nosuch]\n")
+    with pytest.raises(SystemExit, match="'nosuch'"):
+        extras.requirements(tmp_path)
+
+
+def test_the_launcher_installs_a_demo_s_extras_before_the_server_and_sets_it_up_after():
+    install = _LAUNCHER.index("scripts/demo_extras.py")
+    started = _LAUNCHER.index('"$SCRIPT_DIR/.venv/bin/uvicorn" main:app')
+    healthy = _LAUNCHER.index('echo "Backend healthy (PID $BACKEND_PID)"')
+    set_up = _LAUNCHER.index("scripts/run_demo_setup.py")
+    assert install < started < healthy < set_up

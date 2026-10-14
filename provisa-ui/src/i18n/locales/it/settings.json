@@ -757,6 +757,12 @@
           "cache_write": "Scrittura cache"
         }
       }
+    },
+    "demo": {
+      "setup_completed": {
+        "label": "Demo già configurate",
+        "help": "Le demo con nome la cui configurazione è stata eseguita su questa installazione. Una demo elencata qui non viene riconfigurata all'avvio; rimuovila per configurarla di nuovo al prossimo avvio."
+      }
     }
   }
 }

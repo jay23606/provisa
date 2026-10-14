@@ -1,0 +1,14 @@
+# The sonnets each theme runs through most: for each theme and sonnet, how many of its lines the
+# theme's search found.
+query SonnetsAThemeRunsThrough {
+  s__viewThemeLinesGroupBy(
+    by: [theme, sonnet]
+    order_by: [{ aggregate: { count: desc } }, { groupKey: { sonnet: asc } }]
+    limit: 15
+  ) {
+    groupKey
+    aggregate {
+      count
+    }
+  }
+}

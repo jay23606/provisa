@@ -1,0 +1,16 @@
+# Which themes run through which sequence: for each theme, how many of the lines its search found
+# are in the Fair Youth sonnets and how many in the Dark Lady sonnets.
+query ThemesBySequence {
+  s__viewThemeLinesGroupBy(
+    by: [theme, sequence]
+    order_by: [{ groupKey: { theme: asc } }, { groupKey: { sequence: asc } }]
+  ) {
+    groupKey
+    aggregate {
+      count
+      avg {
+        score
+      }
+    }
+  }
+}

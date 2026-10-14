@@ -976,6 +976,17 @@ DECLARED: list[Setting] = [
         editable=False,
         readonly_reason="read_before_control_plane",
     ),
+    # REQ-2016: the named demos whose setup.yaml has run against this control plane
+    # (scripts/run_demo_setup.py adds a demo once every step succeeded). A demo listed here is not
+    # set up again; taking it off the list sets it up again on the next start.
+    Setting(
+        key="demo.setup_completed",
+        card="bootstrap",
+        type="list",
+        effect="live",  # read when a demo's setup is about to run
+        req="REQ-2016",
+        default=(),
+    ),
     Setting(
         key="bootstrap.demo",
         card="bootstrap",

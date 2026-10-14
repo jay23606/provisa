@@ -81910,3 +81910,71 @@
     local copy, so join indexes there do not speed joins (ruling (a): index the store file, leave the copy).
     Measured: a 2,000,000-row DuckDB replica takes 0.87 s for its key and 0.55 s for a join index (one broker
     operation each).'
+- id: REQ-2016
+  status: in-progress
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI
+  feature: product-tour-and-demos-named-demos
+  priority: SHOULD
+  type: behavioral
+  description: 'The sonnets named demo: Shakespeare''s 154 sonnets in Postgres, embedded into Qdrant, searched
+    by meaning, grown into a graph. Its database holds a row a sonnet (number, first line, sequence: Fair Youth
+    for 1 to 126, Dark Lady for 127 to 154), a row a line (loaded from the text of Project Gutenberg eBook #1041,
+    committed with the demo), the five themes it searches for, and an echo table. The statement command embed_lines
+    writes every line''s embedding (sentence-transformers/all-MiniLM-L6-v2, a local model) to the Qdrant collection
+    sonnet_lines through embed() and the collection''s write route. The search table lines_like is read live in
+    Qdrant under its arguments (a phrase, a count). Five materialized views each store one fixed search joined
+    back to the lines it found, with its score. The python command link_echoes asks the vector store, for each
+    line, for its three nearest lines in other sonnets and writes them, with their similarity, to the echo table
+    through Provisa as the caller. Relationships make a graph: Line IN Sonnet, Line EVOKES Theme (through the
+    theme views), Line ECHOES Line (through the echo table, with its score). Its tour opens on what the demo is
+    and the question it asks -- which themes run through the sonnets, and where Shakespeare echoes himself -- says
+    in each step what Provisa does, leads with the echo network (sonnets 36 and 96 end on the same couplet) and
+    then the themes, and asks the question on two or three surfaces, Cypher for the echo network, before the
+    stored Polly answer. (SETUP:) A named demo may ship setup.yaml, an ordered list of its own commands
+    (command: <name>, called as org_admin with no arguments) and materialized-view builds (refresh: <view>),
+    run once per control plane through the API after the server is healthy, by scripts/run_demo_setup.py:
+    start-ui-install.sh runs it, and a demo''s template build runs the same list. A demo whose name is in the
+    operator setting demo.setup_completed is not set up again; the name is added when every step has succeeded,
+    and removing it sets the demo up again on its next start. The first step that fails stops the run, naming
+    the step; nothing is retried. (EXTRAS:) A named demo names in its demo.yaml the optional dependency groups
+    it needs (extras: [vector]); start-ui-install.sh installs them for that demo alone, and every other start
+    installs nothing more.'
+  use_case: 'A visitor opens the sonnets demo and sees one model take a corpus from rows to vectors to a
+    governed search to a graph: the themes the sonnets share and the lines where Shakespeare repeats himself,
+    walked in Cypher.'
+  scenario: 'Given the sonnets demo started for the first time
+
+    When the server is healthy
+
+    Then its setup embeds every line into Qdrant, links each line to its three nearest lines in other sonnets,
+    and builds the five theme views, and marks the demo set up
+
+    When the visitor runs the tour''s Cypher of the echo network
+
+    Then line 13 of sonnet 36 and line 13 of sonnet 96 echo each other with a similarity near 0.99
+
+    Given the demo started again on the same control plane
+
+    Then its setup runs nothing'
+  related_reqs: [REQ-1858, REQ-2010, REQ-2012, REQ-2001, REQ-2002, REQ-1983, REQ-2000, REQ-1586]
+  code:
+  - demo/named/sonnets/config.yaml
+  - demo/named/sonnets/echoes.py
+  - demo/named/sonnets/setup.yaml
+  - scripts/run_demo_setup.py
+  - scripts/demo_extras.py
+  - start-ui-install.sh
+  - provisa/core/settings_catalog.py
+  tests:
+  - tests/unit/test_demo_setup.py
+  - tests/unit/test_named_demo_tour.py
+  notes: 'Lead, 2026-10-14: the demo (Postgres sonnets, embed_lines, lines_like, theme MVs, link_echoes, the
+    three relationships, 4-6 example queries with a Cypher of cross-sonnet echoes); no governance or role angle.
+    Offline check: the Fair Youth / Dark Lady split does not show in unsupervised clusters, so the tour makes no
+    clustering claim and leads with the echo network. Maintainer, through the lead: setup.yaml run once per
+    control plane through the API by the launcher and the template build, marked in a deployment setting, a
+    failed step stopping the run by name with no retry; the vector extra installed only for a demo that declares
+    it. link_echoes is a python command, because Qdrant is live-only and a search table takes literal arguments
+    (no per-row search).'

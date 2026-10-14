@@ -757,6 +757,12 @@
           "cache_write": "Cache schrijven"
         }
       }
+    },
+    "demo": {
+      "setup_completed": {
+        "label": "Al ingerichte demo's",
+        "help": "De benoemde demo's waarvan de inrichting op deze implementatie is uitgevoerd. Een demo die hier staat, wordt bij het starten niet opnieuw ingericht; verwijder hem om hem bij de volgende start opnieuw in te richten."
+      }
     }
   }
 }

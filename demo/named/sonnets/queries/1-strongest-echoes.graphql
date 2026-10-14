@@ -1,0 +1,13 @@
+# Where Shakespeare echoes himself: the pairs of lines in different sonnets nearest in meaning,
+# nearest first, each with the words of both lines.
+query StrongestEchoes {
+  s__viewEchoLines(order_by: [{ score: desc }], limit: 10) {
+    score
+    sonnet
+    lineNo
+    text
+    echoSonnet
+    echoLineNo
+    echoText
+  }
+}

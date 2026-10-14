@@ -309,6 +309,16 @@ if [ -n "$DEMO_NAME" ]; then
       docker compose -f "$_NAMED_DIR/docker-compose.yml" up seeder
     fi
   fi
+  # REQ-2016: the optional dependency groups the demo's demo.yaml names (extras:), installed for
+  # this demo alone; any other start installs nothing more.
+  if [ -f "$_NAMED_DIR/demo.yaml" ]; then
+    _DEMO_REQS="$("$SCRIPT_DIR/.venv/bin/python" "$SCRIPT_DIR/scripts/demo_extras.py" "$_NAMED_DIR")" || exit 1
+    if [ -n "$_DEMO_REQS" ]; then
+      echo "Named demo '$DEMO_NAME': installing what it needs: $(echo $_DEMO_REQS)"
+      # shellcheck disable=SC2086
+      "$SCRIPT_DIR/.venv/bin/python" -m pip install --quiet $_DEMO_REQS || exit 1
+    fi
+  fi
   if [ "$_NAMED_WHOLE" = true ]; then
     # config.yaml is the whole config and already PROVISA_CONFIG (or the --source wrapper over it).
     echo "Config for named demo '$DEMO_NAME': $PROVISA_CONFIG"
@@ -788,6 +798,16 @@ else
   echo "Backend did not become healthy. Last logs:"
   tail -20 "$LOG_DIR/backend.log"
   exit 1
+fi
+# REQ-2016: a named demo's setup.yaml (its commands and view builds) runs once against this
+# control plane, now that the server answers. A step that fails stops the start, naming it.
+if [ -n "$DEMO_NAME" ] && [ -f "$SCRIPT_DIR/demo/named/$DEMO_NAME/setup.yaml" ]; then
+  echo "Named demo '$DEMO_NAME': running its setup (once per control plane)..."
+  if ! "$SCRIPT_DIR/.venv/bin/python" "$SCRIPT_DIR/scripts/run_demo_setup.py" \
+       "$SCRIPT_DIR/demo/named/$DEMO_NAME" --url "http://localhost:$PROVISA_API_PORT"; then
+    echo "Named demo '$DEMO_NAME': its setup failed (above). Backend log: $LOG_DIR/backend.log"
+    exit 1
+  fi
 fi
 
 echo "Starting Provisa UI on port 3000..."
