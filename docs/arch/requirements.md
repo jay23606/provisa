@@ -23235,3 +23235,135 @@ A replica is indexed as its table is used: its declared primary key, enforced as
 **Code:** `provisa/federation/replica_indexes.py`, `provisa/federation/replica_state.py`, `provisa/federation/replica_runner.py`, `provisa/federation/replica_builds.py`, `provisa/federation/replica_target.py`, `provisa/federation/materialize_broker.py`
 
 **Tests:** `tests/unit/federation/test_replica_indexes.py`, `tests/unit/federation/test_replica_index_stores.py`
+
+### REQ-2018 · Source Connectors {#REQ-2018}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+A table on a Prometheus source can be registered from a native PromQL query: an instant or range PromQL query (e.g. rate(http_requests_total{job="{{job}}"}[{{window}}])), with range start, end and step as optional parameters; each series sample is a row, one column per label plus timestamp and value. The table stores the native query in query_template. Each "{{name}}" placeholder is a parameter of the table (query_arg, [REQ-1986](#REQ-1986)) with an IR type, optional unless a steward makes it required; a caller passes it as a GraphQL field argument or an equality condition on the parameter column in SQL. Each value is checked against its type and bound into the parsed query, or as the source's own bound parameter, never spliced into the query text. Output columns are fixed at registration (declared, or typed from one preview run with sample arguments) and every returned row is checked against them. A query that writes or changes state at the source is refused by name. The table joins with any other table and is governed on every surface like any registered table; with no arguments it behaves as a view.
+
+**Use case:** An SRE registers request_rate from a PromQL rate() query with a required job argument and joins it to the deploys table to see the request rate around each deploy.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-2019 · Source Connectors {#REQ-2019}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+A table on a Splunk source can be registered from a native SPL query: a Splunk search (e.g. search index=web status={{status}} | stats count by host), run as a search job with optional earliest/latest parameters; each result is a row. The table stores the native query in query_template. Each "{{name}}" placeholder is a parameter of the table (query_arg, [REQ-1986](#REQ-1986)) with an IR type, optional unless a steward makes it required; a caller passes it as a GraphQL field argument or an equality condition on the parameter column in SQL. Each value is checked against its type and bound into the parsed query, or as the source's own bound parameter, never spliced into the query text. Output columns are fixed at registration (declared, or typed from one preview run with sample arguments) and every returned row is checked against them. A query that writes or changes state at the source is refused by name. The table joins with any other table and is governed on every surface like any registered table; with no arguments it behaves as a view.
+
+**Use case:** An analyst registers errors_by_host from an SPL stats search with a status argument and joins it to the hosts inventory table.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-2020 · Source Connectors {#REQ-2020}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+A table on a GraphQL remote source can be registered from a native GraphQL query: one GraphQL query document whose variables are the parameters, with a declared path to the list that becomes rows (nested objects flattened to columns). The table stores the native query in query_template. Each "{{name}}" placeholder is a parameter of the table (query_arg, [REQ-1986](#REQ-1986)) with an IR type, optional unless a steward makes it required; a caller passes it as a GraphQL field argument or an equality condition on the parameter column in SQL. Each value is checked against its type and bound into the parsed query, or as the source's own bound parameter, never spliced into the query text. Output columns are fixed at registration (declared, or typed from one preview run with sample arguments) and every returned row is checked against them. A query that writes or changes state at the source is refused by name. The table joins with any other table and is governed on every surface like any registered table; with no arguments it behaves as a view.
+
+**Use case:** A developer registers open_issues from a remote GraphQL query with a repo variable and joins its rows to the team table.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-2021 · Source Connectors {#REQ-2021}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+A table on a Salesforce source can be registered from a native SOQL query: a SOQL query with bind variables (e.g. SELECT Account.Name, COUNT(Id) n FROM Opportunity WHERE StageName = :stage GROUP BY Account.Name), relationship fields flattened to columns. The table stores the native query in query_template. Each "{{name}}" placeholder is a parameter of the table (query_arg, [REQ-1986](#REQ-1986)) with an IR type, optional unless a steward makes it required; a caller passes it as a GraphQL field argument or an equality condition on the parameter column in SQL. Each value is checked against its type and bound into the parsed query, or as the source's own bound parameter, never spliced into the query text. Output columns are fixed at registration (declared, or typed from one preview run with sample arguments) and every returned row is checked against them. A query that writes or changes state at the source is refused by name. The table joins with any other table and is governed on every surface like any registered table; with no arguments it behaves as a view.
+
+**Use case:** A sales analyst registers pipeline_by_account from a SOQL aggregate with a stage argument and joins it to the warehouse's revenue table.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-2022 · Source Connectors {#REQ-2022}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+A table on a Druid source can be registered from a native Druid native JSON queries query: a Druid native query (timeseries, topN or groupBy) as JSON, including approximate aggregators Druid SQL does not expose; each result entry or bucket is a row. The table stores the native query in query_template. Each "{{name}}" placeholder is a parameter of the table (query_arg, [REQ-1986](#REQ-1986)) with an IR type, optional unless a steward makes it required; a caller passes it as a GraphQL field argument or an equality condition on the parameter column in SQL. Each value is checked against its type and bound into the parsed query, or as the source's own bound parameter, never spliced into the query text. Output columns are fixed at registration (declared, or typed from one preview run with sample arguments) and every returned row is checked against them. A query that writes or changes state at the source is refused by name. The table joins with any other table and is governed on every surface like any registered table; with no arguments it behaves as a view.
+
+**Use case:** An analyst registers top_pages from a Druid topN query with interval and threshold arguments and joins it to the pages table.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-2023 · Source Connectors {#REQ-2023}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+A table on a Redis source can be registered from a native RediSearch FT.SEARCH / FT.AGGREGATE query: a RediSearch FT.SEARCH or FT.AGGREGATE command over an index (hashes or JSON), with query and LIMIT values as parameters; each document or group is a row. The table stores the native query in query_template. Each "{{name}}" placeholder is a parameter of the table (query_arg, [REQ-1986](#REQ-1986)) with an IR type, optional unless a steward makes it required; a caller passes it as a GraphQL field argument or an equality condition on the parameter column in SQL. Each value is checked against its type and bound into the parsed query, or as the source's own bound parameter, never spliced into the query text. Output columns are fixed at registration (declared, or typed from one preview run with sample arguments) and every returned row is checked against them. A query that writes or changes state at the source is refused by name. The table joins with any other table and is governed on every surface like any registered table; with no arguments it behaves as a view.
+
+**Use case:** A developer registers products_matching from FT.SEARCH with a required query argument and joins it to the inventory table.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-2024 · Source Connectors {#REQ-2024}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+A table on a DynamoDB source can be registered from a native PartiQL query: a PartiQL SELECT with ? parameters bound by DynamoDB, against a table or one of its indexes; each item is a row. The table stores the native query in query_template. Each "{{name}}" placeholder is a parameter of the table (query_arg, [REQ-1986](#REQ-1986)) with an IR type, optional unless a steward makes it required; a caller passes it as a GraphQL field argument or an equality condition on the parameter column in SQL. Each value is checked against its type and bound into the parsed query, or as the source's own bound parameter, never spliced into the query text. Output columns are fixed at registration (declared, or typed from one preview run with sample arguments) and every returned row is checked against them. A query that writes or changes state at the source is refused by name. The table joins with any other table and is governed on every surface like any registered table; with no arguments it behaves as a view.
+
+**Use case:** A developer registers orders_for_customer from a PartiQL key query with a required customer_id argument instead of scanning the table.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-2025 · Source Connectors {#REQ-2025}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+A table on a ServiceNow source can be registered from a native encoded queries query: a ServiceNow Table API read with an encoded query (e.g. active=true^priority={{p}}) and field list, filtered at the instance; each record is a row. The table stores the native query in query_template. Each "{{name}}" placeholder is a parameter of the table (query_arg, [REQ-1986](#REQ-1986)) with an IR type, optional unless a steward makes it required; a caller passes it as a GraphQL field argument or an equality condition on the parameter column in SQL. Each value is checked against its type and bound into the parsed query, or as the source's own bound parameter, never spliced into the query text. Output columns are fixed at registration (declared, or typed from one preview run with sample arguments) and every returned row is checked against them. A query that writes or changes state at the source is refused by name. The table joins with any other table and is governed on every surface like any registered table; with no arguments it behaves as a view.
+
+**Use case:** An IT analyst registers open_p1_incidents from an encoded query with a priority argument and joins it to the CMDB servers table.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-2026 · Source Connectors {#REQ-2026}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+A table on a Cassandra source can be registered from a native CQL query: a CQL SELECT with ? markers bound by the driver, restricted on partition key and clustering columns as Cassandra requires; each row is a row. The table stores the native query in query_template. Each "{{name}}" placeholder is a parameter of the table (query_arg, [REQ-1986](#REQ-1986)) with an IR type, optional unless a steward makes it required; a caller passes it as a GraphQL field argument or an equality condition on the parameter column in SQL. Each value is checked against its type and bound into the parsed query, or as the source's own bound parameter, never spliced into the query text. Output columns are fixed at registration (declared, or typed from one preview run with sample arguments) and every returned row is checked against them. A query that writes or changes state at the source is refused by name. The table joins with any other table and is governed on every surface like any registered table; with no arguments it behaves as a view.
+
+**Use case:** A developer registers readings_for_sensor from a CQL partition query with sensor_id and day arguments.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-2027 · Source Connectors {#REQ-2027}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+A table on a Microsoft 365 and Google Workspace source can be registered from a native Microsoft Graph $filter/$search and Gmail/Drive search syntax query: a saved search: a Graph resource path with $filter/$search, or a Gmail or Drive search string (e.g. from:{{sender}} newer_than:7d), with each value encoded as the API requires; each message, file or item is a row. The table stores the native query in query_template. Each "{{name}}" placeholder is a parameter of the table (query_arg, [REQ-1986](#REQ-1986)) with an IR type, optional unless a steward makes it required; a caller passes it as a GraphQL field argument or an equality condition on the parameter column in SQL. Each value is checked against its type and bound into the parsed query, or as the source's own bound parameter, never spliced into the query text. Output columns are fixed at registration (declared, or typed from one preview run with sample arguments) and every returned row is checked against them. A query that writes or changes state at the source is refused by name. The table joins with any other table and is governed on every surface like any registered table; with no arguments it behaves as a view.
+
+**Use case:** A user registers mail_from from a Gmail search with a sender argument and joins it to the contacts table.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-2028 · Source Connectors {#REQ-2028}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+A table on a gRPC remote source can be registered from a native request message templates query: one unary method call with a request message template whose fields are the parameters, and a declared repeated field of the response that becomes rows. The table stores the native query in query_template. Each "{{name}}" placeholder is a parameter of the table (query_arg, [REQ-1986](#REQ-1986)) with an IR type, optional unless a steward makes it required; a caller passes it as a GraphQL field argument or an equality condition on the parameter column in SQL. Each value is checked against its type and bound into the parsed query, or as the source's own bound parameter, never spliced into the query text. Output columns are fixed at registration (declared, or typed from one preview run with sample arguments) and every returned row is checked against them. A query that writes or changes state at the source is refused by name. The table joins with any other table and is governed on every surface like any registered table; with no arguments it behaves as a view.
+
+**Use case:** A developer registers quotes_for from a gRPC GetQuotes call with a symbol argument and joins it to the holdings table.
+
+**Code:** —
+
+**Tests:** —
