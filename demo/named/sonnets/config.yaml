@@ -70,7 +70,7 @@ tables:
   description: One row a sonnet
   columns:
   - {name: number, data_type: integer, is_primary_key: true, description: 'The sonnet''s number, 1 to 154', visible_to: [org_admin]}
-  - {name: first_line, data_type: varchar, description: The sonnet's first line, by which it is known, visible_to: [org_admin]}
+  - {name: first_line, data_type: varchar, description: "The sonnet's first line, by which it is known", visible_to: [org_admin]}
   - {name: sequence, data_type: varchar, description: 'Fair Youth for sonnets 1 to 126, Dark Lady for 127 to 154', visible_to: [org_admin]}
 - source_id: sonnets
   domain_id: sonnets
@@ -273,7 +273,7 @@ views:
   - {name: sonnet, data_type: integer, description: The sonnet the line is in, visible_to: [org_admin]}
   - {name: line_no, data_type: integer, description: 'The line''s place in its sonnet', visible_to: [org_admin]}
   - {name: text, data_type: varchar, description: The line's words, visible_to: [org_admin]}
-  - {name: echo_sonnet, data_type: integer, description: The other sonnet, which echoes it, visible_to: [org_admin]}
+  - {name: echo_sonnet, data_type: integer, description: "The other sonnet, which echoes it", visible_to: [org_admin]}
   - {name: echo_line_no, data_type: integer, description: 'The echoing line''s place in its sonnet', visible_to: [org_admin]}
   - {name: echo_text, data_type: varchar, description: The echoing line's words, visible_to: [org_admin]}
 # Each line a theme's search found, with the theme's name and the sequence of the sonnet it is in.

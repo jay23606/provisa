@@ -577,7 +577,7 @@ async def test_a_delta_table_with_a_cursor_applies_the_delta_and_advances_it(wir
     monkeypatch.setattr("provisa.federation.delta.apply_sql_delta", _apply)
     monkeypatch.setattr("provisa.federation.replica_state.record_delta_applied", _record_delta)
     wiring["record"] = SimpleNamespace(
-        delta_cursor="7", definition_hash=None, requested_reason="refresh",
+        delta_cursor="7", definition_hash=None, requested_reason="refresh", content_hash=None,
         exists_in=lambda store: store == "store-a",
     )  # fmt: skip
 
