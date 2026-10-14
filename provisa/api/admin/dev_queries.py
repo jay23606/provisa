@@ -328,13 +328,18 @@ def _apply_pipeline_transforms(  # REQ-040, REQ-041, REQ-134, REQ-198, REQ-262, 
     from provisa.compiler.mask_inject import inject_masking
     from provisa.compiler.rls import inject_rls
     from provisa.compiler.stage2 import apply_row_cap, resolve_row_cap
-    from provisa.mv.rewriter import rewrite_if_mv_match
+    from provisa.mv.rewriter import rewrite_if_mv_match, role_governed_tables
 
     compiled = inject_rls(compiled, ctx, rls)
     compiled = inject_masking(compiled, ctx, state.masking_rules, role_id)
 
     pre_mv_sources = set(compiled.sources)
-    compiled = rewrite_if_mv_match(compiled, fresh_mvs)
+    compiled = rewrite_if_mv_match(
+        compiled,
+        fresh_mvs,
+        ctx,
+        role_governed_tables(ctx, rls, state.masking_rules, role_id),
+    )
     mv_applied = compiled.sources != pre_mv_sources
 
     if hasattr(state, "kafka_table_configs") and state.kafka_table_configs:

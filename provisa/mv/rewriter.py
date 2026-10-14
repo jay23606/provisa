@@ -21,8 +21,10 @@ from __future__ import annotations
 
 import logging
 import re
+from typing import Any
 
 from provisa.compiler.sql_gen import CompiledQuery
+from provisa.compiler.sql_types import CompilationContext, TableMeta
 from provisa.mv.models import JoinPattern, MVDefinition
 from provisa.otel_compat import get_tracer as _get_tracer
 from provisa.otel_compat import stage as _stage
@@ -154,16 +156,20 @@ def _has_type_predicate(sql: str, via_alias: str, jp: JoinPattern) -> bool:  # R
 def rewrite_if_mv_match(  # REQ-198, REQ-199, REQ-882
     compiled: CompiledQuery,
     fresh_mvs: list[MVDefinition],
+    ctx: CompilationContext,
+    governed_table_ids: frozenset[int],
 ) -> CompiledQuery:
     """Rewrite to a matching MV: try join-pattern MVs first, else an aggregate MV.
 
-    A join/partial-pattern match (REQ-849) takes precedence; when none applies, fall back
-    to the aggregate-MV catalog for single-table aggregate queries (REQ-882).
+    A join/partial-pattern match (REQ-849) takes precedence; when none applies, a single-table
+    aggregate is read from a fresh view that pre-aggregates its table, where one answers it
+    exactly (REQ-882). ``governed_table_ids`` are the tables the role reads through a row
+    filter or a mask: a view computed over every row never answers for those.
     """
     rewritten = _rewrite_join_mv(compiled, fresh_mvs)
     if rewritten.sources != compiled.sources:
         return rewritten
-    return rewrite_if_aggregate_match(rewritten)
+    return rewrite_if_aggregate_match(rewritten, fresh_mvs, ctx, governed_table_ids)
 
 
 def _rewrite_join_mv(
@@ -245,16 +251,63 @@ def _rewrite_join_mv(
         return compiled
 
 
-def rewrite_if_aggregate_match(compiled: CompiledQuery) -> CompiledQuery:  # REQ-882
-    """Rewrite a single-table aggregate query to a covering aggregate MV, if one exists.
+def role_governed_tables(
+    ctx: CompilationContext, rls: Any, masking_rules: dict, role_id: str
+) -> frozenset[int]:
+    """The tables ``role_id`` reads through a row filter (its own, or its domain's) or a mask:
+    what a view computed over every row may not answer for it (REQ-882)."""
+    filtered = set(rls.rules) | {
+        meta.table_id for meta in ctx.tables.values() if meta.domain_id in rls.domain_rules
+    }
+    masked = {tid for (tid, rid), columns in masking_rules.items() if rid == role_id and columns}
+    return frozenset(filtered | masked)
 
-    Consults the process aggregate-MV catalog (populated from the MVRegistry). Filter
-    subset-safety is enforced inside the catalog; on a hit the sources become the MV's
-    target catalog so routing reads the pre-aggregated table. No match → unchanged.
-    """
-    from provisa.mv.aggregate_catalog import get_aggregate_catalog, rewrite_aggregate_query
 
-    hit = rewrite_aggregate_query(compiled.sql, get_aggregate_catalog())
+def _aggregated_table(compiled: CompiledQuery, ctx: CompilationContext) -> TableMeta | None:
+    """The registered table a compiled single-source statement reads from, by the schema and
+    table its FROM names, or None for a statement of more than one source or table."""
+    import sqlglot
+    import sqlglot.expressions as exp
+    from sqlglot.errors import SqlglotError
+
+    if len(compiled.sources) != 1:
+        return None
+    (source_id,) = compiled.sources
+    try:
+        tables = list(sqlglot.parse_one(compiled.sql, read="postgres").find_all(exp.Table))
+    except (SqlglotError, RecursionError):
+        return None
+    if len(tables) != 1:
+        return None
+    schema, name = tables[0].db.lower(), tables[0].name.lower()
+    return next(
+        (
+            meta
+            for meta in ctx.tables.values()
+            if meta.source_id == source_id
+            and meta.schema_name.lower() == schema
+            and meta.table_name.lower() == name
+        ),
+        None,
+    )
+
+
+def rewrite_if_aggregate_match(  # REQ-882
+    compiled: CompiledQuery,
+    fresh_mvs: list[MVDefinition],
+    ctx: CompilationContext,
+    governed_table_ids: frozenset[int],
+) -> CompiledQuery:
+    """A single-table aggregate read from a fresh view that pre-aggregates its table and
+    answers it exactly (``mv.aggregate_catalog``); on a hit the sources become the view's
+    catalog so routing reads the stored aggregates. No match -> unchanged."""
+    from provisa.mv.aggregate_catalog import rewrite_aggregate_query
+
+    table = _aggregated_table(compiled, ctx)
+    if table is None or table.table_id in governed_table_ids:
+        return compiled
+    relation = (table.catalog_name.lower(), table.schema_name.lower(), table.table_name.lower())
+    hit = rewrite_aggregate_query(compiled.sql, relation, fresh_mvs)
     if hit is None:
         return compiled
     new_sql, mv = hit

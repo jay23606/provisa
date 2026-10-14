@@ -20,7 +20,6 @@ from provisa.compiler.introspect import ColumnMetadata
 from provisa.compiler import naming as _naming
 from provisa.compiler.schema_gen import SchemaInput, generate_schema
 from provisa.compiler.context import build_context
-from provisa.mv.aggregate_catalog import AggregateMVCatalog
 from provisa.mv.models import MVDefinition, MVStatus
 
 
@@ -268,75 +267,52 @@ def _verify_no_aggregate_for_role(shared_data):
 
 @given("an aggregate query whose pattern matches a materialized view")
 def _aggregate_query_matching_mv(shared_data):
-    # Build an aggregate-serving MV catalog and register a covering MV.
-    # The MV id avoids the substring "orders" so we can verify base-table absence post-rewrite.
-    catalog = AggregateMVCatalog()
-    mv = MVDefinition(
+    # A fresh view pre-aggregating sales.public.orders by region; its id names no base table so
+    # base-table absence can be checked after the rewrite.
+    shared_data["mv"] = MVDefinition(
         id="aggmv1",
         source_tables=["orders"],
-        target_catalog="iceberg",
+        target_catalog="mat",
         target_schema="sales_mv",
-        serves_aggregates=True,
-        aggregate_columns=["amount", "qty", "region"],
+        sql=(
+            'SELECT "region", SUM("amount") AS "total_amount", SUM("qty") AS "total_qty" '
+            'FROM "sales_pg"."public"."orders" GROUP BY "region"'
+        ),
         status=MVStatus.FRESH,
     )
-    catalog.register(mv)
-
-    # The MV must have been routed into the per-table index.
-    assert "orders" in catalog._by_table, "MV was not registered under its source table"
-    assert mv.target_table == "mv_aggmv1", f"unexpected MV backing table name: {mv.target_table}"
-
-    # The incoming aggregate query — a SUM grouped by region over the base table.
-    base_sql = "SELECT region, SUM(amount) AS total_amount, SUM(qty) AS total_qty FROM orders GROUP BY region"
-
-    shared_data["catalog"] = catalog
-    shared_data["mv"] = mv
-    shared_data["base_sql"] = base_sql
-    shared_data["agg_columns"] = ["amount", "qty"]
-    shared_data["filters"] = []
+    shared_data["base_sql"] = (
+        'SELECT "region", SUM("amount"), SUM("qty") FROM "public"."orders" GROUP BY "region"'
+    )
 
 
 @when("the compiler processes the query")
 def _compiler_processes_query(shared_data):
-    catalog: AggregateMVCatalog = shared_data["catalog"]
-    agg_columns = shared_data["agg_columns"]
-    filters = shared_data["filters"]
+    from provisa.compiler.sql_gen import CompiledQuery
+    from provisa.compiler.sql_types import CompilationContext, TableMeta
+    from provisa.mv.rewriter import rewrite_if_mv_match
 
-    # 1. The catalog must find the covering MV for this aggregate pattern.
-    matched = catalog.find_aggregate_mv("orders", agg_columns, filters)
-    assert matched is not None, "expected a covering MV but find_aggregate_mv returned None"
-    assert matched.id == shared_data["mv"].id, f"matched the wrong MV: {matched.id}"
-    shared_data["matched_mv"] = matched
-
-    # 2. Rewrite the SQL to read from the MV backing table instead of the base table.
-    rewritten = catalog.rewrite_sql(
-        shared_data["base_sql"], matched, agg_columns, remaining_filters=filters
-    )
-    assert isinstance(rewritten, str) and rewritten, "rewrite_sql returned no SQL"
-    shared_data["rewritten_sql"] = rewritten
+    ctx = CompilationContext()
+    ctx.tables["orders"] = TableMeta(
+        table_id=1, field_name="orders", type_name="Orders", source_id="sales-pg",
+        catalog_name="sales_pg", schema_name="public", table_name="orders", domain_id="sales",
+    )  # fmt: skip
+    compiled = CompiledQuery(
+        sql=shared_data["base_sql"], params=[], root_field="orders", columns=[],
+        sources={"sales-pg"},
+    )  # fmt: skip
+    shared_data["routed"] = rewrite_if_mv_match(compiled, [shared_data["mv"]], ctx, frozenset())
 
 
 @then("it rewrites the query to use the MV instead of the base table")
 def _verify_query_rewritten_to_mv(shared_data):
-    rewritten = shared_data["rewritten_sql"]
-    mv: MVDefinition = shared_data["matched_mv"]
-
-    # The rewritten SQL must reference the MV backing table.
-    assert mv.target_table in rewritten, (
-        f"rewritten SQL does not reference MV backing table '{mv.target_table}': {rewritten}"
-    )
-
-    # And it must no longer read directly from the base table.
-    assert "orders" not in rewritten, (
-        f"rewritten SQL still references the base table 'orders': {rewritten}"
-    )
-
-    # The rewrite substitutes raw column reads for aggregate expressions because
-    # the MV already holds pre-computed aggregates — SUM is correctly absent.
-    upper = rewritten.upper()
-    assert "AMOUNT" in upper, f"aggregate column 'amount' lost during rewrite: {rewritten}"
-    assert "QTY" in upper, f"aggregate column 'qty' lost during rewrite: {rewritten}"
-    assert "GROUP BY" in upper, f"GROUP BY clause lost during rewrite: {rewritten}"
+    routed = shared_data["routed"]
+    mv: MVDefinition = shared_data["mv"]
+    assert routed.sources == {mv.target_catalog}, routed.sql
+    assert mv.target_table in routed.sql, routed.sql
+    assert '"orders"' not in routed.sql, f"still reads the base table: {routed.sql}"
+    # Each aggregate is re-aggregated over the view's stored sums, grouped as asked.
+    assert 'SUM("total_amount")' in routed.sql and 'SUM("total_qty")' in routed.sql, routed.sql
+    assert "GROUP BY" in routed.sql.upper(), routed.sql
 
 
 # ---------------------------------------------------------------------------
@@ -346,37 +322,27 @@ def _verify_query_rewritten_to_mv(shared_data):
 
 @given("an expensive view eligible for auto-materialization")
 def _expensive_view_eligible(shared_data):
-    # An expensive computed view is auto-registered into the aggregate catalog
-    # with a configurable TTL (refresh_interval). It starts STALE — never refreshed.
-    catalog = AggregateMVCatalog()
+    # An expensive computed view registered with a configurable TTL (refresh_interval). It
+    # starts STALE -- never refreshed -- so the registry offers it to no query yet.
+    from provisa.mv.registry import MVRegistry
+
+    registry = MVRegistry()
     ttl_seconds = 3600  # default TTL per materialized_views.default_ttl
     mv = MVDefinition(
         id="autoview1",
         source_tables=["expensive_view"],
         target_catalog="iceberg",
         target_schema="analytics_mv",
-        serves_aggregates=True,
-        aggregate_columns=["revenue", "units"],
         refresh_interval=ttl_seconds,
         status=MVStatus.STALE,
         last_refresh_at=None,
     )
-    catalog.register(mv)
+    registry.register(mv)
+    assert registry.get_fresh() == [], "a never-refreshed view must not be offered to queries"
+    assert mv.refresh_interval == ttl_seconds
+    assert mv.is_fresh_at(time.time()) is False, "a never-refreshed MV must not be considered fresh"
 
-    # Auto-materialization must register the MV without a bespoke materialized_views entry —
-    # it is discoverable via the aggregate catalog by its source table.
-    assert "expensive_view" in catalog._by_table, (
-        "auto-materialized view was not registered in the aggregate catalog"
-    )
-    assert mv.refresh_interval == ttl_seconds, (
-        f"expected default TTL {ttl_seconds}, got {mv.refresh_interval}"
-    )
-
-    # An un-refreshed MV is not serveable — queries must fall back to live execution.
-    now = time.time()
-    assert mv.is_fresh_at(now) is False, "a never-refreshed MV must not be considered fresh"
-
-    shared_data["catalog"] = catalog
+    shared_data["registry"] = registry
     shared_data["mv"] = mv
     shared_data["ttl_seconds"] = ttl_seconds
 
@@ -384,7 +350,6 @@ def _expensive_view_eligible(shared_data):
 @when("the background loop refreshes it and a query targets that view")
 def _background_loop_refresh_and_query(shared_data):
     mv: MVDefinition = shared_data["mv"]
-    catalog: AggregateMVCatalog = shared_data["catalog"]
 
     # Background loop refreshes the MV: status -> FRESH, last_refresh_at = now.
     refresh_time = time.time()
@@ -392,19 +357,17 @@ def _background_loop_refresh_and_query(shared_data):
     mv.last_refresh_at = refresh_time
     mv.row_count = 1000
 
-    # A query immediately after refresh targets the view's source table.
-    matched = catalog.find_aggregate_mv("expensive_view", ["revenue"], [])
-    assert matched is not None, "freshly refreshed MV not found by the aggregate catalog"
-    assert matched.id == mv.id, f"catalog matched the wrong MV: {matched.id}"
+    # A query right after the refresh is offered the view.
+    fresh = shared_data["registry"].get_fresh()
+    assert [m.id for m in fresh] == [mv.id], f"the refreshed view is not offered: {fresh}"
+    matched = fresh[0]
 
-    # Freshness evaluated within the TTL window — the MV is serveable.
-    query_time_fresh = refresh_time + 10  # well within the 3600s TTL
-    shared_data["uses_mv_when_fresh"] = matched.is_fresh_at(query_time_fresh)
-
-    # Simulate the MV becoming stale: a later query past the TTL boundary.
-    query_time_stale = refresh_time + shared_data["ttl_seconds"] + 1
-    shared_data["uses_mv_when_stale"] = matched.is_fresh_at(query_time_stale)
-
+    # Freshness evaluated within the TTL window -- the MV is serveable.
+    shared_data["uses_mv_when_fresh"] = matched.is_fresh_at(refresh_time + 10)
+    # A later query past the TTL boundary.
+    shared_data["uses_mv_when_stale"] = matched.is_fresh_at(
+        refresh_time + shared_data["ttl_seconds"] + 1
+    )
     shared_data["matched_mv"] = matched
     shared_data["refresh_time"] = refresh_time
 

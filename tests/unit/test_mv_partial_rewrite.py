@@ -24,6 +24,7 @@ import time
 from provisa.compiler.sql_gen import CompiledQuery
 from provisa.mv.models import JoinPattern, MVDefinition, MVStatus
 from provisa.mv.rewriter import _partial_rewrite_to_mv, rewrite_if_mv_match
+from provisa.compiler.sql_types import CompilationContext
 
 
 # ---------------------------------------------------------------------------
@@ -85,7 +86,7 @@ class TestFullMatchRewrite:
         compiled = _compiled(sql)
         mv = _fresh_mv("mv-1", "orders", "customer_id", "customers", "id", "mv_orders_customers")
 
-        result = rewrite_if_mv_match(compiled, [mv])
+        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
 
         assert "mv_orders_customers" in result.sql
 
@@ -99,7 +100,7 @@ class TestFullMatchRewrite:
         compiled = _compiled(sql)
         mv = _fresh_mv("mv-1", "orders", "customer_id", "customers", "id", "mv_orders_customers")
 
-        result = rewrite_if_mv_match(compiled, [mv])
+        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
 
         assert "JOIN" not in result.sql
 
@@ -113,7 +114,7 @@ class TestFullMatchRewrite:
         compiled = _compiled(sql)
         mv = _fresh_mv("mv-1", "orders", "customer_id", "customers", "id", "mv_orders_customers")
 
-        result = rewrite_if_mv_match(compiled, [mv])
+        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
 
         assert "customers__name" in result.sql
 
@@ -127,7 +128,7 @@ class TestFullMatchRewrite:
         compiled = _compiled(sql, sources={"sales-pg"})
         mv = _fresh_mv("mv-1", "orders", "customer_id", "customers", "id")
 
-        result = rewrite_if_mv_match(compiled, [mv])
+        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
 
         assert "iceberg" in result.sources
 
@@ -150,7 +151,7 @@ class TestPartialMatchRewrite:
         # MV covers only orders ↔ customers; payments join is uncovered
         mv = _fresh_mv("mv-1", "orders", "customer_id", "customers", "id", "mv_orders_customers")
 
-        result = rewrite_if_mv_match(compiled, [mv])
+        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
 
         # covered join removed
         assert "customers" not in result.sql or "mv_orders_customers" in result.sql
@@ -168,7 +169,7 @@ class TestPartialMatchRewrite:
         compiled = _compiled(sql)
         mv = _fresh_mv("mv-1", "orders", "customer_id", "customers", "id", "mv_orders_customers")
 
-        result = rewrite_if_mv_match(compiled, [mv])
+        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
 
         assert "mv_orders_customers" in result.sql
 
@@ -183,7 +184,7 @@ class TestPartialMatchRewrite:
         compiled = _compiled(sql)
         mv = _fresh_mv("mv-1", "orders", "customer_id", "customers", "id", "mv_orders_customers")
 
-        result = rewrite_if_mv_match(compiled, [mv])
+        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
 
         assert "JOIN" in result.sql
 
@@ -198,7 +199,7 @@ class TestPartialMatchRewrite:
         compiled = _compiled(sql)
         mv = _fresh_mv("mv-1", "orders", "customer_id", "customers", "id", "mv_orders_customers")
 
-        result = rewrite_if_mv_match(compiled, [mv])
+        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
 
         assert "customers__name" in result.sql
 
@@ -213,7 +214,7 @@ class TestPartialMatchRewrite:
         compiled = _compiled(sql)
         mv = _fresh_mv("mv-1", "orders", "customer_id", "customers", "id", "mv_orders_customers")
 
-        result = rewrite_if_mv_match(compiled, [mv])
+        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
 
         # t2."amount" should remain as-is (payments alias not covered by MV)
         assert '"t2"."amount"' in result.sql
@@ -229,7 +230,7 @@ class TestPartialMatchRewrite:
         compiled = _compiled(sql, sources={"sales-pg"})
         mv = _fresh_mv("mv-1", "orders", "customer_id", "customers", "id", "mv_orders_customers")
 
-        result = rewrite_if_mv_match(compiled, [mv])
+        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
 
         assert "iceberg" in result.sources
         assert "sales-pg" in result.sources
@@ -251,7 +252,7 @@ class TestPartialMatchRewrite:
         )
         mv = _fresh_mv("mv-1", "orders", "customer_id", "customers", "id", "mv_orders_customers")
 
-        result = rewrite_if_mv_match(compiled, [mv])
+        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
 
         assert result.params == ["active"]
 
@@ -318,7 +319,7 @@ class TestNoMatchRewrite:
         # MV is for orders ↔ customers, not products
         mv = _fresh_mv("mv-1", "orders", "customer_id", "customers", "id")
 
-        result = rewrite_if_mv_match(compiled, [mv])
+        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
 
         assert result.sql == sql
 
@@ -330,7 +331,7 @@ class TestNoMatchRewrite:
         )
         compiled = _compiled(sql)
 
-        result = rewrite_if_mv_match(compiled, [])
+        result = rewrite_if_mv_match(compiled, [], CompilationContext(), frozenset())
 
         assert result.sql == sql
 
@@ -345,7 +346,7 @@ class TestNoMatchRewrite:
         mv = _fresh_mv("mv-1", "orders", "customer_id", "customers", "id")
         mv.status = MVStatus.STALE  # MVDefinition is not frozen; override
 
-        result = rewrite_if_mv_match(compiled, [mv])
+        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
 
         assert result.sql == sql
 
@@ -355,6 +356,6 @@ class TestNoMatchRewrite:
         compiled = _compiled(sql)
         mv = _fresh_mv("mv-1", "orders", "customer_id", "customers", "id")
 
-        result = rewrite_if_mv_match(compiled, [mv])
+        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
 
         assert result.sql == sql

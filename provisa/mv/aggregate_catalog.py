@@ -1,5 +1,4 @@
 # Copyright (c) 2026 Kenneth Stott
-# Canary: 9f2a3c1d-7e4b-4f8a-b2d5-1c6e9a0f3b7d
 #
 # This source code is licensed under the Business Source License 1.1
 # found in the LICENSE file in the root directory of this source tree.
@@ -8,203 +7,237 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 
-"""Aggregate MV catalog for automatic aggregate query rewriting (REQ-198, REQ-199).
+"""An aggregate query answered from a materialized view that pre-aggregates its table
+(REQ-198, REQ-199, REQ-882).
 
-Maps aggregate query patterns to materialized views. When a query requests
-aggregates over a base table, the catalog finds an MV that was pre-computed
-with those aggregates and rewrites the query to read from the MV instead.
+Nothing is declared: a fresh materialized view whose SQL is a single-table ``GROUP BY`` of
+decomposable aggregates serves the aggregate queries it can answer exactly. Its grouping
+columns are its *dimensions*; each of its aggregates, a *measure*:
+
+- ``SUM(c)``, ``COUNT(*)``, ``COUNT(c)``, ``MIN(c)`` and ``MAX(c)`` -- each stored under its own
+  output name. ``AVG``, ``COUNT(DISTINCT ...)`` or any expression in a view's select list make it
+  serve none: neither re-aggregates.
+
+A query is answered from such a view only when it reads that one table, groups by a subset of
+the view's dimensions, filters (and orders) only on them, and asks only for aggregates the view's
+measures re-aggregate exactly:
+
+- ``SUM(c)`` -> ``SUM(<sum of c>)``; ``COUNT(*)`` -> ``COALESCE(SUM(<count>), 0)`` as bigint;
+  ``COUNT(c)`` -> ``COALESCE(SUM(<count of c>), 0)`` as bigint; ``MIN``/``MAX`` -> themselves over the
+  stored ``MIN``/``MAX``;
+- ``AVG(c)`` -> the stored sum of ``c`` over its stored count, as ``numeric``: only from a stored
+  ``SUM(c)`` and ``COUNT(c)``.
+
+Anything else is not rewritten: a join, ``DISTINCT``, ``HAVING``, a window, a subquery, a column
+the view does not keep as a dimension. A statement the role reads through a row filter or a mask
+on the table is never rewritten either -- the view was computed over every row.
 """
+
+# Requirements: REQ-198, REQ-199, REQ-882
 
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
+from functools import lru_cache
+from typing import TYPE_CHECKING, Any
 
 import sqlglot
 import sqlglot.expressions as exp
+from sqlglot.errors import SqlglotError
 
 if TYPE_CHECKING:
     from provisa.mv.models import MVDefinition
 
-# Requirements: REQ-198, REQ-199
-
 log = logging.getLogger(__name__)
 
+#: (catalog, schema, table), lowercased: the one table a view pre-aggregates.
+Relation = tuple[str, str, str]
+#: (aggregate, column lowercased or "*").
+Measure = tuple[str, str]
 
-class AggregateMVCatalog:  # REQ-198, REQ-199
-    """Maps aggregate query patterns to materialized views.
+_STORED = {exp.Sum: "sum", exp.Min: "min", exp.Max: "max", exp.Count: "count"}
 
-    An MV "covers" an aggregate query when:
-    - It targets the same base table
-    - Its aggregate_columns is a superset of the requested columns
-    - Its filter set is a subset of the query's filters (conservative)
-    """
 
-    def __init__(self) -> None:
-        # {base_table: [MVDefinition]}
-        self._by_table: dict[str, list[MVDefinition]] = {}
+@dataclass(frozen=True)
+class AggregateShape:
+    """What a pre-aggregating view keeps: its table, dimensions and measures, each by the
+    column of the view that holds it."""
 
-    def register(self, mv: MVDefinition) -> None:  # REQ-483
-        """Register an MV that serves aggregate queries."""
-        if not mv.serves_aggregates:
-            return
-        for table in mv.source_tables:
-            self._by_table.setdefault(table, []).append(mv)
+    relation: Relation
+    dims: dict[str, str]  # base column (lowercased) -> view column
+    measures: dict[Measure, str]  # measure -> view column
 
-    def unregister(self, mv_id: str) -> None:  # REQ-483
-        """Remove an MV from the catalog by ID."""
-        for table, mvs in self._by_table.items():
-            self._by_table[table] = [m for m in mvs if m.id != mv_id]
 
-    def find_aggregate_mv(  # REQ-198
-        self,
-        table: str,
-        agg_columns: list[str],
-        filters: list[str],
-    ) -> MVDefinition | None:
-        """Return the best MV for the given aggregate query, or None.
+def _plain_column(node: exp.Expression) -> str | None:
+    return node.name.lower() if isinstance(node, exp.Column) and node.name else None
 
-        Args:
-            table: Base table name being queried.
-            agg_columns: Columns the query wants to aggregate (e.g. ["amount", "qty"]).
-            filters: WHERE clause fragments the query applies (e.g. ["status = 'active'"]).
 
-        Returns:
-            The first MV whose aggregate_columns is a superset of agg_columns and
-            whose filters are a subset of the query's filters, or None.
-        """
-        candidates = self._by_table.get(table, [])
-        requested = set(agg_columns)
-        query_filters = set(filters)
-
-        for mv in candidates:
-            if not requested.issubset(set(mv.aggregate_columns)):
-                continue
-            # REQ-882 subset-safety: the MV was pre-computed WITH mv.filters, so it holds only
-            # the rows those predicates select. It can answer this query ONLY when every MV
-            # filter is also a query filter (the MV is no more restrictive than the query);
-            # otherwise it would silently drop rows the query wants. An unfiltered MV ({}) is
-            # always safe. The query's remaining filters are re-applied on the MV at rewrite.
-            if not set(mv.filters).issubset(query_filters):
-                continue
-            log.debug(
-                "AggregateMVCatalog: MV %s covers table=%s cols=%s", mv.id, table, agg_columns
-            )
-            return mv
-
+def _measure_of(node: exp.Expression) -> Measure | None:
+    """The measure an aggregate call is, when it is one a view can store and re-aggregate."""
+    kind = _STORED.get(type(node))
+    if kind is None:
         return None
-
-    def rewrite_sql(  # REQ-198
-        self,
-        sql: str,
-        mv: MVDefinition,
-        agg_columns: list[str],
-        remaining_filters: list[str],
-    ) -> str:
-        """Rewrite a SQL aggregate query to read from an MV backing table.
-
-        Replaces every base-table reference in the original SQL with the MV
-        backing table, preserving all SELECT expressions (including aggregates
-        such as SUM/AVG), WHERE clauses, and GROUP BY clauses.
-        """
-        mv_table = exp.Table(
-            this=exp.Identifier(this=mv.target_table, quoted=True),
-            db=exp.Identifier(this=mv.target_schema, quoted=True),
-            catalog=exp.Identifier(this=mv.target_catalog, quoted=True),
-        )
-
-        tree = sqlglot.parse_one(sql)
-
-        # Replace SELECT clause with quoted agg_columns (or * when none given).
-        if agg_columns:
-            select_exprs = [
-                exp.Column(this=exp.Identifier(this=c, quoted=True)) for c in agg_columns
-            ]
-        else:
-            select_exprs = [exp.Star()]
-        tree.set("expressions", select_exprs)
-
-        # Replace every FROM / JOIN table reference that matches a source table.
-        source_set = {t.lower() for t in mv.source_tables}
-        for node in tree.find_all(exp.Table):
-            if node.name.lower() in source_set:
-                node.replace(mv_table.copy())
-
-        # If no FROM clause exists (e.g. original was SELECT 1), set one.
-        if not tree.find(exp.From):
-            tree.set("from", exp.From(this=mv_table.copy()))
-
-        # Append any additional remaining_filters to the WHERE clause.
-        if remaining_filters:
-            extra = sqlglot.parse_one(" AND ".join(remaining_filters))
-            existing_where = tree.find(exp.Where)
-            if existing_where:
-                existing_where.set("this", exp.And(this=existing_where.this, expression=extra))
-            else:
-                tree.set("where", exp.Where(this=extra))
-
-        rewritten = f"/* aggregate_mv: {mv.id} */\n{tree.sql()}"
-        log.info("Rewrote aggregate query for table=%s to MV %s", mv.source_tables, mv.id)
-        return rewritten
-
-
-def _split_conjuncts(node) -> list:
-    """Flatten a boolean expression tree into its top-level AND conjuncts."""
-    if isinstance(node, exp.And):
-        return _split_conjuncts(node.this) + _split_conjuncts(node.expression)
-    return [node]
-
-
-def _extract_aggregate_query(sql: str) -> tuple[str, list[str], list[str]] | None:
-    """Parse a single-table aggregate query into (table, agg_columns, filter_fragments).
-
-    Returns None when the query is not a rewritable single-table aggregate (has a JOIN,
-    references multiple tables, or contains no aggregate function).
-    """
-    from sqlglot.errors import SqlglotError
-
-    try:
-        tree = sqlglot.parse_one(sql)
-    except (SqlglotError, RecursionError):
+    arg = node.this
+    if isinstance(arg, exp.Distinct):
         return None
-    if tree.find(exp.Join) is not None:
+    if kind == "count" and isinstance(arg, exp.Star):
+        return ("count", "*")
+    column = _plain_column(arg) if arg is not None else None
+    return (kind, column) if column is not None else None
+
+
+def _single_table_select(tree: Any) -> exp.Table | None:
+    """The one table a plain SELECT reads, or None for anything else."""
+    if not isinstance(tree, exp.Select):
+        return None
+    if tree.args.get("joins") or tree.args.get("distinct") or tree.args.get("having"):
+        return None
+    if tree.find(exp.Window) is not None or tree.find(exp.Subquery) is not None:
         return None
     tables = list(tree.find_all(exp.Table))
     if len(tables) != 1:
         return None
-    agg_cols = [c.name for f in tree.find_all(exp.AggFunc) for c in f.find_all(exp.Column)]
-    if not agg_cols:
+    return tables[0]
+
+
+@lru_cache(maxsize=1024)
+def derive_shape(sql: str) -> AggregateShape | None:
+    """What the view defined by ``sql`` (its catalog-physical SQL) pre-aggregates, or None when
+    it is not a single-table ``GROUP BY`` of storable measures."""
+    try:
+        tree = sqlglot.parse_one(sql, read="postgres")
+    except (SqlglotError, RecursionError):
         return None
-    where = tree.find(exp.Where)
-    filters = [c.sql() for c in _split_conjuncts(where.this)] if where else []
-    return tables[0].name, agg_cols, filters
+    table = _single_table_select(tree)
+    if table is None or not table.catalog:
+        return None
+    if tree.args.get("where") or tree.args.get("order") or tree.args.get("limit"):
+        return None
+    group = tree.args.get("group")
+    grouped = [_plain_column(g) for g in (group.expressions if group else [])]
+    if any(g is None for g in grouped):
+        return None
+    dims: dict[str, str] = {}
+    measures: dict[Measure, str] = {}
+    for selected in tree.expressions:
+        name = selected.alias_or_name
+        node = selected.this if isinstance(selected, exp.Alias) else selected
+        column = _plain_column(node)
+        if column is not None:
+            if column not in grouped:
+                return None
+            dims[column] = name
+            continue
+        measure = _measure_of(node)
+        if measure is None or not isinstance(selected, exp.Alias):
+            return None  # an expression, or an aggregate with no name to read it back by
+        measures[measure] = name
+    if set(grouped) - dims.keys() or not measures:
+        return None
+    relation = (table.catalog.lower(), table.db.lower(), table.name.lower())
+    return AggregateShape(relation=relation, dims=dims, measures=measures)
+
+
+def _quoted(name: str) -> exp.Column:
+    return exp.Column(this=exp.Identifier(this=name, quoted=True))
+
+
+def _reaggregate(node: exp.Expression, shape: AggregateShape) -> exp.Expression | None:
+    """The query's aggregate ``node`` re-aggregated over the view's measures, or None when the
+    view does not hold what it needs."""
+    if isinstance(node, exp.Avg):
+        column = _plain_column(node.this)
+        total = shape.measures.get(("sum", column)) if column else None
+        count = shape.measures.get(("count", column)) if column else None
+        if total is None or count is None:
+            return None
+        return exp.Div(
+            this=exp.Cast(this=exp.Sum(this=_quoted(total)), to=exp.DataType.build("numeric")),
+            expression=exp.Nullif(
+                this=exp.Sum(this=_quoted(count)), expression=exp.Literal.number(0)
+            ),
+        )
+    measure = _measure_of(node)
+    if measure is None:
+        return None
+    stored = shape.measures.get(measure)
+    if stored is None:
+        return None
+    if measure[0] == "count":
+        # A count summed is numeric, and NULL over no rows: as COUNT itself, a bigint and 0.
+        return exp.Cast(
+            this=exp.Coalesce(
+                this=exp.Sum(this=_quoted(stored)), expressions=[exp.Literal.number(0)]
+            ),
+            to=exp.DataType.build("bigint"),
+        )
+    return {"sum": exp.Sum, "min": exp.Min, "max": exp.Max}[measure[0]](this=_quoted(stored))
+
+
+_AGGREGATES = (exp.Sum, exp.Min, exp.Max, exp.Count, exp.Avg)
+
+
+def rewrite_over(sql: str, relation: Relation, shape: AggregateShape, stored: str) -> str | None:
+    """``sql`` (a single-table aggregate over ``relation``) read from the view stored at
+    ``stored`` instead, or None when the view cannot answer it exactly."""
+    try:
+        tree = sqlglot.parse_one(sql, read="postgres")
+    except (SqlglotError, RecursionError):
+        return None
+    table = _single_table_select(tree)
+    if table is None or shape.relation != relation:
+        return None
+    if tree.find(*_AGGREGATES) is None:
+        return None
+    group = tree.args.get("group")
+    for g in group.expressions if group else []:
+        if _plain_column(g) not in shape.dims:
+            return None
+
+    # Name each output as the query named it: an unnamed aggregate or column keeps the name
+    # PostgreSQL gives it (its function's, its column's), which its reader reads it back by.
+    named = []
+    for selected in tree.expressions:
+        if isinstance(selected, _AGGREGATES):
+            selected = exp.alias_(selected, selected.key, quoted=True)
+        elif isinstance(selected, exp.Column):
+            selected = exp.alias_(selected, selected.name, quoted=True)
+        named.append(selected)
+    tree.set("expressions", named)
+    # The columns read outside an aggregate -- selected, grouped, filtered, ordered on -- are the
+    # view's dimensions; then each aggregate is re-aggregated over its measures.
+    for column in list(tree.find_all(exp.Column)):
+        if column.find_ancestor(*_AGGREGATES) is not None:
+            continue
+        dim = shape.dims.get(column.name.lower())
+        if dim is None:
+            return None
+        column.replace(_quoted(dim))
+    for aggregate in list(tree.find_all(*_AGGREGATES)):
+        if aggregate.find_ancestor(*_AGGREGATES) is not None:
+            return None  # an aggregate of an aggregate
+        swapped = _reaggregate(aggregate, shape)
+        if swapped is None:
+            return None
+        aggregate.replace(swapped)
+    table.replace(sqlglot.parse_one(stored, into=exp.Table, read="postgres"))
+    return tree.sql(dialect="postgres")
 
 
 def rewrite_aggregate_query(
-    sql: str, catalog: AggregateMVCatalog
+    sql: str, relation: Relation, fresh_mvs: list[MVDefinition]
 ) -> tuple[str, MVDefinition] | None:  # REQ-882
-    """Rewrite a single-table aggregate query to read a covering aggregate MV.
-
-    Returns (rewritten_sql, mv) or None. Enforces filter subset-safety via
-    ``find_aggregate_mv`` and re-applies the query's filters that the MV was NOT
-    pre-computed with (remaining filters) on the MV.
-    """
-    parsed = _extract_aggregate_query(sql)
-    if parsed is None:
-        return None
-    table, agg_cols, filters = parsed
-    mv = catalog.find_aggregate_mv(table, agg_cols, filters)
-    if mv is None:
-        return None
-    mv_filters = set(mv.filters)
-    remaining = [f for f in filters if f not in mv_filters]
-    return catalog.rewrite_sql(sql, mv, agg_cols, remaining), mv
-
-
-# Module-level singleton — populated by MVRegistry on startup
-_catalog = AggregateMVCatalog()
-
-
-def get_aggregate_catalog() -> AggregateMVCatalog:
-    """Return the global aggregate MV catalog."""
-    return _catalog
+    """``sql`` -- a statement over ``relation`` -- read from the first fresh view that answers it
+    exactly, with that view; None when none does."""
+    for mv in fresh_mvs:
+        if not mv.sql or mv.join_pattern is not None:
+            continue
+        shape = derive_shape(mv.sql)
+        if shape is None or shape.relation != relation:
+            continue
+        rewritten = rewrite_over(sql, relation, shape, mv.stored_ref())
+        if rewritten is not None:
+            log.info("aggregate view %s answers a query over %s", mv.id, ".".join(relation))
+            return f"/* aggregate_mv: {mv.id} */\n{rewritten}", mv
+    return None

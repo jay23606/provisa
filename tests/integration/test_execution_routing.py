@@ -24,6 +24,7 @@ import time
 from unittest.mock import MagicMock
 
 import pytest
+from provisa.compiler.sql_types import CompilationContext
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio(loop_scope="session")]
 
@@ -656,7 +657,7 @@ class TestFederationHints:
             columns=[],
             sources={"sales-pg"},
         )
-        result = rewrite_if_mv_match(compiled, [])
+        result = rewrite_if_mv_match(compiled, [], CompilationContext(), frozenset())
         # No MV match — returned unchanged
         assert result.sql == compiled.sql
 
@@ -698,7 +699,7 @@ class TestFederationHints:
         mv.status = MVStatus.FRESH
         mv.last_refresh_at = time.time() - 5
 
-        result = rewrite_if_mv_match(compiled, [mv])
+        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
         # Should rewrite to use MV table
         assert "mv_ord_cust" in result.sql
         # JOINs removed

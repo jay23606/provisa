@@ -20,6 +20,7 @@ from provisa.compiler.sql_gen import ColumnRef, CompiledQuery
 from provisa.mv.models import JoinPattern, MVDefinition, MVStatus, SDLConfig
 from provisa.mv.registry import MVRegistry
 from provisa.mv.rewriter import rewrite_if_mv_match
+from provisa.compiler.sql_types import CompilationContext
 
 
 def _compiled(sql, sources=None):
@@ -68,14 +69,14 @@ class TestFreshMVOptimization:
     def test_fresh_mv_rewrites_query(self):
         compiled = _compiled(JOIN_SQL)
         mv = _mv_fresh()
-        result = rewrite_if_mv_match(compiled, [mv])
+        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
         assert "mv_cache" in result.sql
         assert "JOIN" not in result.sql
 
     def test_sources_updated_to_mv_catalog(self):
         compiled = _compiled(JOIN_SQL, sources={"pg", "pg2"})
         mv = _mv_fresh()
-        result = rewrite_if_mv_match(compiled, [mv])
+        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
         assert "postgresql" in result.sources
 
 
@@ -86,7 +87,7 @@ class TestStaleMVFallback:
         compiled = _compiled(JOIN_SQL)
         mv = _mv_fresh()
         mv.status = MVStatus.STALE
-        result = rewrite_if_mv_match(compiled, [mv])
+        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
         assert result.sql == JOIN_SQL
 
     def test_disabled_mv_not_used(self):
@@ -94,7 +95,7 @@ class TestStaleMVFallback:
         mv = _mv_fresh()
         mv.status = MVStatus.DISABLED
         mv.enabled = False
-        result = rewrite_if_mv_match(compiled, [mv])
+        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
         assert result.sql == JOIN_SQL
 
 
@@ -153,7 +154,7 @@ class TestRLSOnMVQueries:
             sources={"pg"},
         )
         mv = _mv_fresh()
-        result = rewrite_if_mv_match(compiled, [mv])
+        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
         assert "WHERE" in result.sql
         assert '"region"' in result.sql
         assert result.params == ["us"]
@@ -168,7 +169,7 @@ class TestRLSOnMVQueries:
         )
         compiled = _compiled(sql)
         mv = _mv_fresh()
-        result = rewrite_if_mv_match(compiled, [mv])
+        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
         assert "ORDER BY" in result.sql
         assert '"id"' in result.sql
 
@@ -182,7 +183,7 @@ class TestRLSOnMVQueries:
         )
         compiled = _compiled(sql)
         mv = _mv_fresh()
-        result = rewrite_if_mv_match(compiled, [mv])
+        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
         assert "LIMIT 10" in result.sql
         assert "OFFSET 20" in result.sql
 
@@ -207,7 +208,7 @@ class TestPartialMVMatch:
             sources={"pg"},
         )
         mv = _mv_fresh()
-        result = rewrite_if_mv_match(compiled, [mv])
+        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
 
         # MV used for orders+customers
         assert "mv_cache" in result.sql
@@ -234,7 +235,7 @@ class TestPartialMVMatch:
             sources={"pg"},
         )
         mv = _mv_fresh()
-        result = rewrite_if_mv_match(compiled, [mv])
+        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
 
         # Uncovered JOIN ON clause still references t0 and t2
         assert '"t0"."product_id"' in result.sql
@@ -291,7 +292,7 @@ class TestNoJoinQueryUnchanged:
         sql = 'SELECT "id", "amount" FROM "public"."orders"'
         compiled = _compiled(sql)
         mv = _mv_fresh()
-        result = rewrite_if_mv_match(compiled, [mv])
+        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
         assert result.sql == sql
 
     def test_empty_mv_list_unchanged(self):

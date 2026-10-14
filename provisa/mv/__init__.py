@@ -10,6 +10,6 @@
 
 """Materialized view optimization (Phase P)."""
 
-from provisa.mv.aggregate_catalog import AggregateMVCatalog, get_aggregate_catalog
+from provisa.mv.aggregate_catalog import derive_shape, rewrite_aggregate_query
 
-__all__ = ["AggregateMVCatalog", "get_aggregate_catalog"]
+__all__ = ["derive_shape", "rewrite_aggregate_query"]
