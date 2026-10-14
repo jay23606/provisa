@@ -135,8 +135,9 @@ def test_a_member_with_no_data_surface_adds_nothing(_no_surface_build):
         },
     )
     assert "platform_admin" not in state.surfaces
-    meta = ensure_meta_role(state, ["east", "platform_admin"])
-    assert state.rls_contexts[meta].rules == {1: "(region = 'east')"}
+    # It is no member: the set acts as the one role that reaches data.
+    assert ensure_meta_role(state, ["east", "platform_admin"]) == "east"
+    assert state.rls_contexts["east"].rules == {1: "region = 'east'"}
 
 
 def test_each_members_role_constants_are_written_into_its_own_term():

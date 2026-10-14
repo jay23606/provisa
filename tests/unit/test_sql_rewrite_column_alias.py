@@ -146,3 +146,27 @@ def test_an_insert_target_keeps_its_column_list(dialect):
     assert isinstance(reread, sqlglot.exp.Insert)
     assert [c.name for c in reread.this.expressions] == ["id", "user_id"]
     assert "(id, user_id)" in reread.sql(dialect).replace('"', "")
+
+
+def test_a_name_differing_from_its_physical_column_only_in_case_is_lowered():
+    """A source that keeps case (Snowflake upper-cases what it creates unquoted): the registered
+    column ID is published as id, and the quoted published name was sent to the source, which
+    refused it ("invalid identifier '"id"'")."""
+    ctx = CompilationContext()
+    ctx.tables = {
+        "widgets": TableMeta(
+            table_id=9,
+            field_name="widgets",
+            type_name="Widgets",
+            source_id="sf",
+            catalog_name="sf",
+            schema_name="PUBLIC",
+            table_name="WIDGETS",
+            domain_id="sales",
+        )
+    }
+    ctx.physical_to_sql = {(9, "ID"): "id", (9, "NAME"): "name"}
+
+    lowered = normalize_table_refs('SELECT id, name FROM "PUBLIC"."WIDGETS"', ctx)
+    assert _columns(lowered) == {"ID", "NAME"}
+    assert normalize_table_refs(lowered, ctx) == lowered
