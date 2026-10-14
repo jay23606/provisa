@@ -38,6 +38,7 @@ from provisa.compiler.sql_gen import ColumnRef, CompiledQuery
 from provisa.mv.models import JoinPattern, MVDefinition, MVStatus
 from provisa.mv.registry import MVRegistry
 from provisa.mv.rewriter import rewrite_if_mv_match
+from provisa.compiler.sql_types import CompilationContext
 
 # ---------------------------------------------------------------------------
 # Scenario binding
@@ -295,12 +296,16 @@ def the_view_is_queried(shared_data: dict) -> None:
 
     # Materialized view → eligible fresh MVs available → rewrite to MV backing.
     materialized_fresh = shared_data["materialized_registry"].get_fresh()
-    shared_data["materialized_result"] = rewrite_if_mv_match(compiled, materialized_fresh)
+    shared_data["materialized_result"] = rewrite_if_mv_match(
+        compiled, materialized_fresh, CompilationContext(), frozenset()
+    )
     shared_data["materialized_fresh"] = materialized_fresh
 
     # Live view → no MVs → query executes unchanged as a live subquery.
     live_fresh = shared_data["live_registry"].get_fresh()
-    shared_data["live_result"] = rewrite_if_mv_match(compiled, live_fresh)
+    shared_data["live_result"] = rewrite_if_mv_match(
+        compiled, live_fresh, CompilationContext(), frozenset()
+    )
     shared_data["live_fresh"] = live_fresh
 
 
@@ -341,7 +346,9 @@ def served_from_mv_or_live(shared_data: dict) -> None:
     #    confirming that only a *periodically refreshed* (fresh) MV is served.
     stale_mv = _materialized_view_mv()
     stale_mv.status = MVStatus.STALE
-    stale_result = rewrite_if_mv_match(shared_data["compiled"], [stale_mv])
+    stale_result = rewrite_if_mv_match(
+        shared_data["compiled"], [stale_mv], CompilationContext(), frozenset()
+    )
     assert stale_result.sql == _VIEW_JOIN_SQL, (
         "A stale materialized view must not be served; query must fall back to "
         f"live subquery. Got: {stale_result.sql}"
@@ -361,7 +368,9 @@ def served_from_mv_or_live(shared_data: dict) -> None:
     assert expired_fresh == [], (
         f"A TTL-expired MV must not appear in get_fresh(); got: {[m.id for m in expired_fresh]}"
     )
-    expired_result = rewrite_if_mv_match(shared_data["compiled"], expired_fresh)
+    expired_result = rewrite_if_mv_match(
+        shared_data["compiled"], expired_fresh, CompilationContext(), frozenset()
+    )
     assert expired_result.sql == _VIEW_JOIN_SQL
     assert "mv_cache" not in expired_result.sql
 
@@ -509,7 +518,9 @@ def query_compiled_without_naming_mv(shared_data: dict) -> None:
         columns=[],
         sources={"sales-pg"},
     )
-    result_single = rewrite_if_mv_match(compiled_single, fresh_mvs)
+    result_single = rewrite_if_mv_match(
+        compiled_single, fresh_mvs, CompilationContext(), frozenset()
+    )
     shared_data["result_single"] = result_single
     shared_data["compiled_single"] = compiled_single
 
@@ -523,7 +534,9 @@ def query_compiled_without_naming_mv(shared_data: dict) -> None:
         columns=[],
         sources={"sales-pg"},
     )
-    result_two_partial = rewrite_if_mv_match(compiled_two, partial_only)
+    result_two_partial = rewrite_if_mv_match(
+        compiled_two, partial_only, CompilationContext(), frozenset()
+    )
     shared_data["result_two_partial"] = result_two_partial
     shared_data["compiled_two"] = compiled_two
 
@@ -534,7 +547,9 @@ def query_compiled_without_naming_mv(shared_data: dict) -> None:
     # The rewriter should pick whichever partial candidate it finds first
     # (ordering-stable among equal-coverage partials is acceptable per REQ-849).
     both_candidates = [mv for mv in fresh_mvs if mv.id in ("mv-849-full", "mv-849-partial")]
-    result_two_both = rewrite_if_mv_match(compiled_two, both_candidates)
+    result_two_both = rewrite_if_mv_match(
+        compiled_two, both_candidates, CompilationContext(), frozenset()
+    )
     shared_data["result_two_both"] = result_two_both
 
     # --- Scenario D: no-match query → runs against live source tables ---
@@ -545,7 +560,9 @@ def query_compiled_without_naming_mv(shared_data: dict) -> None:
         columns=[],
         sources={"sales-pg"},
     )
-    result_no_match = rewrite_if_mv_match(compiled_no_match, fresh_mvs)
+    result_no_match = rewrite_if_mv_match(
+        compiled_no_match, fresh_mvs, CompilationContext(), frozenset()
+    )
     shared_data["result_no_match"] = result_no_match
     shared_data["compiled_no_match"] = compiled_no_match
 
@@ -563,7 +580,9 @@ def query_compiled_without_naming_mv(shared_data: dict) -> None:
     # For the single-join SQL, mv_partial does NOT match (wrong join), so this tests
     # that a non-matching candidate before a full-match candidate does not block the full match.
     ordered_candidates = [shared_data["mv_partial"], shared_data["mv_full"]]
-    result_full_preferred = rewrite_if_mv_match(compiled_single_recheck, ordered_candidates)
+    result_full_preferred = rewrite_if_mv_match(
+        compiled_single_recheck, ordered_candidates, CompilationContext(), frozenset()
+    )
     shared_data["result_full_preferred"] = result_full_preferred
 
     # --- Scenario F: TTL-expired MV is excluded ---
@@ -598,7 +617,9 @@ def query_compiled_without_naming_mv(shared_data: dict) -> None:
         columns=[],
         sources={"sales-pg"},
     )
-    result_expired = rewrite_if_mv_match(compiled_expired, expired_fresh)
+    result_expired = rewrite_if_mv_match(
+        compiled_expired, expired_fresh, CompilationContext(), frozenset()
+    )
     shared_data["result_expired"] = result_expired
     shared_data["single_join_sql_ref"] = shared_data["single_join_sql"]
 

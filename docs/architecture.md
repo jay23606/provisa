@@ -595,7 +595,7 @@ All list queries support Relay-style cursor pagination via `compiler/cursor.py`.
 
 ## Aggregate Queries
 
-Every registered table gets an auto-generated `{table}_aggregate` root field (`compiler/aggregate_gen.py`). (REQ-196) The aggregate type exposes `count`, `sum`, `avg`, `min`, `max` per numeric column, and `nodes` for filtered row access with full field selection (same RLS/masking as the base query). (REQ-196, REQ-198) Aggregate queries are eligible for Aggregate MV routing — see `mv/aggregate_catalog.py`. (REQ-198)
+Every registered table gets an auto-generated `{table}_aggregate` root field (`compiler/aggregate_gen.py`). (REQ-196) The aggregate type exposes `count`, `sum`, `avg`, `min`, `max` per numeric column, and `nodes` for filtered row access with full field selection (same RLS/masking as the base query). (REQ-196, REQ-198) An aggregate over one table is answered from a fresh materialized view that pre-aggregates it, with nothing declared: a view whose SQL is a single-table `GROUP BY` of named `SUM`, `COUNT`, `MIN` and `MAX` serves the aggregates that group by a subset of its grouping columns and filter only on them. Each aggregate is re-aggregated over the stored ones (`COUNT` as the sum of the stored counts, `AVG` from a stored sum and count of the same column); anything the view cannot answer exactly, and any read through a row filter or a mask on the table, is left to the table. (REQ-198, REQ-882) [tool-verified: `provisa/mv/aggregate_catalog.py`, `provisa/mv/rewriter.py` `rewrite_if_aggregate_match`]
 
 ## Automatic Persisted Queries (APQ)
 

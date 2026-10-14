@@ -23,6 +23,7 @@ from pytest_bdd import given, scenario, then, when
 from provisa.compiler.sql_gen import ColumnRef, CompiledQuery
 from provisa.mv.models import JoinPattern, MVDefinition, MVStatus
 from provisa.mv.rewriter import rewrite_if_mv_match
+from provisa.compiler.sql_types import CompilationContext
 
 
 # ---------------------------------------------------------------------------
@@ -148,7 +149,7 @@ def when_query_is_compiled(shared_data):
     compiled = shared_data["compiled"]
     mv = shared_data["mv"]
 
-    result = rewrite_if_mv_match(compiled, [mv])
+    result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
     shared_data["result"] = result
 
 

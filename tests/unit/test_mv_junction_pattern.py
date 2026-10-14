@@ -30,6 +30,7 @@ from tests.helpers import src_table
 from provisa.mv.models import JoinPattern, MVDefinition, MVStatus
 from provisa.mv.refresh import _build_refresh_sql
 from provisa.mv.rewriter import rewrite_if_mv_match
+from provisa.compiler.sql_types import CompilationContext
 
 
 async def _built_sql(monkeypatch, mv: MVDefinition, columns: dict[str, list[str]]) -> str:
@@ -228,25 +229,33 @@ class TestJunctionRefreshSQL:
 
 class TestJunctionRewrite:
     def test_traversal_reads_the_mv(self):
-        result = rewrite_if_mv_match(_compiled(_TRAVERSAL_SQL), [_junction_mv()])
+        result = rewrite_if_mv_match(
+            _compiled(_TRAVERSAL_SQL), [_junction_mv()], CompilationContext(), frozenset()
+        )
 
         assert "mv_bonded_pair" in result.sql
         assert result.sources == {"iceberg"}
 
     def test_both_hops_are_removed(self):
-        result = rewrite_if_mv_match(_compiled(_TRAVERSAL_SQL), [_junction_mv()])
+        result = rewrite_if_mv_match(
+            _compiled(_TRAVERSAL_SQL), [_junction_mv()], CompilationContext(), frozenset()
+        )
 
         assert "JOIN" not in result.sql
 
     def test_target_columns_take_the_mv_prefix(self):
-        result = rewrite_if_mv_match(_compiled(_TRAVERSAL_SQL), [_junction_mv()])
+        result = rewrite_if_mv_match(
+            _compiled(_TRAVERSAL_SQL), [_junction_mv()], CompilationContext(), frozenset()
+        )
 
         assert '"pets__name"' in result.sql
 
     def test_a_different_edge_type_does_not_read_this_mv(self):
         sql = _TRAVERSAL_SQL.replace("'bonded pair'", "'littermate'")
 
-        result = rewrite_if_mv_match(_compiled(sql), [_junction_mv()])
+        result = rewrite_if_mv_match(
+            _compiled(sql), [_junction_mv()], CompilationContext(), frozenset()
+        )
 
         assert result.sql == sql
         assert result.sources == {"pet-store"}
@@ -258,7 +267,9 @@ class TestJunctionRewrite:
             'LEFT JOIN "pet_store"."pets" "t1" ON "t0"."id" = "t1"."id"'
         )
 
-        result = rewrite_if_mv_match(_compiled(sql), [_junction_mv()])
+        result = rewrite_if_mv_match(
+            _compiled(sql), [_junction_mv()], CompilationContext(), frozenset()
+        )
 
         assert result.sources == {"pet-store"}
 
@@ -273,6 +284,8 @@ class TestJunctionRewrite:
             'WHERE "t1"."relation_type" = \'bonded pair\''
         )
 
-        result = rewrite_if_mv_match(_compiled(sql), [_junction_mv()])
+        result = rewrite_if_mv_match(
+            _compiled(sql), [_junction_mv()], CompilationContext(), frozenset()
+        )
 
         assert result.sources == {"pet-store"}

@@ -4199,9 +4199,15 @@ def _prepare_compiled_stage(compiled: Any, role_id: str, state: Any) -> Any:  # 
     row cap (the sampling ceiling, in ``apply_governance``) are functions of the statement and the
     role and are kept with the governed plan (:func:`_govern_compiled`); a request-level as-of
     expands bitemporal views at routing (:func:`_route_compiled`), on the kept lowering."""
-    from provisa.mv.rewriter import rewrite_if_mv_match
+    from provisa.mv.rewriter import rewrite_if_mv_match, role_governed_tables
 
-    compiled = rewrite_if_mv_match(compiled, state.mv_registry.get_fresh())
+    surface = state.surfaces[role_id]  # one snapshot: context and row filters of one build
+    compiled = rewrite_if_mv_match(
+        compiled,
+        state.mv_registry.get_fresh(),
+        surface.context,
+        role_governed_tables(surface.context, surface.rls, state.masking_rules, role_id),
+    )
     if getattr(state, "kafka_table_configs", None):
         from provisa.kafka.window import inject_kafka_filters
 

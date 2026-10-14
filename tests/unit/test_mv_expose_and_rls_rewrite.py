@@ -21,6 +21,7 @@ from provisa.compiler.sql_gen import ColumnRef, CompiledQuery
 from provisa.mv.models import JoinPattern, MVDefinition, MVStatus
 from provisa.mv.registry import MVRegistry
 from provisa.mv.rewriter import rewrite_if_mv_match
+from provisa.compiler.sql_types import CompilationContext
 
 
 class _Engine:
@@ -119,7 +120,7 @@ def test_the_rewrite_keeps_the_rls_predicate_and_its_parameters():  # REQ-085
         ],
         sources={"pg"},
     )
-    result = rewrite_if_mv_match(compiled, [_fresh_mv()])
+    result = rewrite_if_mv_match(compiled, [_fresh_mv()], CompilationContext(), frozenset())
     assert "mv_cache" in result.sql and "JOIN" not in result.sql
     # The alias is rewritten onto the MV target; the predicate and its placeholder are not dropped.
     assert 'WHERE ("region" = $1)' in result.sql
