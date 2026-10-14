@@ -534,3 +534,42 @@ def test_a_fake_synthesis_does_not_compute_yet_is_refused_by_name(monkeypatch):
         plan_tables(
             [_customers()], [], seed=1, names=_NAMES, count_rows=_count, measure=_unmeasured
         )
+
+
+def test_a_pool_holds_as_many_distinct_values_as_it_declares_spread_over_its_range(con):
+    """A column declaring five distinct values from 1 to 5 holds 1, 2, 3, 4 and 5. Each slot of
+    the pool drew its own value before, so slots repeated one another and left values out: the
+    synthetic environment's _nf_petId came out as 1, 2 and 4, and an equality on 3 matched
+    nothing (REQ-1942)."""
+    span = tuple(1 + i * 4 / 100 for i in range(101))
+    table = DatasetTable(
+        table_id=1,
+        name="get_pet_by_id",
+        pgwire_name="sales.get_pet_by_id",
+        columns=(("id", "bigint", True), ("pet", "bigint", False)),
+        scale=1.0,
+        fakes={},
+        profile=ProfiledTable(
+            "r",
+            20,
+            20,
+            {
+                "id": _col(
+                    "id", distinct_count=20, sketch=tuple(1 + i * 19 / 100 for i in range(101))
+                ),
+                "pet": _col("pet", distinct_count=5, distinct_ratio=0.25, sketch=span),
+            },
+            (),
+        ),
+    )
+    for seed in range(1, 9):
+        [planned] = plan_tables(
+            [table],
+            [],
+            seed=seed,
+            names={1: "get_pet_by_id"},
+            count_rows=_count,
+            measure=_unmeasured,
+        )
+        values = [r["pet"] for r in _run(planned.plan, con)]
+        assert sorted(set(values)) == [1, 2, 3, 4, 5], (seed, values)

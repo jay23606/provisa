@@ -28,7 +28,9 @@ uniforms through what its profile recorded:
 * any other column draws through its 101-point quantile sketch (numeric, temporal) or its value
   shapes (text), never from its recorded most frequent values;
 * a column whose distinct count does not grow with its rows draws from a fixed pool of that many
-  values, so its vocabulary size is kept at any scale;
+  values, so its vocabulary size is kept at any scale; a numeric or temporal pool's values are
+  its sketch's quantiles one per stratum, so they are that many distinct values spread over the
+  whole range;
 * null shares are kept, and an integer-only column stays integral.
 
 The statement is written in the engine's dialect: DuckDB (the test stack's engine) and Trino.
@@ -312,6 +314,12 @@ def column_expr(d: _Dialect, plan: TablePlan, col: ColumnPlan, key: str, index: 
         value = _cast(col, _key_value(d, col.foreign_key.parent_key, "p"))
     else:
         draw_key = key
+        # The pool's own share of the range, when the column draws from a fixed pool: slot k of
+        # n takes the sketch's quantile at (k + 0.5) / n, one per stratum, rather than a draw of
+        # its own. Independent draws let slots repeat a value and leave others out -- a declared
+        # five values from 1 to 5 came out as 1, 2 and 4, and an equality on 3 matched nothing.
+        # The slots are spread over the whole distribution, so its shape is kept.
+        stratum: str | None = None
         if col.pool_shares:
             # A fixed, skewed vocabulary of generated values: the pool index by its share.
             branches, acc = [], 0.0
@@ -321,14 +329,19 @@ def column_expr(d: _Dialect, plan: TablePlan, col: ColumnPlan, key: str, index: 
                 branches.append(f"WHEN {slot_u} < {acc!r} THEN {slot}")
             last = len(col.pool_shares) - 1
             draw_key = f"(CASE {' '.join(branches)} ELSE {last} END)" if branches else str(last)
+            stratum = f"(({draw_key}) + 0.5) / {len(col.pool_shares)}"
         elif col.pool is not None:
-            # A fixed vocabulary: the value is a function of a pool index, not of the row.
-            draw_key = f"CAST(floor({u('pool')} * {col.pool}) AS BIGINT)"
+            # A fixed vocabulary: the value is a function of a pool index, not of the row. The
+            # first rows take one slot each, so every value of the pool is in a table with as
+            # many rows as it has values; the rest draw theirs.
+            drawn = f"CAST(floor({u('pool')} * {col.pool}) AS BIGINT)"
+            draw_key = f"(CASE WHEN {index} < {col.pool} THEN {index} ELSE {drawn} END)"
+            stratum = f"(({draw_key}) + 0.5) / {col.pool}"
         if col.frequencies:
             value = _cast(col, _pick(col.frequencies, col.dep_u or u("value"), "NULL"))
         else:
             if col.sketch is not None and col.family in ("numeric", "temporal"):
-                raw = _sketch_value(d, col.sketch, col.dep_u or u("value", draw_key))
+                raw = _sketch_value(d, col.sketch, col.dep_u or stratum or u("value", draw_key))
                 if col.integer_only:
                     raw = f"round({raw})"
                 rest = (
