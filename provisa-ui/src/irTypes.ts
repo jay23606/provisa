@@ -24,6 +24,7 @@ export const IR_TYPES_FALLBACK: string[] = [
   "text",
   "time",
   "timestamp",
+  "timestamptz", // REQ-2050: an instant, in UTC with its zone
   "uuid",
 ];
 
@@ -50,8 +51,8 @@ const NATIVE_TO_IR: Record<string, string> = {
   decimal: "numeric",
   datetime: "timestamp",
   "timestamp without time zone": "timestamp",
-  "timestamp with time zone": "timestamp",
-  timestamptz: "timestamp",
+  "timestamp with time zone": "timestamptz",
+  timestamptz: "timestamptz",
   varbinary: "bytea",
   blob: "bytea",
 };

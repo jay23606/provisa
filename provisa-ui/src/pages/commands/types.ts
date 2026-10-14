@@ -93,6 +93,7 @@ export const IR_TYPES = [
   "numeric",
   "date",
   "timestamp",
+  "timestamptz",
   "time",
   "uuid",
   "bytea",

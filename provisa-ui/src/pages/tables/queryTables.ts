@@ -76,6 +76,7 @@ export const ARGUMENT_TYPES = [
   "boolean",
   "date",
   "timestamp",
+  "timestamptz",
   "uuid",
   "json",
   "array(double)",
