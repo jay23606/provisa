@@ -82523,10 +82523,12 @@
     into the folder appears as a table), data quality checks and profiling, schema change on a new file, relationships
     on neighborhood or address, a glossary term and a materialized view. Its tour follows the settled demo tour
     shape: the scenario and the features it exercises; how its sources, tables, commands, views and relationships
-    fit, each step on its real row; predesigned queries on two or three fitting surfaces; one Polly question answered
-    at template build and served stored (REQ-2012); then a recap. The demo never reaches a live external account
-    at run time: data from real accounts is landed at build as TTL -1 replicas (REQ-2031). Its Polly question: "Which
-    neighborhoods have the most complaints near active construction?"'
+    fit, each step on its real row; then the solution in whatever form best answers the question: predesigned queries
+    and views run over the transports that suit it (SQL, GraphQL, REST, JSON:API, gRPC, Cypher, or an external client
+    over pgwire or Arrow Flight), with a Polly question (answered at template build and served stored, REQ-2012)
+    only where a conversational answer is the natural fit; then a recap. The demo never reaches a live external
+    account at run time: data from real accounts is landed at build as TTL -1 replicas (REQ-2031). Its business
+    question: "Which neighborhoods have the most complaints near active construction?"'
   use_case: 'A visitor opens the files demo, walks its tour, and sees the business question answered: Which neighborhoods
     have the most complaints near active construction?'
   scenario: 'Given the files demo started from its template
@@ -82535,8 +82537,8 @@
     When a visitor walks its tour to the end
 
 
-    Then every step shows its real object, every predesigned query returns rows, and the stored Polly answer is
-    shown
+    Then every step shows its real object, every predesigned query returns rows, and the solution''s predesigned
+    queries return rows
 
 
     And no request leaves the demo for a live external account'
@@ -82560,10 +82562,12 @@
     joined to a static product catalog, on the demo''s own containers. It shows freshness and change signals, live
     subscriptions, the response cache, and derived views refreshing as events land. Its tour follows the settled
     demo tour shape: the scenario and the features it exercises; how its sources, tables, commands, views and relationships
-    fit, each step on its real row; predesigned queries on two or three fitting surfaces; one Polly question answered
-    at template build and served stored (REQ-2012); then a recap. The demo never reaches a live external account
-    at run time: data from real accounts is landed at build as TTL -1 replicas (REQ-2031). Its Polly question: "Which
-    regions placed the most orders in the last five minutes?"'
+    fit, each step on its real row; then the solution in whatever form best answers the question: predesigned queries
+    and views run over the transports that suit it (SQL, GraphQL, REST, JSON:API, gRPC, Cypher, or an external client
+    over pgwire or Arrow Flight), with a Polly question (answered at template build and served stored, REQ-2012)
+    only where a conversational answer is the natural fit; then a recap. The demo never reaches a live external
+    account at run time: data from real accounts is landed at build as TTL -1 replicas (REQ-2031). Its business
+    question: "Which regions placed the most orders in the last five minutes?"'
   use_case: 'A visitor opens the streaming demo, walks its tour, and sees the business question answered: Which
     regions placed the most orders in the last five minutes?'
   scenario: 'Given the streaming demo started from its template
@@ -82572,8 +82576,8 @@
     When a visitor walks its tour to the end
 
 
-    Then every step shows its real object, every predesigned query returns rows, and the stored Polly answer is
-    shown
+    Then every step shows its real object, every predesigned query returns rows, and the solution''s predesigned
+    queries return rows
 
 
     And no request leaves the demo for a live external account'
@@ -82598,10 +82602,12 @@
     from TTL -1 replicas. It shows cross-application relationships (account to incident to issue, account to invoice),
     lineage to each table''s real origin, and a data product (account health). Its tour follows the settled demo
     tour shape: the scenario and the features it exercises; how its sources, tables, commands, views and relationships
-    fit, each step on its real row; predesigned queries on two or three fitting surfaces; one Polly question answered
-    at template build and served stored (REQ-2012); then a recap. The demo never reaches a live external account
-    at run time: data from real accounts is landed at build as TTL -1 replicas (REQ-2031). Its Polly question: "Which
-    accounts renewing this quarter have open P1 incidents, blocked fixes or overdue invoices?"'
+    fit, each step on its real row; then the solution in whatever form best answers the question: predesigned queries
+    and views run over the transports that suit it (SQL, GraphQL, REST, JSON:API, gRPC, Cypher, or an external client
+    over pgwire or Arrow Flight), with a Polly question (answered at template build and served stored, REQ-2012)
+    only where a conversational answer is the natural fit; then a recap. The demo never reaches a live external
+    account at run time: data from real accounts is landed at build as TTL -1 replicas (REQ-2031). Its business
+    question: "Which accounts renewing this quarter have open P1 incidents, blocked fixes or overdue invoices?"'
   use_case: 'A visitor opens the customer-360 demo, walks its tour, and sees the business question answered: Which
     accounts renewing this quarter have open P1 incidents, blocked fixes or overdue invoices?'
   scenario: 'Given the customer-360 demo started from its template
@@ -82610,8 +82616,8 @@
     When a visitor walks its tour to the end
 
 
-    Then every step shows its real object, every predesigned query returns rows, and the stored Polly answer is
-    shown
+    Then every step shows its real object, every predesigned query returns rows, and the solution''s predesigned
+    queries return rows
 
 
     And no request leaves the demo for a live external account'
@@ -82640,10 +82646,12 @@
     but meeting them takes active design by people who understand the cross-border data movement rules and policies
     that apply; it never claims the features make an organization compliant. Its tour follows the settled demo tour
     shape: the scenario and the features it exercises; how its sources, tables, commands, views and relationships
-    fit, each step on its real row; predesigned queries on two or three fitting surfaces; one Polly question answered
-    at template build and served stored (REQ-2012); then a recap. The demo never reaches a live external account
-    at run time: data from real accounts is landed at build as TTL -1 replicas (REQ-2031). Its Polly question: "Where
-    does EU customer data live, and who can see it?"'
+    fit, each step on its real row; then the solution in whatever form best answers the question: predesigned queries
+    and views run over the transports that suit it (SQL, GraphQL, REST, JSON:API, gRPC, Cypher, or an external client
+    over pgwire or Arrow Flight), with a Polly question (answered at template build and served stored, REQ-2012)
+    only where a conversational answer is the natural fit; then a recap. The demo never reaches a live external
+    account at run time: data from real accounts is landed at build as TTL -1 replicas (REQ-2031). Its business
+    question: "Where does EU customer data live, and who can see it?"'
   use_case: 'A visitor opens the residency demo, walks its tour, and sees the business question answered: Where
     does EU customer data live, and who can see it?'
   scenario: 'Given the residency demo started from its template
@@ -82652,8 +82660,8 @@
     When a visitor walks its tour to the end
 
 
-    Then every step shows its real object, every predesigned query returns rows, and the stored Polly answer is
-    shown
+    Then every step shows its real object, every predesigned query returns rows, and the solution''s predesigned
+    queries return rows
 
 
     And no request leaves the demo for a live external account'
@@ -82681,10 +82689,12 @@
     to private code data, a materialized view of exploited CVEs in the organization''s code with days past the CISA
     due date, a Repository-Package-CVE-CWE graph, and glossary terms (KEV, CWE, CVSS). Its tour follows the settled
     demo tour shape: the scenario and the features it exercises; how its sources, tables, commands, views and relationships
-    fit, each step on its real row; predesigned queries on two or three fitting surfaces; one Polly question answered
-    at template build and served stored (REQ-2012); then a recap. The demo never reaches a live external account
-    at run time: data from real accounts is landed at build as TTL -1 replicas (REQ-2031). Its Polly question: "Which
-    repos ship a known-exploited vulnerability, and how overdue are we?"'
+    fit, each step on its real row; then the solution in whatever form best answers the question: predesigned queries
+    and views run over the transports that suit it (SQL, GraphQL, REST, JSON:API, gRPC, Cypher, or an external client
+    over pgwire or Arrow Flight), with a Polly question (answered at template build and served stored, REQ-2012)
+    only where a conversational answer is the natural fit; then a recap. The demo never reaches a live external
+    account at run time: data from real accounts is landed at build as TTL -1 replicas (REQ-2031). Its business
+    question: "Which repos ship a known-exploited vulnerability, and how overdue are we?"'
   use_case: 'A visitor opens the vulnerabilities demo, walks its tour, and sees the business question answered:
     Which repos ship a known-exploited vulnerability, and how overdue are we?'
   scenario: 'Given the vulnerabilities demo started from its template
@@ -82693,8 +82703,8 @@
     When a visitor walks its tour to the end
 
 
-    Then every step shows its real object, every predesigned query returns rows, and the stored Polly answer is
-    shown
+    Then every step shows its real object, every predesigned query returns rows, and the solution''s predesigned
+    queries return rows
 
 
     And no request leaves the demo for a live external account'
@@ -82717,11 +82727,14 @@
   description: 'An industry vertical demo, insurance: Where is our property exposure concentrated against hazard
     risk? Private data (generated): policies by county. Public data (govdata): fema_nri_* and weather_daily_by_county.
     Pattern for every vertical demo: one focused business question, answered by joining generated private company
-    data with public government data from govdata; one private source, two or three govdata tables, one materialized
-    view, and the settled demo tour shape (scenario and features; how the pieces fit; predesigned queries on two
-    or three surfaces; one Polly question answered at template build and served stored, REQ-2012; recap). Data is
-    landed at build as TTL -1 replicas (REQ-2031); the build fails, naming the table, when a govdata table it needs
-    is empty. A per-vertical glossary uses the industry''s own terms.'
+    data with public government data from govdata; one private source, two or three govdata tables and one materialized
+    view. Its tour follows the settled demo tour shape: the scenario and the features it exercises; how its sources,
+    tables, commands, views and relationships fit, each step on its real row; then the solution in whatever form
+    best answers the question: predesigned queries and views run over the transports that suit it (SQL, GraphQL,
+    REST, JSON:API, gRPC, Cypher, or an external client over pgwire or Arrow Flight), with a Polly question (answered
+    at template build and served stored, REQ-2012) only where a conversational answer is the natural fit; then a
+    recap. Data is landed at build as TTL -1 replicas (REQ-2031); the build fails, naming the table, when a govdata
+    table it needs is empty. A per-vertical glossary uses the industry''s own terms.'
   use_case: A insurance buyer opens the insurance demo and sees their own kind of question answered across company
     and public data.
   scenario: 'Given the insurance demo started from its template
@@ -82730,8 +82743,7 @@
     When a visitor walks its tour to the end
 
 
-    Then every predesigned query returns rows joining the private data to the public data, and the stored Polly
-    answer is shown
+    Then every predesigned query returns rows joining the private data to the public data, and the solution is shown
 
 
     And no request leaves the demo for a live external account'
@@ -82755,11 +82767,14 @@
   description: 'An industry vertical demo, pharma: Which of our products face shortage or recall risk? Private data
     (generated): product catalog and supply. Public data (govdata): fda_drug_shortages, fda_drug_recalls, medicaid_drug_utilization.
     Pattern for every vertical demo: one focused business question, answered by joining generated private company
-    data with public government data from govdata; one private source, two or three govdata tables, one materialized
-    view, and the settled demo tour shape (scenario and features; how the pieces fit; predesigned queries on two
-    or three surfaces; one Polly question answered at template build and served stored, REQ-2012; recap). Data is
-    landed at build as TTL -1 replicas (REQ-2031); the build fails, naming the table, when a govdata table it needs
-    is empty. A per-vertical glossary uses the industry''s own terms.'
+    data with public government data from govdata; one private source, two or three govdata tables and one materialized
+    view. Its tour follows the settled demo tour shape: the scenario and the features it exercises; how its sources,
+    tables, commands, views and relationships fit, each step on its real row; then the solution in whatever form
+    best answers the question: predesigned queries and views run over the transports that suit it (SQL, GraphQL,
+    REST, JSON:API, gRPC, Cypher, or an external client over pgwire or Arrow Flight), with a Polly question (answered
+    at template build and served stored, REQ-2012) only where a conversational answer is the natural fit; then a
+    recap. Data is landed at build as TTL -1 replicas (REQ-2031); the build fails, naming the table, when a govdata
+    table it needs is empty. A per-vertical glossary uses the industry''s own terms.'
   use_case: A pharma buyer opens the pharma demo and sees their own kind of question answered across company and
     public data.
   scenario: 'Given the pharma demo started from its template
@@ -82768,8 +82783,7 @@
     When a visitor walks its tour to the end
 
 
-    Then every predesigned query returns rows joining the private data to the public data, and the stored Polly
-    answer is shown
+    Then every predesigned query returns rows joining the private data to the public data, and the solution is shown
 
 
     And no request leaves the demo for a live external account'
@@ -82793,11 +82807,14 @@
   description: 'An industry vertical demo, agriculture: Does weather explain crop insurance losses in our portfolio?
     Private data (generated): farm portfolio. Public data (govdata): nass_crop_production, rma_crop_insurance, weather_daily_by_county.
     Pattern for every vertical demo: one focused business question, answered by joining generated private company
-    data with public government data from govdata; one private source, two or three govdata tables, one materialized
-    view, and the settled demo tour shape (scenario and features; how the pieces fit; predesigned queries on two
-    or three surfaces; one Polly question answered at template build and served stored, REQ-2012; recap). Data is
-    landed at build as TTL -1 replicas (REQ-2031); the build fails, naming the table, when a govdata table it needs
-    is empty. A per-vertical glossary uses the industry''s own terms.'
+    data with public government data from govdata; one private source, two or three govdata tables and one materialized
+    view. Its tour follows the settled demo tour shape: the scenario and the features it exercises; how its sources,
+    tables, commands, views and relationships fit, each step on its real row; then the solution in whatever form
+    best answers the question: predesigned queries and views run over the transports that suit it (SQL, GraphQL,
+    REST, JSON:API, gRPC, Cypher, or an external client over pgwire or Arrow Flight), with a Polly question (answered
+    at template build and served stored, REQ-2012) only where a conversational answer is the natural fit; then a
+    recap. Data is landed at build as TTL -1 replicas (REQ-2031); the build fails, naming the table, when a govdata
+    table it needs is empty. A per-vertical glossary uses the industry''s own terms.'
   use_case: A agriculture buyer opens the agriculture demo and sees their own kind of question answered across company
     and public data.
   scenario: 'Given the agriculture demo started from its template
@@ -82806,8 +82823,7 @@
     When a visitor walks its tour to the end
 
 
-    Then every predesigned query returns rows joining the private data to the public data, and the stored Polly
-    answer is shown
+    Then every predesigned query returns rows joining the private data to the public data, and the solution is shown
 
 
     And no request leaves the demo for a live external account'
@@ -82833,11 +82849,14 @@
     only its own clients), lineage, and the per-query audit record as evidence. Private data (generated): client
     general ledger and grant schedule. Public data (govdata): usaspending_* awards, exempt_org_master, exempt_org_990.
     Pattern for every vertical demo: one focused business question, answered by joining generated private company
-    data with public government data from govdata; one private source, two or three govdata tables, one materialized
-    view, and the settled demo tour shape (scenario and features; how the pieces fit; predesigned queries on two
-    or three surfaces; one Polly question answered at template build and served stored, REQ-2012; recap). Data is
-    landed at build as TTL -1 replicas (REQ-2031); the build fails, naming the table, when a govdata table it needs
-    is empty. A per-vertical glossary uses the industry''s own terms.'
+    data with public government data from govdata; one private source, two or three govdata tables and one materialized
+    view. Its tour follows the settled demo tour shape: the scenario and the features it exercises; how its sources,
+    tables, commands, views and relationships fit, each step on its real row; then the solution in whatever form
+    best answers the question: predesigned queries and views run over the transports that suit it (SQL, GraphQL,
+    REST, JSON:API, gRPC, Cypher, or an external client over pgwire or Arrow Flight), with a Polly question (answered
+    at template build and served stored, REQ-2012) only where a conversational answer is the natural fit; then a
+    recap. Data is landed at build as TTL -1 replicas (REQ-2031); the build fails, naming the table, when a govdata
+    table it needs is empty. A per-vertical glossary uses the industry''s own terms.'
   use_case: A audit firm buyer opens the audit firm demo and sees their own kind of question answered across company
     and public data.
   scenario: 'Given the audit firm demo started from its template
@@ -82846,8 +82865,7 @@
     When a visitor walks its tour to the end
 
 
-    Then every predesigned query returns rows joining the private data to the public data, and the stored Polly
-    answer is shown
+    Then every predesigned query returns rows joining the private data to the public data, and the solution is shown
 
 
     And no request leaves the demo for a live external account'
@@ -82874,10 +82892,13 @@
     the 990 tables. Private data (generated): client draft 990 figures. Public data (govdata): exempt_org_990 (peer
     filings), exempt_org_master. Pattern for every vertical demo: one focused business question, answered by joining
     generated private company data with public government data from govdata; one private source, two or three govdata
-    tables, one materialized view, and the settled demo tour shape (scenario and features; how the pieces fit; predesigned
-    queries on two or three surfaces; one Polly question answered at template build and served stored, REQ-2012;
-    recap). Data is landed at build as TTL -1 replicas (REQ-2031); the build fails, naming the table, when a govdata
-    table it needs is empty. A per-vertical glossary uses the industry''s own terms.'
+    tables and one materialized view. Its tour follows the settled demo tour shape: the scenario and the features
+    it exercises; how its sources, tables, commands, views and relationships fit, each step on its real row; then
+    the solution in whatever form best answers the question: predesigned queries and views run over the transports
+    that suit it (SQL, GraphQL, REST, JSON:API, gRPC, Cypher, or an external client over pgwire or Arrow Flight),
+    with a Polly question (answered at template build and served stored, REQ-2012) only where a conversational answer
+    is the natural fit; then a recap. Data is landed at build as TTL -1 replicas (REQ-2031); the build fails, naming
+    the table, when a govdata table it needs is empty. A per-vertical glossary uses the industry''s own terms.'
   use_case: A tax firm buyer opens the tax firm demo and sees their own kind of question answered across company
     and public data.
   scenario: 'Given the tax firm demo started from its template
@@ -82886,8 +82907,7 @@
     When a visitor walks its tour to the end
 
 
-    Then every predesigned query returns rows joining the private data to the public data, and the stored Polly
-    answer is shown
+    Then every predesigned query returns rows joining the private data to the public data, and the solution is shown
 
 
     And no request leaves the demo for a live external account'
@@ -82913,11 +82933,14 @@
     materialized view for the council''s dashboard, and a public role beside a staff role. Private data (generated):
     county or city budget lines and program spend. Public data (govdata): cdc_county_overdose_deaths, usaspending_by_county,
     ACS demographics. Pattern for every vertical demo: one focused business question, answered by joining generated
-    private company data with public government data from govdata; one private source, two or three govdata tables,
-    one materialized view, and the settled demo tour shape (scenario and features; how the pieces fit; predesigned
-    queries on two or three surfaces; one Polly question answered at template build and served stored, REQ-2012;
-    recap). Data is landed at build as TTL -1 replicas (REQ-2031); the build fails, naming the table, when a govdata
-    table it needs is empty. A per-vertical glossary uses the industry''s own terms.'
+    private company data with public government data from govdata; one private source, two or three govdata tables
+    and one materialized view. Its tour follows the settled demo tour shape: the scenario and the features it exercises;
+    how its sources, tables, commands, views and relationships fit, each step on its real row; then the solution
+    in whatever form best answers the question: predesigned queries and views run over the transports that suit
+    it (SQL, GraphQL, REST, JSON:API, gRPC, Cypher, or an external client over pgwire or Arrow Flight), with a Polly
+    question (answered at template build and served stored, REQ-2012) only where a conversational answer is the
+    natural fit; then a recap. Data is landed at build as TTL -1 replicas (REQ-2031); the build fails, naming the
+    table, when a govdata table it needs is empty. A per-vertical glossary uses the industry''s own terms.'
   use_case: A local government buyer opens the local government demo and sees their own kind of question answered
     across company and public data.
   scenario: 'Given the local government demo started from its template
@@ -82926,8 +82949,7 @@
     When a visitor walks its tour to the end
 
 
-    Then every predesigned query returns rows joining the private data to the public data, and the stored Polly
-    answer is shown
+    Then every predesigned query returns rows joining the private data to the public data, and the solution is shown
 
 
     And no request leaves the demo for a live external account'
@@ -82951,11 +82973,14 @@
   description: 'An industry vertical demo, banking: Which loans are concentrated in counties at high disaster risk?
     Private data (generated): loan book. Public data (govdata): fema_nri_* and weather_daily_by_county. Pattern
     for every vertical demo: one focused business question, answered by joining generated private company data with
-    public government data from govdata; one private source, two or three govdata tables, one materialized view,
-    and the settled demo tour shape (scenario and features; how the pieces fit; predesigned queries on two or three
-    surfaces; one Polly question answered at template build and served stored, REQ-2012; recap). Data is landed
-    at build as TTL -1 replicas (REQ-2031); the build fails, naming the table, when a govdata table it needs is
-    empty. A per-vertical glossary uses the industry''s own terms.'
+    public government data from govdata; one private source, two or three govdata tables and one materialized view.
+    Its tour follows the settled demo tour shape: the scenario and the features it exercises; how its sources, tables,
+    commands, views and relationships fit, each step on its real row; then the solution in whatever form best answers
+    the question: predesigned queries and views run over the transports that suit it (SQL, GraphQL, REST, JSON:API,
+    gRPC, Cypher, or an external client over pgwire or Arrow Flight), with a Polly question (answered at template
+    build and served stored, REQ-2012) only where a conversational answer is the natural fit; then a recap. Data
+    is landed at build as TTL -1 replicas (REQ-2031); the build fails, naming the table, when a govdata table it
+    needs is empty. A per-vertical glossary uses the industry''s own terms.'
   use_case: A banking buyer opens the banking demo and sees their own kind of question answered across company and
     public data.
   scenario: 'Given the banking demo started from its template
@@ -82964,8 +82989,7 @@
     When a visitor walks its tour to the end
 
 
-    Then every predesigned query returns rows joining the private data to the public data, and the stored Polly
-    answer is shown
+    Then every predesigned query returns rows joining the private data to the public data, and the solution is shown
 
 
     And no request leaves the demo for a live external account'
@@ -82989,11 +83013,14 @@
   description: 'An industry vertical demo, markets: Which portfolio holdings face regulatory or lobbying exposure?
     Private data (generated): holdings. Public data (govdata): sec_company_tickers, filing_*, lobbying_filings,
     cftc_trades. Pattern for every vertical demo: one focused business question, answered by joining generated private
-    company data with public government data from govdata; one private source, two or three govdata tables, one
-    materialized view, and the settled demo tour shape (scenario and features; how the pieces fit; predesigned queries
-    on two or three surfaces; one Polly question answered at template build and served stored, REQ-2012; recap).
-    Data is landed at build as TTL -1 replicas (REQ-2031); the build fails, naming the table, when a govdata table
-    it needs is empty. A per-vertical glossary uses the industry''s own terms.'
+    company data with public government data from govdata; one private source, two or three govdata tables and one
+    materialized view. Its tour follows the settled demo tour shape: the scenario and the features it exercises;
+    how its sources, tables, commands, views and relationships fit, each step on its real row; then the solution
+    in whatever form best answers the question: predesigned queries and views run over the transports that suit
+    it (SQL, GraphQL, REST, JSON:API, gRPC, Cypher, or an external client over pgwire or Arrow Flight), with a Polly
+    question (answered at template build and served stored, REQ-2012) only where a conversational answer is the
+    natural fit; then a recap. Data is landed at build as TTL -1 replicas (REQ-2031); the build fails, naming the
+    table, when a govdata table it needs is empty. A per-vertical glossary uses the industry''s own terms.'
   use_case: A markets buyer opens the markets demo and sees their own kind of question answered across company and
     public data.
   scenario: 'Given the markets demo started from its template
@@ -83002,8 +83029,7 @@
     When a visitor walks its tour to the end
 
 
-    Then every predesigned query returns rows joining the private data to the public data, and the stored Polly
-    answer is shown
+    Then every predesigned query returns rows joining the private data to the public data, and the solution is shown
 
 
     And no request leaves the demo for a live external account'
@@ -83027,11 +83053,14 @@
   description: 'An industry vertical demo, reinsurance: Catastrophe accumulation across ceded portfolios, by region.
     Private data (generated): treaties and ceded exposures. Public data (govdata): FEMA national risk index tables.
     Pattern for every vertical demo: one focused business question, answered by joining generated private company
-    data with public government data from govdata; one private source, two or three govdata tables, one materialized
-    view, and the settled demo tour shape (scenario and features; how the pieces fit; predesigned queries on two
-    or three surfaces; one Polly question answered at template build and served stored, REQ-2012; recap). Data is
-    landed at build as TTL -1 replicas (REQ-2031); the build fails, naming the table, when a govdata table it needs
-    is empty. A per-vertical glossary uses the industry''s own terms.'
+    data with public government data from govdata; one private source, two or three govdata tables and one materialized
+    view. Its tour follows the settled demo tour shape: the scenario and the features it exercises; how its sources,
+    tables, commands, views and relationships fit, each step on its real row; then the solution in whatever form
+    best answers the question: predesigned queries and views run over the transports that suit it (SQL, GraphQL,
+    REST, JSON:API, gRPC, Cypher, or an external client over pgwire or Arrow Flight), with a Polly question (answered
+    at template build and served stored, REQ-2012) only where a conversational answer is the natural fit; then a
+    recap. Data is landed at build as TTL -1 replicas (REQ-2031); the build fails, naming the table, when a govdata
+    table it needs is empty. A per-vertical glossary uses the industry''s own terms.'
   use_case: A reinsurance buyer opens the reinsurance demo and sees their own kind of question answered across company
     and public data.
   scenario: 'Given the reinsurance demo started from its template
@@ -83040,8 +83069,7 @@
     When a visitor walks its tour to the end
 
 
-    Then every predesigned query returns rows joining the private data to the public data, and the stored Polly
-    answer is shown
+    Then every predesigned query returns rows joining the private data to the public data, and the solution is shown
 
 
     And no request leaves the demo for a live external account'
@@ -83065,11 +83093,14 @@
   description: 'An industry vertical demo, healthcare: Are members steered to low-quality, understaffed facilities?
     Private data (generated): claims. Public data (govdata): cms_hospital_quality, cms_pbj_nurse_staffing. Pattern
     for every vertical demo: one focused business question, answered by joining generated private company data with
-    public government data from govdata; one private source, two or three govdata tables, one materialized view,
-    and the settled demo tour shape (scenario and features; how the pieces fit; predesigned queries on two or three
-    surfaces; one Polly question answered at template build and served stored, REQ-2012; recap). Data is landed
-    at build as TTL -1 replicas (REQ-2031); the build fails, naming the table, when a govdata table it needs is
-    empty. A per-vertical glossary uses the industry''s own terms.'
+    public government data from govdata; one private source, two or three govdata tables and one materialized view.
+    Its tour follows the settled demo tour shape: the scenario and the features it exercises; how its sources, tables,
+    commands, views and relationships fit, each step on its real row; then the solution in whatever form best answers
+    the question: predesigned queries and views run over the transports that suit it (SQL, GraphQL, REST, JSON:API,
+    gRPC, Cypher, or an external client over pgwire or Arrow Flight), with a Polly question (answered at template
+    build and served stored, REQ-2012) only where a conversational answer is the natural fit; then a recap. Data
+    is landed at build as TTL -1 replicas (REQ-2031); the build fails, naming the table, when a govdata table it
+    needs is empty. A per-vertical glossary uses the industry''s own terms.'
   use_case: A healthcare buyer opens the healthcare demo and sees their own kind of question answered across company
     and public data.
   scenario: 'Given the healthcare demo started from its template
@@ -83078,8 +83109,7 @@
     When a visitor walks its tour to the end
 
 
-    Then every predesigned query returns rows joining the private data to the public data, and the stored Polly
-    answer is shown
+    Then every predesigned query returns rows joining the private data to the public data, and the solution is shown
 
 
     And no request leaves the demo for a live external account'
@@ -83103,11 +83133,14 @@
   description: 'An industry vertical demo, retail: Which stocked items are under a recall? Private data (generated):
     inventory. Public data (govdata): fda_device_recalls, vehicle_recalls. Pattern for every vertical demo: one
     focused business question, answered by joining generated private company data with public government data from
-    govdata; one private source, two or three govdata tables, one materialized view, and the settled demo tour shape
-    (scenario and features; how the pieces fit; predesigned queries on two or three surfaces; one Polly question
-    answered at template build and served stored, REQ-2012; recap). Data is landed at build as TTL -1 replicas (REQ-2031);
-    the build fails, naming the table, when a govdata table it needs is empty. A per-vertical glossary uses the
-    industry''s own terms.'
+    govdata; one private source, two or three govdata tables and one materialized view. Its tour follows the settled
+    demo tour shape: the scenario and the features it exercises; how its sources, tables, commands, views and relationships
+    fit, each step on its real row; then the solution in whatever form best answers the question: predesigned queries
+    and views run over the transports that suit it (SQL, GraphQL, REST, JSON:API, gRPC, Cypher, or an external client
+    over pgwire or Arrow Flight), with a Polly question (answered at template build and served stored, REQ-2012)
+    only where a conversational answer is the natural fit; then a recap. Data is landed at build as TTL -1 replicas
+    (REQ-2031); the build fails, naming the table, when a govdata table it needs is empty. A per-vertical glossary
+    uses the industry''s own terms.'
   use_case: A retail buyer opens the retail demo and sees their own kind of question answered across company and
     public data.
   scenario: 'Given the retail demo started from its template
@@ -83116,8 +83149,7 @@
     When a visitor walks its tour to the end
 
 
-    Then every predesigned query returns rows joining the private data to the public data, and the stored Polly
-    answer is shown
+    Then every predesigned query returns rows joining the private data to the public data, and the solution is shown
 
 
     And no request leaves the demo for a live external account'
@@ -83142,10 +83174,14 @@
     minerals? Private data (generated): bill of materials and suppliers. Public data (govdata): comtrade_flows,
     trade_exports_critical_minerals, epa_facilities. Pattern for every vertical demo: one focused business question,
     answered by joining generated private company data with public government data from govdata; one private source,
-    two or three govdata tables, one materialized view, and the settled demo tour shape (scenario and features;
-    how the pieces fit; predesigned queries on two or three surfaces; one Polly question answered at template build
-    and served stored, REQ-2012; recap). Data is landed at build as TTL -1 replicas (REQ-2031); the build fails,
-    naming the table, when a govdata table it needs is empty. A per-vertical glossary uses the industry''s own terms.'
+    two or three govdata tables and one materialized view. Its tour follows the settled demo tour shape: the scenario
+    and the features it exercises; how its sources, tables, commands, views and relationships fit, each step on
+    its real row; then the solution in whatever form best answers the question: predesigned queries and views run
+    over the transports that suit it (SQL, GraphQL, REST, JSON:API, gRPC, Cypher, or an external client over pgwire
+    or Arrow Flight), with a Polly question (answered at template build and served stored, REQ-2012) only where
+    a conversational answer is the natural fit; then a recap. Data is landed at build as TTL -1 replicas (REQ-2031);
+    the build fails, naming the table, when a govdata table it needs is empty. A per-vertical glossary uses the
+    industry''s own terms.'
   use_case: A manufacturing buyer opens the manufacturing demo and sees their own kind of question answered across
     company and public data.
   scenario: 'Given the manufacturing demo started from its template
@@ -83154,8 +83190,7 @@
     When a visitor walks its tour to the end
 
 
-    Then every predesigned query returns rows joining the private data to the public data, and the stored Polly
-    answer is shown
+    Then every predesigned query returns rows joining the private data to the public data, and the solution is shown
 
 
     And no request leaves the demo for a live external account'
