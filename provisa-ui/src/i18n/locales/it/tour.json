@@ -294,7 +294,7 @@
       },
       "weblogsSources": {
         "title": "Di cosa tratta questa demo",
-        "description": "Un piccolo negozio online vuole sapere quali pagine sono lente e quale SQL le rende lente. La risposta è divisa tra il log di accesso di nginx, il log delle istruzioni del database e il database del negozio stesso. Il tour mostra come Provisa legge i file di log come tabelle, li unisce tra fonti diverse e li governa per ruolo, poi pone la domanda a Polly."
+        "description": "Un piccolo negozio online vuole sapere quali pagine sono lente e quale SQL le rende lente. La risposta è divisa tra il log di accesso di nginx, il log delle istruzioni del database e il database del negozio stesso. Il tour mostra come Provisa legge i file di log come tabelle, li unisce tra fonti diverse e li governa per ruolo, poi risponde alla domanda in SQL e via REST."
       },
       "weblogsLogFiles": {
         "title": "Tre fonti",
@@ -312,13 +312,9 @@
         "title": "La stessa domanda via REST",
         "description": "Di nuovo le pagine più lente, come chiamata REST: ogni percorso con il suo numero di richieste e il suo tempo medio e più lungo. Ogni superficie servita da Provisa legge lo stesso modello governato, quindi REST dà la risposta che darebbero SQL o GraphQL, con gli stessi diritti."
       },
-      "weblogsAsk": {
-        "title": "Chiedere a Polly",
-        "description": "Polly, l'assistente, riceve la domanda della demo in parole semplici: quali pagine sono le più lente e quale SQL le rende lente? Osservi le pagine che nomina e le istruzioni che indica; le ha trovate interrogando le tabelle e le viste appena viste."
-      },
       "weblogsDone": {
         "title": "Cosa ha appena visto",
-        "description": "Tre fonti sono diventate tabelle, una relazione ha unito i due log su un id di richiesta, e la domanda del negozio ha avuto risposta da esse via REST e da Polly. Fine apre il menu degli altri tour."
+        "description": "Tre fonti sono diventate tabelle, una relazione ha unito i due log su un id di richiesta, e la domanda del negozio ha avuto risposta da esse in SQL e via REST, con gli stessi diritti. Fine apre il menu degli altri tour."
       },
       "sonnetsIntro": {
         "title": "I sonetti di Shakespeare, per significato",
@@ -359,6 +355,10 @@
       "sonnetsDone": {
         "title": "Dalle righe a un grafo",
         "description": "Un solo modello ha portato i versi di Shakespeare dalle righe di Postgres ai vettori in Qdrant, a ricerche conservate come viste, a un grafo in cui un verso ECHOES altri versi ed EVOKES i suoi temi. Ogni passo è stato un'istruzione o un comando che Provisa governa."
+      },
+      "weblogsStatements": {
+        "title": "L'SQL dietro una pagina lenta",
+        "description": "Le pagine più lente unite alle istruzioni eseguite dalle loro richieste, in SQL semplice su due viste della demo. Una vista è una query salvata che Provisa espande in questa istruzione prima di eseguirla. Ecco dove è andato il tempo, istruzione per istruzione."
       }
     },
     "status": {

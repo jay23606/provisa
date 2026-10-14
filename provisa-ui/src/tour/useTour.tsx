@@ -448,7 +448,8 @@ function waitForElement(
       reject(new Error(`Tour: wait for ${selector} abandoned`));
     };
     signal?.addEventListener("abort", onAbort, { once: true });
-    observer.observe(document.body, { childList: true, subtree: true });
+    // Attributes too: a page marks a hand-off answered on an element already there (REQ-2010).
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true });
   });
 }
 

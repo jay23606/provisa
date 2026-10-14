@@ -294,7 +294,7 @@
       },
       "weblogsSources": {
         "title": "Ce qu'est cette démo",
-        "description": "Une petite boutique en ligne veut savoir quelles pages sont lentes, et quel SQL les rend lentes. La réponse est répartie entre le journal d'accès de nginx, le journal des instructions de la base de données et la base de données de la boutique. La visite montre comment Provisa lit des fichiers journaux comme des tables, les joint d'une source à l'autre et les régit par rôle, puis pose la question à Polly."
+        "description": "Une petite boutique en ligne veut savoir quelles pages sont lentes, et quel SQL les rend lentes. La réponse est répartie entre le journal d'accès de nginx, le journal des instructions de la base de données et la base de données de la boutique. La visite montre comment Provisa lit des fichiers journaux comme des tables, les joint d'une source à l'autre et les régit par rôle, puis répond à la question en SQL et en REST."
       },
       "weblogsLogFiles": {
         "title": "Trois sources",
@@ -312,13 +312,9 @@
         "title": "La même question en REST",
         "description": "De nouveau les pages les plus lentes, en appel REST : chaque chemin avec son nombre de requêtes et sa durée moyenne et la plus longue. Chaque surface que sert Provisa lit le même modèle gouverné, donc REST donne la réponse que donneraient SQL ou GraphQL, avec les mêmes droits."
       },
-      "weblogsAsk": {
-        "title": "Demander à Polly",
-        "description": "Polly, l'assistante, reçoit la question de la démo en mots simples : quelles pages sont les plus lentes, et quel SQL les rend lentes ? Regardez les pages qu'elle nomme et les instructions qu'elle met en cause ; elle les a trouvées en interrogeant les tables et les vues que vous venez de voir."
-      },
       "weblogsDone": {
         "title": "Ce que vous venez de voir",
-        "description": "Trois sources sont devenues des tables, une relation a joint les deux journaux sur un identifiant de requête, et la question de la boutique a reçu sa réponse à partir d'elles, en REST et par Polly. Terminé ouvre le menu des autres visites."
+        "description": "Trois sources sont devenues des tables, une relation a joint les deux journaux sur un identifiant de requête, et la question de la boutique a reçu sa réponse à partir d'elles, en SQL et en REST, avec les mêmes droits. Terminé ouvre le menu des autres visites."
       },
       "sonnetsIntro": {
         "title": "Les sonnets de Shakespeare, par le sens",
@@ -359,6 +355,10 @@
       "sonnetsDone": {
         "title": "Des lignes à un graphe",
         "description": "Un seul modèle a mené les vers de Shakespeare des lignes de Postgres aux vecteurs de Qdrant, à des recherches conservées en vues, à un graphe où un vers ECHOES d'autres vers et EVOKES ses thèmes. Chaque étape était une instruction ou une commande que Provisa gouverne."
+      },
+      "weblogsStatements": {
+        "title": "Le SQL derrière une page lente",
+        "description": "Les pages les plus lentes jointes aux instructions qu'ont exécutées leurs requêtes, en SQL simple sur deux vues de la démo. Une vue est une requête enregistrée que Provisa développe dans cette instruction avant de l'exécuter. Voici où le temps est passé, instruction par instruction."
       }
     },
     "status": {

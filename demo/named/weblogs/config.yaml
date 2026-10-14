@@ -142,7 +142,7 @@ tables:
   - {name: _file_id, data_type: varchar, is_primary_key: true, description: The log file's identity, visible_to: [org_admin]}
   - {name: _file_name, data_type: varchar, description: The file the request was read from, visible_to: [org_admin]}
   - {name: _line_offset, data_type: bigint, is_primary_key: true, description: Where in the file the request's line starts, visible_to: [org_admin]}
-  - {name: _entry, data_type: bigint, is_primary_key: true, description: The entry of the line, always 0 here, visible_to: [org_admin]}
+  - {name: _entry, data_type: bigint, is_primary_key: true, description: "The entry of the line, always 0 here", visible_to: [org_admin]}
   - {name: _raw, data_type: varchar, description: The line as nginx wrote it, visible_to: [org_admin]}
   - {name: _parse_error, data_type: varchar, description: Why the line could not be read; empty when it was, visible_to: [org_admin]}
   - {name: time, data_type: timestamp, description: When the request was served, visible_to: [org_admin, analyst]}
@@ -155,7 +155,7 @@ tables:
   - {name: bytes, data_type: bigint, description: Bytes of body sent, visible_to: [org_admin, analyst]}
   - {name: user_agent, data_type: varchar, description: The client's user agent, visible_to: [org_admin, analyst]}
   - {name: request_id, data_type: varchar, description: The id nginx gave the request; the shop's statements carry it, visible_to: [org_admin, analyst]}
-  - {name: customer_id, data_type: integer, description: The signed-in customer, from the shop's cookie, visible_to: [org_admin, analyst]}
+  - {name: customer_id, data_type: integer, description: "The signed-in customer, from the shop's cookie", visible_to: [org_admin, analyst]}
   - {name: product_id, data_type: integer, description: 'The product a /products/{id} request asked for', visible_to: [org_admin, analyst]}
   - {name: order_id, data_type: integer, description: 'The order an /orders/{id} request asked for', visible_to: [org_admin, analyst]}
   - {name: extra, data_type: json, description: Any field the columns above do not hold, visible_to: [org_admin]}
@@ -171,7 +171,7 @@ tables:
   - {name: _file_id, data_type: varchar, is_primary_key: true, description: The log file's identity, visible_to: [org_admin]}
   - {name: _file_name, data_type: varchar, description: The file the record was read from, visible_to: [org_admin]}
   - {name: _line_offset, data_type: bigint, is_primary_key: true, description: Where in the file the record starts, visible_to: [org_admin]}
-  - {name: _entry, data_type: bigint, is_primary_key: true, description: The entry of the record, always 0 here, visible_to: [org_admin]}
+  - {name: _entry, data_type: bigint, is_primary_key: true, description: "The entry of the record, always 0 here", visible_to: [org_admin]}
   - {name: _raw, data_type: varchar, description: The record as the database wrote it, visible_to: [org_admin]}
   - {name: _parse_error, data_type: varchar, description: Why the record could not be read; empty when it was, visible_to: [org_admin]}
   - {name: timestamp, data_type: timestamp, description: When the database logged it, visible_to: [org_admin, analyst]}
@@ -194,7 +194,7 @@ tables:
   - {name: context, data_type: varchar, description: Where in a function an error came from, visible_to: [org_admin]}
   - {name: application_name, data_type: varchar, description: "The id of the request the shop's connection served", visible_to: [org_admin, analyst]}
   - {name: backend_type, data_type: varchar, description: The kind of server process, visible_to: [org_admin]}
-  - {name: query_id, data_type: bigint, description: The query's id, when computed, visible_to: [org_admin]}
+  - {name: query_id, data_type: bigint, description: "The query's id, when computed", visible_to: [org_admin]}
   - {name: extra, data_type: json, description: Any field the columns above do not hold, visible_to: [org_admin]}
   - {name: _landed_at, data_type: timestamp, description: When the row was read into Provisa, visible_to: [org_admin]}
 views:
@@ -223,7 +223,7 @@ views:
   columns:
   - {name: request_id, data_type: varchar, description: The request the statement served, visible_to: [org_admin, analyst]}
   - {name: duration_ms, data_type: double, description: How long the statement ran, visible_to: [org_admin, analyst]}
-  - {name: statement, data_type: varchar, description: The statement, without its comment, visible_to: [org_admin, analyst]}
+  - {name: statement, data_type: varchar, description: "The statement, without its comment", visible_to: [org_admin, analyst]}
   - {name: table_name, data_type: varchar, description: 'The table it read (FROM) or wrote (INSERT INTO, UPDATE)', visible_to: [org_admin, analyst]}
   - {name: logged_at, data_type: timestamp, description: When the database logged it, visible_to: [org_admin, analyst]}
 - id: slowest_pages
@@ -270,7 +270,7 @@ views:
   - {name: requested_at, data_type: timestamp, description: When the request was served, visible_to: [org_admin, analyst]}
   - {name: state_code, data_type: varchar, description: The error's SQLSTATE, visible_to: [org_admin, analyst]}
   - {name: error, data_type: varchar, description: The database's message, visible_to: [org_admin, analyst]}
-  - {name: statement, data_type: varchar, description: The statement that failed, without its comment, visible_to: [org_admin, analyst]}
+  - {name: statement, data_type: varchar, description: "The statement that failed, without its comment", visible_to: [org_admin, analyst]}
 - id: customers_with_5xx
   domain_id: shop
   # GraphQL's Aggregate and GroupBy fields, which the example queries (queries/) use.

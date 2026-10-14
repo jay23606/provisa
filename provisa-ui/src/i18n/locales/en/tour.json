@@ -294,7 +294,7 @@
       },
       "weblogsSources": {
         "title": "What this demo is",
-        "description": "A small web shop wants to know which pages are slow, and which SQL makes them slow. The answer is split across nginx's access log, the database's statement log and the shop's own database. The tour shows how Provisa reads log files as tables, joins them across sources and governs them by role, then puts the question to Polly."
+        "description": "A small web shop wants to know which pages are slow, and which SQL makes them slow. The answer is split across nginx's access log, the database's statement log and the shop's own database. The tour shows how Provisa reads log files as tables, joins them across sources and governs them by role, then answers the question in SQL and over REST."
       },
       "weblogsLogFiles": {
         "title": "Three sources",
@@ -312,13 +312,9 @@
         "title": "The same question over REST",
         "description": "The slowest pages again, as a REST call: each path with its request count and its average and longest time. Every surface Provisa serves reads the same governed model, so REST gives the answer SQL or GraphQL would, under the same rights."
       },
-      "weblogsAsk": {
-        "title": "Ask Polly",
-        "description": "Polly, the assistant, takes the demo's question in plain words: which pages are slowest, and which SQL makes them slow? Look for the pages it names and the statements it blames; it found them by querying the tables and views you just saw."
-      },
       "weblogsDone": {
         "title": "What you just saw",
-        "description": "Three sources became tables, a relationship joined the two logs on a request id, and the shop's question was answered from them over REST and by Polly. Done opens the menu of the other tours."
+        "description": "Three sources became tables, a relationship joined the two logs on a request id, and the shop's question was answered from them in SQL and over REST, under the same rights. Done opens the menu of the other tours."
       },
       "sonnetsIntro": {
         "title": "Shakespeare's sonnets, by meaning",
@@ -359,6 +355,10 @@
       "sonnetsDone": {
         "title": "From rows to a graph",
         "description": "One model took Shakespeare's lines from Postgres rows to vectors in Qdrant, to searches stored as views, to a graph where a line ECHOES other lines and EVOKES its themes. Every step was a statement or a command Provisa governs."
+      },
+      "weblogsStatements": {
+        "title": "The SQL behind a slow page",
+        "description": "The slowest pages joined to the statements their requests ran, in plain SQL over two of the demo's views. A view is a saved query that Provisa expands into this statement before it runs. Here is where the time went, statement by statement."
       }
     },
     "status": {

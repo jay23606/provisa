@@ -33,8 +33,8 @@
 # the demo by tests/unit/test_named_demo_tour.py.
 #
 # The track: the scenario, then how the demo fits together (its sources, the tables they become,
-# the relationship that joins the two logs), then the shop's question answered over REST and by
-# Polly, then a recap.
+# the relationship that joins the two logs), then the shop's question answered in SQL and over
+# REST, over the demo's views, then a recap.
 steps:
 - key: weblogsSources
   route: /sources
@@ -50,12 +50,19 @@ steps:
   route: /relationships
   capability: create_relationship
   relationship: LOGGED_FOR
+- key: weblogsStatements
+  route: /sql
+  capability: query_development
+  sql: >-
+    SELECT p.path, p.page_ms, r.duration_ms, r.statement
+    FROM "shop"."view_slowest_pages" AS p
+    JOIN "shop"."view_request_sql" AS r ON r.request_id = p.request_id
+    ORDER BY p.page_ms DESC, r.duration_ms DESC
+    LIMIT 20
 - key: weblogsRest
   route: /openapi
   capability: query_development
   api: GET /data/rest/shop/view_slowest_pages?groupBy=path&aggregate=count,avg,max
-- key: weblogsAsk
-  polly: Which pages are slowest, and which SQL makes them slow?
 - key: weblogsDone
   route: /relationships
   capability: create_relationship
