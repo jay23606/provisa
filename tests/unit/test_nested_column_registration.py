@@ -18,7 +18,9 @@ from provisa.api.admin import _table_ops, schema_query
 from provisa.api.admin.types import AvailableColumnType
 from provisa.core.models import Column
 
-_INPUT = SimpleNamespace(source_id="orders-pg", schema_name="public", table_name="orders")
+_INPUT = SimpleNamespace(
+    source_id="orders-pg", schema_name="public", table_name="orders", query_template=None
+)
 
 
 class _Pool:
@@ -193,7 +195,9 @@ async def test_a_source_with_no_listing_keeps_the_columns_its_registration_suppl
         raise SourceNotListable(source_id, source_type, "duckdb", "columns")
 
     monkeypatch.setattr(schema_query, "resolve_available_columns_metadata", _unlisted)
-    unlisted = SimpleNamespace(source_id=source_id, schema_name="s", table_name="t")
+    unlisted = SimpleNamespace(
+        source_id=source_id, schema_name="s", table_name="t", query_template=None
+    )
     columns = [
         Column(name="adopter_id", data_type="integer", visible_to=[]),
         Column(name="tags", data_type="text", visible_to=[]),
@@ -222,8 +226,24 @@ async def test_a_checkers_result_table_is_not_listed_from_its_source(monkeypatch
         source_id="dq-soda",
         schema_name="main",
         table_name="orders_rows_soda_dq_dq",
+        query_template=None,
         dq_contract="dataset: provisa/sales/orders\nchecks:\n  - row_count > 0\n",
     )
     columns = [Column(name="outcome", data_type="text", visible_to=[])]
     assert await _table_ops._settle_nested_columns(_Pool(), checker, columns) is None
     assert columns[0].native_type is None
+
+
+async def test_a_table_its_native_query_produces_is_not_listed_from_its_source(monkeypatch):
+    """A native search (REQ-2017) is no index of the source: asked, Elasticsearch looked up an
+    index of the table's name and failed 404. Its columns are what its query answers."""
+    asked = _source(monkeypatch, [], stored={})
+    search = SimpleNamespace(
+        source_id="es",
+        schema_name="default",
+        table_name="ticket_search",
+        query_template='{"index": "support_tickets", "query": {"match_all": {}}}',
+    )
+    columns = [Column(name="ticket_id", data_type="text", visible_to=[])]
+    assert await _table_ops._settle_nested_columns(_Pool(), search, columns) is None
+    assert asked == []

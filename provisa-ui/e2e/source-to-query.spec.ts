@@ -206,6 +206,63 @@ test.describe("source to query through the UI (REQ-1671)", () => {
     expect(rows[5]).toEqual(["T-1006", "open", "2"]);
   });
 
+  test("elasticsearch: register a native search with an argument, query it on the SQL page", async ({
+    page,
+  }) => {
+    test.setTimeout(300000);
+    const stamp = Date.now();
+    const sourceId = `e2e_es_search_${stamp}`;
+    const tableName = `ticket_search_${stamp}`;
+
+    // 1. Sources form, as for an index table
+    await openSourcesForm(page);
+    await page.getByTestId("sources-id-input").fill(sourceId);
+    await page.getByTestId("sources-type-select").selectOption("elasticsearch");
+    await page.getByLabel(/^Host/).and(page.locator(FORM_FIELD)).fill("localhost");
+    await page.getByLabel(/^Port/).and(page.locator(FORM_FIELD)).fill(String(E2E_ES_PORT));
+    await setSourceCacheTtl(page, 300);
+    await submitSourceAndExpectListed(page, sourceId);
+
+    // 2. Register Table form: Search mode, the native search, its argument and a sample, preview
+    await openRegisterForm(page, sourceId);
+    await page
+      .getByTestId("register-table-elasticsearch-mode")
+      .getByText("Search", { exact: true })
+      .click();
+    await page.getByTestId("register-table-elasticsearch-table-name").fill(tableName);
+    await page.getByTestId("register-table-elasticsearch-pipeline").fill(
+      JSON.stringify({
+        index: "support_tickets",
+        query: { match: { subject: "{{word}}" } },
+        highlight: { fields: { subject: {} } },
+      }),
+    );
+    await page.getByTestId("register-table-pipeline-arg-add").click();
+    const arg = page.getByTestId("register-table-pipeline-arg-0");
+    await arg.getByRole("textbox", { name: "Parameter" }).fill("word");
+    await arg.getByRole("textbox", { name: "Sample value" }).fill("adoption");
+    await arg.getByRole("switch", { name: "word is required" }).check({ force: true });
+    await page.getByTestId("register-table-elasticsearch-preview").click();
+    await expect(page.getByTestId("register-table-elasticsearch-preview-rows")).toBeVisible({
+      timeout: 60000,
+    });
+    // The columns are the mapping's fields the hits hold, with the hit's id, score and highlight.
+    await expectDiscoveredColumns(page, ["ticket_id"], 60000);
+    await expectDiscoveredColumns(page, ["highlight_subject"]);
+    const registered = await submitRegisterAndExpectListed(page, sourceId);
+
+    // 3. SQL page: the argument is an equality on its parameter column
+    const rows = await runSqlOnPage(
+      page,
+      `SELECT ticket_id, status FROM pet_store.${registered} WHERE _nf_word = 'adoption' ` +
+        "ORDER BY ticket_id",
+    );
+    expect(rows).toEqual([
+      ["T-1001", "open"],
+      ["T-1005", "closed"],
+    ]);
+  });
+
   test("redis: add the source, register a key prefix, query it on the SQL page", async ({
     page,
   }) => {

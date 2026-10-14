@@ -216,6 +216,62 @@ async def preview_cosmos_query(
     )
 
 
+async def preview_es_search(
+    conn: "Connection", source_id: str, native_query: str, arguments: list[dict]
+) -> "QueryPreviewType":
+    """REQ-2017: run a native search on an Elasticsearch source with sample ``arguments`` (each
+    ``{name, dataType, value}``) and return up to five rows and the columns they suggest: the
+    buckets' keys and metrics for a search with aggregations, else the mapping's fields the hits
+    hold. Failures come back as ``error``."""
+    import asyncio
+    import itertools
+    import json
+
+    from provisa.api.admin.types import QueryPreviewColumnType, QueryPreviewType
+    from provisa.core.parameter_values import convert
+    from provisa.elasticsearch.fetch import ESConnection
+    from provisa.elasticsearch.native_query import parse
+    from provisa.elasticsearch.native_table import preview_columns, row_batches
+    from provisa.federation.registry_view import registered_sources
+
+    from provisa.api.app import state
+
+    row = await source_row(conn, source_id)
+    if row is None or row["type"] != "elasticsearch":
+        return QueryPreviewType(error=f"{source_id!r} is not a registered elasticsearch source")
+    try:
+        values = {
+            a["name"]: convert(a.get("value"), a["dataType"], table="preview", parameter=a["name"])
+            for a in arguments
+        }
+        search = parse("preview", native_query)
+        source = next(s for s in await registered_sources(state, conn) if s.id == source_id)
+        es = ESConnection.from_source(source)
+
+        def _run() -> tuple[list[dict], list]:
+            docs = list(
+                itertools.islice(
+                    (
+                        doc
+                        for batch in row_batches(es, "preview", native_query, values, PREVIEW_ROWS)
+                        for doc in batch
+                    ),
+                    PREVIEW_ROWS,
+                )
+            )
+            return docs, preview_columns(es, search.index, docs, search.buckets)
+
+        docs, columns = await asyncio.to_thread(_run)
+    except Exception as exc:  # allow-blind-except: a preview reports every failure as its error
+        return QueryPreviewType(error=f"{type(exc).__name__}: {exc}")
+    return QueryPreviewType(
+        rows=[json.loads(json.dumps(d, default=str)) for d in docs],
+        columns=[
+            QueryPreviewColumnType(name=c.name, data_type=c.data_type, path=c.path) for c in columns
+        ],
+    )
+
+
 async def pipeline_table_refusal(conn: "Connection", model: "Table") -> "MutationResult | None":
     """REQ-1980: a MongoDB table registered with a native query is a pipeline table, checked
     before its row lands: the query parses, names only its declared arguments and uses each, and
@@ -225,6 +281,8 @@ async def pipeline_table_refusal(conn: "Connection", model: "Table") -> "Mutatio
     from provisa.codesource.table import CodeTableRefused
     from provisa.cosmosdb.table import CosmosTableRefused
     from provisa.cosmosdb.table import check_table as check_cosmos_table
+    from provisa.elasticsearch.native_query import NativeSearchRefused
+    from provisa.elasticsearch.native_query import check_table as check_search_table
     from provisa.mongodb.native_query import NativeQueryRefused, check_table
     from provisa.qdrant.table import QdrantTableRefused
     from provisa.qdrant.table import check_table as check_qdrant_table
@@ -239,11 +297,18 @@ async def pipeline_table_refusal(conn: "Connection", model: "Table") -> "Mutatio
             check_qdrant_table(model)
         elif model.query_template and row is not None and row["type"] == "mongodb":
             check_table(model)
+        elif model.query_template and row is not None and row["type"] == "elasticsearch":
+            # REQ-2017: an index table, or a native search; a search is checked here.
+            check_search_table(model)
         elif row is not None and row["type"] in ("node", "python"):
             # REQ-1984, REQ-1993: checked against the function it names, in the code as read.
             await _check_code_table(model)
     except (
-        NativeQueryRefused, CosmosTableRefused, QdrantTableRefused, CodeTableRefused
+        NativeQueryRefused,
+        NativeSearchRefused,
+        CosmosTableRefused,
+        QdrantTableRefused,
+        CodeTableRefused,
     ) as refused:
         return MutationResult(
             success=False, message=str(refused), code=refused.code, params=refused.params

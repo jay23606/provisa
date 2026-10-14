@@ -1465,6 +1465,29 @@ class Query:  # REQ-021, REQ-042
             )
 
     @strawberry.field
+    async def es_search_preview(
+        self,
+        info: StrawberryInfo,
+        source_id: str,
+        native_query: str,
+        arguments: JsonScalar,
+    ) -> QueryPreviewType:
+        """REQ-2017: preview a native search on an Elasticsearch source with sample arguments (a
+        list of ``{name, dataType, value}``): up to five rows and the columns they suggest.
+        Failures come back as ``error``."""
+        require_capability(info, "table_registration")
+        from provisa.api.admin._query_api_registration import preview_es_search
+
+        pool = await _get_pool()
+        async with pool.acquire() as conn:
+            return await preview_es_search(
+                cast("Connection", conn),
+                source_id,
+                native_query,
+                cast("list[dict]", arguments or []),  # the JSON list of {name, dataType, value}
+            )
+
+    @strawberry.field
     async def qdrant_search_preview(
         self,
         info: StrawberryInfo,

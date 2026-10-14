@@ -12,6 +12,7 @@ import { useCallback } from "react";
 import { useLazyQuery } from "@apollo/client/react";
 import {
   CosmosQueryPreview as COSMOS_QUERY_PREVIEW_QUERY,
+  EsSearchPreview as ES_SEARCH_PREVIEW_QUERY,
   MongoPipelinePreview as MONGO_PIPELINE_PREVIEW_QUERY,
   Neo4jPreview as NEO4J_PREVIEW_QUERY,
   QdrantSearchPreview as QDRANT_SEARCH_PREVIEW_QUERY,
@@ -43,6 +44,10 @@ export function useQueryPreview() {
     { qdrantSearchPreview: QueryPreview },
     { sourceId: string; nativeQuery: string; arguments: QueryPreviewVars["arguments"] }
   >(QDRANT_SEARCH_PREVIEW_QUERY, { fetchPolicy: "no-cache" });
+  const [runEs] = useLazyQuery<
+    { esSearchPreview: QueryPreview },
+    { sourceId: string; nativeQuery: string; arguments: QueryPreviewVars["arguments"] }
+  >(ES_SEARCH_PREVIEW_QUERY, { fetchPolicy: "no-cache" });
   return {
     preview: useCallback(
       async ({
@@ -59,6 +64,16 @@ export function useQueryPreview() {
           if (res.error) return { rows: [], columns: [], error: res.error.message };
           return (
             res.data?.qdrantSearchPreview ?? { rows: [], columns: [], error: "no preview returned" }
+          );
+        }
+        if (sourceType === "elasticsearch") {
+          // REQ-2017: a native search run with its sample arguments.
+          const res = await runEs({
+            variables: { sourceId, nativeQuery: query, arguments: args ?? [] },
+          });
+          if (res.error) return { rows: [], columns: [], error: res.error.message };
+          return (
+            res.data?.esSearchPreview ?? { rows: [], columns: [], error: "no preview returned" }
           );
         }
         if (sourceType === "cosmosdb") {
@@ -92,7 +107,7 @@ export function useQueryPreview() {
         if (res.error) return { rows: [], columns: [], error: res.error.message };
         return res.data?.neo4jPreview ?? { rows: [], columns: [], error: "no preview returned" };
       },
-      [runNeo4j, runSparql, runPipeline, runCosmos, runQdrant],
+      [runNeo4j, runSparql, runPipeline, runCosmos, runQdrant, runEs],
     ),
   };
 }

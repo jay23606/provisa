@@ -6196,5 +6196,10 @@
   "zh-HK/tour.json::tour.steps.sonnetsDone.title": "From rows to a graph",
   "zh-HK/tour.json::tour.steps.sonnetsDone.description": "One model took Shakespeare's lines from Postgres rows to vectors in Qdrant, to searches stored as views, to a graph where a line ECHOES other lines and EVOKES its themes. Every step was a statement or a command Provisa governs.",
   "zh-HK/settings.json::settings.demo.setup_completed.label": "Demos already set up",
-  "zh-HK/settings.json::settings.demo.setup_completed.help": "The named demos whose setup has run against this deployment. A demo listed here is not set up again when it starts; remove it to set it up again on its next start."
+  "zh-HK/settings.json::settings.demo.setup_completed.help": "The named demos whose setup has run against this deployment. A demo listed here is not set up again when it starts; remove it to set it up again on its next start.",
+  "zh-HK/registerTableForm.json::registerTableForm.esModeIndex": "Index",
+  "zh-HK/registerTableForm.json::registerTableForm.esModeSearch": "Search",
+  "zh-HK/registerTableForm.json::registerTableForm.esSearchHint": "{\"index\": …, \"query\": {…}, \"aggs\": {…}} -- an argument is a whole value \"{{name}}\"; aggregations answer a row per bucket",
+  "zh-HK/registerTableForm.json::registerTableForm.esSearchLabel": "Search",
+  "zh-HK/registerTableForm.json::registerTableForm.esSearchPlaceholder": "{\"index\": \"reviews\", \"query\": {\"match_phrase\": {\"text\": \"{{phrase}}\"}}, \"highlight\": {\"fields\": {\"text\": {}}}}"
 }

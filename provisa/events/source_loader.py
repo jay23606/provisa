@@ -916,6 +916,13 @@ def make_elasticsearch_loader() -> AdapterLoader:
             username=getattr(source, "username", None) or None,
             password=resolve_secrets(getattr(source, "password", "") or "") or None,
         )
+        if getattr(table, "query_template", None):
+            # REQ-2017: a native search is read by running its search.
+            from provisa.elasticsearch.native_table import whole_batches
+
+            return await asyncio.to_thread(
+                lambda: [r for b in whole_batches(conn, table, 1000) for r in b]
+            )
         names = [c.name for c in table.columns if getattr(c, "native_filter_type", None) is None]
         if not names:
             return []
@@ -938,6 +945,13 @@ def make_elasticsearch_loader() -> AdapterLoader:
             username=getattr(source, "username", None) or None,
             password=resolve_secrets(getattr(source, "password", "") or "") or None,
         )
+        if getattr(table, "query_template", None):
+            # REQ-2017: a native search's replica is its search's rows.
+            from provisa.elasticsearch.native_table import whole_batches
+
+            return BlockingCursorSource(
+                lambda batch_rows: whole_batches(conn, table, batch_rows), columns
+            )
         names = [name for name, _ in columns]
 
         def _batches(batch_rows: int) -> Any:
