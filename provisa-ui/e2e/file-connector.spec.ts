@@ -7,7 +7,11 @@
 
 import { test, expect, BACKEND_URL } from "./coverage";
 import { deleteSourceAndItsTables } from "./delete-source";
-import { addSourceOfType } from "./source-to-query-helpers";
+import {
+  addSourceOfType,
+  openRegisterForm,
+  submitSourceAndExpectListed,
+} from "./source-to-query-helpers";
 
 const SOURCE_ID = "e2e-northwind";
 const SCHEMA_NAME = "e2e_northwind";
@@ -76,69 +80,20 @@ test("file connector: add northwind source and query customers", async ({ page }
 
   await page.getByTestId("files-path-input").fill(GLOB);
 
-  await page.locator('.form-card button[type="submit"]').click();
-
-  // Wait for source row to appear in list
-  await expect(page.locator(".data-table td").filter({ hasText: SOURCE_ID })).toBeVisible({ timeout: 30000 });
+  await submitSourceAndExpectListed(page, SOURCE_ID);
 
   // ── 2. Open table form and verify Northwind tables are enumerated ─────────
-  await page.goto("/tables");
-  await page.waitForSelector(".page-header", { timeout: 15000 });
+  await openRegisterForm(page, SOURCE_ID, await getDomainId());
 
-  await page.getByRole("button", { name: "+ Table" }).first().click();
-  await page.waitForSelector(".form-card", { timeout: 5000 });
-
-  // Select source
-  await page.locator(".form-card label").filter({ hasText: /^Source/ }).locator("select").selectOption(SOURCE_ID);
-
-  // Wait for domain options to load
-  const domainSelect = page.locator(".form-card label").filter({ hasText: /^Domain/ }).locator("select");
-  await page.waitForFunction(
-    () => {
-      const selects = Array.from(document.querySelectorAll<HTMLSelectElement>(".form-card select"));
-      return selects[1]?.options.length > 1;
-    },
-    { timeout: 10000 },
-  );
-  const firstDomain = await domainSelect.locator("option").nth(1).getAttribute("value");
-  await domainSelect.selectOption(firstDomain!);
-
-  // Wait for northwind schema to appear
-  await page.waitForFunction(
-    (schema) => {
-      const selects = Array.from(document.querySelectorAll<HTMLSelectElement>(".form-card select"));
-      return Array.from(selects[2]?.options ?? []).some((o) => o.value === schema);
-    },
-    SCHEMA_NAME,
-    { timeout: 60000 },
-  );
-
-  // Northwind glob resolves to exactly one schema, so RegisterTableForm auto-selects
-  // and disables the schema control (isFixedSchema) — wait for the auto-select instead
-  // of driving it manually.
-  await page.waitForFunction(
-    (schema) => {
-      const selects = Array.from(document.querySelectorAll<HTMLSelectElement>(".form-card select"));
-      return selects[2]?.value === schema;
-    },
-    SCHEMA_NAME,
-    { timeout: 10000 },
-  );
-
-  // Wait for customers table to appear
-  await page.waitForFunction(
-    () => {
-      const selects = Array.from(document.querySelectorAll<HTMLSelectElement>(".form-card select"));
-      return Array.from(selects[3]?.options ?? []).some((o) => o.value === "customers");
-    },
-    { timeout: 30000 },
-  );
-
-  const tableOptions = await page
-    .locator(".form-card label")
-    .filter({ hasText: /^Table/ })
-    .locator("select option")
-    .allTextContents();
+  // The Northwind glob resolves to exactly one schema, which the form selects for itself.
+  await expect(page.getByTestId("register-table-schema-select")).toHaveValue(SCHEMA_NAME, {
+    timeout: 60000,
+  });
+  const tableSelect = page.getByTestId("register-table-table-select");
+  await expect(tableSelect.locator("option[value='customers']")).toHaveCount(1, {
+    timeout: 30000,
+  });
+  const tableOptions = await tableSelect.locator("option").allTextContents();
 
   expect(tableOptions).toContain("customers");
   expect(tableOptions).toContain("orders");
