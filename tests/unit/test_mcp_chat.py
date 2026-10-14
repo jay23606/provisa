@@ -1236,10 +1236,9 @@ class TestEveryCallIsCapped:
             "max_tokens": chat_mod._MAX_TOKENS
         }
 
-    def test_a_google_model_is_capped_as_vertex_takes_it(self):
-        assert chat_mod._output_cap("google", custom_endpoint=False) == {
-            "max_output_tokens": chat_mod._MAX_TOKENS
-        }
+    def test_a_provider_that_drops_the_cap_is_refused(self):
+        with pytest.raises(ValueError, match="cannot cap a Google model"):
+            chat_mod._output_cap("google", custom_endpoint=False)
 
     @pytest.mark.asyncio
     async def test_an_anthropic_call_is_capped_the_same(self, monkeypatch):
