@@ -24,13 +24,14 @@ log globs). One process serves every published demo, so that reference is replac
 demo's directory instead of read from one process-wide variable.
 
 Where the demos come from (REQ-2049). A deployment names the demos it offers in
-``PROVISA_DEMO_BUNDLES`` and pulls each one's published bundle (provisa/core/demo_bundles.py) from
-``PROVISA_DEMO_REGISTRY``: at start, and again whenever a sandbox of it is opened, so a demo
-published since is served with no redeploy. A newer bundle replaces the demo's template: the old
-one is removed whole and the new one landed from the new bundle's seed before the sandbox is
-cloned; a sandbox already open keeps what it was cloned from. Without ``PROVISA_DEMO_BUNDLES`` the
-demos are the directories under ``named_demos_dir()`` -- a source checkout's, for development, and
-the bundle build's own.
+``PROVISA_DEMO_BUNDLES``; the node pulls each one's published bundle and runs the bundle's own
+stores (provisa/core/demo_bundles.py), and the tier serves the version the node marks ready. When a
+sandbox is opened the tier looks for a newer published version and asks the node for it; the
+visitor is served the ready one meanwhile, and once a newer one is ready the demo's template is
+replaced from it before the next sandbox is cloned. A sandbox already open keeps what it was cloned
+from. A demo's own sources are read live, as its configuration says, at the addresses the node
+gives (the bundle's stores.env). Without ``PROVISA_DEMO_BUNDLES`` the demos are the directories
+under ``named_demos_dir()`` -- a source checkout's, for development, and the bundle build's own.
 """
 
 # Requirements: REQ-2006, REQ-1858, REQ-1919, REQ-2049
@@ -39,6 +40,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from collections.abc import Awaitable, Callable
@@ -51,32 +53,24 @@ from provisa.api.sandbox_tier import TEMPLATE_PREFIX, is_template_org, template_
 from provisa.core.replicate import ALWAYS
 
 _DEMO_DIR_REF = "${env:PROVISA_NAMED_DEMO_DIR}"
-_PKG_NAMED = Path(__file__).resolve().parents[1] / "_config" / "demo" / "named"
-_REPO_NAMED = Path(__file__).resolve().parents[2] / "demo" / "named"
 
 
 def named_demos_dir() -> Path:
-    """Where the named demos are: ``$PROVISA_NAMED_DEMOS_DIR`` when the deployment says, else the
-    wheel-staged copy (REQ-1127), else the source checkout's ``demo/named``."""
-    configured = os.environ.get("PROVISA_NAMED_DEMOS_DIR")
-    if configured:
-        return Path(configured)
-    return _PKG_NAMED if _PKG_NAMED.is_dir() else _REPO_NAMED
+    from provisa.core.demo_bundles import named_demos_dir as directory
+
+    return directory()
 
 
 def bundled_demos() -> tuple[str, ...]:
-    """The demos this deployment pulls as bundles (``PROVISA_DEMO_BUNDLES``, comma-separated);
-    none when it serves the directories under ``named_demos_dir()`` instead."""
-    listed = os.environ.get("PROVISA_DEMO_BUNDLES", "")
-    return tuple(name.strip() for name in listed.split(",") if name.strip())
+    from provisa.core.demo_bundles import bundled_demos as names
+
+    return names()
 
 
 def bundles_root() -> Path:
-    """Where pulled bundles are unpacked: ``<data dir>/demo-bundles/<name>/<version>``, with
-    ``<name>/current`` naming the version served."""
-    from provisa.core.org_files import data_dir
+    from provisa.core.demo_bundles import bundles_root as root
 
-    return data_dir() / "demo-bundles"
+    return root()
 
 
 def _registry() -> Any:
@@ -85,45 +79,28 @@ def _registry() -> Any:
     return Registry(os.environ["PROVISA_DEMO_REGISTRY"])
 
 
-def _served_version(name: str) -> str | None:
-    current = bundles_root() / name / "current"
-    return current.read_text().strip() if current.exists() else None
-
-
-def pull_latest(name: str) -> bool:
-    """Pull demo ``name``'s latest bundle when it is not the one served, and serve it; whether it
-    changed. Blocking: run in a thread."""
-    from provisa.core.demo_bundles import LATEST, running_provisa
+def latest_published(name: str) -> str:
+    """The version of demo ``name`` published as its latest. Blocking: run in a thread."""
+    from provisa.core.demo_bundles import LATEST
 
     registry = _registry()
     _digest, oci_manifest = registry.resolve(name, LATEST)
-    version = registry.manifest_of(name, oci_manifest).version
-    if version == _served_version(name):
-        return False
-    target = bundles_root() / name / version
-    if not target.exists():
-        target.parent.mkdir(parents=True, exist_ok=True)
-        registry.pull(name, version, target, running_provisa())
-    staged = target.parent / ".current"
-    staged.write_text(version + "\n")
-    staged.replace(target.parent / "current")
-    return True
+    return registry.manifest_of(name, oci_manifest).version
 
 
 def _demo_directories() -> list[Path]:
-    """Each named demo's directory: the version served of each bundled demo, else every one under
-    ``named_demos_dir()``."""
+    """Each named demo's directory: the ready version of each bundled demo the node has one of,
+    else every one under ``named_demos_dir()``."""
+    from provisa.core.demo_bundles import ready_version
+
     names = bundled_demos()
     if not names:
         return [spec.parent for spec in sorted(named_demos_dir().glob("*/demo.yaml"))]
     found = []
     for name in names:
-        version = _served_version(name)
-        if version is None:
-            raise RuntimeError(
-                f"demo {name} has no bundle pulled; the sandbox tier pulls it at start"
-            )
-        found.append(bundles_root() / name / version)
+        version = ready_version(name)
+        if version is not None:
+            found.append(bundles_root() / name / version)
     return found
 
 
@@ -193,17 +170,28 @@ def template_seed(org_id: str) -> Any:  # a ProvisaConfig
     raw = _with_directory(
         read_config_with_includes(demo.directory / "config.yaml"), str(demo.directory)
     )
+    if bundled_demos():
+        # The demo's own stores, where the node runs them (its sources are read live there).
+        from provisa.core.demo_bundles import stores_env
+
+        raw = _with_stores(raw, stores_env(demo.directory))
     _sandbox_sees_what_its_rights_cover(raw, _role_rights(raw))
-    for source in raw.get("sources", []):
-        # Pre-seeded: every table of the demo is read from its replica (REQ-826 ``replicate: 0``,
-        # always), landed into the template's file once, and copied into each sandbox's file. A
-        # sandbox's reads never reach the demo's shared sources.
-        source["replicate"] = ALWAYS
-        # And landed once: a demo's data is fixed, so a replica is refreshed only when something
-        # signals a change (REQ-932 ``signal``), never re-read on a cadence -- not by the template,
-        # and not by a sandbox, which carries the template's model.
-        source["change_signal"] = "signal"
     return parse_config_dict(raw)
+
+
+_ENV_REF = re.compile(r"\$\{env:([A-Za-z_][A-Za-z0-9_]*)(?::-[^}]*)?\}")
+
+
+def _with_stores(node: Any, values: dict[str, str]) -> Any:
+    """``node`` with each ``${env:NAME}`` / ``${env:NAME:-default}`` whose NAME the bundle's
+    stores.env sets replaced by its value there; any other reference is left to the loader."""
+    if isinstance(node, str):
+        return _ENV_REF.sub(lambda m: values.get(m.group(1), m.group(0)), node)
+    if isinstance(node, list):
+        return [_with_stores(item, values) for item in node]
+    if isinstance(node, dict):
+        return {key: _with_stores(value, values) for key, value in node.items()}
+    return node
 
 
 def _role_rights(raw: dict) -> dict[str, frozenset[str]]:
@@ -261,12 +249,23 @@ def demo_roles(template_org: str) -> list[str]:
 
 
 def replicated_tables(config: Any) -> list[Any]:
-    """The tables of a demo's configuration that have a replica: every one read from a source.
-    Its views (DERIVED_SOURCE_ID: defined by their SQL, read from the tables) have none, so a
-    template is landed when each of these is."""
+    """The tables of a demo's configuration that are always read from a replica -- replicated
+    always (``replicate: 0``) or load-protected, on the table or its source: a template is landed
+    when each of these is. A demo's own sources are read live and land nothing; its views have
+    no replica either."""
     from provisa.core.models import DERIVED_SOURCE_ID
+    from provisa.core.replicate import resolved_load_protected, resolved_replicate
 
-    return [table for table in config.tables if table.source_id != DERIVED_SOURCE_ID]
+    sources = {source.id: source for source in config.sources}
+    return [
+        table
+        for table in config.tables
+        if table.source_id != DERIVED_SOURCE_ID
+        and (
+            resolved_replicate(sources[table.source_id], table) == ALWAYS
+            or resolved_load_protected(sources[table.source_id], table)
+        )
+    ]
 
 
 #: What runs once a demo's template is built and every one of its replicas is landed, at each
@@ -321,17 +320,17 @@ async def ensure_demo_templates(pool) -> dict[str, str]:
     Run by the sandbox tier at startup -- deploy time -- and never on a visitor's request. The
     build is the create path's own (orgs_router._provision_org_task), with the demo seeded: the
     template is a demo organisation (``seeded_demo``), so its model is the demo's configuration.
-    Its replicas are then landed by the ordinary replica convergence, since the template's sources
-    replicate always (template_seed). What each demo's template did: ``"ready"`` (built before;
-    its runtime is built now) or ``"building"``."""
+    A bundled demo's template built from another version than the ready one is replaced. What
+    each demo's template did: ``"ready"`` (built before; its runtime is built now) or
+    ``"building"``."""
     from provisa.core.connection_loop import spawn_background
 
-    for name in bundled_demos():
-        if await asyncio.to_thread(pull_latest, name):
-            await _retire_template(name)
     outcome: dict[str, str] = {}
     for demo in published_demos().values():
+        if bundled_demos() and _templated(demo.name) != demo.directory.name:
+            await _retire_template(demo.name)
         build = await _template_row(pool, demo)
+        _mark_templated(demo)
         task = spawn_background(_prepare(demo, build), name=f"demo-template-{demo.name}")
         _build_tasks.add(task)
         task.add_done_callback(_build_tasks.discard)
@@ -339,47 +338,64 @@ async def ensure_demo_templates(pool) -> dict[str, str]:
     return outcome
 
 
+def _templated(name: str) -> str | None:
+    """The version of bundled demo ``name`` its template was built from."""
+    path = bundles_root() / name / "templated"
+    return path.read_text().strip() if path.is_file() else None
+
+
+def _mark_templated(demo: PublishedDemo) -> None:
+    if bundled_demos():
+        (bundles_root() / demo.name / "templated").write_text(demo.directory.name + "\n")
+
+
 _following: dict[str, asyncio.Lock] = {}
 
 
 async def follow_latest(name: str) -> None:
-    """Before a sandbox of demo ``name`` is opened: when the deployment pulls its demos as bundles
-    and a newer one is published, serve it -- its template rebuilt from it, waited for here, so
-    the sandbox is cloned from the new one. A registry that cannot be asked refuses the sandbox
-    by name rather than serve a version it could not check."""
+    """Before a sandbox of bundled demo ``name`` is opened: ask the node for a newer published
+    version, if there is one, and serve the ready one -- its template replaced first when it was
+    built from another version. The visitor never waits for a newer version's stores: they are
+    served it from the next sandbox opened after the node has it ready."""
+    import logging
+
     import httpx
 
-    from provisa.core.demo_bundles import BundleError, NeedsNewerProvisa
+    from provisa.core.demo_bundles import BundleError, ready_version, want
 
     if name not in bundled_demos():
         return
+    try:
+        latest = await asyncio.to_thread(latest_published, name)
+    except (BundleError, httpx.HTTPError):
+        # REQ-2049 (approved hosting design): the ready version is served whatever the registry
+        # answers; asking for a newer one is retried at the next sandbox opened. Logged with its
+        # cause, never silent.
+        logging.getLogger(__name__).warning(
+            "demo %s: the registry could not be asked for a newer version", name, exc_info=True
+        )
+    else:
+        if latest != ready_version(name):
+            await asyncio.to_thread(want, name, latest)
+    ready = ready_version(name)
+    if ready is None:
+        raise ApiError(
+            503,
+            "sandbox.demo_not_ready",
+            f"The {name} demo is still being prepared; try again shortly",
+            demo=name,
+        )
     lock = _following.setdefault(name, asyncio.Lock())
     async with lock:
-        try:
-            changed = await asyncio.to_thread(pull_latest, name)
-        except NeedsNewerProvisa as newer:
-            raise ApiError(
-                503,
-                "sandbox.demo_needs_newer_provisa",
-                str(newer),
-                demo=name,
-                requires=newer.manifest.requires_provisa,
-                running=newer.running,
-            ) from newer
-        except (BundleError, httpx.HTTPError) as unreachable:
-            raise ApiError(
-                503,
-                "sandbox.demo_unavailable",
-                f"The {name} demo's latest version could not be fetched; try again shortly",
-                demo=name,
-            ) from unreachable
-        if not changed:
+        if _templated(name) == ready:
             return
         await _retire_template(name)
         from provisa.api.admin.orgs_router import _admin_pool
 
         demo = published_demo(name)
-        await _prepare(demo, await _template_row(_admin_pool(), demo))
+        build = await _template_row(_admin_pool(), demo)
+        _mark_templated(demo)
+        await _prepare(demo, build)
 
 
 async def _retire_template(name: str) -> None:
@@ -473,7 +489,8 @@ async def _prepare(demo: PublishedDemo, build: bool) -> None:
             break
         await asyncio.sleep(_LANDED_POLL_S)
     log.info("demo template %s: every replica landed", demo.name)
-    if exporting:
+    if exporting and replicated_tables(template_seed(org_id)):
+        # Only what the demo serves from replicas has a seed; its own sources are read live.
         await export_seed(org_id, demo.directory)
         log.info("demo template %s: seed written to %s", demo.name, demo.directory)
     token = set_current_org(org_id)

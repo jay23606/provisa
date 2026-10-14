@@ -237,6 +237,15 @@ def test_a_visitor_sandbox_of_weblogs_reads_the_bundle(published, tmp_path_facto
     work = tmp_path_factory.mktemp("weblogs_tier")
     from tests.integration.isolated_server import IsolatedServer
 
+    # The node's side first: the bundle pulled, its shop database up, its stores.env written.
+    bundles = work / "data" / "demo-bundles"
+    synced = registry.sync("weblogs", bundles)
+    print(synced.stdout, synced.stderr)
+    assert synced.returncode == 0, (synced.stdout, synced.stderr)
+    assert (bundles / "weblogs" / "ready").read_text().strip() == version
+    print((bundles / "weblogs" / version / "stores.env").read_text())
+    project = f"provisa-demo-weblogs-{version}"
+
     config = work / "config.yaml"
     _deployment_config(config)
     tier = IsolatedServer(
@@ -283,3 +292,4 @@ def test_a_visitor_sandbox_of_weblogs_reads_the_bundle(published, tmp_path_facto
         assert served == version
     finally:
         tier.stop_process()
+        subprocess.run(["docker", "compose", "-p", project, "down", "-v"], check=False)

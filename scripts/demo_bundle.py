@@ -283,6 +283,22 @@ def _seed(work: Path, demo: Path, stores: Stores, timeout: float) -> None:
         )
 
 
+def _replicates(demo: Path, stores: Stores) -> bool:
+    """Whether the demo serves any table from a replica, which its seed lands (REQ-2049): a demo's
+    own sources are read live where it runs, so a demo of only those has no seed to write."""
+    from provisa.api.demo_templates import replicated_tables
+    from provisa.core.config_loader import parse_config_dict, read_config_with_includes
+
+    saved = dict(os.environ)
+    os.environ.update({k: v for k, v in stores.env.items() if k not in saved or saved[k] != v})
+    try:
+        config = parse_config_dict(read_config_with_includes(demo / "config.yaml"))
+    finally:
+        os.environ.clear()
+        os.environ.update(saved)
+    return bool(replicated_tables(config))
+
+
 def _commit() -> str:
     return subprocess.run(
         ["git", "-C", str(_REPO), "rev-parse", "HEAD"], check=True, capture_output=True, text=True
@@ -307,7 +323,8 @@ def build(args: argparse.Namespace) -> int:
         stores = Stores(demo)
         try:
             stores.up()
-            _seed(work, demo, stores, args.timeout)
+            if _replicates(demo, stores):
+                _seed(work, demo, stores, args.timeout)
             dumped = stores.dump()
         finally:
             stores.down()
@@ -372,7 +389,11 @@ def main(argv: list[str] | None = None) -> int:
     q = sub.add_parser("pull", help="pull a demo's bundle and print its directory")
     q.add_argument("spec", help="<name> or <name>@<version>")
     q.add_argument("--into", type=Path, required=True)
-    q.add_argument("--registry", default=bundles.PUBLISHED_AT)
+    # Where the project publishes, unless PROVISA_DEMO_REGISTRY names another (as the sandbox
+    # tier and start-ui-install.sh are told).
+    q.add_argument(
+        "--registry", default=os.environ.get("PROVISA_DEMO_REGISTRY", bundles.PUBLISHED_AT)
+    )
     args = parser.parse_args(argv)
     try:
         return {"build": build, "push": push, "pull": pull}[args.command](args)

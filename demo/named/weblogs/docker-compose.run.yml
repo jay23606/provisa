@@ -24,12 +24,19 @@ services:
     labels:
       <<: *demo-labels
       com.provisa.demo.role: rdb
+      # Where config.yaml's shop-db reads it, for the sandbox tier's node (REQ-2049,
+      # scripts/demo_stores_sync.sh): it writes these two into the bundle's stores.env.
+      com.provisa.demo.host_env: WEBLOGS_PG_HOST
+      com.provisa.demo.port_env: WEBLOGS_PG_PORT
+      com.provisa.demo.port: "5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: shop
     ports:
-      - "${WEBLOGS_PG_PORT:-28432}:5432"
+      # Unset: 28432, as start-ui-install.sh --demo weblogs reads it. Set empty (the node, which
+      # runs several versions at once): a port docker picks.
+      - "${WEBLOGS_PG_PORT-28432}:5432"
     volumes:
       - weblogs_run_pg:/var/lib/postgresql/data
       - ./dump/postgres.sql:/docker-entrypoint-initdb.d/10-shop.sql:ro

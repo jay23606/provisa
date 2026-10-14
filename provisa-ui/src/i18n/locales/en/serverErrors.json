@@ -568,9 +568,7 @@
       "demo_not_ready": "This demo is still being prepared. Try again shortly.",
       "at_capacity": "Every demo sandbox is in use. Try again shortly.",
       "disk_full": "This sandbox has used its disk limit of {{limit}} bytes; nothing more can be written to it.",
-      "sign_in_required": "Sign in to open your own sandbox.",
-      "demo_unavailable": "The latest version of the {{demo}} demo could not be fetched. Try again shortly.",
-      "demo_needs_newer_provisa": "The {{demo}} demo's latest version needs Provisa {{requires}} or newer; this is Provisa {{running}}."
+      "sign_in_required": "Sign in to open your own sandbox."
     },
     "engine": {
       "write_conflict": "Another change to the same data was written at the same time. Try again."

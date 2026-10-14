@@ -96,23 +96,63 @@ def test_with_no_sandbox_tier_everything_reaches_the_deployments_api(monkeypatch
     )
 
 
-def test_a_demo_template_waits_for_its_source_tables_and_not_its_views(monkeypatch, tmp_path):
-    """REQ-2006/REQ-2049: a view has no replica, so counting the weblogs demo's six views among
-    what must land kept its template waiting forever (demo-bundles run 38588163850)."""
+def test_a_demo_template_waits_only_for_what_it_serves_from_replicas(monkeypatch, tmp_path):
+    """REQ-2049: a demo's own sources are read live -- the weblogs demo lands nothing -- and its
+    views have no replica; only a table replicated always (a SaaS source's, landed once) is waited
+    for. Counting its views kept the weblogs template waiting forever (run 38588163850)."""
     from pathlib import Path
+
+    import yaml
 
     from provisa.api.demo_templates import replicated_tables
     from provisa.core.config_loader import parse_config_dict, read_config_with_includes
 
     monkeypatch.setenv("PROVISA_NAMED_DEMO_DIR", str(tmp_path))
     weblogs = Path(__file__).resolve().parents[2] / "demo" / "named" / "weblogs" / "config.yaml"
-    config = parse_config_dict(read_config_with_includes(weblogs))
-    assert len(config.tables) == 12
-    assert sorted(t.table_name for t in replicated_tables(config)) == [
+    raw = read_config_with_includes(weblogs)
+    assert len(parse_config_dict(raw).tables) == 12  # six tables and six views
+    assert replicated_tables(parse_config_dict(raw)) == []
+    raw = yaml.safe_load(yaml.safe_dump(raw))
+    for source in raw["sources"]:
+        if source["id"] == "shop-db":
+            source["replicate"] = 0
+            source["change_signal"] = "signal"
+    assert sorted(t.table_name for t in replicated_tables(parse_config_dict(raw))) == [
         "customers",
         "order_items",
         "orders",
         "products",
-        "shop_access",
-        "shop_db_log",
     ]
+
+
+def test_a_bundles_stores_are_where_the_node_says(tmp_path):
+    """REQ-2049: the node writes stores.env; each ${env:NAME} it sets takes its value, defaults
+    and all, and any other reference is left to the loader."""
+    from provisa.api.demo_templates import _with_stores
+    from provisa.core.demo_bundles import BundleError, stores_env
+
+    (tmp_path / "docker-compose.run.yml").write_text("services: {}\n")
+    with pytest.raises(BundleError, match="wrote no stores.env"):
+        stores_env(tmp_path)
+    (tmp_path / "stores.env").write_text(
+        "WEBLOGS_PG_HOST=provisa-demo-weblogs-1-postgres-1\nWEBLOGS_PG_PORT=5432\n"
+    )
+    values = stores_env(tmp_path)
+    raw = {
+        "sources": [
+            {
+                "host": "${env:WEBLOGS_PG_HOST:-localhost}",
+                "port": "${env:WEBLOGS_PG_PORT:-28432}",
+                "password": "${env:OTHER}",
+            }
+        ]
+    }
+    assert _with_stores(raw, values) == {
+        "sources": [
+            {
+                "host": "provisa-demo-weblogs-1-postgres-1",
+                "port": "5432",
+                "password": "${env:OTHER}",
+            }
+        ]
+    }

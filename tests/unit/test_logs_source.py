@@ -138,6 +138,43 @@ def test_a_demo_bundles_seeding_run_reads_its_demos_logs_inside_the_allowed_root
         checked_glob(f"{root}/system.log*")
 
 
+def test_a_sandbox_tier_demo_org_reads_its_own_demos_logs_and_nothing_else(
+    root, monkeypatch, tmp_path
+):
+    """REQ-2049: a demo's logs are its own source, read live from its bundle -- by its template
+    and its sandboxes, inside that demo's directory only; any other org of a many-organization
+    server still reads no log file of its own."""
+    from provisa.core import org_files
+    from provisa.core.request_context import current_org
+
+    monkeypatch.setattr(secrets_providers, "_many_organisations", lambda: True)
+    monkeypatch.setenv("PROVISA_DEMO_SEED_EXPORT", "false")
+    monkeypatch.setenv("PROVISA_DEMO_BUNDLES", "weblogs")
+    demo = root / "demo-bundles" / "weblogs" / "202610141747-0a3ad1932"
+    (demo / "logs").mkdir(parents=True)
+    (root / "demo-bundles" / "other" / "1" / "logs").mkdir(parents=True)
+    folder = tmp_path / "folder"
+    folder.mkdir()
+    (folder / "demo-directory").write_text(str(demo))
+    monkeypatch.setattr(org_files, "folder", lambda org_id: folder)
+    monkeypatch.setattr("provisa.core.demo_bundles.bundles_root", lambda: root / "demo-bundles")
+
+    for org in ("sbx0123456789ab", "sbxtplweblogs"):
+        token = current_org.set(org)
+        try:
+            assert checked_glob(f"{demo}/logs/*.json") == f"{demo}/logs/*.json"
+            with pytest.raises(LogPathRefused, match="many organizations"):
+                checked_glob(f"{root}/demo-bundles/other/1/logs/*.json")
+        finally:
+            current_org.reset(token)
+    token = current_org.set("acme")
+    try:
+        with pytest.raises(LogPathRefused, match="many organizations"):
+            checked_glob(f"{demo}/logs/*.json")
+    finally:
+        current_org.reset(token)
+
+
 def test_the_save_refuses_a_logs_source_by_name_and_on_the_saas_plane(root, monkeypatch, tmp_path):
     from provisa.api.admin.schema_common import logs_refusal
 

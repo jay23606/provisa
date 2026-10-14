@@ -568,9 +568,7 @@
       "demo_not_ready": "Cette démo est encore en préparation. Réessayez sous peu.",
       "at_capacity": "Tous les bacs à sable de démo sont utilisés. Réessayez sous peu.",
       "disk_full": "Ce bac à sable a atteint sa limite de disque de {{limit}} octets ; plus rien ne peut y être écrit.",
-      "sign_in_required": "Connectez-vous pour ouvrir votre propre bac à sable.",
-      "demo_unavailable": "La dernière version de la démo {{demo}} n'a pas pu être récupérée. Réessayez dans un instant.",
-      "demo_needs_newer_provisa": "La dernière version de la démo {{demo}} nécessite Provisa {{requires}} ou plus récent ; celle-ci est Provisa {{running}}."
+      "sign_in_required": "Connectez-vous pour ouvrir votre propre bac à sable."
     },
     "engine": {
       "write_conflict": "Une autre modification des mêmes données a été écrite au même moment. Réessayez."

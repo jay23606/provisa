@@ -8,11 +8,11 @@ into; a glob, or a file it matches, that resolves outside them after following s
 refused by name; on the multi-organisation SaaS plane a server-local log path is refused
 entirely, by name.
 
-The one many-organisation server that reads log files of its own is a demo bundle's seeding run
-(REQ-2049): a throwaway sandbox tier the bundle build starts, holding only the demos' templates,
-which lands a demo's Logs sources from the files the demo's traffic wrote into the build's copy
-of the demo -- still only inside the allowed roots the build lists (that copy). A deployment's
-sandbox tier lands them from the bundle's seed and reads no log file."""
+Two reads of log files of a many-organisation server's own are allowed (REQ-2049), each still only
+inside the allowed roots: a demo bundle's seeding run (the bundle build's throwaway sandbox tier),
+and a sandbox-tier demo org -- a demo's template or a sandbox of it -- reading its own demo's
+files, inside that demo's directory and nowhere else: a demo's logs are its own source, read live
+from its bundle."""
 
 from __future__ import annotations
 
@@ -41,10 +41,22 @@ def _inside(path: str, roots: list[str]) -> bool:
     return any(path == root or path.startswith(root.rstrip(os.sep) + os.sep) for root in roots)
 
 
+def _own_demos(path: str) -> bool:
+    """Whether ``path`` is inside the directory of the demo the bound org is (a sandbox-tier
+    template or sandbox), once its symlinks are followed."""
+    from provisa.core.demo_bundles import own_demo_directory
+    from provisa.core.request_context import current_org
+
+    directory = own_demo_directory(current_org.get())
+    if directory is None:
+        return False
+    return _inside(os.path.realpath(os.path.expanduser(path)), [os.path.realpath(directory)])
+
+
 def _refuse_on_saas(path: str) -> None:
     from provisa.core.demo_bundles import seeding_run
 
-    if many_organisations() and not seeding_run():
+    if many_organisations() and not seeding_run() and not _own_demos(path):
         raise LogPathRefused(
             f"{path}: a server that holds many organizations reads no log file of its own"
         )

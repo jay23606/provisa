@@ -8,19 +8,23 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 
-"""E2E: the sandbox tier serves each demo's latest published bundle, with no redeploy (REQ-2049).
+"""E2E: the sandbox tier serves each demo's published bundle, a newer one with no redeploy
+(REQ-2049).
 
-The ``test`` instance: a registry of this test's own (tests/integration/demo_registry.py) and a
-sandbox tier told to pull the demo ``alpha`` from it (PROVISA_DEMO_BUNDLES). A bundle built and
-published is what a visitor's sandbox reads; a newer one published while the tier runs is what
-the next visitor's sandbox reads, while the sandbox opened before keeps its own. The demo's source
-is deleted after each build: nothing the tier serves reads it."""
+The ``test`` instance: a registry of this test's own (tests/integration/demo_registry.py), the
+node's sync (scripts/demo_stores_sync.sh) run here as the node runs it, and a sandbox tier serving
+the demo ``alpha`` (PROVISA_DEMO_BUNDLES). The sync pulls a published version and marks it ready;
+a visitor's sandbox reads the demo's own source live, from that version's bundle. A version
+published while the tier runs is asked for when the next sandbox is opened -- which is served the
+ready version meanwhile -- and served from the first sandbox opened after the sync has it ready,
+while a sandbox opened before keeps reading its own version."""
 
 # Requirements: REQ-2049, REQ-2006
 
 from __future__ import annotations
 
 import sqlite3
+import subprocess
 import time
 
 import httpx
@@ -45,7 +49,7 @@ def registry():
 
 
 def _publish(registry, named, out, commit: str, rows: list[str]) -> str:
-    """Build alpha with ``rows``, publish it, and remove its source; the version published."""
+    """Build alpha with ``rows`` and publish it; the version published."""
     source = named / "alpha" / "animals.sqlite"
     db = sqlite3.connect(source)
     db.execute("DELETE FROM animals")
@@ -55,6 +59,17 @@ def _publish(registry, named, out, commit: str, rows: list[str]) -> str:
     bundle = build(named, "alpha", out, commit)
     registry.push(bundle)
     return bundle.name.removeprefix("alpha-").removesuffix(".tar.gz")
+
+
+def _sync(work, registry) -> subprocess.CompletedProcess:
+    """The node's sync, for the demo alpha, into the tier's data directory."""
+    return registry.sync("alpha", work / "data" / "demo-bundles")
+
+
+def _synced(work, registry) -> str:
+    done = _sync(work, registry)
+    assert done.returncode == 0, (done.stdout, done.stderr)
+    return (work / "data" / "demo-bundles" / "alpha" / "ready").read_text().strip()
 
 
 def _tier(work, registry):
@@ -101,31 +116,37 @@ def _names(tier, sandbox: dict) -> list[str]:
     return sorted(r["name"] for r in rows.json()["data"]["sql"])
 
 
-def test_a_new_sandbox_reads_the_latest_bundle_and_an_open_one_keeps_its_own(
+def test_a_newer_version_is_asked_for_served_once_ready_and_an_open_sandbox_keeps_its_own(
     tmp_path_factory, registry
 ):
     work = tmp_path_factory.mktemp("bundle_tier")
     named = work / "named"
     published_demo(named, "alpha")
     first = _publish(registry, named, work / "out1", "a" * 40, ["ant", "ape"])
-    (named / "alpha" / "animals.sqlite").unlink()
+    assert _synced(work, registry) == first
 
     tier = _tier(work, registry)
     tier.start(timeout=240)
     try:
         before = _open(tier)
         assert _names(tier, before) == ["ant", "ape"]
-        assert (work / "data" / "demo-bundles" / "alpha" / "current").read_text().strip() == first
 
         published_demo(work / "named2", "alpha")
         second = _publish(registry, work / "named2", work / "out2", "b" * 40, ["asp", "auk", "ant"])
-        (work / "named2" / "alpha" / "animals.sqlite").unlink()
         assert second != first
 
+        meanwhile = _open(tier)  # asks for the new version, and is served the ready one
+        assert _names(tier, meanwhile) == ["ant", "ape"]
+        bundles = work / "data" / "demo-bundles"
+        assert (bundles / "alpha" / "wanted").read_text().strip() == second
+        assert (bundles / ".wanted").exists()  # what the node's path unit watches
+
+        assert _synced(work, registry) == second
         after = _open(tier)
         assert _names(tier, after) == ["ant", "asp", "auk"]
-        assert (work / "data" / "demo-bundles" / "alpha" / "current").read_text().strip() == second
-        assert _names(tier, before) == ["ant", "ape"]  # opened before: its own copy
+        assert _names(tier, before) == ["ant", "ape"]  # opened before: its own version, live
+        in_use = set((bundles / "alpha" / "in-use").read_text().split())
+        assert in_use == {first, second}
     finally:
         tier.stop_process()
 
@@ -141,6 +162,10 @@ def test_a_bundle_that_needs_a_newer_provisa_is_refused_by_name(tmp_path_factory
     assert pulled.returncode == 2
     assert "needs Provisa 99.0.0 or newer; this is Provisa" in pulled.stderr
     assert not (work / "demos" / "alpha").exists() or not any((work / "demos" / "alpha").iterdir())
+    synced = _sync(work, registry)  # the node refuses it too, and marks nothing ready
+    assert synced.returncode != 0
+    assert "needs Provisa 99.0.0 or newer" in synced.stderr
+    assert not (work / "data" / "demo-bundles" / "alpha" / "ready").exists()
 
 
 def test_a_sandbox_is_shown_the_example_queries_of_the_bundle_it_was_opened_from(
@@ -156,6 +181,7 @@ def test_a_sandbox_is_shown_the_example_queries_of_the_bundle_it_was_opened_from
         "# Every animal\nquery { animals { name } }\n"
     )
     _publish(registry, named, work / "out", "d" * 40, ["ant", "ape"])
+    _synced(work, registry)
     tier = _tier(work, registry)
     tier.start(timeout=240)
     try:
@@ -199,6 +225,7 @@ def test_a_visitor_reads_what_the_demo_shows_its_admin_and_runs_as_its_own_roles
         )
     (demo / "config.yaml").write_text(yaml.safe_dump(config))
     _publish(registry, named, work / "out", "e" * 40, ["ant", "ape"])
+    _synced(work, registry)
     tier = _tier(work, registry)
     tier.start(timeout=240)
     try:
