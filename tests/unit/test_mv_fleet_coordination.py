@@ -25,7 +25,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from tests.helpers import hold_registered_tables
+from tests.helpers import hold_registered_tables, build_through_a_stand_in_pipeline
 from sqlalchemy import insert, select, update
 from provisa.core.schema_org import materialized_views as DEFINITIONS
 from provisa.core.schema_org import mv_build_state as MVT
@@ -44,6 +44,13 @@ from provisa.mv.registry import MVRegistry
 MV_ID = "mv-orders"
 INST_A = "instance-a"
 INST_B = "instance-b"
+
+
+@pytest.fixture(autouse=True)
+def _built_through_a_stand_in_pipeline(monkeypatch):
+    """These are about what a refresh does with the rows it reads, not how its SELECT is
+    governed (REQ-1922): the one pipeline is stood in for."""
+    build_through_a_stand_in_pipeline(monkeypatch)
 
 
 @pytest.fixture

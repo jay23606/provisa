@@ -21,13 +21,22 @@ import pytest
 from provisa.mv.models import TableIdentity, JoinPattern, MVDefinition, MVStatus
 from provisa.mv.registry import MVRegistry
 from provisa.executor.result import QueryResult
-from tests.helpers import RegisteredNames
+from tests.helpers import RegisteredNames, build_through_a_stand_in_pipeline
 from provisa.mv.refresh import (
     detect_orphans,
     drop_expired_orphans,
     reclaim_removed_mvs,
     refresh_mv,
 )
+
+
+@pytest.fixture(autouse=True)
+def _built_through_a_stand_in_pipeline(monkeypatch):
+    """These are about what a refresh does with the rows it reads, not how its SELECT is
+    governed (REQ-1922): the one pipeline is stood in for."""
+    build_through_a_stand_in_pipeline(
+        monkeypatch, lambda _mv: 'SELECT * FROM "src"."public"."orders"'
+    )
 
 
 @pytest.fixture(autouse=True)

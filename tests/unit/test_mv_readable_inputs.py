@@ -27,6 +27,7 @@ from provisa.mv import readable_inputs
 from provisa.mv.models import MVDefinition, TableIdentity
 from provisa.mv.readable_inputs import ViewInputNotReadable
 from provisa.mv.registry import MVRegistry
+from tests.helpers import build_through_a_stand_in_pipeline
 from tests.role_state import RoleState
 
 
@@ -248,6 +249,7 @@ def test_refreshing_a_view_over_readable_inputs_reaches_the_engine(state, monkey
     from provisa.mv.refresh import refresh_mv
 
     monkeypatch.setattr("provisa.api.app.state", state)
+    build_through_a_stand_in_pipeline(monkeypatch)  # how its SELECT is governed is not this test's
     view = _view("v_orders", "SELECT region, count(*) AS n FROM sales.orders GROUP BY region")
     state.mv_registry.register(view)
     engine = _Engine()

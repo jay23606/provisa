@@ -18,7 +18,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from tests.helpers import hold_registered_tables
+from tests.helpers import hold_registered_tables, build_through_a_stand_in_pipeline
 
 from provisa.executor.result import QueryResult
 from provisa.mv.bitemporal import BitemporalSpec, reconstruct_as_of_sql
@@ -51,6 +51,13 @@ class DuckEngine:
         if desc is None:
             return QueryResult(rows=[], column_names=[])
         return QueryResult(rows=cur.fetchall(), column_names=[d[0] for d in desc])
+
+
+@pytest.fixture(autouse=True)
+def _built_through_a_stand_in_pipeline(monkeypatch):
+    """These are about what a refresh does with the rows it reads, not how its SELECT is
+    governed (REQ-1922): the one pipeline is stood in for."""
+    build_through_a_stand_in_pipeline(monkeypatch)
 
 
 @pytest.fixture(autouse=True)

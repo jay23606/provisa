@@ -11,8 +11,9 @@
 """Junction-backed relationships as MV hints (REQ-1586).
 
 A junction edge is two hops through an associative table, so the join pattern it
-materializes carries the via leg and its discriminator. These are pure calls — the refresh
-SQL builder and the rewriter — with a fake engine standing in for column introspection.
+materializes carries the via leg and its discriminator. These are pure calls — the build's
+join in the model's terms, as handed to the one pipeline (REQ-1922), and the rewriter — with the
+model's names and the registry's columns standing in for a server.
 """
 
 # Requirements: REQ-1586
@@ -20,30 +21,66 @@ SQL builder and the rewriter — with a fake engine standing in for column intro
 from __future__ import annotations
 
 import time
+from types import SimpleNamespace
 
 import pytest
 
 from provisa.compiler.sql_gen import CompiledQuery
-from provisa.executor.result import QueryResult
-from tests.helpers import RegisteredNames, src_table
+from tests.helpers import src_table
 from provisa.mv.models import JoinPattern, MVDefinition, MVStatus
 from provisa.mv.refresh import _build_refresh_sql
 from provisa.mv.rewriter import rewrite_if_mv_match
 
 
-class _FakeEngine(RegisteredNames):
-    """The zero-row shape read of a table answers its columns from a mapping."""
+async def _built_sql(monkeypatch, mv: MVDefinition, columns: dict[str, list[str]]) -> str:
+    """The statement a build of ``mv`` hands the one pipeline, with each table the model names in
+    domain ``zoo`` and registers with ``columns``."""
+    from provisa.api.app import state
+    from provisa.federation import query_residency, registry_view
+    from provisa.pgwire import _pipeline
+    from provisa.transpiler.router import Route
 
-    def __init__(self, columns: dict[str, list[str]]):
-        self._columns = columns
+    def _meta(table: str) -> SimpleNamespace:
+        return SimpleNamespace(
+            source_id="src",
+            schema_name="public",
+            table_name=table,
+            original_table_name="",
+            domain_id="zoo",
+            display_name=table,
+            field_name=table,
+        )
 
-    async def execute_engine(self, sql, *a, **k):
-        # The table is named where the engine reads it and aliased to its registered name.
-        prefix = 'SELECT * FROM "src"."public"."'
-        assert sql.startswith(prefix) and sql.endswith(" LIMIT 0"), sql
-        table = sql[len(prefix) :].split('"')[0]
-        assert f'"src"."public"."{table}" AS "{table}"' in sql
-        return QueryResult(rows=[], column_names=list(self._columns[table]))
+    monkeypatch.setattr(
+        state, "view_context", SimpleNamespace(tables={t: _meta(t) for t in columns}), raising=False
+    )
+
+    async def _tables(_state):
+        return [
+            SimpleNamespace(
+                source_id="src",
+                schema_name="public",
+                table_name=t,
+                columns=[SimpleNamespace(name=c) for c in cols],
+            )
+            for t, cols in columns.items()
+        ]
+
+    routed: list[str] = []
+
+    async def _govern_and_route(sql, _role, **_kw):
+        routed.append(sql)
+        return SimpleNamespace(route=Route.ENGINE, physical_sql=sql, exec_params=None)
+
+    async def _resident(_state, _plan):
+        return None
+
+    monkeypatch.setattr(registry_view, "registered_tables", _tables)
+    monkeypatch.setattr(_pipeline, "_govern_and_route", _govern_and_route)
+    monkeypatch.setattr(query_residency, "prepare_engine_residency", _resident)
+    await _build_refresh_sql(mv, object())
+    [sql] = routed
+    return sql
 
 
 def _junction_jp(type_value: str | None = "bonded pair") -> JoinPattern:
@@ -140,47 +177,51 @@ class TestJoinPatternDeclaration:
 
 class TestJunctionRefreshSQL:
     @pytest.mark.asyncio
-    async def test_refresh_sql_joins_through_the_junction(self):
-        engine = _FakeEngine(
-            {"pets": ["id", "name"], "pet_companions": ["id", "pet_id", "since", "note"]}
+    async def test_refresh_sql_joins_through_the_junction(self, monkeypatch):
+        sql = await _built_sql(
+            monkeypatch,
+            _junction_mv(),
+            {"pets": ["id", "name"], "pet_companions": ["id", "pet_id", "since", "note"]},
         )
-        sql = await _build_refresh_sql(_junction_mv(), engine)
 
-        # Each table is named catalog-physically (resolved from the registry) under its
-        # registered name as alias; no bare name reaches the engine.
-        assert 'FROM "src"."public"."pets" AS "pets" ' in sql
+        # Each table is named as the model names it, under its registered name as alias.
+        assert 'FROM "zoo"."pets" AS "pets" ' in sql
         assert (
-            'LEFT JOIN "src"."public"."pet_companions" AS "pet_companions" '
+            'LEFT JOIN "zoo"."pet_companions" AS "pet_companions" '
             'ON "pets"."id" = "pet_companions"."pet_id"'
         ) in sql
         assert (
-            'LEFT JOIN "src"."public"."pets" AS "pets" '
-            'ON "pet_companions"."companion_pet_id" = "pets"."id"'
+            'LEFT JOIN "zoo"."pets" AS "pets" ON "pet_companions"."companion_pet_id" = "pets"."id"'
         ) in sql
 
     @pytest.mark.asyncio
-    async def test_refresh_sql_carries_the_edge_attributes(self):
-        engine = _FakeEngine(
-            {"pets": ["id", "name"], "pet_companions": ["id", "pet_id", "since", "note"]}
+    async def test_refresh_sql_carries_the_edge_attributes(self, monkeypatch):
+        sql = await _built_sql(
+            monkeypatch,
+            _junction_mv(),
+            {"pets": ["id", "name"], "pet_companions": ["id", "pet_id", "since", "note"]},
         )
-        sql = await _build_refresh_sql(_junction_mv(), engine)
 
         assert '"pet_companions"."since" AS "pet_companions__since"' in sql
         assert '"pet_companions"."note" AS "pet_companions__note"' in sql
 
     @pytest.mark.asyncio
-    async def test_refresh_sql_restricts_to_the_discriminator_value(self):
-        engine = _FakeEngine(
-            {"pets": ["id", "name"], "pet_companions": ["id", "pet_id", "relation_type"]}
+    async def test_refresh_sql_restricts_to_the_discriminator_value(self, monkeypatch):
+        sql = await _built_sql(
+            monkeypatch,
+            _junction_mv(),
+            {"pets": ["id", "name"], "pet_companions": ["id", "pet_id", "relation_type"]},
         )
-        sql = await _build_refresh_sql(_junction_mv(), engine)
 
         assert sql.endswith('WHERE "pet_companions"."relation_type" = \'bonded pair\'')
 
     @pytest.mark.asyncio
-    async def test_undiscriminated_junction_has_no_where_clause(self):
-        engine = _FakeEngine({"pets": ["id", "name"], "pet_companions": ["id", "pet_id"]})
-        sql = await _build_refresh_sql(_junction_mv(type_value=None), engine)
+    async def test_undiscriminated_junction_has_no_where_clause(self, monkeypatch):
+        sql = await _built_sql(
+            monkeypatch,
+            _junction_mv(type_value=None),
+            {"pets": ["id", "name"], "pet_companions": ["id", "pet_id"]},
+        )
 
         assert "WHERE" not in sql
 

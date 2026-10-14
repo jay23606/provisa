@@ -18,7 +18,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from tests.helpers import hold_registered_tables
+from tests.helpers import hold_registered_tables, build_through_a_stand_in_pipeline
 from sqlalchemy import insert, select
 from provisa.core.schema_org import materialized_views as MVT
 from provisa.core.schema_org import mv_delta_ledger as LEDGER
@@ -34,6 +34,13 @@ from provisa.mv.refresh import refresh_mv
 from provisa.mv.registry import MVRegistry
 
 MV_ID = "mv-orders"
+
+
+@pytest.fixture(autouse=True)
+def _built_through_a_stand_in_pipeline(monkeypatch):
+    """These are about what a refresh does with the rows it reads, not how its SELECT is
+    governed (REQ-1922): the one pipeline is stood in for."""
+    build_through_a_stand_in_pipeline(monkeypatch)
 
 
 @pytest.fixture(autouse=True)

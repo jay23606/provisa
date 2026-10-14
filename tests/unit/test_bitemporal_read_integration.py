@@ -21,7 +21,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from tests.helpers import hold_registered_tables
+from tests.helpers import hold_registered_tables, build_through_a_stand_in_pipeline
 
 import provisa.mv.refresh as refresh_mod
 from provisa.compiler.sql_gen import CompiledQuery
@@ -109,6 +109,13 @@ async def _materialize(monkeypatch, mode: str):
     view_sql_map = {VIEW: view_read_sql(mv_ref, spec)}
     bitemporal_reads = {VIEW: (mv_ref, spec)}
     return con, view_sql_map, bitemporal_reads, spec
+
+
+@pytest.fixture(autouse=True)
+def _built_through_a_stand_in_pipeline(monkeypatch):
+    """These are about what a refresh does with the rows it reads, not how its SELECT is
+    governed (REQ-1922): the one pipeline is stood in for."""
+    build_through_a_stand_in_pipeline(monkeypatch)
 
 
 @pytest.fixture(autouse=True)

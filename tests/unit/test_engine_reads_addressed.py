@@ -39,6 +39,7 @@ from provisa.federation.replica_address import (
 )
 from provisa.federation.replica_guard import ReplicaUnavailable
 from provisa.federation.runtime import EngineRuntime
+from tests.helpers import build_through_a_stand_in_pipeline
 
 pytestmark = pytest.mark.unit
 
@@ -180,7 +181,7 @@ async def test_a_preflight_count_probe_reads_the_replica():
     assert '"src"."public"."orders"' not in sql
 
 
-async def test_a_refresh_names_its_preflight_inputs_as_the_view_does():
+async def test_a_refresh_names_its_preflight_inputs_as_the_view_does(monkeypatch):
     """The refresh hands the preflight the view's SELECT with its served inputs already renamed
     to their replicas; the inputs the check is keyed by come from the view's own definition."""
     from provisa.mv.models import MVDefinition
@@ -202,6 +203,9 @@ async def test_a_refresh_names_its_preflight_inputs_as_the_view_does():
         refresh_interval=300,
         preprocess=check,
     )
+    # The one pipeline's plan for the view reads its served input at its replica (the
+    # transpile seam); the build hands that statement on (REQ-1922).
+    build_through_a_stand_in_pipeline(monkeypatch, lambda view: rt.engine_physical(view.sql))
     select_sql = await _build_refresh_sql(mv, rt)
     assert "org_acme_replicas" in select_sql
 
@@ -337,16 +341,10 @@ async def test_two_sources_same_named_tables_each_resolve_and_an_unknown_one_is_
         await registered_table_key(engine, state, TableIdentity("sales-pg", "public", "customers"))
 
 
-async def test_a_join_pattern_reads_a_replica_served_table_at_its_replica(monkeypatch):
-    """The reason the names are resolved: once a join-pattern table has an engine name, the
-    address seam can serve it from its replica."""
+def _join_view() -> Any:
     from provisa.mv.models import JoinPattern, MVDefinition, TableIdentity
-    from provisa.mv.refresh import _build_refresh_sql
 
-    rt = _Runtime()
-    state = _registry(monkeypatch, ("src", "public", "orders"), ("src", "public", "customers"))
-    rt._state.catalog_for = state.catalog_for
-    mv = MVDefinition(
+    return MVDefinition(
         id="mv-orders-customers",
         source_tables=["orders", "customers"],
         inputs=[TableIdentity("src", "public", t) for t in ("orders", "customers")],
@@ -360,10 +358,75 @@ async def test_a_join_pattern_reads_a_replica_served_table_at_its_replica(monkey
         ),
     )
 
-    sql = await _build_refresh_sql(mv, rt)
 
-    assert 'FROM "provisa_admin"."org_acme_replicas"."src__public__orders" AS "orders" ' in sql
-    assert 'JOIN "src"."public"."customers" AS "customers" ON ' in sql
+def _model(monkeypatch, *tables: tuple[str, str, str]) -> SimpleNamespace:
+    """Each table in the model, in a domain named for its source, with an ``id`` column; and the
+    one pipeline's entry, recorded."""
+    from provisa.api.app import state
+    from provisa.federation import query_residency, registry_view
+    from provisa.pgwire import _pipeline
+    from provisa.transpiler.router import Route
+
+    monkeypatch.setattr(
+        state,
+        "view_context",
+        SimpleNamespace(
+            tables={
+                f"{source}.{name}": SimpleNamespace(
+                    source_id=source,
+                    schema_name=schema,
+                    table_name=name,
+                    original_table_name="",
+                    domain_id=source,
+                    display_name=name,
+                    field_name=name,
+                )
+                for source, schema, name in tables
+            }
+        ),
+        raising=False,
+    )
+
+    async def _registered(_state):
+        return [
+            SimpleNamespace(
+                source_id=source,
+                schema_name=schema,
+                table_name=name,
+                columns=[SimpleNamespace(name="id")],
+            )
+            for source, schema, name in tables
+        ]
+
+    calls = SimpleNamespace(routed=[], resident=[])
+
+    async def _govern_and_route(sql, _role, **_kw):
+        calls.routed.append(sql)
+        return SimpleNamespace(route=Route.ENGINE, physical_sql="SELECT 1", exec_params=None)
+
+    async def _resident(_state, plan):
+        calls.resident.append(plan.physical_sql)
+
+    monkeypatch.setattr(registry_view, "registered_tables", _registered)
+    monkeypatch.setattr(_pipeline, "_govern_and_route", _govern_and_route)
+    monkeypatch.setattr(query_residency, "prepare_engine_residency", _resident)
+    return calls
+
+
+async def test_a_join_pattern_reads_a_replica_served_table_at_its_replica(monkeypatch):
+    """A join-pattern view is built through the one pipeline (REQ-1922): its tables are named in
+    the model's terms, and the plan's inputs are made readable as a read's are -- a served table
+    at its replica -- before the build runs it."""
+    from provisa.mv.refresh import _build_refresh_sql
+
+    calls = _model(monkeypatch, ("src", "public", "orders"), ("src", "public", "customers"))
+
+    sql = await _build_refresh_sql(_join_view(), _Runtime())
+
+    [semantic] = calls.routed
+    assert 'FROM "src"."orders" AS "orders" ' in semantic
+    assert 'JOIN "src"."customers" AS "customers" ON ' in semantic
+    assert calls.resident == ["SELECT 1"] and sql == "SELECT 1"
 
 
 async def test_a_join_pattern_view_keeps_reading_its_table_after_another_source_registers_it(
@@ -372,32 +435,17 @@ async def test_a_join_pattern_view_keeps_reading_its_table_after_another_source_
     """The view was bound to src's ``customers`` when it was declared. Another source registers a
     ``customers`` afterwards — that registration is not refused — and the view's refresh still
     reads src's."""
-    from provisa.mv.models import JoinPattern, MVDefinition, TableIdentity
     from provisa.mv.refresh import _build_refresh_sql
 
-    rt = _Runtime()
-    state = _registry(
+    calls = _model(
         monkeypatch,
         ("src", "public", "orders"),
         ("src", "public", "customers"),
         ("crm", "public", "customers"),  # registered after the view
     )
-    rt._state.catalog_for = state.catalog_for
-    mv = MVDefinition(
-        id="mv-orders-customers",
-        source_tables=["orders", "customers"],
-        inputs=[TableIdentity("src", "public", t) for t in ("orders", "customers")],
-        target_catalog="provisa_admin",
-        target_schema="org_acme_mv_cache",
-        join_pattern=JoinPattern(
-            left_table="orders",
-            left_column="customer_id",
-            right_table="customers",
-            right_column="id",
-        ),
-    )
 
-    sql = await _build_refresh_sql(mv, rt)
+    await _build_refresh_sql(_join_view(), _Runtime())
 
-    assert 'JOIN "src"."public"."customers" AS "customers" ON ' in sql
-    assert '"crm"' not in sql
+    [semantic] = calls.routed
+    assert 'JOIN "src"."customers" AS "customers" ON ' in semantic
+    assert '"crm"' not in semantic

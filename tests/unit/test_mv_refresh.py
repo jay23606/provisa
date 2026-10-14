@@ -21,7 +21,7 @@ from types import SimpleNamespace
 import pytest
 
 from provisa.executor.result import QueryResult
-from tests.helpers import RegisteredNames
+from tests.helpers import RegisteredNames, build_through_a_stand_in_pipeline
 from provisa.mv.models import TableIdentity, JoinPattern, MVDefinition, MVStatus
 from provisa.mv.refresh import _build_refresh_sql, _target_ref, refresh_mv
 from provisa.mv.registry import MVRegistry
@@ -105,12 +105,81 @@ def _sql_mv(mv_id="mv-customer-stats"):
     )
 
 
+@pytest.fixture
+def pipeline(monkeypatch):
+    """The one pipeline's entry, recorded: each statement it governs and the role it governs it
+    as, planned to the engine."""
+    from provisa.federation import query_residency
+    from provisa.pgwire import _pipeline
+    from provisa.transpiler.router import Route
+
+    calls = SimpleNamespace(routed=[])
+
+    async def _govern_and_route(sql, role_id, **_kw):
+        calls.routed.append((sql, role_id))
+        return SimpleNamespace(
+            route=Route.ENGINE, physical_sql="SELECT id FROM governed", exec_params=None
+        )
+
+    async def _resident(_state, _plan):
+        return None
+
+    monkeypatch.setattr(_pipeline, "_govern_and_route", _govern_and_route)
+    monkeypatch.setattr(query_residency, "prepare_engine_residency", _resident)
+    return calls
+
+
+def _register_the_joined_tables(monkeypatch, *, customers: list[str] | None) -> None:
+    """The model's names of the join view's tables (domain ``sales``), and the registered columns
+    of ``customers`` (None: it is not registered)."""
+    from provisa.api.app import state
+    from provisa.federation import registry_view
+
+    def _meta(table: str) -> SimpleNamespace:
+        return SimpleNamespace(
+            source_id="src",
+            schema_name="public",
+            table_name=table,
+            original_table_name="",
+            domain_id="sales",
+            display_name=table,
+            field_name=table,
+        )
+
+    monkeypatch.setattr(
+        state,
+        "view_context",
+        SimpleNamespace(tables={t: _meta(t) for t in ("orders", "customers")}),
+        raising=False,
+    )
+
+    async def _tables(_state):
+        if customers is None:
+            return []
+        return [
+            SimpleNamespace(
+                source_id="src",
+                schema_name="public",
+                table_name="customers",
+                columns=[SimpleNamespace(name=c) for c in customers],
+            )
+        ]
+
+    monkeypatch.setattr(registry_view, "registered_tables", _tables)
+
+
 @pytest.mark.asyncio(loop_scope="session")
 class TestBuildRefreshSQL:
-    async def test_custom_sql_used_directly(self):
+    async def test_a_sql_views_build_is_its_definition_through_the_pipeline(
+        self, monkeypatch, pipeline
+    ):
+        """REQ-1922: with no platform regions too, a view's build is its definition in the
+        model's terms through the one pipeline, as the administrator, routed to the engine."""
         mv = _sql_mv()
-        result = await _build_refresh_sql(mv)
-        assert result == mv.sql
+        mv.semantic_sql = "SELECT id FROM sales.orders"
+        result = await _build_refresh_sql(mv, _FakeEngine())
+        assert pipeline.routed == [("SELECT id FROM sales.orders", "org_admin")]
+        assert result == "SELECT id FROM governed"
 
     async def test_a_views_region_setting_is_the_building_regions(self, monkeypatch):
         """REQ-1922: each region builds its own copy of a view, governed as its administrator
@@ -156,29 +225,30 @@ class TestBuildRefreshSQL:
             process_region._region = was
         assert sql == "SELECT id FROM orders WHERE region = 'eu' AND team = NULL"
 
-    async def test_join_pattern_without_introspection_raises(self):
-        mv = _jp_mv()
-        with pytest.raises(ValueError, match="engine required to introspect"):
-            await _build_refresh_sql(mv)
+    async def test_a_join_views_build_is_its_semantic_join_through_the_pipeline(
+        self, monkeypatch, pipeline
+    ):
+        """A join-pattern view is a view: its build is the join in the model's terms, each table
+        named as the model names it and its columns taken from the registry."""
+        _register_the_joined_tables(monkeypatch, customers=["id", "name", "email"])
+        await _build_refresh_sql(_jp_mv(), _FakeEngine())
+        [(sql, role)] = pipeline.routed
+        assert role == "org_admin"
+        assert sql == (
+            'SELECT "orders".*, "customers"."id" AS "customers__id", '
+            '"customers"."name" AS "customers__name", "customers"."email" AS "customers__email" '
+            'FROM "sales"."orders" AS "orders" LEFT JOIN "sales"."customers" AS "customers" '
+            'ON "orders"."customer_id" = "customers"."id"'
+        )
 
-    async def test_join_pattern_with_column_introspection(self):
-        mv = _jp_mv()
-        engine = _FakeEngine(show_columns=[("id",), ("name",), ("email",)])
-        result = await _build_refresh_sql(mv, engine)
-        assert '"customers"."id" AS "customers__id"' in result
-        assert '"customers"."name" AS "customers__name"' in result
-        assert '"customers"."email" AS "customers__email"' in result
-        assert '"orders".*' in result
-        # Each table is read at its catalog-physical name, under its registered name as alias.
-        assert 'FROM "src"."public"."orders" AS "orders" ' in result
-        assert 'JOIN "src"."public"."customers" AS "customers" ON ' in result
+    async def test_a_join_view_over_a_table_not_registered_is_refused(self, monkeypatch, pipeline):
+        from provisa.mv.governed_build import ViewNotBuildable
 
-    async def test_join_pattern_introspection_failure_raises(self):
-        mv = _jp_mv()
-        engine = _FakeEngine(raise_all=Exception("introspection failed"))
-        # Introspection failure must fail loud, not silently drop right-table columns.
-        with pytest.raises(RuntimeError, match="could not introspect columns"):
-            await _build_refresh_sql(mv, engine)
+        _register_the_joined_tables(monkeypatch, customers=None)
+        # Its columns cannot be named: the build fails loud, never reads left.* alone.
+        with pytest.raises(ViewNotBuildable, match="'customers' is not registered"):
+            await _build_refresh_sql(_jp_mv(), _FakeEngine())
+        assert pipeline.routed == []
 
     async def test_no_sql_no_join_raises(self):
         mv = MVDefinition(
@@ -288,6 +358,13 @@ class TestTargetRef:
 
 @pytest.mark.asyncio(loop_scope="session")
 class TestRefreshMV:
+    @pytest.fixture(autouse=True)
+    def _built_through_a_stand_in(self, monkeypatch):
+        """These are about what a refresh lands, not how its SELECT is governed."""
+        build_through_a_stand_in_pipeline(
+            monkeypatch, lambda _mv: 'SELECT * FROM "src"."public"."orders"'
+        )
+
     async def test_first_refresh_creates_table(self):
         mv = _jp_mv()
         registry = MVRegistry()
