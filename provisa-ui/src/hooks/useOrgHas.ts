@@ -26,7 +26,29 @@ import {
  * A call made while a read is in flight shares it: a lazy query's execute aborts the call still in
  * flight when it runs again, and two quick starts of the tour (`?tour=1`) left the first rejected
  * with "The operation was aborted" and the tour not started.
+ *
+ * A read the store cut short is read again: a reset or clear of the store (a session starting,
+ * the cache scope adopted, another environment chosen) stops every query in flight, and Apollo
+ * rejects a lazy query's promise with the same AbortError then. It is retried up to
+ * {@link READ_ATTEMPTS} times; a read that fails any other way rejects at once.
  */
+export const READ_ATTEMPTS = 3;
+
+/** Apollo's AbortError: a DOMException where there is one, which is not an Error everywhere. */
+function isAbort(e: unknown): boolean {
+  return typeof e === "object" && e !== null && "name" in e && e.name === "AbortError";
+}
+
+async function unlessCutShort<T>(load: () => Promise<T>): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await load();
+    } catch (e) {
+      if (!isAbort(e) || attempt === READ_ATTEMPTS) throw e;
+    }
+  }
+}
+
 export function useOrgHas(): () => Promise<OrgHas> {
   const [loadSources] = useLazyQuery<{ sources: Source[] }>(SOURCES_QUERY);
   const [loadTables] = useLazyQuery<{ tables: RegisteredTable[] }>(TABLES_QUERY);
@@ -34,9 +56,9 @@ export function useOrgHas(): () => Promise<OrgHas> {
   const inFlight = useRef<Promise<OrgHas> | null>(null);
   const read = useCallback(async (): Promise<OrgHas> => {
     const [sources, tables, products] = await Promise.all([
-      loadSources(),
-      loadTables(),
-      loadProducts(),
+      unlessCutShort(() => loadSources()),
+      unlessCutShort(() => loadTables()),
+      unlessCutShort(() => loadProducts()),
     ]);
     if (!sources.data || !tables.data || !products.data) {
       throw new Error("Tour: the org's sources, tables or data products could not be read");

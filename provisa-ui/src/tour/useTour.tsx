@@ -902,44 +902,54 @@ export function TourProvider({ children }: { children: ReactNode }) {
       // known; the Deep Dives menu opens then, a tour once its pages are ready too.
       const orgCheck = whatTheOrgHas();
       const ready = Promise.all([prefetchAllPageChunks(), prefetchTourData(), orgCheck]);
-      void orgCheck.then((has) => {
-        setOrgHas(has);
-        // The wait may have outlasted a dismissal (e.g. immediate Esc) -- don't resurrect it.
-        if (!driverRef.current) {
-          setStatus(null);
-          return;
-        }
-        const picked: Pick =
-          typeof pick === "string"
-            ? offered(pick, has)
-              ? { scope: pick, fresh }
-              : "menu"
-            : pick(has);
-        if (picked === null || picked === "menu") {
-          // Nothing to run: the driver goes without counting as a dismissal.
-          const inst = driverRef.current;
-          driverRef.current = null;
-          inst.destroy();
-          setStatus(null);
-          if (picked === "menu") setMenuOpen(true);
-          return;
-        }
-        running = picked.scope;
-        const steps = itineraries[picked.scope];
-        void ready.then(() => {
+      void orgCheck
+        .then((has) => {
+          setOrgHas(has);
+          // The wait may have outlasted a dismissal (e.g. immediate Esc) -- don't resurrect it.
           if (!driverRef.current) {
             setStatus(null);
             return;
           }
-          // The step's own runner takes over the status from here: it clears it when the anchor
-          // lands, or replaces it with waiting/stuck. A resumed index outside the itinerary is
-          // snapped forward by the runner effect.
-          setActiveScope(picked.scope);
-          setActiveStep(
-            picked.scope === "core" && !picked.fresh ? (tourResumeStep() ?? steps[0]) : steps[0],
-          );
+          const picked: Pick =
+            typeof pick === "string"
+              ? offered(pick, has)
+                ? { scope: pick, fresh }
+                : "menu"
+              : pick(has);
+          if (picked === null || picked === "menu") {
+            // Nothing to run: the driver goes without counting as a dismissal.
+            const inst = driverRef.current;
+            driverRef.current = null;
+            inst.destroy();
+            setStatus(null);
+            if (picked === "menu") setMenuOpen(true);
+            return;
+          }
+          running = picked.scope;
+          const steps = itineraries[picked.scope];
+          void ready.then(() => {
+            if (!driverRef.current) {
+              setStatus(null);
+              return;
+            }
+            // The step's own runner takes over the status from here: it clears it when the anchor
+            // lands, or replaces it with waiting/stuck. A resumed index outside the itinerary is
+            // snapped forward by the runner effect.
+            setActiveScope(picked.scope);
+            setActiveStep(
+              picked.scope === "core" && !picked.fresh ? (tourResumeStep() ?? steps[0]) : steps[0],
+            );
+          });
+        })
+        .catch((e: unknown) => {
+          // What the org has could not be read: no tour starts, and the launcher is not left
+          // "preparing" for one that never will. The failure itself is not swallowed.
+          const inst = driverRef.current;
+          driverRef.current = null;
+          inst?.destroy();
+          setStatus(null);
+          throw e;
         });
-      });
     },
     [itineraries, prefetchTourData, closeTourPolly, openMenu, whatTheOrgHas, offered],
   );

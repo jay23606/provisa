@@ -23,6 +23,8 @@ const answers = new Map<unknown, unknown>([
   [DataProductsQuery, { dataProducts: [{ id: "p1" }] }],
 ]);
 const executed: unknown[] = [];
+// How many of the next executions a store reset cuts short (Apollo: AbortError, no value).
+const reset = { pending: 0 };
 
 /** A lazy query as Apollo's behaves here: executing it again aborts the execution in flight. */
 function lazy(document: unknown) {
@@ -30,6 +32,10 @@ function lazy(document: unknown) {
   const execute = () => {
     executed.push(document);
     pending?.(new DOMException("The operation was aborted.", "AbortError"));
+    if (reset.pending > 0) {
+      reset.pending -= 1;
+      return Promise.reject(new DOMException("The operation was aborted.", "AbortError"));
+    }
     return new Promise((resolve, reject) => {
       pending = reject;
       setTimeout(() => {
@@ -53,7 +59,7 @@ vi.mock("@apollo/client/react", async (importOriginal) => {
   };
 });
 
-const { useOrgHas } = await import("../useOrgHas");
+const { useOrgHas, READ_ATTEMPTS } = await import("../useOrgHas");
 
 describe("what the org has, read for the tour", () => {
   it("answers both of two reads made at once", async () => {
@@ -73,5 +79,21 @@ describe("what the org has, read for the tour", () => {
     await result.current();
     await result.current();
     expect(executed).toHaveLength(6);
+  });
+
+  it("reads again what a store reset cut short", async () => {
+    executed.length = 0;
+    const { result } = renderHook(() => useOrgHas());
+    reset.pending = 1; // the session started while the tour asked: the store was cleared
+    const has = await result.current();
+    expect([...has.sources]).toEqual(["shop-db"]);
+    expect(executed).toHaveLength(4); // the cut-short read once more, the other two once
+  });
+
+  it("gives up, saying so, when every attempt is cut short", async () => {
+    reset.pending = READ_ATTEMPTS * 3;
+    const { result } = renderHook(() => useOrgHas());
+    await expect(result.current()).rejects.toThrow("The operation was aborted.");
+    reset.pending = 0;
   });
 });
