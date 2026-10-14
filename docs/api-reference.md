@@ -492,6 +492,18 @@ Notification delivery uses a pluggable provider chosen per source type: PostgreS
 
 **Header — `X-Provisa-Sink`:** Set to a Kafka target (e.g. `kafka://broker:9092/topic`) to redirect change events to a Kafka sink instead of the SSE response. The server launches a sink consumer and returns `202 Accepted` rather than an open stream. (REQ-812) [tool-verified: `provisa/api/data/subscription_sse.py:137`]
 
+### `POST /data/sources/{source_id}/signal`
+
+Tells Provisa that a source changed, with no rows: the receiver of the `signal` change signal. Each table of the source whose change signal is `signal` (its own, else its source's) is treated as written, as a write through Provisa is: its cached responses are dropped, the materialized views over it go stale, and a build of its replica is asked for. A load-protected table's build waits for its off-peak window. `?table=schema.table` signals one table. (REQ-1149) [tool-verified: `provisa/api/data/signal.py`, `provisa/api/data/table_written.py`]
+
+The caller's role needs the write right and must reach the domain of every table it signals. The answer is `202 Accepted` with the tables signalled:
+
+```json
+{"signalled": ["public.orders"]}
+```
+
+A source that does not exist, or a `table` it does not have, answers `404`; a source with no table on the `signal` change signal answers `409`, because nothing would be refreshed. [tool-verified: `tests/unit/test_signal_webhook.py`]
+
 ---
 
 ## Admin REST Endpoints

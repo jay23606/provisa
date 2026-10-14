@@ -405,9 +405,11 @@ def _next_refresh_at(state: Any) -> Any:
     with no TTL of its own (its refresh is then only what a reader's tolerance asks for), for
     one whose probe decides (:func:`_probe_decides`), and for one that left the model while it
     was built. A load-protected table with an off-peak window and no TTL is due at the window's
-    next opening: once per window (REQ-1141)."""
+    next opening: once per window (REQ-1141). A table on the ``signal`` change signal is never due
+    on a clock: it is rebuilt when a signal says its source changed (REQ-1149)."""
 
     async def due(key: ReplicaKey, now: datetime) -> datetime | None:
+        from provisa.core.change_signal import is_trigger
         from provisa.federation.role_ttl import declared_cache_ttl
         from provisa.federation.scheduled_refresh import next_window_open
 
@@ -415,7 +417,8 @@ def _next_refresh_at(state: Any) -> Any:
             source, table, _sources = await _model_row(state, key)
         except ReplicaTableGone:
             return None
-        if await _probe_decides(state, key, source, table):
+        signal = table.change_signal if table.change_signal is not None else source.change_signal
+        if is_trigger(signal) or await _probe_decides(state, key, source, table):
             return None
         ttl = declared_cache_ttl(table, source)
         if ttl:

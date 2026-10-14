@@ -272,9 +272,8 @@ def resolve_refresh_policy(source: Source, table: Table) -> RefreshPolicy:
         source.change_signal,
         live.strategy if live is not None else None,
     )
-    # REQ-1149: a `signal` source is probe-driven too — its "probe" is the change-trigger token
-    # (change_trigger.trigger_token), so the REQ-1141 scheduler treats an arrived trigger exactly as
-    # a changed probe and owns when the deferred heavy pull runs.
+    # REQ-1149: a `signal` source is change-driven too -- the webhook (api/data/signal.py) asks for
+    # its build when its source changed, and the runner holds that build to the off-peak window.
     probe_capable = sig in ("probe", "ttl_probe", "signal")
 
     return RefreshPolicy(

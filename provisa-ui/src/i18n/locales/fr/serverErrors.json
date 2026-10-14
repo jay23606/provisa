@@ -56,6 +56,10 @@
     },
     "data": {
       "approval_denied": "Approbation refusée : {{reason}}",
+      "signal_not_admitted": "Le rôle '{{role}}' ne peut pas signaler un changement à cette source : un signal exige le droit d'écriture et le domaine de chaque table signalée.",
+      "signal_not_declared": "Aucune table de la source '{{source}}' n'utilise le signal de changement signal : un signal n'actualise donc rien.",
+      "signal_source_not_found": "Source '{{source}}' introuvable.",
+      "signal_table_not_found": "La source '{{source}}' n'a aucune table enregistrée '{{table}}'.",
       "apq_hash_mismatch": "Discordance de hachage APQ",
       "args_json_invalid": "args_json n'est pas un JSON valide : {{error}}",
       "args_json_not_object": "args_json doit être un objet JSON",

@@ -56,6 +56,10 @@
     },
     "data": {
       "approval_denied": "Genehmigung verweigert: {{reason}}",
+      "signal_not_admitted": "Die Rolle '{{role}}' darf dieser Quelle keine Änderung signalisieren: ein Signal braucht das Schreibrecht und die Domäne jeder signalisierten Tabelle.",
+      "signal_not_declared": "Keine Tabelle der Quelle '{{source}}' verwendet das Änderungssignal signal, daher aktualisiert ein Signal nichts.",
+      "signal_source_not_found": "Quelle '{{source}}' nicht gefunden.",
+      "signal_table_not_found": "Die Quelle '{{source}}' hat keine registrierte Tabelle '{{table}}'.",
       "apq_hash_mismatch": "APQ-Hash stimmt nicht überein",
       "args_json_invalid": "args_json ist kein gültiges JSON: {{error}}",
       "args_json_not_object": "args_json muss ein JSON-Objekt sein",

@@ -56,6 +56,10 @@
     },
     "data": {
       "approval_denied": "Approval denied: {{reason}}",
+      "signal_not_admitted": "Role '{{role}}' may not signal a change to this source: a signal needs the write right and every signalled table's domain.",
+      "signal_not_declared": "No table of source '{{source}}' is on the signal change signal, so a signal refreshes nothing.",
+      "signal_source_not_found": "Source '{{source}}' not found.",
+      "signal_table_not_found": "Source '{{source}}' has no registered table '{{table}}'.",
       "apq_hash_mismatch": "APQ hash mismatch",
       "args_json_invalid": "args_json not valid JSON: {{error}}",
       "args_json_not_object": "args_json must be a JSON object",

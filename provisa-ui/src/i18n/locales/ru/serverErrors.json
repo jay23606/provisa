@@ -56,6 +56,10 @@
     },
     "data": {
       "approval_denied": "Согласование отклонено: {{reason}}",
+      "signal_not_admitted": "Роль '{{role}}' не может сигнализировать об изменении этого источника: для сигнала нужны право записи и домен каждой сигнализируемой таблицы.",
+      "signal_not_declared": "Ни одна таблица источника '{{source}}' не использует сигнал изменений signal, поэтому сигнал ничего не обновляет.",
+      "signal_source_not_found": "Источник '{{source}}' не найден.",
+      "signal_table_not_found": "У источника '{{source}}' нет зарегистрированной таблицы '{{table}}'.",
       "apq_hash_mismatch": "Несовпадение хеша APQ",
       "args_json_invalid": "args_json не является допустимым JSON: {{error}}",
       "args_json_not_object": "args_json должен быть объектом JSON",
