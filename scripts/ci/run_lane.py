@@ -156,6 +156,10 @@ def matrix(selection: str) -> dict:
     for name in names:
         if name not in SUITE:
             continue
+        # A targeted run plans only the lanes that hold a named test: a lane with none would
+        # collect nothing, write no results and fail its required results upload.
+        if targeted and not targets(name, None):
+            continue
         shards, timeout = SUITE[name]
         if shards == 1 or targeted:
             include.append({"lane": name, "shard": "", "timeout": timeout})

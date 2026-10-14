@@ -574,6 +574,16 @@ def test_a_targeted_run_is_not_sharded(monkeypatch):
     assert [(e["lane"], e["shard"]) for e in include] == [("core", ""), ("neo4j", "")]
 
 
+def test_a_targeted_run_plans_no_lane_that_holds_none_of_its_tests(monkeypatch):
+    # run 38596957161: the e2e lane was planned for an integration test, collected nothing and
+    # failed its required results upload.
+    runner = _runner()
+    inside = runner.test_files(runner.LANES["core"].paths)[0]
+    monkeypatch.setenv("PROVISA_LANE_TESTS", inside)
+    lanes = [e["lane"] for e in runner.matrix("all")["include"]]
+    assert "core" in lanes and "e2e" not in lanes, lanes
+
+
 def test_a_targeted_run_naming_a_missing_file_is_refused(monkeypatch):
     runner = _runner()
     monkeypatch.setenv("PROVISA_LANE_TESTS", "tests/integration/test_no_such_file.py::test_x")
