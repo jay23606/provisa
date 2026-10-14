@@ -242,8 +242,8 @@ def demo_roles(template_org: str) -> list[str]:
         if withheld:
             raise ValueError(
                 f"demo role {role.id!r} of {template_org} holds {', '.join(withheld)}, which a "
-                "sandbox's person may not (REQ-1597)"
-            )
+                "sandbox's person may not"
+            )  # REQ-1597
         out.append(role.id)
     return out
 
