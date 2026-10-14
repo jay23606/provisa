@@ -283,6 +283,35 @@ describe("the tour button in a named demo", () => {
     expect(showExchange).toHaveBeenCalledWith({ question: "Which pages?", answer: "/checkout" });
   });
 
+  it("waits for a page's answered mark, set on an element already on the page", async () => {
+    const api = {
+      key: "weblogsRest",
+      route: "/sources",
+      capability: "source_registration" as const,
+      api: "GET /data/rest/shop/view_slowest_pages",
+    };
+    renderTour({ ...WEBLOGS, tour: [WEBLOGS.tour[0], api] });
+    // The OpenAPI page's own elements, unanswered: its docs frame, and the page it marks.
+    const page = document.createElement("div");
+    page.className = "openapi-page";
+    page.innerHTML = '<iframe class="openapi-frame"></iframe>';
+    document.body.append(page);
+    fireEvent.click(screen.getByText("launch"));
+    await act(async () => chunksResolve());
+    expect(await screen.findByText("tour.steps.weblogsSources.title")).toBeInTheDocument();
+    fireEvent.click(document.querySelector<HTMLElement>(".driver-popover-next-btn")!);
+    // Past the "waiting" notice, the last change the document sees before the answer.
+    expect(
+      await screen.findByText("tour.status.waiting", {}, { timeout: 3000 }),
+    ).toBeInTheDocument();
+    await act(async () => new Promise((r) => setTimeout(r, 300)));
+    expect(screen.queryByText("tour.steps.weblogsRest.title")).toBeNull();
+    // The answer is in: the page gains its mark, and nothing else in the document changes.
+    act(() => page.setAttribute("data-answered", ""));
+    expect(await screen.findByText("tour.steps.weblogsRest.title")).toBeInTheDocument();
+    page.remove();
+  });
+
   it("leaves out a Polly question with no stored answer", async () => {
     renderTour({
       ...WEBLOGS,
