@@ -646,41 +646,29 @@ class TestFederationHints:
         assert _detect_introspection(data_doc) is True
 
     async def test_mv_rewrite_skips_stale_mv(self):
-        # REQ-275: rewrite_if_mv_match skips MV when no fresh MVs provided
-        from provisa.compiler.sql_gen import CompiledQuery
-        from provisa.mv.rewriter import rewrite_if_mv_match
+        # REQ-275: a statement no fresh view answers is left to its tables
+        from provisa.mv.view_reinject import reinject
 
-        compiled = CompiledQuery(
-            sql='SELECT "t0"."id" FROM "public"."orders" "t0"',
-            params=[],
-            root_field="orders",
-            columns=[],
-            sources={"sales-pg"},
-        )
-        result = rewrite_if_mv_match(compiled, [], CompilationContext(), frozenset())
-        # No MV match — returned unchanged
-        assert result.sql == compiled.sql
+        sql = 'SELECT "t0"."id" FROM "pg"."public"."orders" AS "t0"'
+        assert reinject(sql, [], CompilationContext()) is None
 
     async def test_mv_rewrite_applies_fresh_mv(self):
-        # REQ-276: rewrite_if_mv_match rewrites SQL when a matching fresh MV exists
-        import time
-
-        from provisa.compiler.sql_gen import CompiledQuery
-        from provisa.mv.models import JoinPattern, MVDefinition, MVStatus
-        from provisa.mv.rewriter import rewrite_if_mv_match
+        # REQ-276: a governed join a fresh view covers reads the view
+        from provisa.compiler.sql_types import TableMeta
+        from provisa.mv.models import JoinPattern, MVDefinition, MVStatus, TableIdentity
+        from provisa.mv.view_reinject import reinject
 
         sql = (
             'SELECT "t0"."id", "t1"."name" '
-            'FROM "public"."orders" "t0" '
-            'LEFT JOIN "public"."customers" "t1" ON "t0"."customer_id" = "t1"."id"'
+            'FROM "pg"."public"."orders" AS "t0" '
+            'LEFT JOIN "pg"."public"."customers" AS "t1" ON "t0"."customer_id" = "t1"."id"'
         )
-        compiled = CompiledQuery(
-            sql=sql,
-            params=[],
-            root_field="orders",
-            columns=[],
-            sources={"sales-pg"},
-        )
+        ctx = CompilationContext()
+        for i, name in enumerate(("orders", "customers")):
+            ctx.tables[name] = TableMeta(
+                table_id=i, field_name=name, type_name=name.title(), source_id="sales-pg",
+                catalog_name="pg", schema_name="public", table_name=name, domain_id="sales",
+            )  # fmt: skip
         jp = JoinPattern(
             left_table="orders",
             left_column="customer_id",
@@ -690,6 +678,10 @@ class TestFederationHints:
         mv = MVDefinition(
             id="mv-ord-cust",
             source_tables=["orders", "customers"],
+            inputs=[
+                TableIdentity("sales-pg", "public", "orders"),
+                TableIdentity("sales-pg", "public", "customers"),
+            ],
             target_catalog="iceberg",
             target_schema="mv",
             target_table="mv_ord_cust",
@@ -699,7 +691,8 @@ class TestFederationHints:
         mv.status = MVStatus.FRESH
         mv.last_refresh_at = time.time() - 5
 
-        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
+        result = reinject(sql, [mv], ctx)
+        assert result is not None and result.match == "full"
         # Should rewrite to use MV table
         assert "mv_ord_cust" in result.sql
         # JOINs removed

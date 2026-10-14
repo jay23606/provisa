@@ -1,6 +1,6 @@
 # Generated from docs/arch/requirements.yaml. Do not hand-edit.
 Feature: REQ-810 — Materialized Views
-  # Materialized-view transparent rewriting supports partial join-pattern matches. rewrite_if_mv_match in provisa/mv/rewrite…
+  # Materialized-view transparent rewriting supports partial join-pattern matches. reinject in provisa/mv/view_reinject.py m…
 
   Scenario: REQ-810 default behaviour
     Given a materialized view covering a subset of a query's joins

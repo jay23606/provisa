@@ -7422,13 +7422,13 @@ Correlated scalar subqueries in PG-style canonical SQL are lifted into CTEs befo
 
 **Status:** ✅ complete · **Priority:** SHOULD · **Type:** behavioral
 
-Materialized-view transparent rewriting supports partial join-pattern matches. rewrite_if_mv_match in provisa/mv/rewriter.py matches a query's joins against an MV per-join; when the MV covers only a subset of the query's joins, _partial_rewrite_to_mv removes the covered joins and preserves the remaining joins so the rewritten query reads the MV for the matched portion and joins the rest live.
+Materialized-view transparent rewriting supports partial join-pattern matches. reinject in provisa/mv/view_reinject.py matches a governed statement's joins against an MV per-join; when the MV covers only a subset of the statement's joins, the covered joins are removed and the remaining joins kept against the view, so the rewritten statement reads the MV for the matched portion and joins the rest live.
 
 **Use case:** Partial MV matching lets a materialized view accelerate queries that join additional tables beyond the MV's definition, instead of only queries whose join pattern matches the MV exactly.
 
-**Code:** `provisa/mv/rewriter.py`
+**Code:** `provisa/mv/view_reinject.py`, `provisa/pgwire/_pipeline.py`
 
-**Tests:** `tests/integration/test_execution_routing.py`, `tests/e2e/test_mv_optimization.py`, `tests/unit/test_mv_partial_rewrite.py`
+**Tests:** `tests/integration/test_execution_routing.py`, `tests/e2e/test_mv_optimization.py`, `tests/unit/test_view_reinject.py`
 
 ### REQ-811 · Federation Performance {#REQ-811}
 
@@ -7898,9 +7898,9 @@ After SQL compilation, the query rewriter inspects FROM/JOIN clauses and transpa
 
 **Use case:** Transparent MV substitution improves query performance without requiring application changes; TTL gating ensures stale data is not served without explicit policy.
 
-**Code:** `provisa/mv/rewriter.py`, `provisa/mv/registry.py`
+**Code:** `provisa/mv/view_reinject.py`, `provisa/mv/registry.py`
 
-**Tests:** `tests/unit/test_mv_partial_rewrite.py`
+**Tests:** `tests/unit/test_view_reinject.py`
 
 ## 11. Platform, Infrastructure & Delivery
 
@@ -8310,11 +8310,11 @@ Probe-based freshness gate on the MV REFRESH path, opt-in per MV — the refresh
 
 **Status:** ⚙ in-progress · **Priority:** SHOULD · **Type:** behavioral
 
-An aggregate query is answered from a fresh materialized view that pre-aggregates its table, with nothing declared (Amended 2026-10-14, maintainer ruling: the earlier catalog rewrote the SELECT list to the bare columns its aggregates used and re-applied filters to pre-aggregated rows, which gave wrong answers, and nothing set serves_aggregates, so it never fired). What a view keeps is derived from its SQL: a single-table GROUP BY whose select list is its grouping columns (its dimensions) and named SUM(c), COUNT(*), COUNT(c), MIN(c), MAX(c) (its measures). A view with a WHERE, a join, AVG, COUNT(DISTINCT) or any other expression keeps nothing a query can use. A compiled single-table aggregate over the same table is read from the view only when it groups by a subset of the view's dimensions, filters and orders only on them, and asks only for aggregates that re-aggregate exactly: SUM over the stored sum, COUNT as the sum of the stored count (a bigint, 0 over no rows), MIN and MAX over the stored MIN and MAX, AVG as the stored sum over the stored count of the same column. Anything else -- a join, DISTINCT, HAVING, a window, a column the view does not keep -- is not rewritten. A role that reads the table through a row filter or a mask is never answered from the view, which was computed over every row. On a hit the statement's sources become the view's catalog.
+An aggregate query is answered from a fresh materialized view that pre-aggregates its table, with nothing declared (Amended 2026-10-14, maintainer ruling: the earlier catalog rewrote the SELECT list to the bare columns its aggregates used and re-applied filters to pre-aggregated rows, which gave wrong answers, and nothing set serves_aggregates, so it never fired). What a view keeps is derived from its SQL: a single-table GROUP BY whose select list is its grouping columns (its dimensions) and named SUM(c), COUNT(*), COUNT(c), MIN(c), MAX(c) (its measures). A view with a WHERE, a join, AVG, COUNT(DISTINCT) or any other expression keeps nothing a query can use. A single-table aggregate from any surface, SQL or compiled (amended 2026-10-14), over the same table is read from the view only when it groups by a subset of the view's dimensions, filters and orders only on them, and asks only for aggregates that re-aggregate exactly: SUM over the stored sum, COUNT as the sum of the stored count (a bigint, 0 over no rows), MIN and MAX over the stored MIN and MAX, AVG as the stored sum over the stored count of the same column. Anything else -- a join, DISTINCT, HAVING, a window, a column the view does not keep -- is not rewritten. The rewrite runs after governance: a row filter on one of the view's dimensions is carried onto the view; a row filter on any other column, or a mask over a measured column, leaves the statement to its table, as the view was computed over every row. On a hit the statement's sources become the view's catalog.
 
 **Use case:** Enables query acceleration via pre-computed aggregates stored in materialized views, allowing queries requesting SUM/AVG/etc over MV-backed tables to read pre-aggregated results instead of materializing raw rows and computing aggregates at query time.
 
-**Code:** `provisa/mv/aggregate_catalog.py`, `provisa/mv/rewriter.py`, `provisa/pgwire/_pipeline.py`
+**Code:** `provisa/mv/aggregate_catalog.py`, `provisa/mv/view_reinject.py`, `provisa/pgwire/_pipeline.py`
 
 **Tests:** `tests/unit/test_aggregate_mv_catalog.py`, `tests/unit/test_aggregate_mv_routing.py`, `tests/integration/test_aggregate_mv_rewrite_e2e.py`
 
@@ -16704,7 +16704,7 @@ A junction table is declarable as a first-class Cypher relationship, and its own
 
 **Use case:** A steward walks a glossary hierarchy three levels deep in one Cypher pattern, and filters the edges by an attribute stored on the junction row, instead of traversing a reified node whose half-hops make variable-length depth meaningless.
 
-**Code:** `provisa/core/schema.sql`, `provisa/core/schema_org.py`, `provisa/cypher/parser.py`, `provisa/cypher/label_map.py`, `provisa/cypher/translator_rel.py`, `provisa/cypher/translator_helpers.py`, `provisa/cypher/select_builder.py`, `provisa/cypher/translator.py`, `provisa/cypher/translator_union.py`, `provisa/cypher/expr_context.py`, `provisa/api/_meta_seed.py`, `provisa/mv/models.py`, `provisa/mv/refresh.py`, `provisa/mv/rewriter.py`, `provisa/api/app_loaders.py`, `provisa-ui/src/naming.ts`, `provisa-ui/src/components/relationships/JunctionPanel.tsx`, `provisa-ui/src/pages/GraphPage.tsx`, `provisa-ui/src/pages/graph-drop.ts`, `provisa-ui/src/components/graph/frame/use-overlay-navigation.ts`, `config/provisa.yaml`, `config/provisa-install.yaml`, `demo/files/create_demo_files.py`, `db/init.sql`, `start-ui-install.sh`
+**Code:** `provisa/core/schema.sql`, `provisa/core/schema_org.py`, `provisa/cypher/parser.py`, `provisa/cypher/label_map.py`, `provisa/cypher/translator_rel.py`, `provisa/cypher/translator_helpers.py`, `provisa/cypher/select_builder.py`, `provisa/cypher/translator.py`, `provisa/cypher/translator_union.py`, `provisa/cypher/expr_context.py`, `provisa/api/_meta_seed.py`, `provisa/mv/models.py`, `provisa/mv/refresh.py`, `provisa/mv/view_reinject.py`, `provisa/api/app_loaders.py`, `provisa-ui/src/naming.ts`, `provisa-ui/src/components/relationships/JunctionPanel.tsx`, `provisa-ui/src/pages/GraphPage.tsx`, `provisa-ui/src/pages/graph-drop.ts`, `provisa-ui/src/components/graph/frame/use-overlay-navigation.ts`, `config/provisa.yaml`, `config/provisa-install.yaml`, `demo/files/create_demo_files.py`, `db/init.sql`, `start-ui-install.sh`
 
 **Tests:** `tests/unit/test_cypher_junction_relationships.py`, `tests/unit/test_mv_junction_pattern.py`, `tests/integration/test_glossary_meta_domain.py`, `provisa-ui/src/__tests__/GraphDropExpansion.test.ts`, `provisa-ui/src/__tests__/JunctionPanel.test.tsx`
 
@@ -21926,7 +21926,7 @@ Provisa mutations (INSERT/UPDATE/DELETE) invalidate cache entries that reference
 
 Materialized views are invisible in the GraphQL SDL by default: users query the same schema and the optimization is transparent. An MV registry stores definitions, last refresh time, target table, row count and status (fresh, stale, refreshing, disabled), and the steward controls MV lifecycle (create, refresh schedule, enable/disable, drop).
 
-**Code:** `provisa/mv/models.py`, `provisa/mv/registry.py`, `provisa/mv/refresh.py`, `provisa/mv/rewriter.py`
+**Code:** `provisa/mv/models.py`, `provisa/mv/registry.py`, `provisa/mv/refresh.py`, `provisa/mv/view_reinject.py`
 
 **Tests:** `tests/unit/test_mv_registry.py`, `tests/unit/test_mv_lifecycle.py`, `tests/unit/test_mv_tenant_isolation.py`, `tests/e2e/test_mv_optimization.py`
 
@@ -21946,9 +21946,9 @@ Mutations on source tables mark affected materialized views as stale; a stale vi
 
 **Status:** ✅ complete · **Priority:** MUST · **Type:** behavioral
 
-RLS is applied after the MV rewrite: the rewritten query keeps the WHERE clauses and parameters injected for row-level security, because RLS is enforced at the SQL level regardless of the underlying table.
+The MV rewrite runs after row-level security is applied: the rewritten query keeps the WHERE clauses and parameters injected for row-level security, carried onto the view's columns; a predicate the view cannot carry leaves the query to its tables.
 
-**Code:** `provisa/mv/rewriter.py`
+**Code:** `provisa/mv/view_reinject.py`, `provisa/pgwire/_pipeline.py`
 
 **Tests:** `tests/e2e/test_mv_optimization.py`, `tests/unit/test_mv_expose_and_rls_rewrite.py`
 

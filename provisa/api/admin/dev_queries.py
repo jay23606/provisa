@@ -328,19 +328,18 @@ def _apply_pipeline_transforms(  # REQ-040, REQ-041, REQ-134, REQ-198, REQ-262, 
     from provisa.compiler.mask_inject import inject_masking
     from provisa.compiler.rls import inject_rls
     from provisa.compiler.stage2 import apply_row_cap, resolve_row_cap
-    from provisa.mv.rewriter import rewrite_if_mv_match, role_governed_tables
+    from provisa.compiler.sql_rewrite import lower_to_catalog_physical
+    from provisa.mv.view_reinject import reinject
 
     compiled = inject_rls(compiled, ctx, rls)
     compiled = inject_masking(compiled, ctx, state.masking_rules, role_id)
 
-    pre_mv_sources = set(compiled.sources)
-    compiled = rewrite_if_mv_match(
-        compiled,
-        fresh_mvs,
-        ctx,
-        role_governed_tables(ctx, rls, state.masking_rules, role_id),
-    )
-    mv_applied = compiled.sources != pre_mv_sources
+    # The view the pipeline's optimize stage would read in place of the governed statement
+    # (pgwire._pipeline._view_answering): shown as the view's catalog among the sources.
+    hit = reinject(lower_to_catalog_physical(compiled.sql, ctx), fresh_mvs, ctx)
+    mv_applied = hit is not None
+    if hit is not None:
+        compiled.sources = {hit.mv.target_catalog}
 
     if hasattr(state, "kafka_table_configs") and state.kafka_table_configs:
         from provisa.kafka.window import inject_kafka_filters

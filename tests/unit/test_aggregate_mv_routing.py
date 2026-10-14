@@ -8,101 +8,62 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 
-"""A compiled aggregate is routed to a view that pre-aggregates its table (REQ-198, REQ-882).
+"""A governed aggregate is answered from a view that pre-aggregates its table (REQ-198, REQ-882).
 
-The compiled statement names its table by schema and table; the role's context says which
-registered table that is, and its catalog, so the view over that catalog's table answers it.
-A role that reads the table through a row filter or a mask is never answered from the view,
-which was computed over every row.
+The optimize stage sees the statement governed and lowered: its catalog-physical table names the
+view's relation, and the role's row filters and masks are already in it. A filter on a column the
+view keeps as a dimension is carried onto the view; one on any other column, or a mask over a
+measured column, leaves the statement to its table -- the view was computed over every row.
 """
 
 # Requirements: REQ-198, REQ-882
 
 from __future__ import annotations
 
-from types import SimpleNamespace
-
-from provisa.compiler.sql_gen import CompiledQuery
-from provisa.compiler.sql_types import CompilationContext, TableMeta
+from provisa.compiler.sql_types import CompilationContext
 from provisa.mv.models import MVDefinition, MVStatus
-from provisa.mv.rewriter import rewrite_if_mv_match, role_governed_tables
+from provisa.mv.view_reinject import reinject
 
 _VIEW_SQL = (
     'SELECT "region", COUNT(*) AS "n", SUM("amount") AS "total" '
     'FROM "sales_pg"."public"."orders" GROUP BY "region"'
 )
-_QUERY = 'SELECT "region", SUM("amount") FROM "public"."orders" GROUP BY "region"'
+_ORDERS = '"sales_pg"."public"."orders"'
 
 
-def _ctx() -> CompilationContext:
-    ctx = CompilationContext()
-    ctx.tables["orders"] = TableMeta(
-        table_id=7,
-        field_name="orders",
-        type_name="Orders",
-        source_id="sales-pg",
-        catalog_name="sales_pg",
-        schema_name="public",
-        table_name="orders",
-        domain_id="sales",
-    )
-    return ctx
-
-
-def _compiled(sql: str = _QUERY) -> CompiledQuery:
-    return CompiledQuery(sql=sql, params=[], root_field="orders", columns=[], sources={"sales-pg"})
-
-
-def _rollup() -> MVDefinition:
+def _rollup(sql: str = _VIEW_SQL) -> MVDefinition:
     return MVDefinition(
         id="orders_by_region",
         source_tables=["orders"],
         target_catalog="mat",
         target_schema="mv",
         target_table="orders_by_region",
-        sql=_VIEW_SQL,
+        sql=sql,
         status=MVStatus.FRESH,
     )
 
 
-def test_a_compiled_aggregate_is_read_from_the_view_over_its_table():
-    routed = rewrite_if_mv_match(_compiled(), [_rollup()], _ctx(), frozenset())
-    assert routed.sources == {"mat"}
-    assert '"mat"."mv"."orders_by_region"' in routed.sql
-    assert 'SUM("total")' in routed.sql
+def _answer(sql: str, view: MVDefinition | None = None):
+    return reinject(sql, [view or _rollup()], CompilationContext())
 
 
-def test_a_role_with_a_row_filter_or_a_mask_on_the_table_reads_the_table():
-    compiled = _compiled()
-    assert rewrite_if_mv_match(compiled, [_rollup()], _ctx(), frozenset({7})) is compiled
+def test_a_governed_aggregate_is_read_from_the_view_over_its_table():
+    hit = _answer(f'SELECT "region", SUM("amount") FROM {_ORDERS} AS "orders" GROUP BY "region"')
+    assert hit is not None and hit.match == "aggregate"
+    assert '"mat"."mv"."orders_by_region"' in hit.sql and 'SUM("total")' in hit.sql
+
+
+def test_a_row_filter_on_a_dimension_is_carried_onto_the_view():
+    hit = _answer(f'SELECT SUM("amount") FROM {_ORDERS} WHERE ("region" = $1)')
+    assert hit is not None and '"region" = $1' in hit.sql
+
+
+def test_a_row_filter_or_a_mask_on_anything_else_leaves_the_table():
+    assert _answer(f'SELECT SUM("amount") FROM {_ORDERS} WHERE ("owner" = $1)') is None
+    masked = f'SELECT SUM(CASE WHEN TRUE THEN 0 ELSE "amount" END) FROM {_ORDERS}'
+    assert _answer(masked) is None
 
 
 def test_a_view_over_another_catalogs_table_of_the_same_name_does_not_answer():
-    other = _rollup()
-    other.sql = _VIEW_SQL.replace('"sales_pg"', '"crm_pg"')
-    compiled = _compiled()
-    assert rewrite_if_mv_match(compiled, [other], _ctx(), frozenset()) is compiled
-
-
-def test_the_governed_tables_are_those_a_role_reads_filtered_or_masked():
-    ctx = _ctx()
-    ctx.tables["lines"] = TableMeta(
-        table_id=8,
-        field_name="lines",
-        type_name="Lines",
-        source_id="sales-pg",
-        catalog_name="sales_pg",
-        schema_name="public",
-        table_name="lines",
-        domain_id="ops",
-    )
-    rls = SimpleNamespace(rules={}, domain_rules={})
-    assert role_governed_tables(ctx, rls, {}, "analyst") == frozenset()
-    assert role_governed_tables(
-        ctx, SimpleNamespace(rules={7: "region = 'us'"}, domain_rules={}), {}, "analyst"
-    ) == frozenset({7})
-    assert role_governed_tables(
-        ctx, SimpleNamespace(rules={}, domain_rules={"ops": "true"}), {}, "analyst"
-    ) == frozenset({8})
-    masks = {(7, "analyst"): {"amount": ("mask", "integer")}, (8, "other"): {"x": ("m", "t")}}
-    assert role_governed_tables(ctx, rls, masks, "analyst") == frozenset({7})
+    other = _rollup(_VIEW_SQL.replace('"sales_pg"', '"crm_pg"'))
+    assert _answer(f'SELECT SUM("amount") FROM {_ORDERS}', other) is None

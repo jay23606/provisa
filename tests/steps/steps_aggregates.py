@@ -280,34 +280,28 @@ def _aggregate_query_matching_mv(shared_data):
         ),
         status=MVStatus.FRESH,
     )
+    # The statement as the pipeline's optimize stage sees it: governed, catalog-physical.
     shared_data["base_sql"] = (
-        'SELECT "region", SUM("amount"), SUM("qty") FROM "public"."orders" GROUP BY "region"'
+        'SELECT "region", SUM("amount"), SUM("qty") FROM "sales_pg"."public"."orders" '
+        'GROUP BY "region"'
     )
 
 
 @when("the compiler processes the query")
 def _compiler_processes_query(shared_data):
-    from provisa.compiler.sql_gen import CompiledQuery
-    from provisa.compiler.sql_types import CompilationContext, TableMeta
-    from provisa.mv.rewriter import rewrite_if_mv_match
+    from provisa.compiler.sql_types import CompilationContext
+    from provisa.mv.view_reinject import reinject
 
-    ctx = CompilationContext()
-    ctx.tables["orders"] = TableMeta(
-        table_id=1, field_name="orders", type_name="Orders", source_id="sales-pg",
-        catalog_name="sales_pg", schema_name="public", table_name="orders", domain_id="sales",
-    )  # fmt: skip
-    compiled = CompiledQuery(
-        sql=shared_data["base_sql"], params=[], root_field="orders", columns=[],
-        sources={"sales-pg"},
-    )  # fmt: skip
-    shared_data["routed"] = rewrite_if_mv_match(compiled, [shared_data["mv"]], ctx, frozenset())
+    shared_data["routed"] = reinject(
+        shared_data["base_sql"], [shared_data["mv"]], CompilationContext()
+    )
 
 
 @then("it rewrites the query to use the MV instead of the base table")
 def _verify_query_rewritten_to_mv(shared_data):
     routed = shared_data["routed"]
     mv: MVDefinition = shared_data["mv"]
-    assert routed.sources == {mv.target_catalog}, routed.sql
+    assert routed is not None and routed.mv.id == mv.id, "no view answered"
     assert mv.target_table in routed.sql, routed.sql
     assert '"orders"' not in routed.sql, f"still reads the base table: {routed.sql}"
     # Each aggregate is re-aggregated over the view's stored sums, grouped as asked.

@@ -16,11 +16,13 @@ invalidation → refresh → re-optimization. Uses mock execution layer.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from provisa.compiler.sql_gen import ColumnRef, CompiledQuery
-from provisa.mv.models import JoinPattern, MVDefinition, MVStatus, SDLConfig
+from provisa.mv.models import JoinPattern, MVDefinition, MVStatus, SDLConfig, TableIdentity
 from provisa.mv.registry import MVRegistry
-from provisa.mv.rewriter import rewrite_if_mv_match
-from provisa.compiler.sql_types import CompilationContext
+from provisa.compiler.sql_types import CompilationContext, TableMeta
+from provisa.mv.view_reinject import reinject
 
 
 def _compiled(sql, sources=None):
@@ -36,10 +38,29 @@ def _compiled(sql, sources=None):
     )
 
 
+def _rewrite(compiled: CompiledQuery, fresh: list[MVDefinition]) -> SimpleNamespace:
+    """``compiled`` -- governed, catalog-physical -- through the pipeline's optimize-stage view
+    rewrite (pgwire._pipeline._view_answering): what runs, the sources it reads, its values."""
+    ctx = CompilationContext()
+    for i, name in enumerate(("orders", "customers", "products")):
+        ctx.tables[name] = TableMeta(
+            table_id=i, field_name=name, type_name=name.title(), source_id="pg",
+            catalog_name="pg", schema_name="public", table_name=name, domain_id="sales",
+        )  # fmt: skip
+    hit = reinject(compiled.sql, fresh, ctx)
+    if hit is None:
+        return SimpleNamespace(
+            sql=compiled.sql, sources=set(compiled.sources), params=compiled.params
+        )
+    reads = {hit.mv.target_catalog} | (set(compiled.sources) if hit.match == "partial" else set())
+    return SimpleNamespace(sql=hit.sql, sources=reads, params=compiled.params)
+
+
 def _mv_fresh():
     mv = MVDefinition(
         id="mv-orders-customers",
         source_tables=["orders", "customers"],
+        inputs=[TableIdentity("pg", "public", t) for t in ["orders", "customers"]],
         target_catalog="postgresql",
         target_schema="mv_cache",
         join_pattern=JoinPattern(
@@ -57,8 +78,8 @@ def _mv_fresh():
 
 JOIN_SQL = (
     'SELECT "t0"."id", "t1"."name" '
-    'FROM "public"."orders" "t0" '
-    'LEFT JOIN "public"."customers" "t1" '
+    'FROM "pg"."public"."orders" AS "t0" '
+    'LEFT JOIN "pg"."public"."customers" AS "t1" '
     'ON "t0"."customer_id" = "t1"."id"'
 )
 
@@ -69,14 +90,14 @@ class TestFreshMVOptimization:
     def test_fresh_mv_rewrites_query(self):
         compiled = _compiled(JOIN_SQL)
         mv = _mv_fresh()
-        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
+        result = _rewrite(compiled, [mv])
         assert "mv_cache" in result.sql
         assert "JOIN" not in result.sql
 
     def test_sources_updated_to_mv_catalog(self):
         compiled = _compiled(JOIN_SQL, sources={"pg", "pg2"})
         mv = _mv_fresh()
-        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
+        result = _rewrite(compiled, [mv])
         assert "postgresql" in result.sources
 
 
@@ -87,7 +108,7 @@ class TestStaleMVFallback:
         compiled = _compiled(JOIN_SQL)
         mv = _mv_fresh()
         mv.status = MVStatus.STALE
-        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
+        result = _rewrite(compiled, [mv])
         assert result.sql == JOIN_SQL
 
     def test_disabled_mv_not_used(self):
@@ -95,7 +116,7 @@ class TestStaleMVFallback:
         mv = _mv_fresh()
         mv.status = MVStatus.DISABLED
         mv.enabled = False
-        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
+        result = _rewrite(compiled, [mv])
         assert result.sql == JOIN_SQL
 
 
@@ -115,7 +136,7 @@ class TestMutationInvalidation:
 
         # Next query should not use stale MV
         compiled = _compiled(JOIN_SQL)
-        result = rewrite_if_mv_match(compiled, registry.get_fresh())
+        result = _rewrite(compiled, registry.get_fresh())
         assert result.sql == JOIN_SQL  # unchanged
 
     def test_refresh_re_enables_optimization(self):
@@ -131,7 +152,7 @@ class TestMutationInvalidation:
 
         # Query should use MV again
         compiled = _compiled(JOIN_SQL)
-        result = rewrite_if_mv_match(compiled, registry.get_fresh())
+        result = _rewrite(compiled, registry.get_fresh())
         assert "mv_cache" in result.sql
 
 
@@ -141,8 +162,8 @@ class TestRLSOnMVQueries:
     def test_where_clause_preserved(self):
         sql = (
             'SELECT "t0"."id", "t1"."name" '
-            'FROM "public"."orders" "t0" '
-            'LEFT JOIN "public"."customers" "t1" '
+            'FROM "pg"."public"."orders" AS "t0" '
+            'LEFT JOIN "pg"."public"."customers" AS "t1" '
             'ON "t0"."customer_id" = "t1"."id" '
             'WHERE "t0"."region" = $1'
         )
@@ -154,7 +175,7 @@ class TestRLSOnMVQueries:
             sources={"pg"},
         )
         mv = _mv_fresh()
-        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
+        result = _rewrite(compiled, [mv])
         assert "WHERE" in result.sql
         assert '"region"' in result.sql
         assert result.params == ["us"]
@@ -162,28 +183,28 @@ class TestRLSOnMVQueries:
     def test_order_by_preserved(self):
         sql = (
             'SELECT "t0"."id", "t1"."name" '
-            'FROM "public"."orders" "t0" '
-            'LEFT JOIN "public"."customers" "t1" '
+            'FROM "pg"."public"."orders" AS "t0" '
+            'LEFT JOIN "pg"."public"."customers" AS "t1" '
             'ON "t0"."customer_id" = "t1"."id" '
             'ORDER BY "t0"."id" ASC'
         )
         compiled = _compiled(sql)
         mv = _mv_fresh()
-        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
+        result = _rewrite(compiled, [mv])
         assert "ORDER BY" in result.sql
         assert '"id"' in result.sql
 
     def test_limit_offset_preserved(self):
         sql = (
             'SELECT "t0"."id", "t1"."name" '
-            'FROM "public"."orders" "t0" '
-            'LEFT JOIN "public"."customers" "t1" '
+            'FROM "pg"."public"."orders" AS "t0" '
+            'LEFT JOIN "pg"."public"."customers" AS "t1" '
             'ON "t0"."customer_id" = "t1"."id" '
             "LIMIT 10 OFFSET 20"
         )
         compiled = _compiled(sql)
         mv = _mv_fresh()
-        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
+        result = _rewrite(compiled, [mv])
         assert "LIMIT 10" in result.sql
         assert "OFFSET 20" in result.sql
 
@@ -194,10 +215,10 @@ class TestPartialMVMatch:
     def test_partial_match_rewrites_covered_join(self):
         sql = (
             'SELECT "t0"."id", "t1"."name", "t2"."product_name" '
-            'FROM "public"."orders" "t0" '
-            'LEFT JOIN "public"."customers" "t1" '
+            'FROM "pg"."public"."orders" AS "t0" '
+            'LEFT JOIN "pg"."public"."customers" AS "t1" '
             'ON "t0"."customer_id" = "t1"."id" '
-            'LEFT JOIN "public"."products" "t2" '
+            'LEFT JOIN "pg"."public"."products" AS "t2" '
             'ON "t0"."product_id" = "t2"."id"'
         )
         compiled = CompiledQuery(
@@ -208,7 +229,7 @@ class TestPartialMVMatch:
             sources={"pg"},
         )
         mv = _mv_fresh()
-        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
+        result = _rewrite(compiled, [mv])
 
         # MV used for orders+customers
         assert "mv_cache" in result.sql
@@ -221,10 +242,10 @@ class TestPartialMVMatch:
     def test_partial_match_preserves_uncovered_join_on_clause(self):
         sql = (
             'SELECT "t0"."id", "t1"."name", "t2"."product_name" '
-            'FROM "public"."orders" "t0" '
-            'LEFT JOIN "public"."customers" "t1" '
+            'FROM "pg"."public"."orders" AS "t0" '
+            'LEFT JOIN "pg"."public"."customers" AS "t1" '
             'ON "t0"."customer_id" = "t1"."id" '
-            'LEFT JOIN "public"."products" "t2" '
+            'LEFT JOIN "pg"."public"."products" AS "t2" '
             'ON "t0"."product_id" = "t2"."id"'
         )
         compiled = CompiledQuery(
@@ -235,7 +256,7 @@ class TestPartialMVMatch:
             sources={"pg"},
         )
         mv = _mv_fresh()
-        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
+        result = _rewrite(compiled, [mv])
 
         # Uncovered JOIN ON clause still references t0 and t2
         assert '"t0"."product_id"' in result.sql
@@ -249,6 +270,7 @@ class TestSDLExposure:
         mv = MVDefinition(
             id="mv-customer-stats",
             source_tables=["orders", "customers"],
+            inputs=[TableIdentity("pg", "public", t) for t in ["orders", "customers"]],
             target_catalog="postgresql",
             target_schema="mv_cache",
             sql="SELECT ...",
@@ -272,6 +294,7 @@ class TestSDLExposure:
         mv = MVDefinition(
             id="mv-transparent",
             source_tables=["orders", "customers"],
+            inputs=[TableIdentity("pg", "public", t) for t in ["orders", "customers"]],
             target_catalog="postgresql",
             target_schema="mv_cache",
             join_pattern=JoinPattern(
@@ -292,10 +315,10 @@ class TestNoJoinQueryUnchanged:
         sql = 'SELECT "id", "amount" FROM "public"."orders"'
         compiled = _compiled(sql)
         mv = _mv_fresh()
-        result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
+        result = _rewrite(compiled, [mv])
         assert result.sql == sql
 
     def test_empty_mv_list_unchanged(self):
         compiled = _compiled(JOIN_SQL)
-        result = rewrite_if_mv_match(compiled, [])
+        result = _rewrite(compiled, [])
         assert result.sql == JOIN_SQL

@@ -361,6 +361,12 @@ async def _optimize_and_route(
     from provisa.synthetic.datasets import refuse_unavailable
 
     refuse_unavailable(state.replica_routes, list(table_ids))
+    # REQ-849, REQ-882: a fresh materialized view that answers the governed statement is read in
+    # its place -- the one place a view is put back into a statement, for every surface. After
+    # governance: the role's row filters and masks are part of what it answers.
+    _view = _view_answering(exec_sql, ctx, state, is_mutation=is_mutation)
+    if _view is not None:
+        exec_sql = _view.sql
     # ``extra_selections``: the fields a GraphQL query reads of a graphql_remote table beyond its
     # columns (``CompiledQuery.gql_remote_extra_selections``), fetched with it.
     _rewrites, _values_ctes, _dropped = await _materialize_api_to_engine_cache(
@@ -393,7 +399,7 @@ async def _optimize_and_route(
         exec_sql = rewrite_all_from_cache(exec_sql, _rewrites)
 
     _inlined = set(_values_ctes) | _actually_dropped
-    optimized = bool(_inlined or _rewrites)
+    optimized = bool(_inlined or _rewrites or _view)
     # REQ-1517: name each optimization that fired, per relation, so the execution DAG can say WHY a
     # scan is cheap (or absent) instead of rendering an unexplained node. Built here because this is
     # the only place that knows which rewrite applied to which table.
@@ -404,6 +410,8 @@ async def _optimize_and_route(
         opt_labels.append(f"branch dropped: {_tn}")
     for _tn in sorted(_rewrites):
         opt_labels.append(f"api cache: {_tn}")
+    if _view is not None:
+        opt_labels.append(f"materialized view: {_view.mv.id} ({_view.match})")
     if optimized:
         sources = reduce_sources_for_routing(governed_sql, gov_ctx, ctx, _inlined)
     else:
@@ -508,6 +516,16 @@ async def _optimize_and_route(
         if _live or _live_inline:
             optimized = True
             opt_labels.extend(f"read live: {_tn}" for _tn in sorted({*_live, *_live_inline}))
+    if _view is not None and decision.route != Route.ENGINE:
+        # The view is stored where the engine reads it: no source's driver knows it.
+        from provisa.transpiler.router import RouteDecision
+
+        decision = RouteDecision(
+            route=Route.ENGINE,
+            source_id=None,
+            dialect=None,
+            reason=f"read from materialized view {_view.mv.id!r}",
+        )
     if _rewrites and decision.route != Route.ENGINE:
         # A cache rewrite points the SQL at a materialized table living in the engine's
         # attached mat_store catalog — no native pool or API caller can see it, so the
@@ -523,6 +541,16 @@ async def _optimize_and_route(
             reason="query rewritten to a materialized cache table",
         )
     return exec_sql, decision, default_source, optimized, sources, tuple(opt_labels)
+
+
+def _view_answering(exec_sql: str, ctx, state, *, is_mutation: bool) -> Any:
+    """The fresh materialized view that answers the governed read ``exec_sql``, rewritten to
+    read it (``mv.view_reinject``), or None. A write is never answered from a view."""
+    if is_mutation:
+        return None
+    from provisa.mv.view_reinject import reinject
+
+    return reinject(exec_sql, state.mv_registry.get_fresh(), ctx)
 
 
 async def _read_live_parts(
@@ -718,8 +746,13 @@ async def _optimize_and_route_cached(
     """
     from provisa.api.data.materialization import would_materialize_optimize
 
-    # A request's route hint is the request's own: its decision is not the shape's to keep.
-    if steward_hint is not None or would_materialize_optimize(exec_sql, state, table_ids=table_ids):
+    # A request's route hint is the request's own: its decision is not the shape's to keep. A
+    # statement a view answers depends on the view being fresh now: never the shape's to keep.
+    if (
+        steward_hint is not None
+        or would_materialize_optimize(exec_sql, state, table_ids=table_ids)
+        or _view_answering(exec_sql, ctx, state, is_mutation=is_mutation) is not None
+    ):
         return await _optimize_and_route(
             exec_sql,
             governed_sql,
@@ -4188,26 +4221,18 @@ async def _govern_and_route_compiled_planned(  # REQ-262, REQ-263, REQ-265, REQ-
     return plan
 
 
-def _prepare_compiled_stage(compiled: Any, role_id: str, state: Any) -> Any:  # REQ-148, REQ-198
+def _prepare_compiled_stage(compiled: Any, role_id: str, state: Any) -> Any:  # REQ-148
     """The compiled stage's per-call prepare step, before governance, for a statement the compiler
-    built: a fresh materialized view that answers it replaces its tables (REQ-198, REQ-882), and a
-    read of a Kafka-backed table gets its time window and discriminator (REQ-148). Both depend on
-    the moment of the call, so they run on every call, on every compiled surface.
+    built: a read of a Kafka-backed table gets its time window and discriminator (REQ-148). It
+    depends on the moment of the call, so it runs on every call, on every compiled surface. (A
+    fresh materialized view is read in a statement's place after governance, in the optimize
+    stage every surface shares: :func:`_view_answering`.)
 
     The rest of the compiled stage's preparation sits where its result can be kept: the V-rules
     (``validate_sql``, with the relationship guard skipped only for ``sdl_joins``) and the role's
     row cap (the sampling ceiling, in ``apply_governance``) are functions of the statement and the
     role and are kept with the governed plan (:func:`_govern_compiled`); a request-level as-of
     expands bitemporal views at routing (:func:`_route_compiled`), on the kept lowering."""
-    from provisa.mv.rewriter import rewrite_if_mv_match, role_governed_tables
-
-    surface = state.surfaces[role_id]  # one snapshot: context and row filters of one build
-    compiled = rewrite_if_mv_match(
-        compiled,
-        state.mv_registry.get_fresh(),
-        surface.context,
-        role_governed_tables(surface.context, surface.rls, state.masking_rules, role_id),
-    )
     if getattr(state, "kafka_table_configs", None):
         from provisa.kafka.window import inject_kafka_filters
 

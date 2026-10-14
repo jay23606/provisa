@@ -37,6 +37,7 @@ from provisa.compiler.sql_types import TableMeta
 from provisa.compiler.stage2 import build_governance_context
 from provisa.pgwire._pipeline import _optimize_and_route, _optimize_and_route_cached
 from provisa.transpiler.router import Route
+from provisa.mv.registry import MVRegistry
 from tests.helpers import unscoped_role
 
 PG_SOURCE_ID = "pgsrc"
@@ -90,6 +91,7 @@ def _state(hot_manager=None) -> SimpleNamespace:
     return SimpleNamespace(
         # The runtime the pipeline reads this environment's unbound sources from: none here.
         _active_runtime=lambda: SimpleNamespace(unbound_sources=frozenset()),
+        mv_registry=MVRegistry(),
         hot_manager=hot_manager,
         api_endpoints={},
         graphql_remote_sources={},

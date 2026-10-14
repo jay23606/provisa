@@ -23780,18 +23780,20 @@
   feature: replicas-and-freshness-materialized-views
   priority: SHOULD
   type: behavioral
-  description: Materialized-view transparent rewriting supports partial join-pattern matches. rewrite_if_mv_match
-    in provisa/mv/rewriter.py matches a query's joins against an MV per-join; when the MV covers only
-    a subset of the query's joins, _partial_rewrite_to_mv removes the covered joins and preserves the
-    remaining joins so the rewritten query reads the MV for the matched portion and joins the rest live.
+  description: Materialized-view transparent rewriting supports partial join-pattern matches. reinject
+    in provisa/mv/view_reinject.py matches a governed statement's joins against an MV per-join; when the
+    MV covers only a subset of the statement's joins, the covered joins are removed and the remaining
+    joins kept against the view, so the rewritten statement reads the MV for the matched portion and
+    joins the rest live.
   use_case: Partial MV matching lets a materialized view accelerate queries that join additional tables
     beyond the MV's definition, instead of only queries whose join pattern matches the MV exactly.
   code:
-  - provisa/mv/rewriter.py
+  - provisa/mv/view_reinject.py
+  - provisa/pgwire/_pipeline.py
   tests:
   - tests/integration/test_execution_routing.py
   - tests/e2e/test_mv_optimization.py
-  - tests/unit/test_mv_partial_rewrite.py
+  - tests/unit/test_view_reinject.py
   since: 2026-03
   scenario: 'Given a materialized view covering a subset of a query''s joins
 
@@ -25441,10 +25443,10 @@
   use_case: Transparent MV substitution improves query performance without requiring application changes;
     TTL gating ensures stale data is not served without explicit policy.
   code:
-  - provisa/mv/rewriter.py
+  - provisa/mv/view_reinject.py
   - provisa/mv/registry.py
   tests:
-  - tests/unit/test_mv_partial_rewrite.py
+  - tests/unit/test_view_reinject.py
   related_reqs:
   - REQ-135
   - REQ-198
@@ -26941,20 +26943,21 @@
     gave wrong answers, and nothing set serves_aggregates, so it never fired). What a view keeps is derived
     from its SQL: a single-table GROUP BY whose select list is its grouping columns (its dimensions) and
     named SUM(c), COUNT(*), COUNT(c), MIN(c), MAX(c) (its measures). A view with a WHERE, a join, AVG,
-    COUNT(DISTINCT) or any other expression keeps nothing a query can use. A compiled single-table aggregate
-    over the same table is read from the view only when it groups by a subset of the view''s dimensions,
+    COUNT(DISTINCT) or any other expression keeps nothing a query can use. A single-table aggregate from
+    any surface, SQL or compiled (amended 2026-10-14), over the same table is read from the view only when it groups by a subset of the view''s dimensions,
     filters and orders only on them, and asks only for aggregates that re-aggregate exactly: SUM over the
     stored sum, COUNT as the sum of the stored count (a bigint, 0 over no rows), MIN and MAX over the stored
     MIN and MAX, AVG as the stored sum over the stored count of the same column. Anything else -- a join,
-    DISTINCT, HAVING, a window, a column the view does not keep -- is not rewritten. A role that reads the
-    table through a row filter or a mask is never answered from the view, which was computed over every
-    row. On a hit the statement''s sources become the view''s catalog.'
+    DISTINCT, HAVING, a window, a column the view does not keep -- is not rewritten. The rewrite runs after governance:
+    a row filter on one of the view''s dimensions is carried onto the view; a row filter on any other
+    column, or a mask over a measured column, leaves the statement to its table, as the view was computed
+    over every row. On a hit the statement''s sources become the view''s catalog.'
   use_case: Enables query acceleration via pre-computed aggregates stored in materialized views, allowing
     queries requesting SUM/AVG/etc over MV-backed tables to read pre-aggregated results instead of materializing
     raw rows and computing aggregates at query time.
   code:
   - provisa/mv/aggregate_catalog.py
-  - provisa/mv/rewriter.py
+  - provisa/mv/view_reinject.py
   - provisa/pgwire/_pipeline.py
   tests:
   - tests/unit/test_aggregate_mv_catalog.py
@@ -26963,7 +26966,7 @@
   scenario: 'Given an aggregate MV over "orders" grouping by region and status, storing SUM(amount) and
     COUNT(*), fresh
 
-    When a compiled query "SELECT SUM(amount) FROM orders WHERE region = ''us''" is routed
+    When a query "SELECT SUM(amount) FROM orders WHERE region = ''us''" is routed, over /data/sql or compiled
 
     Then it reads the MV target, re-aggregating the stored sums of the rows whose region is ''us'', and
     its sources become the MV catalog
@@ -56768,7 +56771,7 @@
   - provisa/api/_meta_seed.py
   - provisa/mv/models.py
   - provisa/mv/refresh.py
-  - provisa/mv/rewriter.py
+  - provisa/mv/view_reinject.py
   - provisa/api/app_loaders.py
   - provisa-ui/src/naming.ts
   - provisa-ui/src/components/relationships/JunctionPanel.tsx
@@ -78277,7 +78280,7 @@
   - provisa/mv/models.py
   - provisa/mv/registry.py
   - provisa/mv/refresh.py
-  - provisa/mv/rewriter.py
+  - provisa/mv/view_reinject.py
   tests:
   - tests/unit/test_mv_registry.py
   - tests/unit/test_mv_lifecycle.py
@@ -78332,11 +78335,12 @@
   priority: MUST
   type: behavioral
   since: 2026-04
-  description: 'RLS is applied after the MV rewrite: the rewritten query keeps the WHERE clauses and parameters
-    injected for row-level security, because RLS is enforced at the SQL level regardless of the underlying
-    table.'
+  description: 'The MV rewrite runs after row-level security is applied: the rewritten query keeps the
+    WHERE clauses and parameters injected for row-level security, carried onto the view''s columns; a
+    predicate the view cannot carry leaves the query to its tables.'
   code:
-  - provisa/mv/rewriter.py
+  - provisa/mv/view_reinject.py
+  - provisa/pgwire/_pipeline.py
   tests:
   - tests/e2e/test_mv_optimization.py
   - tests/unit/test_mv_expose_and_rls_rewrite.py
@@ -78350,7 +78354,7 @@
   notes: 'Restored 2026-10-03 from docs/arch/implementation-plan.md as of 903defcc^ (deleted in 903defcc);
     the id was never entered in requirements.yaml though code or tests cite it. Text assembled, not verbatim.
     Citing files: tests/e2e/test_mv_optimization.py. Audited 2026-10-03 against the code: tests/e2e/test_mv_optimization.py:137-160
-    TestRLSOnMVQueries asserts WHERE and params survive rewrite_if_mv_match.'
+    TestRLSOnMVQueries asserts WHERE and params survive the view rewrite.'
 - id: REQ-086
   status: complete
   group: 3. Source Registration & Data Modeling

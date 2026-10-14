@@ -8,14 +8,14 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 
-"""E2E: an aggregate query is answered from a materialized view that pre-aggregates its table
-(REQ-198, REQ-882).
+"""E2E: an aggregate query is answered from a materialized view that pre-aggregates its table,
+over /data/sql and GraphQL alike (REQ-198, REQ-882).
 
 A pg-engine server declares, in its file, a PostgreSQL table of orders and a view grouping it by
-region and status with its sums and counts. Once the view is built, a GraphQL aggregate over the
-table answers exactly as the same aggregate over the table itself does through /data/sql. A row
-added at the source then shows which one answered: the SQL aggregate counts it, the GraphQL one
--- read from the view, built before the row -- does not.
+region and status with its sums and counts. Once the view is built, the same aggregate through
+/data/sql and through GraphQL answers exactly as the table itself does, read at the source. A row
+added at the source then shows what answered: the table counts it, both surfaces -- read from the
+view, built before the row -- do not.
 """
 
 # Requirements: REQ-198, REQ-882
@@ -169,20 +169,20 @@ def _graphql(srv) -> dict[str, tuple[int, Decimal]]:
     }
 
 
+_AGGREGATE = "SELECT region, COUNT(*) AS n, SUM(amount) AS total FROM {} GROUP BY region"
+
+
 def _sql(srv) -> dict[str, tuple[int, Decimal]]:
-    """The same, through /data/sql over the table."""
-    payload = _post(
-        srv,
-        "/data/sql",
-        {
-            "sql": "SELECT region, COUNT(*) AS n, SUM(amount) AS total FROM orders GROUP BY region",
-            "role": _ADMIN,
-        },
-    )
-    rows = payload.get("data") or payload.get("rows") or []
-    if isinstance(rows, dict):
-        rows = next(iter(rows.values()))
-    return {r["region"]: (int(r["n"]), Decimal(str(r["total"]))) for r in rows}
+    """The same, through /data/sql over the table: the SQL path."""
+    rows = _post(srv, "/data/sql", {"sql": _AGGREGATE.format('"shop"."orders"'), "role": _ADMIN})
+    return {r["region"]: (int(r["n"]), Decimal(str(r["total"]))) for r in rows["data"]["sql"]}
+
+
+def _table(pg) -> dict[str, tuple[int, Decimal]]:
+    """The same, over the table itself, at the source."""
+    with psycopg.connect(pg.dsn(), autocommit=True) as conn:
+        rows = conn.execute(_AGGREGATE.format("orders")).fetchall()
+    return {region: (int(n), Decimal(total)) for region, n, total in rows}
 
 
 def test_an_aggregate_is_answered_from_the_view_and_as_the_table_answers(server, source_pg):
@@ -192,10 +192,12 @@ def test_an_aggregate_is_answered_from_the_view_and_as_the_table_answers(server,
         time.sleep(1)
 
     expected = {"us": (3, Decimal(45)), "eu": (1, Decimal(7))}
+    assert _table(source_pg) == expected
     assert _sql(server) == expected
     assert _graphql(server) == expected
 
     with psycopg.connect(source_pg.dsn(), autocommit=True) as conn:
         conn.execute("INSERT INTO orders (region, status, amount) VALUES ('eu', 'open', 100)")
-    assert _sql(server)["eu"] == (2, Decimal(107))  # the table has the row
-    assert _graphql(server) == expected  # the view, built before it, does not
+    assert _table(source_pg)["eu"] == (2, Decimal(107))  # the table has the row
+    assert _sql(server) == expected  # the view, built before it, does not
+    assert _graphql(server) == expected
