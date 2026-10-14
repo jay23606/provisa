@@ -411,6 +411,8 @@ class _DuckDBPgwireConnector(_DuckDBExtensionConnector):  # REQ-1690
     name the landing path uses (``pgwire_replica.schema_name``). Read-only: Calcite serves no DML.
     """
 
+    served_by_bundle = True
+
     mechanism = Mechanism.ATTACH_R
     extension = "postgres"  # core extension — the runtime INSTALL/LOADs it before the attach
     install_from_community = False
@@ -1104,6 +1106,8 @@ class _PgPgwireConnector(Connector):  # REQ-1730
     credentials (``pgwire_replica._pg_connect`` connects with none) — a non-superuser pg engine role
     fails loud here with postgres_fdw's own "password is required" error, not a silent gap.
     """
+
+    served_by_bundle = True
 
     engine = "postgres"
     mechanism = Mechanism.ATTACH_R

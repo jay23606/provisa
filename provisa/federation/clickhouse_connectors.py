@@ -74,6 +74,8 @@ class _ClickHousePgwireConnector(Connector):  # REQ-1730
     path. Read-only: Calcite serves no DML, so ``write=True`` (the plain postgresql connector's own
     default) is deliberately NOT claimed here."""
 
+    served_by_bundle = True
+
     engine = "clickhouse"
     mechanism = Mechanism.ATTACH_R
 

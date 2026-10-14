@@ -471,23 +471,48 @@ async def test_native_schemas_files_returns_normalised_source_id():
 
 
 @pytest.mark.asyncio
-async def test_native_tables_files_falls_through_to_engine_seam(tmp_path):  # REQ-1690
-    """``native_tables`` must return ``None`` for ``files`` (no dispatch branch at all) so
-    ``available_tables`` (schema_query.py) falls through to the generic engine seam — the
-    Calcite pgwire ATTACH REQ-1690 describes. A hand-rolled ``directory.rglob("*.csv")`` branch
-    used to live here (pre-REQ-1690), always returning a list and never ``None``: Register Table
-    for a `files` source never once reached the ATTACH, regardless of how correct
-    DuckDBFilesConnector/_files_operand were, so a directory of xlsx files always showed empty
-    (or, if any .csv happened to share the directory, ONLY those) — confirmed live by the total
-    absence of a `.aperio/debug-model-<schema>.json` for a freshly created `files` source
-    (FileSchemaFactory.create() was never invoked)."""
-    config_conn = AsyncMock()
-    _res = MagicMock()
-    _res.fetchone.return_value = (str(tmp_path / "**"),)
-    config_conn.execute_core = AsyncMock(return_value=_res)
+async def test_native_tables_files_is_listed_by_its_connector_server(
+    tmp_path, monkeypatch
+):  # REQ-1690
+    """A ``files`` source's tables are what its bundled Calcite server serves -- never a hand-rolled
+    ``directory.rglob("*.csv")``. One used to live here (pre-REQ-1690), always returning a list:
+    Register Table for a `files` source never once reached the server, so a directory of xlsx
+    files always showed empty (or, if any .csv happened to share the directory, ONLY those) --
+    confirmed live by the total absence of a `.aperio/debug-model-<schema>.json` for a freshly
+    created `files` source (FileSchemaFactory.create() was never invoked). The server is asked
+    through its information_schema as soon as it listens, not through the engine's attach of it,
+    which waits for the server's first catalog query (tests/unit/test_files_tables_listed_by_server.py)."""
+    from contextlib import asynccontextmanager
+    from types import SimpleNamespace
 
-    result = await native_tables("src", "files", "src", _empty_pool(), config_conn, MagicMock())
-    assert result is None
+    from provisa.api.admin import introspect
+    from provisa.federation import pgwire_replica
+    from provisa.federation.engine import build_duckdb_engine
+
+    (tmp_path / "loose.csv").write_text("a\n1\n")  # a file a filesystem scan would have listed
+    asked: list[str] = []
+
+    async def _source(source_id):
+        return SimpleNamespace(id=source_id, type="files")
+
+    @asynccontextmanager
+    async def _bound():
+        yield
+
+    async def _tables(source, schema):
+        asked.append(schema)
+        return ["Orders"]  # what FileSchemaFactory serves, xlsx sheets included
+
+    monkeypatch.setattr(introspect, "_adapter_source", _source)
+    monkeypatch.setattr(introspect, "_adapter_bound", _bound)
+    monkeypatch.setattr(pgwire_replica, "adapter_tables", _tables)
+    config_conn = AsyncMock()
+    state = SimpleNamespace(federation_engine=SimpleNamespace(engine=build_duckdb_engine()))
+
+    result = await native_tables("src", "files", "src", _empty_pool(), config_conn, state)
+    assert [t.name for t in result] == ["Orders"]
+    assert asked == ["src"]
+    config_conn.execute_core.assert_not_called()  # no glob read off the source row to scan
 
 
 @pytest.mark.asyncio
