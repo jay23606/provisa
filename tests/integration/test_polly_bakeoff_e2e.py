@@ -34,6 +34,7 @@ import os
 import re
 import statistics
 import time
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -43,6 +44,7 @@ import pytest
 import yaml
 
 from tests.integration.polly_bakeoff_questions import QUESTIONS, Question
+from tests.integration.polly_bakeoff_turn import Turn, ask
 from tests.integration.test_weblogs_demo import (
     _DEMO,
     WeblogsStack,
@@ -92,40 +94,26 @@ class Answer:
     tools: list[dict[str, Any]] = field(default_factory=list)
 
 
-def _ask(
-    server: Any, question: str
-) -> tuple[str, dict[str, Any], str | None, float, list[dict[str, Any]]]:
-    """One question as its own conversation: Polly's reply, the turn's usage, an error, the
-    turn's time, and the tools it called (name, input, whether the call failed)."""
+def _ask(server: Any, question: str) -> tuple[Turn, float]:
+    """One question as its own conversation, as the chat panel asks it (polly_bakeoff_turn), and
+    how long it took."""
+
+    def stream(convo: list[dict[str, Any]]) -> Iterator[dict[str, Any]]:
+        with httpx.stream(
+            "POST",
+            f"{server.base_url}/admin/mcp/chat",
+            json={"messages": convo},
+            headers={"X-Provisa-Role": _ROLE},
+            timeout=300,
+        ) as resp:
+            assert resp.status_code == 200, resp.read()
+            for line in resp.iter_lines():
+                if line.startswith("data:"):
+                    yield json.loads(line[5:].strip())
+
     started = time.monotonic()
-    text: list[str] = []
-    usage: dict[str, Any] = {}
-    error = None
-    tools: list[dict[str, Any]] = []
-    with httpx.stream(
-        "POST",
-        f"{server.base_url}/admin/mcp/chat",
-        json={"messages": [{"role": "user", "content": question}]},
-        headers={"X-Provisa-Role": _ROLE},
-        timeout=300,
-    ) as resp:
-        assert resp.status_code == 200, resp.read()
-        for line in resp.iter_lines():
-            if not line.startswith("data:"):
-                continue
-            event = json.loads(line[5:].strip())
-            if event["type"] == "text":
-                text.append(event["text"])
-            elif event["type"] == "tool_use":
-                tools.append({"name": event["name"], "input": event["input"], "is_error": None})
-            elif event["type"] == "tool_result":
-                called = next(t for t in reversed(tools) if t["name"] == event["name"])
-                called["is_error"] = event["is_error"]
-            elif event["type"] == "usage":
-                usage = event
-            elif event["type"] == "error":
-                error = event["error"]
-    return "".join(text), usage, error, time.monotonic() - started, tools
+    turn = ask(stream, question)
+    return turn, time.monotonic() - started
 
 
 def _cost(usage: dict[str, Any]) -> float | None:
@@ -243,7 +231,8 @@ def test_polly_bakeoff(server, run):
         _use_model(server, model)
         answers = []
         for question in QUESTIONS:
-            reply, usage, error, seconds, tools = _ask(server, question.text)
+            turn, seconds = _ask(server, question.text)
+            reply, usage, error, tools = turn.reply, turn.usage, turn.error, turn.tools
             want = expected[question.text]
             answers.append(
                 Answer(

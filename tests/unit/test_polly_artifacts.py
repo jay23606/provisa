@@ -152,11 +152,18 @@ async def test_a_result_asked_for_as_a_file_is_a_download_in_the_chat(monkeypatc
     events, model_result = await _chat(
         monkeypatch, "run_sql", {"sql": "SELECT n FROM t", "file_format": "parquet"}
     )
-    assert sql_runs == [{"limit": None, "redirect": True, "redirect_format": "parquet"}]
+    # The rows for the model, then the file for the user.
+    assert sql_runs == [
+        {"limit": None, "redirect": False},
+        {"limit": None, "redirect": True, "redirect_format": "parquet"},
+    ]
     artifact = next(e for e in events if e["type"] == "artifact")
     assert artifact == {"type": "artifact", "kind": "file", **_HANDLE}
     told = json.loads(model_result["content"])
     assert told["redirect"] == _HANDLE and "artifact" not in told
+    # A file alone would tell the model only how many rows it holds, which GPT-5.4 mini read as
+    # its answer ("the shop has 1 customer"): it gets the rows too.
+    assert told["rows"] == [{"n": 1}]
 
 
 @pytest.mark.asyncio

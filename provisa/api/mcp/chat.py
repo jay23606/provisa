@@ -155,11 +155,12 @@ _TOOLS: list[Any] = [
     {
         "name": "run_sql",
         "description": (
-            "Execute SQL through the governed pipeline; returns row-capped JSON rows. With "
-            "file_format, the result is delivered as a file instead, and the user gets a download "
-            "for it in the chat: use it when the user asks for the data as a file (CSV or "
-            "Parquet). A result with more rows than the cap, asked for without a limit, is also "
-            "delivered as a CSV file the user can download, alongside the first rows."
+            "Execute SQL through the governed pipeline; returns row-capped JSON rows. Set "
+            "file_format only when the user asked for the data as a file (CSV or Parquet): the "
+            "result is then also delivered as a file the user downloads in the chat, and you "
+            "still get its first rows. A result with more rows than the cap, asked for without a "
+            "limit, is also delivered as a CSV file the user can download, alongside the first "
+            "rows."
         ),
         "input_schema": {
             "type": "object",
@@ -1011,22 +1012,27 @@ async def _resolve_model(state: Any) -> str | None:
 
 
 async def _run_sql(state: Any, role: str, sql: str, args: dict) -> dict:
-    """run_sql for the chat. A result delivered as a file -- asked for with file_format, or by the
-    operator's large-result threshold -- carries a download for the chat panel. A result with more
-    rows than the cap, asked for without a limit, is too large to show in the chat: it is also
-    delivered as a CSV file, and the model keeps the first rows to describe it."""
+    """run_sql for the chat. The model always gets the result's first rows: a file delivery alone
+    answers only how many rows it holds, and a model that asked for a file it did not need read
+    that count as its answer (GPT-5.4 mini's "the shop has 1 customer", bake-off run 38625083413).
+    A result asked for as a file (file_format) is also delivered as one; so is a result with more
+    rows than the cap, asked for without a limit, as CSV. A delivered result -- those, or one the
+    operator's large-result threshold delivered -- carries a download for the chat panel."""
     file_format = args.get("file_format")
     result = await mcp_tools.run_sql(
-        state,
-        role,
-        sql,
-        limit=args.get("limit"),
-        offset=int(args.get("offset", 0)),
-        redirect=file_format is not None,
-        redirect_format=file_format,
+        state, role, sql, limit=args.get("limit"), offset=int(args.get("offset", 0))
     )
-    if file_format is None and args.get("limit") is None and result["truncated"]:
-        delivered = await mcp_tools.run_sql(state, role, sql, redirect=True, redirect_format="csv")
+    deliver_as = (
+        file_format
+        if file_format is not None
+        else "csv"
+        if "redirect" not in result and args.get("limit") is None and result["truncated"]
+        else None
+    )
+    if deliver_as is not None:
+        delivered = await mcp_tools.run_sql(
+            state, role, sql, redirect=True, redirect_format=deliver_as
+        )
         result["redirect"] = delivered["redirect"]
     if "redirect" in result:
         result["artifact"] = {"kind": "file", **result["redirect"]}
@@ -1398,6 +1404,16 @@ _EPHEMERAL = {"type": "ephemeral"}
 # what one call can spend.
 _MAX_TOKENS = 32000
 
+# REQ-1838: a turn whose rounds all ran out still calling tools (the last one is asked to call
+# none, but a provider may not honour that) ends saying so, never in silence.
+_STEPS_SPENT = {
+    "type": "text",
+    "text": (
+        "\n\n(Stopped after the most steps one question may take, before finishing — please "
+        "ask a narrower question.)"
+    ),
+}
+
 
 def _output_cap(provider_key: str, custom_endpoint: bool) -> dict[str, Any]:
     """_MAX_TOKENS as the aisuite provider's own call takes it. OpenAI's own API takes
@@ -1464,7 +1480,7 @@ async def _run_chat_anthropic(
 ) -> AsyncIterator[dict]:
     """The original REQ-1008/1795/1796 loop: Anthropic's own Messages API, including the
     Anthropic-only hosted web_search/web_fetch tools. Unchanged behavior from before REQ-1797."""
-    from anthropic import AsyncAnthropic
+    from anthropic import AsyncAnthropic, omit
 
     client = AsyncAnthropic()
     model = await _resolve_model(state)
@@ -1478,7 +1494,10 @@ async def _run_chat_anthropic(
     # REQ-2012: the turn's token usage, summed over every call, tool round trips included.
     usage = polly_usage.Usage()
 
-    for _ in range(max_iterations):
+    for round_no in range(max_iterations):
+        # REQ-1838: the last round the turn allows calls no tool, so the model answers from what
+        # it has rather than the turn ending in silence mid-search.
+        tool_choice: Any = {"type": "none"} if round_no == max_iterations - 1 else omit
         # REQ-1838: adaptive thinking's budget shares the max_tokens cap — 8192 let a heavily-
         # reasoning turn (many tools + a long system prompt) exhaust the budget mid-thought,
         # before the model ever emitted its tool_use block. stop_reason came back "max_tokens",
@@ -1497,6 +1516,7 @@ async def _run_chat_anthropic(
             tools=_cached_tools(),
             thinking={"type": "adaptive"},
             messages=_with_cache_breakpoint(convo),
+            tool_choice=tool_choice,
         ) as stream:
             # REQ-1839: hosted-tool badges are yielded as their blocks complete, by walking the
             # raw event stream, so a search shows before the answer that depends on it. The walk
@@ -1662,6 +1682,8 @@ async def _run_chat_anthropic(
             }
         )
         prior_messages.append({"role": "user", "content": tool_results})
+    else:
+        yield _STEPS_SPENT
 
     yield polly_usage.usage_event(model, usage)
     yield {"type": "done"}
@@ -1803,8 +1825,14 @@ async def _run_chat_aisuite(
     usage = polly_usage.Usage()
     billed: float | None = None
 
-    for _ in range(max_iterations):
+    for round_no in range(max_iterations):
         oa_messages = [system_message, *_wire_convo_to_openai_messages(convo)]
+        # REQ-1838: the last round calls no tool (see the Anthropic loop), as the provider names it.
+        last = (
+            {"tool_choice": {"type": "none"} if provider_key == "anthropic" else "none"}
+            if round_no == max_iterations - 1
+            else {}
+        )
         # aisuite providers are synchronous (no async client) — off the event loop, same reasoning
         # as every other sync-SDK call in this codebase (e.g. provisa/llm/client.py).
         resp = await asyncio.to_thread(
@@ -1813,6 +1841,7 @@ async def _run_chat_aisuite(
             oa_messages,
             tools=openai_tools,
             **cap,
+            **last,
             **extra,
         )
         usage = usage + polly_usage.from_openai(resp.usage)
@@ -1901,6 +1930,8 @@ async def _run_chat_aisuite(
         convo.append({"role": "user", "content": tool_results})
         prior_messages.append({"role": "assistant", "content": wire_blocks})
         prior_messages.append({"role": "user", "content": tool_results})
+    else:
+        yield _STEPS_SPENT
 
     yield polly_usage.usage_event(model_name, usage, billed)
     yield {"type": "done"}
