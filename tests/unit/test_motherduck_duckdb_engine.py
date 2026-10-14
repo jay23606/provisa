@@ -95,6 +95,7 @@ def test_the_engine_signs_in_before_it_attaches():
         _con=SimpleNamespace(execute=lambda sql, params=None: ran.append((sql, params))),
         _raw_attached=set(),
         _raw_attach_ddl={},
+        _attach_source={},
         _ext_loaded={"motherduck"},
         _engine=SimpleNamespace(
             connector_for=lambda _type: SimpleNamespace(extension="motherduck")
