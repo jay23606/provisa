@@ -118,7 +118,12 @@ def bind_positionally(
         ordered.append(params[n - 1])
         return placeholder if isinstance(placeholder, str) else placeholder(len(ordered))
 
-    return _PLACEHOLDER_RE.sub(_sub, sql), ordered
+    bound = _PLACEHOLDER_RE.sub(_sub, sql)
+    if not ordered:
+        # Values with no $N to bind them to: the driver would run the statement with none bound
+        # (a `?` written for it bound nothing -- SQL Server: "07002 COUNT field incorrect").
+        raise ValueError(f"{len(params)} value(s) given, but the statement has no $N placeholder")
+    return bound, ordered
 
 
 def _comment_value(val: object, index: int) -> str:  # object-ok: one bound parameter value

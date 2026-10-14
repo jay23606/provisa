@@ -128,6 +128,9 @@ _ALIASES: dict[str, str] = {
     "float8": "double",
     "double precision": "double",
     "decimal": "numeric",
+    # Oracle's and Snowflake's decimal, as a registered column of such a source stores it with
+    # no size and a reader with no platform to name reads it back.
+    "number": "numeric",
     "timestamp without time zone": "timestamp",
     "timestamp with time zone": "timestamp",
     "timestamptz": "timestamp",

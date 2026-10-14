@@ -156,3 +156,16 @@ def test_a_spelling_only_its_platform_has_registers_as_its_ir_name():
     assert column_typing("LONG", "databricks").data_type == "bigint"
     assert column_typing("decimal(10,2)", "databricks").data_type == "decimal(10,2)"
     assert column_typing("long").data_type == "long"
+
+
+def test_oracle_number_is_a_numeric_sized_or_not():
+    """Oracle lists its decimal as NUMBER: a replica read it back with no platform to name and
+    failed "unknown SQL type 'number'". Sized, it is stored in the one numeric spelling."""
+    from provisa.core.ir_types import to_ir
+    from provisa.core.numeric_type import stored_type_of
+
+    assert to_ir("number") == "numeric"
+    assert to_ir("NUMBER(10,2)") == "numeric"
+    assert stored_type_of("NUMBER(10,2)") == "numeric(10,2)"
+    assert stored_type_of("number(38)") == "numeric(38,0)"
+    assert stored_type_of("number") == "number"
