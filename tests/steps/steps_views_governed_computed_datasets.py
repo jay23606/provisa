@@ -24,6 +24,7 @@ while non-materialized views run as live subqueries via Trino.
 from __future__ import annotations
 
 import time
+from types import SimpleNamespace
 from pathlib import Path
 
 import pytest
@@ -35,10 +36,10 @@ from provisa.compiler import naming as _naming
 from provisa.compiler.introspect import ColumnMetadata
 from provisa.compiler.schema_gen import SchemaInput, generate_schema
 from provisa.compiler.sql_gen import ColumnRef, CompiledQuery
-from provisa.mv.models import JoinPattern, MVDefinition, MVStatus
+from provisa.mv.models import JoinPattern, MVDefinition, MVStatus, TableIdentity
 from provisa.mv.registry import MVRegistry
-from provisa.mv.rewriter import rewrite_if_mv_match
-from provisa.compiler.sql_types import CompilationContext
+from provisa.mv.view_reinject import reinject
+from provisa.compiler.sql_types import CompilationContext, TableMeta
 
 # ---------------------------------------------------------------------------
 # Scenario binding
@@ -156,8 +157,8 @@ def _dataset_fields(schema) -> set[str]:
 # A join SQL that an MV (CTAS) backing table can transparently replace.
 _VIEW_JOIN_SQL = (
     'SELECT "t0"."id", "t1"."name" '
-    'FROM "public"."orders" "t0" '
-    'LEFT JOIN "public"."customers" "t1" '
+    'FROM "pg"."public"."orders" AS "t0" '
+    'LEFT JOIN "pg"."public"."customers" AS "t1" '
     'ON "t0"."customer_id" = "t1"."id"'
 )
 
@@ -176,11 +177,31 @@ def _compiled_view_query() -> CompiledQuery:
     )
 
 
+def _rewrite(compiled: CompiledQuery, fresh: list[MVDefinition]) -> SimpleNamespace:
+    """``compiled`` -- a governed, catalog-physical statement -- through the optimize stage's view
+    rewrite, as the statement that is run and the sources it reads: the view's catalog, with the
+    statement's own where a view answers only some of its joins."""
+    ctx = CompilationContext()
+    for i, name in enumerate(("orders", "customers", "products", "promotions")):
+        ctx.tables[name] = TableMeta(
+            table_id=i, field_name=name, type_name=name.title(), source_id="sales-pg",
+            catalog_name="pg", schema_name="public", table_name=name, domain_id="sales",
+        )  # fmt: skip
+    hit = reinject(compiled.sql, fresh, ctx)
+    if hit is None:
+        return SimpleNamespace(sql=compiled.sql, sources=set(compiled.sources))
+    reads = {hit.mv.target_catalog}
+    if hit.match == "partial":
+        reads |= set(compiled.sources)
+    return SimpleNamespace(sql=hit.sql, sources=reads)
+
+
 def _materialized_view_mv() -> MVDefinition:
     """An MV (CTAS backing table) for a view declared with materialize: true."""
     mv = MVDefinition(
         id="mv-orders-customers-view",
         source_tables=["orders", "customers"],
+        inputs=[TableIdentity("sales-pg", "public", t) for t in ["orders", "customers"]],
         target_catalog="postgresql",
         target_schema="mv_cache",
         join_pattern=JoinPattern(
@@ -296,16 +317,12 @@ def the_view_is_queried(shared_data: dict) -> None:
 
     # Materialized view → eligible fresh MVs available → rewrite to MV backing.
     materialized_fresh = shared_data["materialized_registry"].get_fresh()
-    shared_data["materialized_result"] = rewrite_if_mv_match(
-        compiled, materialized_fresh, CompilationContext(), frozenset()
-    )
+    shared_data["materialized_result"] = _rewrite(compiled, materialized_fresh)
     shared_data["materialized_fresh"] = materialized_fresh
 
     # Live view → no MVs → query executes unchanged as a live subquery.
     live_fresh = shared_data["live_registry"].get_fresh()
-    shared_data["live_result"] = rewrite_if_mv_match(
-        compiled, live_fresh, CompilationContext(), frozenset()
-    )
+    shared_data["live_result"] = _rewrite(compiled, live_fresh)
     shared_data["live_fresh"] = live_fresh
 
 
@@ -346,9 +363,7 @@ def served_from_mv_or_live(shared_data: dict) -> None:
     #    confirming that only a *periodically refreshed* (fresh) MV is served.
     stale_mv = _materialized_view_mv()
     stale_mv.status = MVStatus.STALE
-    stale_result = rewrite_if_mv_match(
-        shared_data["compiled"], [stale_mv], CompilationContext(), frozenset()
-    )
+    stale_result = _rewrite(shared_data["compiled"], [stale_mv])
     assert stale_result.sql == _VIEW_JOIN_SQL, (
         "A stale materialized view must not be served; query must fall back to "
         f"live subquery. Got: {stale_result.sql}"
@@ -368,9 +383,7 @@ def served_from_mv_or_live(shared_data: dict) -> None:
     assert expired_fresh == [], (
         f"A TTL-expired MV must not appear in get_fresh(); got: {[m.id for m in expired_fresh]}"
     )
-    expired_result = rewrite_if_mv_match(
-        shared_data["compiled"], expired_fresh, CompilationContext(), frozenset()
-    )
+    expired_result = _rewrite(shared_data["compiled"], expired_fresh)
     assert expired_result.sql == _VIEW_JOIN_SQL
     assert "mv_cache" not in expired_result.sql
 
@@ -386,6 +399,7 @@ def fresh_enabled_mv_covering_root_table(shared_data: dict) -> None:
     mv_full = MVDefinition(
         id="mv-849-full",
         source_tables=["orders", "customers"],
+        inputs=[TableIdentity("sales-pg", "public", t) for t in ["orders", "customers"]],
         target_catalog="iceberg",
         target_schema="mv_store",
         target_table="mv_orders_customers",
@@ -405,6 +419,7 @@ def fresh_enabled_mv_covering_root_table(shared_data: dict) -> None:
     mv_partial = MVDefinition(
         id="mv-849-partial",
         source_tables=["orders", "products"],
+        inputs=[TableIdentity("sales-pg", "public", t) for t in ["orders", "products"]],
         target_catalog="iceberg",
         target_schema="mv_store",
         target_table="mv_orders_products",
@@ -424,6 +439,7 @@ def fresh_enabled_mv_covering_root_table(shared_data: dict) -> None:
     mv_disabled = MVDefinition(
         id="mv-849-disabled",
         source_tables=["orders", "customers"],
+        inputs=[TableIdentity("sales-pg", "public", t) for t in ["orders", "customers"]],
         target_catalog="iceberg",
         target_schema="mv_store",
         target_table="mv_orders_customers_disabled",
@@ -444,6 +460,7 @@ def fresh_enabled_mv_covering_root_table(shared_data: dict) -> None:
     mv_stale = MVDefinition(
         id="mv-849-stale",
         source_tables=["orders", "customers"],
+        inputs=[TableIdentity("sales-pg", "public", t) for t in ["orders", "customers"]],
         target_catalog="iceberg",
         target_schema="mv_store",
         target_table="mv_orders_customers_stale",
@@ -474,8 +491,8 @@ def fresh_enabled_mv_covering_root_table(shared_data: dict) -> None:
     # Single-JOIN SQL: mv_full covers it completely.
     single_join_sql = (
         'SELECT "t0"."id", "t1"."name" '
-        'FROM "public"."orders" "t0" '
-        'LEFT JOIN "public"."customers" "t1" ON "t0"."customer_id" = "t1"."id"'
+        'FROM "pg"."public"."orders" AS "t0" '
+        'LEFT JOIN "pg"."public"."customers" AS "t1" ON "t0"."customer_id" = "t1"."id"'
     )
     shared_data["single_join_sql"] = single_join_sql
 
@@ -484,17 +501,17 @@ def fresh_enabled_mv_covering_root_table(shared_data: dict) -> None:
     # when mv_full is absent from candidates.
     two_join_sql = (
         'SELECT "t0"."id", "t1"."name", "t2"."title" '
-        'FROM "public"."orders" "t0" '
-        'LEFT JOIN "public"."customers" "t1" ON "t0"."customer_id" = "t1"."id" '
-        'LEFT JOIN "public"."products" "t2" ON "t0"."product_id" = "t2"."id"'
+        'FROM "pg"."public"."orders" AS "t0" '
+        'LEFT JOIN "pg"."public"."customers" AS "t1" ON "t0"."customer_id" = "t1"."id" '
+        'LEFT JOIN "pg"."public"."products" AS "t2" ON "t0"."product_id" = "t2"."id"'
     )
     shared_data["two_join_sql"] = two_join_sql
 
     # No-match SQL: references tables not covered by any registered MV
     no_match_sql = (
         'SELECT "t0"."id", "t1"."code" '
-        'FROM "public"."orders" "t0" '
-        'LEFT JOIN "public"."promotions" "t1" ON "t0"."promo_id" = "t1"."id"'
+        'FROM "pg"."public"."orders" AS "t0" '
+        'LEFT JOIN "pg"."public"."promotions" AS "t1" ON "t0"."promo_id" = "t1"."id"'
     )
     shared_data["no_match_sql"] = no_match_sql
 
@@ -518,9 +535,7 @@ def query_compiled_without_naming_mv(shared_data: dict) -> None:
         columns=[],
         sources={"sales-pg"},
     )
-    result_single = rewrite_if_mv_match(
-        compiled_single, fresh_mvs, CompilationContext(), frozenset()
-    )
+    result_single = _rewrite(compiled_single, fresh_mvs)
     shared_data["result_single"] = result_single
     shared_data["compiled_single"] = compiled_single
 
@@ -534,9 +549,7 @@ def query_compiled_without_naming_mv(shared_data: dict) -> None:
         columns=[],
         sources={"sales-pg"},
     )
-    result_two_partial = rewrite_if_mv_match(
-        compiled_two, partial_only, CompilationContext(), frozenset()
-    )
+    result_two_partial = _rewrite(compiled_two, partial_only)
     shared_data["result_two_partial"] = result_two_partial
     shared_data["compiled_two"] = compiled_two
 
@@ -547,9 +560,7 @@ def query_compiled_without_naming_mv(shared_data: dict) -> None:
     # The rewriter should pick whichever partial candidate it finds first
     # (ordering-stable among equal-coverage partials is acceptable per REQ-849).
     both_candidates = [mv for mv in fresh_mvs if mv.id in ("mv-849-full", "mv-849-partial")]
-    result_two_both = rewrite_if_mv_match(
-        compiled_two, both_candidates, CompilationContext(), frozenset()
-    )
+    result_two_both = _rewrite(compiled_two, both_candidates)
     shared_data["result_two_both"] = result_two_both
 
     # --- Scenario D: no-match query → runs against live source tables ---
@@ -560,9 +571,7 @@ def query_compiled_without_naming_mv(shared_data: dict) -> None:
         columns=[],
         sources={"sales-pg"},
     )
-    result_no_match = rewrite_if_mv_match(
-        compiled_no_match, fresh_mvs, CompilationContext(), frozenset()
-    )
+    result_no_match = _rewrite(compiled_no_match, fresh_mvs)
     shared_data["result_no_match"] = result_no_match
     shared_data["compiled_no_match"] = compiled_no_match
 
@@ -580,15 +589,14 @@ def query_compiled_without_naming_mv(shared_data: dict) -> None:
     # For the single-join SQL, mv_partial does NOT match (wrong join), so this tests
     # that a non-matching candidate before a full-match candidate does not block the full match.
     ordered_candidates = [shared_data["mv_partial"], shared_data["mv_full"]]
-    result_full_preferred = rewrite_if_mv_match(
-        compiled_single_recheck, ordered_candidates, CompilationContext(), frozenset()
-    )
+    result_full_preferred = _rewrite(compiled_single_recheck, ordered_candidates)
     shared_data["result_full_preferred"] = result_full_preferred
 
     # --- Scenario F: TTL-expired MV is excluded ---
     expired_mv = MVDefinition(
         id="mv-849-expired",
         source_tables=["orders", "customers"],
+        inputs=[TableIdentity("sales-pg", "public", t) for t in ["orders", "customers"]],
         target_catalog="iceberg",
         target_schema="mv_store",
         target_table="mv_orders_customers_expired",
@@ -617,9 +625,7 @@ def query_compiled_without_naming_mv(shared_data: dict) -> None:
         columns=[],
         sources={"sales-pg"},
     )
-    result_expired = rewrite_if_mv_match(
-        compiled_expired, expired_fresh, CompilationContext(), frozenset()
-    )
+    result_expired = _rewrite(compiled_expired, expired_fresh)
     shared_data["result_expired"] = result_expired
     shared_data["single_join_sql_ref"] = shared_data["single_join_sql"]
 

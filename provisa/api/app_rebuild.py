@@ -136,8 +136,8 @@ async def _register_user_views_in_state(conn: "Connection", raw_config: dict | N
             # Store the *semantic* view SQL; _compile_view_sqls rewrites it to a physical plan.
             # EVERY user view (materialized or not) goes into view_sql_map so the query path can
             # inline-expand it live. A materialized view is ALSO registered as an MV below — the query
-            # path expands the view and, when its MV is fresh, rewrite_if_mv_match redirects to the
-            # materialized table. Without the view_sql_map entry a materialized-but-unrefreshed view
+            # path expands the view and, when its MV is fresh, the optimize stage (view_reinject)
+            # redirects to the materialized table. Without the view_sql_map entry a materialized-but-unrefreshed view
             # is unqueryable: its raw source catalog (e.g. __derived__) reaches the engine and fails
             # with "Catalog __derived__ does not exist".
             _semantic_sql = _vr["view_sql"].rstrip().rstrip(";")

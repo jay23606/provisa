@@ -21,9 +21,9 @@ import pytest
 from pytest_bdd import given, scenario, then, when
 
 from provisa.compiler.sql_gen import ColumnRef, CompiledQuery
-from provisa.mv.models import JoinPattern, MVDefinition, MVStatus
-from provisa.mv.rewriter import rewrite_if_mv_match
-from provisa.compiler.sql_types import CompilationContext
+from provisa.mv.models import JoinPattern, MVDefinition, MVStatus, TableIdentity
+from provisa.compiler.sql_types import CompilationContext, TableMeta
+from provisa.mv.view_reinject import reinject
 
 
 # ---------------------------------------------------------------------------
@@ -74,6 +74,10 @@ def _make_fresh_mv(
     mv = MVDefinition(
         id=mv_id,
         source_tables=[left_table, right_table],
+        inputs=[
+            TableIdentity("sales-pg", "public", left_table),
+            TableIdentity("sales-pg", "public", right_table),
+        ],
         target_catalog=target_catalog,
         target_schema=target_schema,
         target_table=target_table,
@@ -115,9 +119,9 @@ def given_mv_covering_subset_of_joins(shared_data):
     # Query with two JOINs
     sql = (
         'SELECT "t0"."id", "t1"."name", "t2"."title" '
-        'FROM "public"."orders" "t0" '
-        'LEFT JOIN "public"."customers" "t1" ON "t0"."customer_id" = "t1"."id" '
-        'LEFT JOIN "public"."products" "t2" ON "t0"."product_id" = "t2"."id"'
+        'FROM "pg"."public"."orders" AS "t0" '
+        'LEFT JOIN "pg"."public"."customers" AS "t1" ON "t0"."customer_id" = "t1"."id" '
+        'LEFT JOIN "pg"."public"."products" AS "t2" ON "t0"."product_id" = "t2"."id"'
     )
     shared_data["original_sql"] = sql
     shared_data["compiled"] = _make_compiled(sql)
@@ -149,7 +153,15 @@ def when_query_is_compiled(shared_data):
     compiled = shared_data["compiled"]
     mv = shared_data["mv"]
 
-    result = rewrite_if_mv_match(compiled, [mv], CompilationContext(), frozenset())
+    # The statement as the pipeline's optimize stage sees it: governed, catalog-physical.
+    ctx = CompilationContext()
+    for i, name in enumerate(("orders", "customers", "products")):
+        ctx.tables[name] = TableMeta(
+            table_id=i, field_name=name, type_name=name.title(), source_id="sales-pg",
+            catalog_name="pg", schema_name="public", table_name=name, domain_id="sales",
+        )  # fmt: skip
+    result = reinject(compiled.sql, [mv], ctx)
+    assert result is not None, "the view covering the first join did not answer"
     shared_data["result"] = result
 
 
@@ -189,7 +201,7 @@ def then_covered_joins_rewritten_to_mv(shared_data):
     # 'JOIN ... "customers"' remaining in the rewritten SQL
     import re
 
-    covered_join_pattern = rf'JOIN\s+"[^"]*"\."(?:{covered_table})"\s+"t\d+"'
+    covered_join_pattern = rf'JOIN\s+(?:"[^"]*"\.)+"(?:{covered_table})"\s+(?:AS\s+)?"t\d+"'
     assert not re.search(covered_join_pattern, rewritten_sql, re.IGNORECASE), (
         f"JOIN to covered table '{covered_table}' should be removed from rewritten SQL, "
         f"got:\n{rewritten_sql}"
@@ -207,7 +219,7 @@ def then_uncovered_joins_preserved(shared_data):
     # The uncovered table's JOIN must still be present
     import re
 
-    uncovered_join_pattern = rf'JOIN\s+"[^"]*"\."(?:{uncovered_table})"\s+"t\d+"'
+    uncovered_join_pattern = rf'JOIN\s+(?:"[^"]*"\.)+"(?:{uncovered_table})"\s+(?:AS\s+)?"t\d+"'
     assert re.search(uncovered_join_pattern, rewritten_sql, re.IGNORECASE), (
         f"JOIN to uncovered table '{uncovered_table}' should be preserved in rewritten SQL, "
         f"got:\n{rewritten_sql}"

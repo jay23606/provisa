@@ -17,11 +17,10 @@ import time
 import types
 
 from provisa.api import app_loaders
-from provisa.compiler.sql_gen import ColumnRef, CompiledQuery
-from provisa.mv.models import JoinPattern, MVDefinition, MVStatus
+from provisa.mv.models import JoinPattern, MVDefinition, MVStatus, TableIdentity
 from provisa.mv.registry import MVRegistry
-from provisa.mv.rewriter import rewrite_if_mv_match
-from provisa.compiler.sql_types import CompilationContext
+from provisa.compiler.sql_types import CompilationContext, TableMeta
+from provisa.mv.view_reinject import reinject
 
 
 class _Engine:
@@ -88,6 +87,10 @@ def _fresh_mv() -> MVDefinition:
     mv = MVDefinition(
         id="mv-orders-customers",
         source_tables=["orders", "customers"],
+        inputs=[
+            TableIdentity("pg", "public", "orders"),
+            TableIdentity("pg", "public", "customers"),
+        ],
         target_catalog="postgresql",
         target_schema="mv_cache",
         join_pattern=JoinPattern(
@@ -104,24 +107,25 @@ def _fresh_mv() -> MVDefinition:
     return mv
 
 
+def _ctx() -> CompilationContext:
+    ctx = CompilationContext()
+    for i, name in enumerate(("orders", "customers")):
+        ctx.tables[name] = TableMeta(
+            table_id=i, field_name=name, type_name=name.title(), source_id="pg",
+            catalog_name="pg", schema_name="public", table_name=name, domain_id="sales",
+        )  # fmt: skip
+    return ctx
+
+
 def test_the_rewrite_keeps_the_rls_predicate_and_its_parameters():  # REQ-085
+    """Governance runs first: the role's row filter is in the statement the view is put into,
+    and it is carried onto the view's column with its placeholder."""
     sql = (
-        'SELECT "t0"."id", "t1"."name" FROM "public"."orders" "t0" '
-        'LEFT JOIN "public"."customers" "t1" ON "t0"."customer_id" = "t1"."id" '
-        'WHERE ("t0"."region" = $1)'
+        'SELECT "o"."id", "c"."name" FROM "pg"."public"."orders" AS "o" '
+        'LEFT JOIN "pg"."public"."customers" AS "c" ON "o"."customer_id" = "c"."id" '
+        'WHERE ("o"."region" = $1)'
     )
-    compiled = CompiledQuery(
-        sql=sql,
-        params=["us-east"],
-        root_field="orders",
-        columns=[
-            ColumnRef(alias="t0", column="id", field_name="id", nested_in=None),
-            ColumnRef(alias="t1", column="name", field_name="name", nested_in="customers"),
-        ],
-        sources={"pg"},
-    )
-    result = rewrite_if_mv_match(compiled, [_fresh_mv()], CompilationContext(), frozenset())
-    assert "mv_cache" in result.sql and "JOIN" not in result.sql
-    # The alias is rewritten onto the MV target; the predicate and its placeholder are not dropped.
-    assert 'WHERE ("region" = $1)' in result.sql
-    assert result.params == ["us-east"]
+    hit = reinject(sql, [_fresh_mv()], _ctx())
+    assert hit is not None
+    assert "mv_cache" in hit.sql and "JOIN" not in hit.sql
+    assert 'WHERE ("o"."region" = $1)' in hit.sql

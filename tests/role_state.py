@@ -38,6 +38,11 @@ class RoleState(SimpleNamespace):
     def __init__(self, **attrs: Any) -> None:
         surfaces: dict[str, RoleSurface] = attrs.pop("surfaces", None) or {}
         parts = {name: attrs.pop(name) for name in list(attrs) if name in _PARTS}
+        if "mv_registry" not in attrs:
+            # As the real state: it always holds a registry, empty until a view is registered.
+            from provisa.mv.registry import MVRegistry
+
+            attrs["mv_registry"] = MVRegistry()
         super().__init__(surfaces=surfaces, **attrs)
         for name, values in parts.items():
             set_part(surfaces, _PARTS[name], values)

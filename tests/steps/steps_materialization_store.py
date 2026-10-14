@@ -81,20 +81,12 @@ def _orders_rollup(mv_id: str, where: str = "") -> MVDefinition:
 
 
 def _route(sql: str, fresh: list[MVDefinition]):
-    """``sql`` compiled over sales.public.orders, through the compiled stage's MV rewrite."""
-    from provisa.compiler.sql_gen import CompiledQuery
-    from provisa.compiler.sql_types import CompilationContext, TableMeta
-    from provisa.mv.rewriter import rewrite_if_mv_match
+    """``sql`` -- governed, catalog-physical -- through the optimize stage's view rewrite: the
+    view that answers it, or None."""
+    from provisa.compiler.sql_types import CompilationContext
+    from provisa.mv.view_reinject import reinject
 
-    ctx = CompilationContext()
-    ctx.tables["orders"] = TableMeta(
-        table_id=1, field_name="orders", type_name="Orders", source_id="sales-pg",
-        catalog_name="sales_pg", schema_name="public", table_name="orders", domain_id="sales",
-    )  # fmt: skip
-    compiled = CompiledQuery(
-        sql=sql, params=[], root_field="orders", columns=[], sources={"sales-pg"}
-    )
-    return rewrite_if_mv_match(compiled, fresh, ctx, frozenset())
+    return reinject(sql, fresh, CompilationContext())
 
 
 # ---------------------------------------------------------------------------
@@ -116,12 +108,13 @@ def given_aggregate_mv_registered(shared_data):
 # When
 # ---------------------------------------------------------------------------
 
-_QUERY = 'SELECT SUM("amount") FROM "public"."orders" WHERE "region" = \'us\''
+_QUERY = 'SELECT SUM("amount") FROM "sales_pg"."public"."orders" WHERE "region" = \'us\''
 
 
 @when(
     parsers.parse(
-        "a compiled query \"SELECT SUM(amount) FROM orders WHERE region = 'us'\" is routed"
+        "a query \"SELECT SUM(amount) FROM orders WHERE region = 'us'\" is routed, "
+        "over /data/sql or compiled"
     )
 )
 def when_aggregate_query_routed(shared_data):
@@ -141,7 +134,7 @@ def when_aggregate_query_routed(shared_data):
 )
 def then_query_rewritten_to_mv(shared_data):
     routed = shared_data["routed"]
-    assert routed.sources == {"mat"}, routed.sql
+    assert routed is not None and routed.mv.target_catalog == "mat", "no view answered"
     assert '"mat"."mv"."orders_by_region_status"' in routed.sql
     assert 'SUM("total")' in routed.sql and "\"region\" = 'us'" in routed.sql, routed.sql
 
@@ -154,7 +147,7 @@ def then_query_rewritten_to_mv(shared_data):
 def then_filtered_view_never_used(shared_data):
     filtered = _orders_rollup("orders-active", where="WHERE \"status\" = 'active'")
     for sql in (_QUERY, _QUERY + " AND \"status\" = 'active'"):
-        assert _route(sql, [filtered]).sources == {"sales-pg"}, "a filtered view answered"
+        assert _route(sql, [filtered]) is None, "a filtered view answered"
 
 
 # ---------------------------------------------------------------------------
