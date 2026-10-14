@@ -205,6 +205,15 @@ def template_seed(org_id: str) -> Any:  # a ProvisaConfig
     return parse_config_dict(raw)
 
 
+def replicated_tables(config: Any) -> list[Any]:
+    """The tables of a demo's configuration that have a replica: every one read from a source.
+    Its views (DERIVED_SOURCE_ID: defined by their SQL, read from the tables) have none, so a
+    template is landed when each of these is."""
+    from provisa.core.models import DERIVED_SOURCE_ID
+
+    return [table for table in config.tables if table.source_id != DERIVED_SOURCE_ID]
+
+
 #: What runs once a demo's template is built and every one of its replicas is landed, at each
 #: start of the sandbox tier: ``hook(demo, template_org)``, with the template's runtime built and the
 #: template org bound. Registered by what derives something of its own from a template at deploy
@@ -244,7 +253,7 @@ async def land_from_seed(org_id: str) -> None:
     if seeding_release():
         return
     demo = demo_of_template(org_id)
-    if await landed_here(org_id) >= len(template_seed(org_id).tables):
+    if await landed_here(org_id) >= len(replicated_tables(template_seed(org_id))):
         return
     if await adopt_seed(org_id, demo.directory):
         logging.getLogger(__name__).info("demo template %s: landed from its seed", demo.name)
@@ -425,13 +434,13 @@ async def _prepare(demo: PublishedDemo, build: bool) -> None:
 
 async def _replica_progress(rt) -> tuple[int, list[str], int]:
     """How many of the template's replicas have landed, the tables whose last build failed, and
-    how many tables its demo's configuration declares (the built-in tables every org registers
-    are not the demo's, and are not replicated)."""
+    how many replicated tables its demo's configuration declares (replicated_tables: not its
+    views, and not the built-in tables every org registers)."""
     from provisa.federation import replica_state
 
     from provisa.api.demo_replicas import landed_here
 
-    declared = len(template_seed(rt.org_id).tables)
+    declared = len(replicated_tables(template_seed(rt.org_id)))
     async with rt.tenant_db.acquire() as conn:
         _recorded, failed = await replica_state.progress(conn)
     # Landed: recorded as built for this store AND held by it, rows and all.

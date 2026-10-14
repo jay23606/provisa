@@ -94,3 +94,25 @@ def test_with_no_sandbox_tier_everything_reaches_the_deployments_api(monkeypatch
         ui_server.api_base_for("data/sql", {"host": "sbx0123456789ab.provisa.dev"})
         == ui_server.API_BASE_URL
     )
+
+
+def test_a_demo_template_waits_for_its_source_tables_and_not_its_views(monkeypatch, tmp_path):
+    """REQ-2006/REQ-2049: a view has no replica, so counting the weblogs demo's six views among
+    what must land kept its template waiting forever (demo-bundles run 38588163850)."""
+    from pathlib import Path
+
+    from provisa.api.demo_templates import replicated_tables
+    from provisa.core.config_loader import parse_config_dict, read_config_with_includes
+
+    monkeypatch.setenv("PROVISA_NAMED_DEMO_DIR", str(tmp_path))
+    weblogs = Path(__file__).resolve().parents[2] / "demo" / "named" / "weblogs" / "config.yaml"
+    config = parse_config_dict(read_config_with_includes(weblogs))
+    assert len(config.tables) == 12
+    assert sorted(t.table_name for t in replicated_tables(config)) == [
+        "customers",
+        "order_items",
+        "orders",
+        "products",
+        "shop_access",
+        "shop_db_log",
+    ]
