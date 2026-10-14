@@ -1089,11 +1089,13 @@ _ANSWER = "Here are the registered data sources."
 
 
 @pytest.mark.asyncio
-class TestNarrationKeptApartFromTheAnswer:
-    """ "...to find the registered sources.Here are the registered data sources": the text before
-    a tool call and the answer after it streamed into one message with nothing between them."""
+class TestTextBesideAToolCallIsNotShown:
+    """ "Let me look at the catalog's metadata to find the registered sources.Here are...", and
+    "Done -- the Graph page is now running this" written with the navigate that had not run yet:
+    text the model writes beside a tool call is written before the call's result exists. It is
+    never shown; it stays in the history the model is sent back."""
 
-    async def test_anthropic_rounds_are_separate_paragraphs(self, monkeypatch):
+    async def test_anthropic(self, monkeypatch):
         resp1 = SimpleNamespace(
             content=[
                 _block(type="text", text=_NARRATION),
@@ -1102,14 +1104,30 @@ class TestNarrationKeptApartFromTheAnswer:
             stop_reason="tool_use",
         )
         resp2 = SimpleNamespace(content=[_block(type="text", text=_ANSWER)], stop_reason="end_turn")
-        _install_fake_anthropic(monkeypatch, [resp1, resp2])
+        holder = _install_fake_anthropic(monkeypatch, [resp1, resp2])
         monkeypatch.setattr(mcp_tools, "list_schemas", lambda *_a, **_k: _async_result([]))
         convo = [{"role": "user", "content": "What data sources are registered?"}]
         events = [ev async for ev in chat_mod.run_chat(_state(), "analyst", convo)]
-        text = "".join(e["text"] for e in events if e["type"] == "text")
-        assert text == f"{_NARRATION}\n\n{_ANSWER}"
+        assert [e["text"] for e in events if e["type"] == "text"] == [_ANSWER]
+        resent = holder["client"].messages.calls[1]["messages"][-2]["content"]
+        assert resent[0].text == _NARRATION
 
-    async def test_aisuite_rounds_are_separate_paragraphs(self, monkeypatch, tmp_path):
+    async def test_anthropic_beside_a_client_tool(self, monkeypatch):
+        resp = SimpleNamespace(
+            content=[
+                _block(type="text", text="Done -- the Graph page is now running this."),
+                _block(type="tool_use", name="navigate", input={"route": "/sql"}, id="tu1"),
+            ],
+            stop_reason="tool_use",
+        )
+        _install_fake_anthropic(monkeypatch, [resp])
+        convo = [{"role": "user", "content": "open the SQL page"}]
+        events = [ev async for ev in chat_mod.run_chat(_state(), "analyst", convo)]
+        assert not [e for e in events if e["type"] == "text"]
+        paused = next(e for e in events if e["type"] == "awaiting_client_tools")
+        assert paused["assistant_content"][0]["text"].startswith("Done --")
+
+    async def test_aisuite(self, monkeypatch, tmp_path):
         import os
 
         cfg = tmp_path / "provisa.yaml"
@@ -1119,7 +1137,7 @@ class TestNarrationKeptApartFromTheAnswer:
         call = SimpleNamespace(
             id="c1", function=SimpleNamespace(name="list_schemas", arguments="{}")
         )
-        _install_fake_aisuite(
+        holder = _install_fake_aisuite(
             monkeypatch,
             [
                 SimpleNamespace(
@@ -1143,8 +1161,9 @@ class TestNarrationKeptApartFromTheAnswer:
         monkeypatch.setattr(mcp_tools, "list_schemas", lambda *_a, **_k: _async_result([]))
         convo = [{"role": "user", "content": "What data sources are registered?"}]
         events = [ev async for ev in chat_mod.run_chat(_state(), "analyst", convo)]
-        text = "".join(e["text"] for e in events if e["type"] == "text")
-        assert text == f"{_NARRATION}\n\n{_ANSWER}"
+        assert [e["text"] for e in events if e["type"] == "text"] == [_ANSWER]
+        resent = holder["provider"].calls[1]["messages"]
+        assert any(m["role"] == "assistant" and m["content"] == _NARRATION for m in resent)
 
 
 class TestResponseGuidance:
