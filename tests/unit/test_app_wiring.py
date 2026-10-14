@@ -15,6 +15,7 @@ import pytest
 
 from provisa.events.app_wiring import wire_event_loop
 from provisa.federation.engine import build_duckdb_engine
+from tests.helpers import build_through_a_stand_in_pipeline
 from tests.role_state import RoleState
 
 _LOG = logging.getLogger("test")
@@ -225,11 +226,14 @@ async def test_registers_source_node_and_runtime_jobs():
     assert "events:tick:org_default" in sched.jobs and "events:reaper:org_default" in sched.jobs
 
 
-def _state_with_mv(*, column_types):
-    """State with one enabled MV; its engine probe returns typed output columns."""
+def _state_with_mv(*, column_types, probed: list | None = None):
+    """State with one enabled MV; its engine probe returns typed output columns. ``probed`` gets
+    each statement the engine is asked."""
     from provisa.executor.result import QueryResult
 
     async def _execute_engine(sql, *a, **k):
+        if probed is not None:
+            probed.append(sql)
         return QueryResult(rows=[], column_names=["d", "n"], column_types=column_types)
 
     engine = SimpleNamespace(
@@ -277,16 +281,21 @@ def _state_with_mv(*, column_types):
 
 
 @pytest.mark.asyncio
-async def test_mv_columns_introspected_and_node_registered():
-    # LIMIT-0 probe yields typed columns → translated native→IR → the MV node registers.
+async def test_mv_columns_introspected_and_node_registered(monkeypatch):
+    # LIMIT-0 probe yields typed columns → translated native→IR → the MV node registers. The
+    # probe reads the statement the view's governed build reads (REQ-1922, #257).
+    build_through_a_stand_in_pipeline(monkeypatch, lambda _mv: "SELECT d, n FROM governed")
+    probed: list[str] = []
     n = await wire_event_loop(
-        _Sched(), state=_state_with_mv(column_types=["date", "bigint"]), log=_LOG
+        _Sched(), state=_state_with_mv(column_types=["date", "bigint"], probed=probed), log=_LOG
     )
     assert n == 1  # the one MV node
+    assert "SELECT * FROM (SELECT d, n FROM governed) AS _mv_probe LIMIT 0" in probed
 
 
 @pytest.mark.asyncio
-async def test_mv_with_unmapped_output_type_skipped():
+async def test_mv_with_unmapped_output_type_skipped(monkeypatch):
+    build_through_a_stand_in_pipeline(monkeypatch)
     # an unmapped output type is an IR vocabulary gap → the MV is skipped (not silently defaulted).
     n = await wire_event_loop(
         _Sched(), state=_state_with_mv(column_types=["date", "geometry"]), log=_LOG
