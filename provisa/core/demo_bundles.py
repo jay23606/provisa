@@ -532,7 +532,7 @@ def _main(argv: list[str] | None = None) -> int:
     import os
     import sys
 
-    parser = argparse.ArgumentParser(description="Pull a named demo's bundle (REQ-2049).")
+    parser = argparse.ArgumentParser(description="Pull a named demo's bundle.")
     sub = parser.add_subparsers(dest="command", required=True)
     q = sub.add_parser("pull", help="pull a demo's bundle and print its directory")
     q.add_argument("spec", help="<name> or <name>@<version>")
