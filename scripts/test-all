@@ -85,7 +85,7 @@ rc=0
 # requires_warehouse: cloud-DW e2es needing external SaaS creds run ONLY in the warehouse lane
 # (by path, with .env creds loaded). Excluding them from every default lane means they are never
 # collected credential-less and so never surface as phantom skips in core.
-_BASE="not packaging and not cluster and not isolated and not requires_warehouse"
+_BASE="not packaging and not cluster and not isolated and not requires_warehouse and not requires_vector"
 # On a macOS host the RLIMIT_AS cap tests (linux_mem) cannot discriminate — Darwin ignores the cap —
 # so they @skipif on macOS and would surface as phantom skips in the default lanes. The linux-mem
 # container lane below runs them for real instead, so DESELECT them from every default lane on macOS.
@@ -148,6 +148,13 @@ echo "== lane: e2e (isolated stack) =="
 # Subshell so the .env LLM keys (for the non-deterministic LLM-eval tests) stay scoped to this lane.
 ( _load_llm_creds
   COVERAGE_FILE=.coverage.e2e pytest tests/e2e -o addopts="" -m "e2e and not cluster" "${COV_ARGS[@]}" "$@" ) || rc=1
+
+echo "== lane: vector (a local sentence-transformers model: the vector extra) =="
+# REQ-2016: its tests embed with the vector extra, which CI installs in this lane alone with CPU-only
+# torch (scripts/ci/lanes/suite-prepare.sh vector); locally the venv must hold it (pip install -e .[vector]).
+COVERAGE_FILE=.coverage.vector pytest tests tests/steps \
+  -m "requires_vector and not packaging and not cluster and not isolated and not requires_warehouse" \
+  "${COV_ARGS[@]}" "$@" || rc=1
 
 echo "== lane: isolated (own process — shared-state / JVM tests) =="
 # These modules share the app's module-singleton state or a non-restartable JVM,

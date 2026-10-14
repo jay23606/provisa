@@ -319,6 +319,46 @@
       "weblogsDone": {
         "title": "Was Sie gerade gesehen haben",
         "description": "Drei Quellen wurden zu Tabellen, eine Beziehung verband die beiden Logs über eine Anfrage-ID, und die Frage des Shops wurde daraus über REST und von Polly beantwortet. „Fertig“ öffnet das Menü der weiteren Touren."
+      },
+      "sonnetsIntro": {
+        "title": "Shakespeares Sonette, nach Bedeutung",
+        "description": "Shakespeares 154 Sonette in Postgres, in Qdrant eingebettet, nach Bedeutung durchsucht, zu einem Graphen ausgebaut. Die Frage: Welche Themen ziehen sich durch die Sonette, und wo wiederholt sich Shakespeare selbst? <strong>sonnets</strong> ist die Postgres-Quelle, eine Zeile für jedes Sonett und für jeden seiner 2.155 Verse."
+      },
+      "sonnetsVectors": {
+        "title": "Der Vektorspeicher",
+        "description": "<strong>vectors</strong> ist Qdrant. Es hält einen Punkt für jeden Vers, dessen Vektor die Einbettung der Worte des Verses ist, und Provisa liest und schreibt es wie jede andere Quelle."
+      },
+      "sonnetsLines": {
+        "title": "Jeder Vers, eingebettet",
+        "description": "Die Tabelle line hält eine Zeile für jeden der 2.155 Verse. Der Befehl <strong>embed_lines</strong> ist eine einzige gesteuerte SQL-Anweisung: Ihr embed() macht aus den Worten jedes Verses einen Vektor, und die Zeilen werden über den Schreibweg der Sammlung in Qdrant geschrieben."
+      },
+      "sonnetsSearch": {
+        "title": "Eine Suche nach Bedeutung",
+        "description": "<strong>lines_like</strong> ist eine Suchtabelle: Provisa liest sie live in Qdrant mit den Argumenten, die die Anweisung ihr gibt, hier ein Satz und wie viele Verse zu finden sind. Achten Sie auf die Punktzahl jedes Verses: wie nah er dem Satz ist."
+      },
+      "sonnetsThemeView": {
+        "title": "Ein Thema, gespeichert",
+        "description": "Jede Themensicht speichert eine feste Suche, zurückverbunden mit den gefundenen Versen, mit der Punktzahl jedes Verses. Diese hält die zwanzig Verse, die \"the ravages of time\" am nächsten sind; vier weitere halten Schönheit, Sterblichkeit, Eifersucht und den Vers, der den Tod überdauert."
+      },
+      "sonnetsEchoes": {
+        "title": "Verse, die einander widerhallen",
+        "description": "Die Tabelle echo. Der Befehl <strong>link_echoes</strong> fragt den Vektorspeicher nach den drei nächsten Versen jedes Verses in anderen Sonetten und schreibt sie hierher, jeden mit seiner Ähnlichkeit."
+      },
+      "sonnetsGraph": {
+        "title": "Ein Graph der Sonette",
+        "description": "Drei Beziehungen machen die Tabellen zu einem Graphen: Ein Vers ist IN seinem Sonett, EVOKES ein Thema und ECHOES einen Vers eines anderen Sonetts, mit seiner Punktzahl. Cypher durchläuft sie wie jeden Graphen."
+      },
+      "sonnetsEchoNetwork": {
+        "title": "Das Netz der Widerhalle",
+        "description": "Das Netz der Widerhalle, von Cypher gezeichnet: die Verse, die einen Vers eines anderen Sonetts eng widerhallen, und die Sonette, in denen sie stehen. Achten Sie auf Sonette, die durch mehr als einen Widerhall verbunden sind."
+      },
+      "sonnetsThemesBySequence": {
+        "title": "Themen in den zwei Folgen",
+        "description": "Für jedes Thema, wie viele der gefundenen Verse in den Fair-Youth-Sonetten stehen und wie viele in den Dark-Lady-Sonetten. Achten Sie auf ein Thema, das zu einer Folge gehört."
+      },
+      "sonnetsDone": {
+        "title": "Von Zeilen zu einem Graphen",
+        "description": "Ein Modell brachte Shakespeares Verse von Postgres-Zeilen zu Vektoren in Qdrant, zu als Sichten gespeicherten Suchen, zu einem Graphen, in dem ein Vers andere Verse ECHOES und seine Themen EVOKES. Jeder Schritt war eine Anweisung oder ein Befehl, den Provisa steuert."
       }
     },
     "status": {
@@ -335,6 +375,10 @@
       "weblogs": {
         "title": "Die Logs des Webshops",
         "summary": "Die Frage eines Webshops, welche Seiten langsam sind und welches SQL sie langsam macht: seine Quellen, die Tabellen daraus, die Verbindung seiner zwei Logs und Pollys Antwort."
+      },
+      "sonnets": {
+        "title": "Shakespeares Sonette",
+        "summary": "Die 154 Sonette eingebettet, nach Bedeutung durchsucht und zu einem Graphen ausgebaut: die Themen, die sie teilen, und die Verse, in denen Shakespeare sich selbst wiederholt."
       }
     }
   }

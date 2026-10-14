@@ -319,6 +319,46 @@
       "weblogsDone": {
         "title": "Ce que vous venez de voir",
         "description": "Trois sources sont devenues des tables, une relation a joint les deux journaux sur un identifiant de requête, et la question de la boutique a reçu sa réponse à partir d'elles, en REST et par Polly. Terminé ouvre le menu des autres visites."
+      },
+      "sonnetsIntro": {
+        "title": "Les sonnets de Shakespeare, par le sens",
+        "description": "Les 154 sonnets de Shakespeare dans Postgres, plongés dans Qdrant, cherchés par le sens, devenus un graphe. La question : quels thèmes traversent les sonnets, et où Shakespeare se fait-il écho à lui-même ? <strong>sonnets</strong> est la source Postgres, une ligne pour chaque sonnet et pour chacun de ses 2 155 vers."
+      },
+      "sonnetsVectors": {
+        "title": "Le magasin de vecteurs",
+        "description": "<strong>vectors</strong> est Qdrant. Il garde un point pour chaque vers, dont le vecteur est le plongement des mots du vers, et Provisa le lit et l'écrit comme toute autre source."
+      },
+      "sonnetsLines": {
+        "title": "Chaque vers, plongé",
+        "description": "La table line tient une ligne pour chacun des 2 155 vers. La commande <strong>embed_lines</strong> est une seule instruction SQL gouvernée : son embed() fait des mots de chaque vers un vecteur, et les lignes sont écrites dans Qdrant par la voie d'écriture de la collection."
+      },
+      "sonnetsSearch": {
+        "title": "Une recherche par le sens",
+        "description": "<strong>lines_like</strong> est une table de recherche : Provisa la lit en direct dans Qdrant avec les arguments que lui donne l'instruction, ici une phrase et le nombre de vers à trouver. Regardez le score de chaque vers : sa proximité avec la phrase."
+      },
+      "sonnetsThemeView": {
+        "title": "Un thème, conservé",
+        "description": "Chaque vue de thème conserve une recherche fixe, rejointe aux vers qu'elle a trouvés, avec le score de chaque vers. Celle-ci tient les vingt vers les plus proches de \"the ravages of time\" ; quatre autres tiennent la beauté, la mort, la jalousie et le vers qui survit à la mort."
+      },
+      "sonnetsEchoes": {
+        "title": "Des vers qui se font écho",
+        "description": "La table echo. La commande <strong>link_echoes</strong> demande au magasin de vecteurs les trois vers les plus proches de chaque vers dans d'autres sonnets et les écrit ici, chacun avec sa similarité."
+      },
+      "sonnetsGraph": {
+        "title": "Un graphe des sonnets",
+        "description": "Trois relations font des tables un graphe : un vers est IN son sonnet, EVOKES un thème et ECHOES un vers d'un autre sonnet, avec son score. Cypher les parcourt comme tout graphe."
+      },
+      "sonnetsEchoNetwork": {
+        "title": "Le réseau des échos",
+        "description": "Le réseau des échos, dessiné par Cypher : les vers qui font écho de près à un vers d'un autre sonnet, et les sonnets où ils se trouvent. Cherchez les sonnets reliés par plus d'un écho."
+      },
+      "sonnetsThemesBySequence": {
+        "title": "Les thèmes dans les deux séquences",
+        "description": "Pour chaque thème, combien des vers trouvés sont dans les sonnets du Fair Youth et combien dans ceux de la Dark Lady. Cherchez un thème qui appartient à une seule séquence."
+      },
+      "sonnetsDone": {
+        "title": "Des lignes à un graphe",
+        "description": "Un seul modèle a mené les vers de Shakespeare des lignes de Postgres aux vecteurs de Qdrant, à des recherches conservées en vues, à un graphe où un vers ECHOES d'autres vers et EVOKES ses thèmes. Chaque étape était une instruction ou une commande que Provisa gouverne."
       }
     },
     "status": {
@@ -335,6 +375,10 @@
       "weblogs": {
         "title": "Les journaux de la boutique en ligne",
         "summary": "La question d'une boutique en ligne, quelles pages sont lentes et quel SQL les rend lentes : ses sources, les tables qu'elles deviennent, la jointure de ses deux journaux et la réponse de Polly."
+      },
+      "sonnets": {
+        "title": "Les sonnets de Shakespeare",
+        "summary": "Les 154 sonnets plongés dans des vecteurs, cherchés par le sens et devenus un graphe : les thèmes qu'ils partagent et les vers où Shakespeare se fait écho à lui-même."
       }
     }
   }

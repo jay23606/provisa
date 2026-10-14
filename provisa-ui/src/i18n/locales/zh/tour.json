@@ -319,6 +319,46 @@
       "weblogsDone": {
         "title": "您刚才看到的",
         "description": "三个数据源变成了表，一个关系按请求 id 关联了两份日志，网店的问题据此由 REST 和 Polly 作答。“完成”会打开其他导览的菜单。"
+      },
+      "sonnetsIntro": {
+        "title": "按意义读莎士比亚十四行诗",
+        "description": "莎士比亚的154首十四行诗存于 Postgres，在 Qdrant 中转成向量，按意义搜索，长成一张图。问题是：哪些主题贯穿这些十四行诗，莎士比亚又在哪里呼应自己？<strong>sonnets</strong> 是 Postgres 源，每首诗一行，2,155 个诗行各一行。"
+      },
+      "sonnetsVectors": {
+        "title": "向量存储",
+        "description": "<strong>vectors</strong> 是 Qdrant。它为每个诗行保存一个点，其向量是该行文字的嵌入；Provisa 像读写其他源一样读写它。"
+      },
+      "sonnetsLines": {
+        "title": "每一行，都成向量",
+        "description": "line 表为 2,155 个诗行各保存一条记录。命令 <strong>embed_lines</strong> 是一条受治理的 SQL 语句：它的 embed() 把每行文字变成向量，记录经由集合的写入路径写入 Qdrant。"
+      },
+      "sonnetsSearch": {
+        "title": "按意义搜索",
+        "description": "<strong>lines_like</strong> 是一张搜索表：Provisa 按语句给出的参数在 Qdrant 中实时读取它，这里是一个短语和要找的行数。请看每行的得分：它与短语有多接近。"
+      },
+      "sonnetsThemeView": {
+        "title": "保存下来的主题",
+        "description": "每个主题视图保存一次固定的搜索，并连回它找到的诗行，附上每行的得分。这个视图保存最接近 \"the ravages of time\" 的二十行；另外四个保存美、死亡、嫉妒和超越死亡的诗。"
+      },
+      "sonnetsEchoes": {
+        "title": "彼此呼应的诗行",
+        "description": "echo 表。命令 <strong>link_echoes</strong> 向向量存储询问每行在其他诗中最接近的三行，并把它们连同相似度写在这里。"
+      },
+      "sonnetsGraph": {
+        "title": "十四行诗的图",
+        "description": "三个关系把这些表变成一张图：诗行 IN 它的诗，EVOKES 一个主题，并 ECHOES 另一首诗的诗行（带得分）。Cypher 像遍历任何图一样遍历它们。"
+      },
+      "sonnetsEchoNetwork": {
+        "title": "呼应网络",
+        "description": "由 Cypher 画出的呼应网络：紧密呼应另一首诗中某一行的诗行，以及它们所在的诗。请找出由不止一处呼应连在一起的诗。"
+      },
+      "sonnetsThemesBySequence": {
+        "title": "两个组诗中的主题",
+        "description": "对每个主题，它找到的诗行有多少在 Fair Youth 组诗中、多少在 Dark Lady 组诗中。请找出只属于一个组诗的主题。"
+      },
+      "sonnetsDone": {
+        "title": "从记录到图",
+        "description": "一个模型把莎士比亚的诗行从 Postgres 记录带到 Qdrant 中的向量，再到保存为视图的搜索，最后到一张图：诗行 ECHOES 其他诗行，并 EVOKES 它的主题。每一步都是 Provisa 治理的语句或命令。"
       }
     },
     "status": {
@@ -335,6 +375,10 @@
       "weblogs": {
         "title": "网店的日志",
         "summary": "一家网店的问题：哪些页面慢，是哪些 SQL 让它们变慢。它的数据源、由此而来的表、两份日志的关联，以及 Polly 的回答。"
+      },
+      "sonnets": {
+        "title": "莎士比亚十四行诗",
+        "summary": "154首十四行诗被转成向量、按意义搜索并长成一张图：它们共有的主题，以及莎士比亚自我呼应的诗行。"
       }
     }
   }

@@ -19,11 +19,9 @@ steps:
 - key: sonnetsVectors
   source: vectors
 - key: sonnetsLines
-  route: /sql
-  capability: query_development
-  sql: >-
-    SELECT id, sonnet_number, line_no, text FROM "sonnets"."line"
-    WHERE sonnet_number = 18 ORDER BY line_no
+  route: /tables
+  capability: table_registration
+  table: sonnets.line
 - key: sonnetsSearch
   route: /sql
   capability: query_development
@@ -39,24 +37,24 @@ steps:
     SELECT sonnet_number, line_no, text, score FROM "sonnets"."view_theme_time"
     ORDER BY score DESC LIMIT 10
 - key: sonnetsEchoes
-  route: /sql
-  capability: query_development
-  sql: >-
-    SELECT score, sonnet, line_no, text, echo_sonnet, echo_line_no, echo_text
-    FROM "sonnets"."view_echo_lines" ORDER BY score DESC LIMIT 10
+  route: /tables
+  capability: table_registration
+  table: sonnets.echo
 - key: sonnetsGraph
   route: /relationships
   capability: create_relationship
   relationship: ECHOES
 - key: sonnetsEchoNetwork
-  route: /query
+  route: /graph
   capability: query_development
-  example: 1-strongest-echoes
+  cypher: >-
+    MATCH (s:S__Sonnet)<-[:IN]-(a:S__Line)-[e:ECHOES]->(b:S__Line)-[:IN]->(t:S__Sonnet)
+    WHERE e.score > 0.75 RETURN s, a, e, b, t
 - key: sonnetsThemesBySequence
   route: /query
   capability: query_development
   example: 4-themes-by-sequence
 - key: sonnetsDone
-  route: /sources
-  capability: source_registration
-  source: sonnets
+  route: /relationships
+  capability: create_relationship
+  relationship: EVOKES

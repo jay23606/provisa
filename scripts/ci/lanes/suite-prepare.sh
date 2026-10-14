@@ -8,7 +8,8 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 #
-# A container-suite lane, before it runs (lane.yml `prepare`): how many stacks this runner holds.
+# A container-suite lane, before it runs (lane.yml `prepare`, given the lane's name): how many
+# stacks this runner holds.
 set -euo pipefail
 
 uv run python -c "from tests.itest_stack import concurrent_session_limit as n; \
@@ -18,3 +19,14 @@ uv run python -c "from tests.itest_stack import concurrent_session_limit as n; \
 # gocryptfs over FUSE, as a node does.
 sudo apt-get update -qq
 sudo apt-get install -y -qq gocryptfs fuse3
+
+# REQ-2016: the vector lane's tests embed with a local sentence-transformers model, the vector
+# extra. It is installed in that lane alone, torch from PyTorch's CPU-only wheel index first so the
+# extra pulls no GPU build: no other lane pays for torch.
+if [ "${1:-}" = "vector" ]; then
+  uv pip install --index-url https://download.pytorch.org/whl/cpu torch
+  # The extra's own requirements, as the sonnets demo's demo.yaml names it.
+  # shellcheck disable=SC2046
+  uv pip install $(uv run python scripts/demo_extras.py demo/named/sonnets)
+  uv run python -c "import sentence_transformers, torch; print('vector extra, torch', torch.__version__)"
+fi

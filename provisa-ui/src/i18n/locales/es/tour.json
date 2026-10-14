@@ -319,6 +319,46 @@
       "weblogsDone": {
         "title": "Lo que acaba de ver",
         "description": "Tres fuentes se convirtieron en tablas, una relación unió los dos registros por un id de solicitud, y la pregunta de la tienda se respondió con ellas por REST y por Polly. Listo abre el menú de los demás recorridos."
+      },
+      "sonnetsIntro": {
+        "title": "Los sonetos de Shakespeare, por significado",
+        "description": "Los 154 sonetos de Shakespeare en Postgres, incrustados en Qdrant, buscados por significado, convertidos en un grafo. La pregunta: ¿qué temas recorren los sonetos y dónde se hace eco Shakespeare de sí mismo? <strong>sonnets</strong> es la fuente Postgres, una fila por cada soneto y por cada uno de sus 2.155 versos."
+      },
+      "sonnetsVectors": {
+        "title": "El almacén de vectores",
+        "description": "<strong>vectors</strong> es Qdrant. Guarda un punto por cada verso, cuyo vector es la incrustación de las palabras del verso, y Provisa lo lee y lo escribe como cualquier otra fuente."
+      },
+      "sonnetsLines": {
+        "title": "Cada verso, incrustado",
+        "description": "La tabla line tiene una fila por cada uno de los 2.155 versos. El comando <strong>embed_lines</strong> es una sola sentencia SQL gobernada: su embed() convierte las palabras de cada verso en un vector, y las filas se escriben en Qdrant por la ruta de escritura de la colección."
+      },
+      "sonnetsSearch": {
+        "title": "Una búsqueda por significado",
+        "description": "<strong>lines_like</strong> es una tabla de búsqueda: Provisa la lee en vivo en Qdrant con los argumentos que le da la sentencia, aquí una frase y cuántos versos encontrar. Fíjese en la puntuación de cada verso: lo cerca que está de la frase."
+      },
+      "sonnetsThemeView": {
+        "title": "Un tema, guardado",
+        "description": "Cada vista de tema guarda una búsqueda fija, unida de nuevo a los versos que encontró, con la puntuación de cada verso. Esta guarda los veinte versos más cercanos a \"the ravages of time\"; otras cuatro guardan la belleza, la mortalidad, los celos y el verso que sobrevive a la muerte."
+      },
+      "sonnetsEchoes": {
+        "title": "Versos que se hacen eco",
+        "description": "La tabla echo. El comando <strong>link_echoes</strong> pide al almacén de vectores los tres versos más cercanos de cada verso en otros sonetos y los escribe aquí, cada uno con su similitud."
+      },
+      "sonnetsGraph": {
+        "title": "Un grafo de los sonetos",
+        "description": "Tres relaciones convierten las tablas en un grafo: un verso está IN su soneto, EVOKES un tema y ECHOES un verso de otro soneto, con su puntuación. Cypher las recorre como cualquier grafo."
+      },
+      "sonnetsEchoNetwork": {
+        "title": "La red de ecos",
+        "description": "La red de ecos, dibujada por Cypher: los versos que se hacen eco de cerca de un verso de otro soneto, y los sonetos en los que están. Busque los sonetos unidos por más de un eco."
+      },
+      "sonnetsThemesBySequence": {
+        "title": "Los temas en las dos secuencias",
+        "description": "Para cada tema, cuántos de los versos que encontró están en los sonetos del Fair Youth y cuántos en los de la Dark Lady. Busque un tema que pertenezca a una sola secuencia."
+      },
+      "sonnetsDone": {
+        "title": "De filas a un grafo",
+        "description": "Un solo modelo llevó los versos de Shakespeare de filas de Postgres a vectores en Qdrant, a búsquedas guardadas como vistas, a un grafo en el que un verso ECHOES otros versos y EVOKES sus temas. Cada paso fue una sentencia o un comando que Provisa gobierna."
       }
     },
     "status": {
@@ -335,6 +375,10 @@
       "weblogs": {
         "title": "Los registros de la tienda web",
         "summary": "La pregunta de una tienda web, qué páginas son lentas y qué SQL las hace lentas: sus fuentes, las tablas que forman, la unión de sus dos registros y la respuesta de Polly."
+      },
+      "sonnets": {
+        "title": "Los sonetos de Shakespeare",
+        "summary": "Los 154 sonetos incrustados, buscados por significado y convertidos en un grafo: los temas que comparten y los versos en los que Shakespeare se hace eco de sí mismo."
       }
     }
   }

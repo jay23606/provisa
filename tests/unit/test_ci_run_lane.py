@@ -48,7 +48,9 @@ def test_an_out_of_range_shard_is_refused():
         _runner().shard(["a"], 7, 6)
 
 
-@pytest.mark.parametrize("lane", ["core", "app", "hive_s3", "kafka", "neo4j", "datastores"])
+@pytest.mark.parametrize(
+    "lane", ["core", "app", "hive_s3", "kafka", "neo4j", "datastores", "vector"]
+)
 def test_the_lane_selectors_are_test_alls(lane):
     """scripts/test-all is the local definition of these lanes; CI must select the same tests."""
     test_all = (REPO / "scripts" / "test-all").read_text()

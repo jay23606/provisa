@@ -319,6 +319,46 @@
       "weblogsDone": {
         "title": "ここまでの内容",
         "description": "3 つのソースがテーブルになり、リレーションシップが 2 つのログをリクエスト ID で結合し、ショップの問いにそこから REST と Polly が答えました。「完了」でほかのツアーのメニューが開きます。"
+      },
+      "sonnetsIntro": {
+        "title": "意味で読むシェイクスピアのソネット",
+        "description": "シェイクスピアの154篇のソネットを Postgres に置き、Qdrant でベクトルにし、意味で検索し、グラフに育てます。問い：どのテーマがソネットを貫き、シェイクスピアはどこで自らを繰り返すのか。<strong>sonnets</strong> は Postgres のソースで、ソネットごとに1行、その2,155行のそれぞれに1行あります。"
+      },
+      "sonnetsVectors": {
+        "title": "ベクトルストア",
+        "description": "<strong>vectors</strong> は Qdrant です。各行に1つの点を持ち、そのベクトルは行の言葉の埋め込みです。Provisa はほかのソースと同じように読み書きします。"
+      },
+      "sonnetsLines": {
+        "title": "すべての行をベクトルに",
+        "description": "line テーブルには2,155行それぞれに1レコードがあります。コマンド <strong>embed_lines</strong> は統制された1つの SQL 文です。その embed() が各行の言葉をベクトルにし、レコードはコレクションの書き込み経路を通じて Qdrant に書かれます。"
+      },
+      "sonnetsSearch": {
+        "title": "意味による検索",
+        "description": "<strong>lines_like</strong> は検索テーブルです。Provisa は文が与える引数（ここではフレーズと見つける行数）で Qdrant をその場で読みます。各行のスコア、つまりフレーズへの近さを見てください。"
+      },
+      "sonnetsThemeView": {
+        "title": "保存されたテーマ",
+        "description": "テーマビューはそれぞれ1つの固定した検索を保存し、見つけた行に結び直し、各行のスコアを添えます。このビューは \"the ravages of time\" に最も近い20行を持ち、ほかの4つは美、死すべき運命、嫉妬、死を超えて生きる詩を持ちます。"
+      },
+      "sonnetsEchoes": {
+        "title": "互いにこだまする行",
+        "description": "echo テーブルです。コマンド <strong>link_echoes</strong> は、各行について他のソネットで最も近い3行をベクトルストアに問い、類似度とともにここへ書きます。"
+      },
+      "sonnetsGraph": {
+        "title": "ソネットのグラフ",
+        "description": "3つのリレーションシップがテーブルをグラフにします。行はそのソネットに IN し、テーマを EVOKES し、他のソネットの行を ECHOES します（スコア付き）。Cypher はどのグラフとも同じようにたどります。"
+      },
+      "sonnetsEchoNetwork": {
+        "title": "こだまのネットワーク",
+        "description": "Cypher が描くこだまのネットワーク：他のソネットの行に強くこだまする行と、それらが属するソネット。複数のこだまで結ばれたソネットを探してください。"
+      },
+      "sonnetsThemesBySequence": {
+        "title": "2つの連作のテーマ",
+        "description": "各テーマについて、見つけた行のうち Fair Youth のソネットにあるものと Dark Lady のソネットにあるものの数。一方の連作に属するテーマを探してください。"
+      },
+      "sonnetsDone": {
+        "title": "行からグラフへ",
+        "description": "1つのモデルが、シェイクスピアの行を Postgres のレコードから Qdrant のベクトルへ、ビューとして保存された検索へ、そして行がほかの行を ECHOES しテーマを EVOKES するグラフへと運びました。どの手順も Provisa が統制する文かコマンドでした。"
       }
     },
     "status": {
@@ -335,6 +375,10 @@
       "weblogs": {
         "title": "Webショップのログ",
         "summary": "ウェブショップの問い、どのページが遅く、どの SQL が遅くしているのか:そのソース、ソースから生まれるテーブル、2 つのログの結合、そして Polly の答え。"
+      },
+      "sonnets": {
+        "title": "シェイクスピアのソネット",
+        "summary": "154篇のソネットをベクトルにし、意味で検索し、グラフに育てます。ソネットが共有するテーマと、シェイクスピアが自らを繰り返す行。"
       }
     }
   }

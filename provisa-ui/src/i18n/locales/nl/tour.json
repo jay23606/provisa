@@ -319,6 +319,46 @@
       "weblogsDone": {
         "title": "Wat u net zag",
         "description": "Drie bronnen werden tabellen, een relatie koppelde de twee logs op een aanvraag-id, en de vraag van de winkel werd daarmee beantwoord via REST en door Polly. Klaar opent het menu met de andere rondleidingen."
+      },
+      "sonnetsIntro": {
+        "title": "De sonnetten van Shakespeare, op betekenis",
+        "description": "De 154 sonnetten van Shakespeare in Postgres, ingebed in Qdrant, op betekenis doorzocht, uitgegroeid tot een graaf. De vraag: welke thema's lopen door de sonnetten, en waar echoot Shakespeare zichzelf? <strong>sonnets</strong> is de Postgres-bron, een rij voor elk sonnet en voor elk van de 2.155 regels."
+      },
+      "sonnetsVectors": {
+        "title": "De vectoropslag",
+        "description": "<strong>vectors</strong> is Qdrant. Het houdt een punt voor elke regel, met als vector de inbedding van de woorden van de regel, en Provisa leest en schrijft het zoals elke andere bron."
+      },
+      "sonnetsLines": {
+        "title": "Elke regel, ingebed",
+        "description": "De tabel line heeft een rij voor elk van de 2.155 regels. Het commando <strong>embed_lines</strong> is één beheerde SQL-instructie: zijn embed() maakt van de woorden van elke regel een vector, en de rijen worden via de schrijfroute van de collectie naar Qdrant geschreven."
+      },
+      "sonnetsSearch": {
+        "title": "Zoeken op betekenis",
+        "description": "<strong>lines_like</strong> is een zoektabel: Provisa leest hem live in Qdrant met de argumenten die de instructie hem geeft, hier een zin en hoeveel regels te vinden. Let op de score van elke regel: hoe dicht hij bij de zin ligt."
+      },
+      "sonnetsThemeView": {
+        "title": "Een thema, bewaard",
+        "description": "Elke themaweergave bewaart één vaste zoekopdracht, teruggekoppeld aan de regels die ze vond, met de score van elke regel. Deze houdt de twintig regels die het dichtst bij \"the ravages of time\" liggen; vier andere houden schoonheid, sterfelijkheid, jaloezie en het vers dat de dood overleeft."
+      },
+      "sonnetsEchoes": {
+        "title": "Regels die elkaar echoën",
+        "description": "De tabel echo. Het commando <strong>link_echoes</strong> vraagt de vectoropslag naar de drie dichtstbijzijnde regels van elke regel in andere sonnetten en schrijft ze hier, elk met zijn gelijkenis."
+      },
+      "sonnetsGraph": {
+        "title": "Een graaf van de sonnetten",
+        "description": "Drie relaties maken van de tabellen een graaf: een regel is IN zijn sonnet, EVOKES een thema en ECHOES een regel van een ander sonnet, met zijn score. Cypher doorloopt ze als elke graaf."
+      },
+      "sonnetsEchoNetwork": {
+        "title": "Het netwerk van echo's",
+        "description": "Het netwerk van echo's, getekend door Cypher: de regels die een regel van een ander sonnet sterk echoën, en de sonnetten waarin ze staan. Zoek de sonnetten die door meer dan één echo verbonden zijn."
+      },
+      "sonnetsThemesBySequence": {
+        "title": "Thema's in de twee reeksen",
+        "description": "Voor elk thema: hoeveel van de gevonden regels in de Fair Youth-sonnetten staan en hoeveel in de Dark Lady-sonnetten. Zoek een thema dat bij één reeks hoort."
+      },
+      "sonnetsDone": {
+        "title": "Van rijen naar een graaf",
+        "description": "Eén model bracht Shakespeares regels van Postgres-rijen naar vectoren in Qdrant, naar zoekopdrachten bewaard als weergaven, naar een graaf waarin een regel andere regels ECHOES en zijn thema's EVOKES. Elke stap was een instructie of een commando dat Provisa beheert."
       }
     },
     "status": {
@@ -335,6 +375,10 @@
       "weblogs": {
         "title": "De logs van de webwinkel",
         "summary": "De vraag van een webwinkel, welke pagina's traag zijn en welke SQL ze traag maakt: zijn bronnen, de tabellen die ze worden, de koppeling van zijn twee logs en het antwoord van Polly."
+      },
+      "sonnets": {
+        "title": "De sonnetten van Shakespeare",
+        "summary": "De 154 sonnetten ingebed, op betekenis doorzocht en uitgegroeid tot een graaf: de thema's die ze delen en de regels waarin Shakespeare zichzelf echoot."
       }
     }
   }

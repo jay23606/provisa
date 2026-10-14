@@ -319,6 +319,46 @@
       "weblogsDone": {
         "title": "O que você acabou de ver",
         "description": "Três fontes viraram tabelas, um relacionamento juntou os dois logs por um id de requisição, e a pergunta da loja foi respondida a partir delas por REST e pela Polly. Concluído abre o menu dos outros tours."
+      },
+      "sonnetsIntro": {
+        "title": "Os sonetos de Shakespeare, pelo significado",
+        "description": "Os 154 sonetos de Shakespeare no Postgres, transformados em vetores no Qdrant, buscados pelo significado, transformados num grafo. A pergunta: que temas percorrem os sonetos, e onde Shakespeare ecoa a si mesmo? <strong>sonnets</strong> é a fonte Postgres, uma linha para cada soneto e para cada um dos seus 2.155 versos."
+      },
+      "sonnetsVectors": {
+        "title": "O armazém de vetores",
+        "description": "<strong>vectors</strong> é o Qdrant. Guarda um ponto para cada verso, cujo vetor é o embedding das palavras do verso, e o Provisa lê-o e escreve-o como qualquer outra fonte."
+      },
+      "sonnetsLines": {
+        "title": "Cada verso, em vetor",
+        "description": "A tabela line tem uma linha para cada um dos 2.155 versos. O comando <strong>embed_lines</strong> é uma única instrução SQL governada: o seu embed() transforma as palavras de cada verso num vetor, e as linhas são escritas no Qdrant pela rota de escrita da coleção."
+      },
+      "sonnetsSearch": {
+        "title": "Uma busca pelo significado",
+        "description": "<strong>lines_like</strong> é uma tabela de busca: o Provisa lê-a ao vivo no Qdrant com os argumentos que a instrução lhe dá, aqui uma frase e quantos versos encontrar. Repare na pontuação de cada verso: quão perto está da frase."
+      },
+      "sonnetsThemeView": {
+        "title": "Um tema, guardado",
+        "description": "Cada vista de tema guarda uma busca fixa, ligada de volta aos versos que encontrou, com a pontuação de cada verso. Esta guarda os vinte versos mais próximos de \"the ravages of time\"; outras quatro guardam a beleza, a mortalidade, o ciúme e o verso que sobrevive à morte."
+      },
+      "sonnetsEchoes": {
+        "title": "Versos que se ecoam",
+        "description": "A tabela echo. O comando <strong>link_echoes</strong> pede ao armazém de vetores os três versos mais próximos de cada verso noutros sonetos e escreve-os aqui, cada um com a sua semelhança."
+      },
+      "sonnetsGraph": {
+        "title": "Um grafo dos sonetos",
+        "description": "Três relações fazem das tabelas um grafo: um verso está IN o seu soneto, EVOKES um tema e ECHOES um verso de outro soneto, com a sua pontuação. O Cypher percorre-as como qualquer grafo."
+      },
+      "sonnetsEchoNetwork": {
+        "title": "A rede de ecos",
+        "description": "A rede de ecos, desenhada pelo Cypher: os versos que ecoam de perto um verso de outro soneto, e os sonetos em que estão. Procure os sonetos ligados por mais de um eco."
+      },
+      "sonnetsThemesBySequence": {
+        "title": "Os temas nas duas sequências",
+        "description": "Para cada tema, quantos dos versos que encontrou estão nos sonetos do Fair Youth e quantos nos da Dark Lady. Procure um tema que pertença a uma só sequência."
+      },
+      "sonnetsDone": {
+        "title": "De linhas a um grafo",
+        "description": "Um só modelo levou os versos de Shakespeare de linhas do Postgres a vetores no Qdrant, a buscas guardadas como vistas, a um grafo em que um verso ECHOES outros versos e EVOKES os seus temas. Cada passo foi uma instrução ou um comando que o Provisa governa."
       }
     },
     "status": {
@@ -335,6 +375,10 @@
       "weblogs": {
         "title": "Os logs da loja virtual",
         "summary": "A pergunta de uma loja online, quais páginas são lentas e qual SQL as torna lentas: suas fontes, as tabelas que elas viram, a junção dos seus dois logs e a resposta da Polly."
+      },
+      "sonnets": {
+        "title": "Os sonetos de Shakespeare",
+        "summary": "Os 154 sonetos transformados em vetores, buscados pelo significado e transformados num grafo: os temas que partilham e os versos em que Shakespeare ecoa a si mesmo."
       }
     }
   }

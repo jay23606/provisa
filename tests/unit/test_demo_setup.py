@@ -166,3 +166,46 @@ def test_the_launcher_installs_a_demo_s_extras_before_the_server_and_sets_it_up_
     healthy = _LAUNCHER.index('echo "Backend healthy (PID $BACKEND_PID)"')
     set_up = _LAUNCHER.index("scripts/run_demo_setup.py")
     assert install < started < healthy < set_up
+
+
+def test_link_echoes_asks_for_each_line_s_nearest_lines_in_other_sonnets():
+    from types import SimpleNamespace
+
+    from demo.named.sonnets import echoes
+
+    asked: list[dict] = []
+
+    class _Client:
+        def query_points(self, collection, **kw):
+            asked.append({"collection": collection, **kw})
+            line = kw["query"]
+            return SimpleNamespace(
+                points=[SimpleNamespace(id=line + 100 * n, score=1 - n / 10) for n in (1, 2, 3)]
+            )
+
+    conn = SimpleNamespace(client=_Client)
+    found = echoes._nearest(conn, [(3613, 36), (9613, 96)])
+    assert found[:3] == [(3613, 3713, 0.9), (3613, 3813, 0.8), (3613, 3913, 0.7)]
+    assert len(found) == 6
+    first = asked[0]
+    assert (first["collection"], first["query"], first["using"], first["limit"]) == (
+        "sonnet_lines",
+        3613,
+        "text",
+        3,
+    )
+    [kept_out] = first["query_filter"].must_not
+    assert (kept_out.key, kept_out.match.value) == ("sonnet_number", 36)
+
+
+def test_link_echoes_refuses_a_line_with_no_point():
+    from types import SimpleNamespace
+
+    from demo.named.sonnets import echoes
+
+    class _Client:
+        def query_points(self, _collection, **_kw):
+            return SimpleNamespace(points=[])
+
+    with pytest.raises(ValueError, match="line 101 has no point in sonnet_lines"):
+        echoes._nearest(SimpleNamespace(client=_Client), [(101, 1)])

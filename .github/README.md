@@ -54,7 +54,11 @@ Nowhere else.
 **Add a test lane.** Add the lane to `LANES` and `SUITE` in `scripts/ci/run_lane.py` (its paths,
 its marker, its shard count and bound). The suite's matrix is generated from that table, so the
 workflow does not change. For a lane outside the suite, add a job that `uses: ./.github/workflows/lane.yml`
-with a `name`, a `run` command, and a `prepare` script under `scripts/ci/lanes/`.
+with a `name`, a `run` command, and a `prepare` script under `scripts/ci/lanes/`. A suite lane
+whose tests need what no other lane installs (the `vector` lane: the vector extra, with CPU-only
+torch) installs it in `scripts/ci/lanes/suite-prepare.sh`, which is given the lane's name, so the
+other lanes do not pay for it; keep its marker out of the other lanes' (`_BASE`), and the same
+lane in `scripts/test-all`.
 
 **Add a setup step every lane needs.** Put it in the action that owns that kind of setup, or in
 a new action. Then give `lane.yml` an input for it. Do not add the commands to a workflow.
