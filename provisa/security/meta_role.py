@@ -121,11 +121,6 @@ def _rls(state: Any, members: list[dict], tables: list[dict]) -> Any:
         terms: list[str] = []
         lifted = False
         for m in members:
-            if m["id"] not in state.surfaces:
-                # A member with no data surface reads no table, so it adds no term and lifts no
-                # filter: a control-plane role (REQ-1327, the cross_org right) or a role that
-                # reaches no domain (app_loaders._drop_data_surface).
-                continue
             member = state.surfaces[m["id"]]  # one snapshot: context and filters of one build
             reads = any(tm.table_id == t["id"] for tm in member.context.tables.values())
             if not reads:
@@ -256,7 +251,9 @@ def rebuild_meta_roles(state: Any, role_ids: set[str]) -> None:
     in_use_since = time.monotonic() - longest_request_timeout()
     with _LOCK:
         for meta_id, member_ids in list(state.meta_roles.items()):
-            held = all(m in role_ids for m in member_ids)
+            # A member that no longer has a data surface is no member (ensure_meta_role): the
+            # meta-role goes, and a later use builds it from the roles that have one.
+            held = all(m in role_ids and m in state.surfaces for m in member_ids)
             if held and state.meta_resolved_at.get(meta_id, float("-inf")) >= in_use_since:
                 _build(state, meta_id, list(member_ids))
                 continue
