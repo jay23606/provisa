@@ -206,7 +206,7 @@ class SourceRowLoader:
         # A registered adapter loader always wins: it is the type's OWN row-fetch (openapi call,
         # connector pgwire replica SELECT, REQ-954), used in preference to the engine terminal even
         # for a type the engine could otherwise scan — the wiring registers one only when needed.
-        loader = self._adapter_loaders.get(stype)
+        loader = self._adapter_loaders.get(stype) or _floored_file_loader(source, stype)
         if loader is not None:
             return await loader(source, table)
         if stype in _ADAPTER_FETCH_ONLY:
@@ -226,6 +226,8 @@ class SourceRowLoader:
           that cursor.
         - A type with a registered adapter loader is read by it: through the adapter's own
           cursor or Arrow stream where its client has one, else whole, as a single document.
+        - A floored csv or parquet source, which no engine attaches, is read from its file
+          (:func:`_floored_file_loader`).
         - Any other type is read by the engine, which streams Arrow batches; where the engine
           attaches the source in place it is also declared engine-reachable.
 
@@ -256,7 +258,7 @@ class SourceRowLoader:
             projection = _projection(table, lambda: dialect)
             sql = f"SELECT {projection} FROM {relation}"
             return DirectTableSource(lambda: open_direct_stream(pools, source.id, sql, []), columns)
-        loader = self._adapter_loaders.get(stype)
+        loader = self._adapter_loaders.get(stype) or _floored_file_loader(source, stype)
         if loader is not None:
             # An adapter whose client has a cursor carries its own stream (``replica_source``,
             # set where the adapter is made); one without is read whole, as a single document.
@@ -536,19 +538,23 @@ def make_sqlite_loader() -> AdapterLoader:
 
 def _scratch_attach(conn: Any, connector_details: dict) -> None:
     """Attach the source on a scratch connection: its connector's extension, then what its
-    location needs (REQ-1997: the extension reaching a remote file, and its secret)."""
+    location needs (REQ-1997: the extension reaching a remote file, and its secret). A file DuckDB
+    reads with a core function (a csv or parquet file, :func:`make_file_loader`) names no
+    extension and has nothing to attach: only its location's needs are met."""
     from provisa.federation.duckdb_extensions import install_and_load
 
-    install_and_load(
-        conn,
-        connector_details["extension"],
-        from_community=connector_details.get("install_from_community", True),
-    )
+    if "extension" in connector_details:
+        install_and_load(
+            conn,
+            connector_details["extension"],
+            from_community=connector_details.get("install_from_community", True),
+        )
     for ext in connector_details.get("extensions", ()):
         install_and_load(conn, ext, from_community=False)
     if connector_details.get("secret_ddl"):
         conn.execute(connector_details["secret_ddl"])
-    conn.execute(connector_details["attach"])
+    if "attach" in connector_details:
+        conn.execute(connector_details["attach"])
 
 
 def _duckdb_extension_scratch_read(connector_details: dict, select_sql: str) -> list[dict]:
@@ -591,6 +597,69 @@ def _duckdb_extension_scratch_batches(
             yield [dict(zip(names, row)) for row in chunk]
     finally:
         conn.close()
+
+
+#: The file types DuckDB reads with a core function, and that function (the DuckDB connectors'
+#: own scanner views: ``DuckDBCsvConnector``, ``DuckDBParquetConnector``).
+_FILE_READERS = {"csv": "read_csv_auto", "parquet": "read_parquet"}
+
+
+def _floored_file_loader(source: Any, stype: str) -> AdapterLoader | None:
+    """The reader of a csv or parquet source the operator floors, None for any other (#255).
+
+    A floored source (``replicate: 0``, ``load_protected``; REQ-030/826/1141) has no live attach on
+    any engine (REQ-1912), so its rows cannot be read through one; the file is read by
+    :func:`make_file_loader`. A file source that is not floored keeps the engine's read of its
+    attach, which copies a replica in place without its rows passing through Provisa."""
+    from provisa.core.operator_floor import floor_setting
+
+    if stype not in _FILE_READERS or floor_setting(source) is None:
+        return None
+    return make_file_loader(stype)
+
+
+def make_file_loader(source_type: str) -> AdapterLoader:
+    """Build the row-fetch of a csv or parquet file source (#255): the file read straight, through a
+    scratch DuckDB connection, with the reader the DuckDB engine's own scanner view uses -- for a
+    source floored to its replica (:func:`_floored_file_loader`), as a sqlite file is read by
+    :func:`make_sqlite_loader`."""
+    from provisa.compiler.sql_literals import sql_literal
+    from provisa.core.org_files import resolve_path
+    from provisa.core.secrets import resolve_secrets
+    from provisa.federation.connector_duckdb import file_location_details
+
+    reader = _FILE_READERS[source_type]
+
+    def _plan(source: Any, columns: list[str]) -> tuple[dict, str]:
+        """The scratch connection's location needs and the SELECT of ``columns`` from the file."""
+        path = getattr(source, "path", None)
+        if not path:
+            raise ValueError(f"{source_type} source {source.id!r} has no path")
+        # REQ-1919: the path is kept as written and resolved at use; REQ-1997: {files}/... is read
+        # where it resolves.
+        located = sql_literal(resolve_path(resolve_secrets(path)), "duckdb")
+        select = ", ".join(f'"{c}"' for c in columns)
+        return file_location_details(source), f"SELECT {select} FROM {reader}({located})"
+
+    async def _load(source: Any, table: Any) -> list[dict]:
+        columns = [c.name for c in table.columns if getattr(c, "native_filter_type", None) is None]
+        if not columns:
+            return []
+        details, sql = _plan(source, columns)
+        return await asyncio.to_thread(_duckdb_extension_scratch_read, details, sql)
+
+    def _replica_source(source: Any, table: Any, columns: list[tuple[str, str]]) -> Any:
+        from provisa.federation.replica_source import BlockingCursorSource
+
+        del table  # a file source's one table is the file
+        details, sql = _plan(source, [name for name, _ in columns])
+        return BlockingCursorSource(
+            lambda batch_rows: _duckdb_extension_scratch_batches(details, sql, batch_rows),
+            columns,
+        )
+
+    _load.replica_source = _replica_source  # type: ignore[attr-defined]
+    return _load
 
 
 def make_firebird_loader() -> AdapterLoader:
