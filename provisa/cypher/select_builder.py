@@ -37,6 +37,26 @@ def _is_bare_variable(text: str) -> bool:
     return bool(re.match(r"^[A-Za-z_]\w*$", text))
 
 
+_PROPERTY = r"^([A-Za-z_]\w*)\s*\.\s*([A-Za-z_]\w*)$"
+
+
+def _shared_property_names(return_clause: "ReturnClause") -> frozenset[str]:
+    """The property names two items of ``return_clause`` would both be named by: an unaliased
+    ``var.prop`` is named ``prop``, which another such item or another item's own name may also
+    be (#259)."""
+    import re
+    from collections import Counter
+
+    names: Counter[str] = Counter()
+    for item in return_clause.items:
+        if item.alias:
+            names[item.alias] += 1
+            continue
+        found = re.match(_PROPERTY, item.expression.strip())
+        names[found.group(2) if found else item.expression.strip()] += 1
+    return frozenset(name for name, count in names.items() if count > 1)
+
+
 class SelectBuilderMixin:  # REQ-345, REQ-349, REQ-350, REQ-351
     """Mixin for _Translator: builds SELECT expressions and path objects."""
 
@@ -509,8 +529,12 @@ class SelectBuilderMixin:  # REQ-345, REQ-349, REQ-350, REQ-351
             return tbl_col
         return None
 
-    def _select_prop_expr(self, expr_text: str, alias: str | None) -> exp.Expr:
-        """Emit SELECT expression for a property access or arbitrary expression."""
+    def _select_prop_expr(
+        self, expr_text: str, alias: str | None, shared: frozenset[str] = frozenset()
+    ) -> exp.Expr:
+        """Emit SELECT expression for a property access or arbitrary expression. An unaliased
+        property is named by the property, or, where another item of the RETURN would take the
+        same name (``shared``), as Cypher clients name it: ``var.prop`` (#259)."""
         import re as _re
 
         from provisa.cypher.translator_types import GraphVarKind
@@ -522,7 +546,7 @@ class SelectBuilderMixin:  # REQ-345, REQ-349, REQ-350, REQ-351
             _var, _prop = _prop_m.group(1), _prop_m.group(2)
             _info = self._var_table.get(_var)
             if _info and _info[1] and _prop in _info[1].properties:
-                _cypher_alias = _prop
+                _cypher_alias = f"{_var}.{_prop}" if _prop in shared else _prop
                 if _prop in _info[1].map_properties:
                     # REQ-1991: returned as a map on every engine, whatever form it arrives in.
                     self._graph_vars[(alias or _prop).lower()] = GraphVarKind.MAP
@@ -592,6 +616,7 @@ class SelectBuilderMixin:  # REQ-345, REQ-349, REQ-350, REQ-351
 
         exprs: list[exp.Expr] = []
         passthrough_vars = getattr(self, "_passthrough_vars", set())
+        shared = _shared_property_names(return_clause)
 
         for item in return_clause.items:
             expr_text = item.expression.strip()
@@ -644,6 +669,6 @@ class SelectBuilderMixin:  # REQ-345, REQ-349, REQ-350, REQ-351
                     break
 
             # Property access or expression
-            exprs.append(self._select_prop_expr(expr_text, alias))
+            exprs.append(self._select_prop_expr(expr_text, alias, shared))
 
         return exprs
