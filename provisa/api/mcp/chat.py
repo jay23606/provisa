@@ -955,6 +955,9 @@ async def _llm_configured(state: Any) -> tuple[bool, str]:
     endpoint = endpoints.get(vendor)
     if endpoint is not None:
         key_env = endpoint.get("api_key_env")
+        from provisa.core.request_context import current_org
+        from provisa.core.sandbox_ai import endpoint_key, key_org
+
         # REQ-1826: this must resolve the SAME grammar _resolve_api_key_field does at actual chat
         # time (${secret:NAME}/${env:NAME}/${user:NAME}, or a plain env-var name) — a bare
         # os.environ.get(key_env) check here always failed for a ${secret:...}/${env:...}
@@ -963,7 +966,12 @@ async def _llm_configured(state: Any) -> tuple[bool, str]:
         # (REQ-1808's whole point: every config field may carry that grammar, not just literals).
         if key_env:
             try:
-                resolved = await _resolve_api_key_field(key_env)
+                # REQ-2006: a sandbox's tier endpoint's key is the deployment org's.
+                resolved = (
+                    await endpoint_key(endpoint, current_org.get())
+                    if key_org(endpoint, current_org.get())
+                    else await _resolve_api_key_field(key_env)
+                )
             except Exception as exc:
                 # Never swallow the real cause into a generic "needs X set" — a ${secret:...}
                 # that fails to resolve (unbound org, wrong org, the secret genuinely missing) is
@@ -1780,7 +1788,15 @@ async def _resolve_aisuite_routing(state: Any, vendor: str, model: str) -> tuple
         return f"{vendor}:{model}", {}
 
     style = endpoint["style"]  # "openai" | "anthropic"
-    api_key = await _resolve_api_key_field(endpoint.get("api_key_env"))
+    from provisa.core.request_context import current_org
+    from provisa.core.sandbox_ai import endpoint_key, key_org
+
+    # REQ-2006: a sandbox's tier endpoint's key is the deployment org's; any other, the org's own.
+    api_key = (
+        await endpoint_key(endpoint, current_org.get())
+        if key_org(endpoint, current_org.get())
+        else await _resolve_api_key_field(endpoint.get("api_key_env"))
+    )
     resolved_base_url = await _resolve_config_field(endpoint["base_url"])
     provider_config: dict[str, Any] = {"base_url": resolved_base_url}
     if api_key:

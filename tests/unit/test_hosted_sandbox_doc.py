@@ -24,14 +24,14 @@ _PAGE = Path(__file__).resolve().parents[2] / "docs" / "hosted-sandbox.md"
 
 
 def _defaults() -> dict[str, int]:
-    return {s.key: int(s.default) for s in DECLARED}
+    return {s.key: int(s.default) for s in DECLARED if s.card == "limits"}
 
 
 def _row(setting: str) -> str:
     for line in _PAGE.read_text().splitlines():
         if line.startswith("|") and f"`{setting}`" in line:
             return line
-    raise AssertionError(f"the page names no limit for {setting}")
+    raise AssertionError(f"the page names no row for {setting}")
 
 
 def test_the_memory_and_disk_limits_are_the_settings_defaults():

@@ -69,4 +69,41 @@ DECLARED: list[Setting] = [
         min=300,
         unit="seconds",
     ),
+    # REQ-2006: the AI models a sandbox's visitor uses -- Polly and every completion role (column
+    # and table descriptions, relationship discovery, natural-language SQL, table selection), all
+    # through one OpenAI-wire endpoint. Off unless both the endpoint and its key are set. Never an
+    # embedding model: a sandbox has none (provisa/core/sandbox_ai.py).
+    Setting(
+        key="sandbox.ai_base_url",
+        card="mcp",
+        type="str",
+        effect="live",  # read whenever a sandbox's configuration is resolved
+        req="REQ-2006",
+        env="PROVISA_SANDBOX_AI_BASE_URL",
+        default=None,
+        nullable=True,  # unset: no AI in sandboxes
+    ),
+    Setting(
+        key="sandbox.ai_model",
+        card="mcp",
+        type="str",
+        effect="live",
+        req="REQ-2006",
+        env="PROVISA_SANDBOX_AI_MODEL",
+        # The maintainer's choice, through OpenRouter (2026-10-14).
+        default="anthropic/claude-haiku-5.5",
+    ),
+    Setting(
+        key="sandbox.ai_api_key",
+        card="mcp",
+        type="str",
+        effect="live",
+        req="REQ-2006",
+        env="PROVISA_SANDBOX_AI_API_KEY",
+        # A ${secret:NAME} reference to the key, stored in the deployment org's vault and resolved
+        # there for every sandbox (never in a sandbox's own vault, which holds nothing).
+        default=None,
+        nullable=True,  # unset: no AI in sandboxes
+        credential=True,
+    ),
 ]

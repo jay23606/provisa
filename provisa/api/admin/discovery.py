@@ -102,8 +102,12 @@ async def trigger_discovery(
 
             api_keys = await read_org_api_keys(pool)
             anthropic_key = api_keys.get("anthropic") or os.environ.get("ANTHROPIC_API_KEY")
-            if anthropic_key:
-                api_keys = {**api_keys, "anthropic": anthropic_key}
+            from provisa.core.sandbox_ai import ENDPOINT_ID
+
+            # REQ-2006: a sandbox's relationship discovery runs on the tier's AI endpoint.
+            if anthropic_key or ENDPOINT_ID in api_keys:
+                if anthropic_key:
+                    api_keys = {**api_keys, "anthropic": anthropic_key}
                 discovery_input = await collect_metadata(
                     engine,
                     conn,
