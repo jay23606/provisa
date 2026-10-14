@@ -314,6 +314,8 @@
       "relationship_not_found": "リレーションシップ「{{relationship}}」が見つかりません",
       "relationship_saved": "リレーションシップ「{{relationship}}」を保存しました",
       "remigrated": "{{source}}.{{table}} を再マイグレーションしました",
+      "logical_replication_refused": "ソース「{{source}}」のネイティブ変更シグナルには、そのデータベースの論理レプリケーションが必要ですが、{{reason}}。",
+      "change_signal_no_receiver": "Provisa は種類 {{type}} のソースから変更シグナル {{signal}} を受信しないため、ソース「{{source}}」のテーブルがそれによって更新されることはありません。ソースを Debezium でキャプチャし、debezium を使用してください。",
       "change_signal_not_honoured": "種類 {{type}} のソースは、まだ変更の有無を確認できないため、変更シグナル {{signal}} が問い合わせられることはありません。ソース「{{source}}」には ttl を使用してください。",
       "sentinel_path_not_applicable": "種類 {{type}} のソースにはセンチネルパスを設定できません。データの変更を知らせられるお客様側の生成元がないか、このソースはプローブされません。ソース「{{source}}」からセンチネルパスを削除してください。",
       "source_cache_ttl_required": "ソース「{{source}}」にはキャッシュTTLが必要です。このソースのテーブルはすべてレプリカであり、変更シグナル {{signal}} のもとでその時計に従って更新されます。ソースの「負荷管理と鮮度」で設定してください。",

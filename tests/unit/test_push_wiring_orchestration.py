@@ -33,6 +33,7 @@ def _kafka_table(table_name: str = "orders", with_pk: bool = True) -> dict:
         "schema_name": "s",
         "table_name": table_name,
         "live": {"kafka": {"topic": "orders-topic"}},
+        "change_signal": None,
         "push_debounce_quiet": 0.5,
         "push_debounce_max_delay": 5.0,
         "columns": [
@@ -221,3 +222,77 @@ async def test_a_listener_whose_table_goes_draft_is_stopped_on_the_next_wire():
     assert not refunds.done() and "kafka_src/s.refunds" in state.push_listener_disconnects
     await shutdown_push_listeners(state)
     assert refunds.done()
+
+
+def _captured_table(signal: str | None) -> dict:
+    """A table of a PostgreSQL source whose changes Debezium captures (REQ-261, REQ-824)."""
+    table = _kafka_table("orders")
+    table.update(source_id="pg_src", schema_name="sales", live=None, change_signal=signal)
+    return table
+
+
+def _captured_source(signal: str = "ttl") -> Source:
+    from provisa.core.models import SourceCdcConfig
+
+    return Source(
+        id="pg_src",
+        type=SourceType.postgresql,
+        host="db",
+        port=5432,
+        database="shop",
+        username="reader",
+        change_signal=signal,
+        cdc=SourceCdcConfig(bootstrap_servers="broker:9092", topic_prefix="shopdb"),
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("table_signal", "source_signal"), [("debezium", "ttl"), (None, "debezium")]
+)
+async def test_a_debezium_captured_table_lands_its_topic_into_its_replica(
+    table_signal, source_signal
+):
+    """A table whose signal is debezium, its own or its source's, gets a listener: the source's
+    CDC transport, the topic its connector writes the table to, landed by key into the replica."""
+    state = _FakeState()
+    state.config = MagicMock(cdc_consumer_group_id="provisa-debezium")
+    run = AsyncMock()
+    with (
+        patch(
+            "provisa.api.admin.db_queries.fetch_tables",
+            AsyncMock(return_value=[_captured_table(table_signal)]),
+        ),
+        patch(
+            "provisa.federation.registry_view.registered_sources",
+            AsyncMock(return_value=[_captured_source(source_signal)]),
+        ),
+        patch("provisa.events.push_wiring._run_listener", run),
+    ):
+        tasks = await wire_push_listeners(state=state, log=logging.getLogger("test"))
+        await shutdown_push_listeners(state)
+
+    assert len(tasks) == 1
+    kwargs = run.call_args.kwargs
+    provider = kwargs["provider"]
+    assert provider._build_topic(kwargs["watch_target"]) == "shopdb.sales.orders"
+    assert provider._consumer_group_id == "provisa-debezium"
+    assert kwargs["pk_columns"] == ["id"]
+
+
+@pytest.mark.asyncio
+async def test_a_postgresql_table_on_a_polling_signal_gets_no_listener():
+    state = _FakeState()
+    with (
+        patch(
+            "provisa.api.admin.db_queries.fetch_tables",
+            AsyncMock(return_value=[_captured_table("ttl")]),
+        ),
+        patch(
+            "provisa.federation.registry_view.registered_sources",
+            AsyncMock(return_value=[_captured_source()]),
+        ),
+        patch("provisa.events.push_wiring._run_listener", AsyncMock()),
+    ):
+        tasks = await wire_push_listeners(state=state, log=logging.getLogger("test"))
+    assert tasks == [] and state.push_listener_disconnects == {}

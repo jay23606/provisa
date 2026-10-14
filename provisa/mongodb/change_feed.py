@@ -8,11 +8,13 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 
-"""Whether a MongoDB table may follow its source's change feed (REQ-1861).
+"""Whether a table may follow its source's change feed (REQ-1861, REQ-1982, REQ-929).
 
-A table opts in with the ``native`` change signal (its own, else its source's). Change streams
-are served only by a replica set or a sharded cluster, so a table that opts in on a standalone
-server is refused by name, at save and at load, instead of being built once and never refreshed.
+A table opts in with the ``native`` change signal (its own, else its source's). MongoDB change
+streams are served only by a replica set or a sharded cluster, so a table that opts in on a
+standalone server is refused by name, at save and at load, instead of being built once and never
+refreshed. A PostgreSQL source's feed is its logical replication, refused by name where its
+database does not allow it (``subscriptions.pg_logical``).
 """
 
 # Requirements: REQ-1861
@@ -23,11 +25,24 @@ import asyncio
 from typing import Any
 
 from provisa.mongodb.fetch import ChangeStreamsUnavailable, MongoConnection, require_change_streams
+from provisa.subscriptions.pg_logical import LogicalReplicationRefused
 
-__all__ = ["ChangeStreamsUnavailable", "follows_change_feed", "require_change_feed"]
+__all__ = [
+    "FEED_REFUSALS",
+    "ChangeStreamsUnavailable",
+    "follows_change_feed",
+    "require_change_feed",
+]
 
 #: The change signal that opts a table into its source's change feed (REQ-929).
 CHANGE_FEED_SIGNAL = "native"
+#: The source types whose own change feed a ``native`` table follows.
+CHANGE_FEED_TYPES = frozenset({"mongodb", "cosmosdb", "postgresql"})
+
+
+#: What :func:`require_change_feed` raises when a source cannot give its feed: each carries the
+#: ``code`` and ``params`` it is refused with.
+FEED_REFUSALS = (ChangeStreamsUnavailable, LogicalReplicationRefused)
 
 
 def follows_change_feed(
@@ -37,7 +52,7 @@ def follows_change_feed(
     (REQ-1861) or Cosmos DB (REQ-1982) table whose effective change signal (its own, else its
     source's) is ``native``."""
     signal = table_signal if table_signal is not None else source_signal
-    return source_type in ("mongodb", "cosmosdb") and signal == CHANGE_FEED_SIGNAL
+    return source_type in CHANGE_FEED_TYPES and signal == CHANGE_FEED_SIGNAL
 
 
 async def require_change_feed(source: Any) -> None:
@@ -47,6 +62,11 @@ async def require_change_feed(source: Any) -> None:
     (REQ-1982): nothing is asked."""
     source_type = source.type.value if hasattr(source.type, "value") else str(source.type)
     if source_type == "cosmosdb":
+        return
+    if source_type == "postgresql":
+        from provisa.subscriptions import pg_logical
+
+        await asyncio.to_thread(pg_logical.require, source)
         return
     conn = MongoConnection.from_source(source)
     await asyncio.to_thread(require_change_streams, conn, source.id)

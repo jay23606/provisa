@@ -1310,6 +1310,16 @@ def _validate_source_load_management(input: SourceInput) -> "MutationResult | No
         source_change_signal(input.type, input.change_signal)
     except ValueError as e:
         return _fail("schema.change_signal_not_push", str(e))
+    from provisa.core.change_signal import native_signal_refusal
+
+    _no_receiver = native_signal_refusal(input.type, input.change_signal)
+    if _no_receiver is not None:
+        return MutationResult(
+            success=False,
+            message=f"Source {input.id!r}: {_no_receiver}",
+            code="schema.change_signal_no_receiver",
+            params={"source": input.id, "type": input.type, "signal": input.change_signal},
+        )
     # A mail source's tables have no probe query of their own: a probing signal on the source
     # is honoured only by the kind's own check for changes, once that is wired
     # (probes.LOADER_PROBE_TYPES). Until then it is refused by name rather than saved and

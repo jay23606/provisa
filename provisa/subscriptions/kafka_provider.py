@@ -120,33 +120,38 @@ class KafkaNotificationProvider(NotificationProvider):  # REQ-258, REQ-261
             self._consumer = None
 
     async def ack(self, events: list[ChangeEvent]) -> None:  # REQ-1734
-        """Commit each (topic, partition)'s HIGHEST offset among *events* — never "wherever the
-        consumer currently is", which could be past other events the caller hasn't landed yet
-        (still sitting in a debounce buffer). Kafka commit convention: commit offset+1 (the next
-        offset to read on resume). Events with no ack_token (e.g. a test double) are skipped."""
+        """Commit what *events* landed (:func:`commit_landed`)."""
         if self._consumer is None:
             return
-        from aiokafka import TopicPartition  # type: ignore[import-untyped]
-        from aiokafka.structs import OffsetAndMetadata  # type: ignore[import-untyped]
-
-        highest: dict[tuple[str, int], int] = {}
-        for ev in events:
-            token = ev.ack_token
-            if not (isinstance(token, tuple) and len(token) == 3):
-                continue
-            _topic, partition, offset = token
-            key = (_topic, partition)
-            if offset > highest.get(key, -1):
-                highest[key] = offset
-        if not highest:
-            return
-        offsets = {
-            TopicPartition(topic, partition): OffsetAndMetadata(offset + 1, "")
-            for (topic, partition), offset in highest.items()
-        }
-        await self._consumer.commit(offsets=offsets)
+        await commit_landed(self._consumer, events)
 
     async def close(self) -> None:
         if self._consumer:
             await self._consumer.stop()
             self._consumer = None
+
+
+async def commit_landed(consumer: Any, events: list[ChangeEvent]) -> None:  # REQ-1734
+    """Commit each (topic, partition)'s HIGHEST offset among *events* — never "wherever the
+    consumer currently is", which could be past other events the caller hasn't landed yet
+    (still sitting in a debounce buffer). Kafka commit convention: commit offset+1 (the next
+    offset to read on resume). Events with no ack_token (e.g. a test double) are skipped."""
+    from aiokafka import TopicPartition  # type: ignore[import-untyped]
+    from aiokafka.structs import OffsetAndMetadata  # type: ignore[import-untyped]
+
+    highest: dict[tuple[str, int], int] = {}
+    for ev in events:
+        token = ev.ack_token
+        if not (isinstance(token, tuple) and len(token) == 3):
+            continue
+        _topic, partition, offset = token
+        key = (_topic, partition)
+        if offset > highest.get(key, -1):
+            highest[key] = offset
+    if not highest:
+        return
+    offsets = {
+        TopicPartition(topic, partition): OffsetAndMetadata(offset + 1, "")
+        for (topic, partition), offset in highest.items()
+    }
+    await consumer.commit(offsets=offsets)

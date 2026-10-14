@@ -45,6 +45,26 @@ DEFAULT_SIGNAL = "ttl"
 PUSH_SOURCE_TYPES = frozenset({"ingest", "websocket", "kafka"})
 
 
+# The source types whose own change feed Provisa receives for the ``native`` signal: the push
+# types (their listener or inbound endpoint) and the change-feed sources (REQ-1861: MongoDB change
+# streams, REQ-1982: the Cosmos DB change feed, PostgreSQL's logical replication). On any other
+# type nothing would receive it.
+NATIVE_RECEIVER_TYPES = PUSH_SOURCE_TYPES | frozenset({"mongodb", "cosmosdb", "postgresql"})
+
+
+def native_signal_refusal(source_type: str, signal: str | None) -> str | None:
+    """Why ``native`` cannot be a table's change signal on a source of ``source_type``, or None.
+    A table on a type with no receiver for its source's change feed would land nothing and still
+    be counted fresh; a Debezium-captured source says ``debezium``."""
+    if signal != "native" or source_type in NATIVE_RECEIVER_TYPES:
+        return None
+    return (
+        f"change_signal 'native' is not received from a {source_type!r} source: Provisa follows "
+        f"the change feed of {', '.join(sorted(NATIVE_RECEIVER_TYPES))} sources only (capture the "
+        "source with Debezium and use 'debezium')"
+    )
+
+
 def push_signal_for_source_type(source_type: str) -> str:
     """The push change_signal a push source type carries, derived from the push transport each one
     declares in push_wiring and the push vocabulary (:data:`PUSH_SIGNALS`):

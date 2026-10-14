@@ -40,7 +40,7 @@ _INTEGRATION_GROUP_PATTERNS: list[tuple[str, re.Pattern]] = [
             r"|openapi_source|openapi_pet_by_status|openapi_spec"
             r"|govdata_source|nosql_catalogs|elasticsearch_introspect"
             r"|custom_connectors.*"
-            r"|debezium_cdc|jsonapi_integration|jsonapi_spec"
+            r"|debezium_cdc|debezium_landing_e2e|jsonapi_integration|jsonapi_spec"
             r")\.py$"
         ),
     ),

@@ -1158,17 +1158,20 @@ def _validate_watermark_columns(config) -> None:  # REQ-924, REQ-925
 def _validate_change_signal(config) -> None:  # REQ-932
     """Capability-gate change_signal. Push transports (debezium/kafka) require the source's cdc
     block (a "kafka" source type carries its own transport). The signal resolves table → source."""
-    from provisa.core.change_signal import resolve  # noqa: PLC0415
+    from provisa.core.change_signal import native_signal_refusal, resolve  # noqa: PLC0415
 
     sources_by_id = {s.id: s for s in config.sources}
     for table in config.tables:
         source = sources_by_id.get(table.source_id)
         source_signal = getattr(source, "change_signal", None) if source else None
         sig = resolve(getattr(table, "change_signal", None), source_signal)
-        if sig not in ("debezium", "kafka"):
-            continue
         stype = getattr(source, "type", None) if source else None
         stype_val = getattr(stype, "value", stype)
+        refused = native_signal_refusal(str(stype_val), sig) if source is not None else None
+        if refused is not None:
+            raise ValueError(f"Table {table.table_name!r}: {refused}")
+        if sig not in ("debezium", "kafka"):
+            continue
         if stype_val == "kafka":
             continue
         if source is None or getattr(source, "cdc", None) is None:
@@ -1287,7 +1290,7 @@ async def _check_change_feeds(config) -> list[str]:  # REQ-1861
     reached is that source's ordinary unreachable failure, reported with the sources whose engine
     registration failed (the ids returned), never a pass."""
     from provisa.mongodb.change_feed import (
-        ChangeStreamsUnavailable,
+        FEED_REFUSALS,
         follows_change_feed,
         require_change_feed,
     )
@@ -1305,7 +1308,7 @@ async def _check_change_feeds(config) -> list[str]:  # REQ-1861
     for source_id in sorted(following):
         try:
             await require_change_feed(by_id[source_id])
-        except ChangeStreamsUnavailable:
+        except FEED_REFUSALS:
             raise
         except Exception:
             log.exception("source %r: its change-stream support could not be checked", source_id)

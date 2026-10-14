@@ -61,10 +61,12 @@ def _checks(monkeypatch, outcome):
         ("mongodb", None, "native", True),
         ("mongodb", "poll", "native", False),  # the table's own signal wins
         ("mongodb", None, "poll", False),
-        ("postgresql", "native", None, False),  # change streams are MongoDB's
+        ("postgresql", "native", None, True),  # its logical replication (REQ-929)
+        ("cosmosdb", "native", None, True),
+        ("mysql", "native", None, False),  # nothing receives a MySQL change feed
     ],
 )
-def test_a_table_follows_the_change_feed_only_with_the_native_signal_on_mongodb(
+def test_a_table_follows_the_change_feed_only_with_the_native_signal_on_a_feed_type(
     source_type, table_signal, source_signal, follows
 ):
     assert follows_change_feed(source_type, table_signal, source_signal) is follows
@@ -138,7 +140,7 @@ async def test_the_load_checks_only_sources_with_a_table_on_the_change_feed(monk
 
     seen = _checks(monkeypatch, None)
     assert await _check_change_feeds(_config("poll")) == []
-    assert await _check_change_feeds(_config("native", source_type="postgresql")) == []
+    assert await _check_change_feeds(_config("native", source_type="mysql")) == []
     assert seen == []
     assert await _check_change_feeds(_config("native")) == []
     assert seen == ["orders_db"]
@@ -203,6 +205,7 @@ async def test_saving_a_source_on_the_change_feed_refuses_a_standalone_server(pl
         change_signal="native",
         host="mongo.test",
         port=27017,
+        database="shop",
         username="",
         password="",
     )
@@ -214,3 +217,28 @@ async def test_saving_a_source_on_the_change_feed_refuses_a_standalone_server(pl
     assert refused is not None and refused.code == "schema.change_streams_unavailable"
     assert polled is None
     assert seen == ["orders_db"]
+
+
+async def test_saving_a_native_table_on_a_source_nothing_receives_is_refused_by_name(plane):
+    """A MySQL table on the native signal would land nothing and still be counted fresh:
+    the save is refused, naming the source, its type and the signal."""
+    from provisa.api.admin._change_feed import table_change_feed_refusal
+
+    async with plane.acquire() as conn:
+        await conn.execute_core(
+            sources.insert().values(
+                id="shop_pg",
+                type="mysql",
+                host="db.test",
+                port=3306,
+                database="shop",
+                username="",
+                password_ref="",
+                change_signal="ttl",
+            )
+        )
+        refused = await table_change_feed_refusal(conn, "shop_pg", "native")
+        polled = await table_change_feed_refusal(conn, "shop_pg", None)
+    assert refused is not None and refused.code == "schema.change_signal_no_receiver"
+    assert refused.params == {"source": "shop_pg", "type": "mysql", "signal": "native"}
+    assert polled is None

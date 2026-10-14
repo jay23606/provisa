@@ -37,6 +37,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import threading
+import time
 from typing import Any
 
 from provisa.core.change_signal import PUSH_SOURCE_TYPES
@@ -56,6 +57,45 @@ _CHANGE_STREAM_SOURCE_TYPES = frozenset({"mongodb", "cosmosdb"})
 _CHANGE_FEED_SIGNAL = "native"
 # Seconds a change-stream listener waits before it watches again after its stream fails.
 _CHANGE_STREAM_RETRY_SECONDS = 5.0
+# Seconds a logical replication listener waits between reads of a slot that had nothing new, and
+# the most messages one read consumes.
+_LOGICAL_POLL_SECONDS = 1.0
+_LOGICAL_READ_LIMIT = 10000
+_LOGICAL_MAX_DELAY_SECONDS = 5.0
+
+
+def _effective_signal(src: Any, tbl: dict) -> str | None:
+    """The table's change signal, inheriting its source's (REQ-929)."""
+    return tbl["change_signal"] if tbl["change_signal"] is not None else src.change_signal
+
+
+def _captured_by_debezium(src: Any, tbl: dict) -> bool:
+    """Whether a table's changes arrive as Debezium change events on its source's CDC transport
+    (REQ-261, REQ-824): its effective signal is ``debezium`` on a source that is not itself a
+    push type. Config load and the admin save refuse the signal on a source with no cdc block."""
+    return _source_type_of(src) not in PUSH_SOURCE_TYPES and _effective_signal(src, tbl) == (
+        "debezium"
+    )
+
+
+def _debezium_provider(state: Any, src: Any, tbl: dict) -> tuple[Any, str]:
+    """The Debezium consumer of one captured table: the source's CDC transport, the topic its
+    connector writes the table to, and Provisa's consumer group for it (REQ-931: the source's
+    own, else the Provisa-level default)."""
+    from provisa.kafka.avro_registry import RegistrySettings
+    from provisa.subscriptions.debezium_provider import DebeziumNotificationProvider
+
+    cdc = src.cdc
+    provider = DebeziumNotificationProvider(
+        bootstrap_servers=cdc.bootstrap_servers,
+        topic_prefix=cdc.topic_prefix,
+        database=src.database,
+        consumer_group_id=cdc.consumer_group_id or state.config.cdc_consumer_group_id,
+        registry=RegistrySettings.of(cdc),
+        source_type=_source_type_of(src),
+        pg_schema=tbl["schema_name"],
+    )
+    return provider, tbl["table_name"]
 
 
 def _build_provider(src: Any, tbl: dict, *, node: str) -> tuple[Any, str] | None:
@@ -171,11 +211,17 @@ async def wire_push_listeners(*, state: Any, log: Any) -> list[LongLived]:
 
     locks = replica_write_lock_factory(state)
     wired: set[str] = set()  # every node this pass wants running, started now or before
+    # REQ-929: each PostgreSQL source with tables on the native signal, read from one slot.
+    logical: dict[str, tuple[Any, list[tuple[str, str, int]]]] = {}
     for tbl in tables:
         src = sources.get(tbl["source_id"])
         if src is None:
             continue
         source_type = src.type.value if hasattr(src.type, "value") else str(src.type)
+        if source_type == "postgresql" and _effective_signal(src, tbl) == _CHANGE_FEED_SIGNAL:
+            followed = logical.setdefault(src.id, (src, []))[1]
+            followed.append((tbl["schema_name"], tbl["table_name"], tbl["id"]))
+            continue
         if source_type in _CHANGE_STREAM_SOURCE_TYPES:
             if _change_feed_opted_in(src, tbl):
                 wired.add(source_node(tbl["source_id"], tbl["schema_name"], tbl["table_name"]))
@@ -183,7 +229,8 @@ async def wire_push_listeners(*, state: Any, log: Any) -> list[LongLived]:
             if task is not None:
                 started.append(task)
             continue
-        if source_type not in _LISTENER_SOURCE_TYPES:
+        debezium = _captured_by_debezium(src, tbl)
+        if source_type not in _LISTENER_SOURCE_TYPES and not debezium:
             continue
         node = source_node(tbl["source_id"], tbl["schema_name"], tbl["table_name"])
         wired.add(node)
@@ -213,7 +260,11 @@ async def wire_push_listeners(*, state: Any, log: Any) -> list[LongLived]:
             )
             continue
 
-        built = _build_provider(src, tbl, node=node)
+        built = (
+            _debezium_provider(state, src, tbl)
+            if debezium
+            else _build_provider(src, tbl, node=node)
+        )
         if built is None:
             continue  # _build_provider already logged why
         provider, watch_target = built
@@ -267,9 +318,144 @@ async def wire_push_listeners(*, state: Any, log: Any) -> list[LongLived]:
             debounce_max_delay,
         )
 
+    started.extend(_start_logical_streams(state, logical, wired, log=log))
     await _stop_unwired(state, wired, log=log)
+    await _drop_unfollowed_slots(state, logical, log=log)
     await _settle_pipelines(state, engine, wired, log=log)
     return started
+
+
+def _start_logical_streams(
+    state: Any,
+    logical: dict[str, tuple[Any, list[tuple[str, str, int]]]],
+    wired: set[str],
+    *,
+    log: Any,
+) -> list[LongLived]:
+    """Start one logical replication listener per PostgreSQL source with tables on the native
+    signal (REQ-929). The listener's node names the tables it follows, so a change to that set
+    stops it and starts one that publishes the new set."""
+    started: list[LongLived] = []
+    for source_id, (src, followed) in sorted(logical.items()):
+        node = "logical:" + source_id + ":" + ",".join(sorted(f"{s}.{t}" for s, t, _ in followed))
+        wired.add(node)
+        if node in state.push_listener_disconnects:
+            continue  # already running from a prior wire
+        disconnect = threading.Event()
+        state.push_listener_disconnects[node] = disconnect
+        task = spawn_long_lived(
+            _run_logical_stream(
+                state=state, source=src, followed=followed, disconnect=disconnect, log=log
+            ),
+            name=f"logical-stream:{source_id}",
+        )
+        state.push_listener_tasks.append(task)
+        state.push_listener_handles[node] = task
+        started.append(task)
+        log.info(
+            "logical replication listener started for source %r (%d tables)", src.id, len(followed)
+        )
+    return started
+
+
+async def _drop_unfollowed_slots(
+    state: Any, logical: dict[str, tuple[Any, list[tuple[str, str, int]]]], *, log: Any
+) -> None:
+    """Drop the slot of each source whose tables no longer follow it -- set off the native
+    signal, or the source deleted -- since this process last wired it: a slot nobody reads holds
+    the source's WAL. The source is reached as it was registered when its slot was made."""
+    from provisa.federation.source_vault import org_vault
+    from provisa.subscriptions import pg_logical
+
+    held: dict[str, Any] = getattr(state, "logical_slot_sources", None) or {}
+    for source_id, src in sorted(held.items()):
+        if source_id in logical:
+            continue
+        try:
+            async with org_vault(state, [src]):
+                await asyncio.to_thread(_drop_slot_of, src)
+            log.info("logical replication slot of source %r dropped", source_id)
+        except Exception as failed:  # allow-ble: named in the log with the slot to drop by hand; one source's server being down must not stop the wiring of every other
+            log.error(
+                "logical replication slot %r of source %r could not be dropped (%s): drop it on "
+                "the source, it holds the source's WAL",
+                pg_logical.slot_name(source_id),
+                source_id,
+                failed,
+            )
+    state.logical_slot_sources = {sid: src for sid, (src, _t) in logical.items()}
+
+
+def _drop_slot_of(src: Any) -> None:
+    from provisa.subscriptions import pg_logical
+
+    with pg_logical.PgConnection.from_source(src).connect() as conn:
+        pg_logical.drop_slot(conn, pg_logical.slot_name(src.id))
+
+
+async def _run_logical_stream(
+    *,
+    state: Any,
+    source: Any,
+    followed: list[tuple[str, str, int]],
+    disconnect: threading.Event,
+    log: Any,
+) -> None:
+    """One PostgreSQL source's logical replication listener (REQ-929): make its slot and the
+    publication of the tables it follows, then read the slot, and ask for a build of each table
+    a burst of changes touched -- through the one request every change to a replicated table
+    makes. A build of every followed table is asked for each time the slot is opened: what
+    changed while nothing read it is unknown. A failure is logged with its cause and the slot is
+    read again after ``_CHANGE_STREAM_RETRY_SECONDS``. Never lets an exception escape."""
+    from provisa.federation import replica_builds, replica_state
+    from provisa.federation.source_vault import org_vault
+    from provisa.subscriptions import pg_logical
+
+    ids = {(schema, table): table_id for schema, table, table_id in followed}
+    name = pg_logical.slot_name(source.id)
+
+    async def _ask(changed: set[tuple[str, str]]) -> None:
+        for key in sorted(changed & ids.keys()):
+            await replica_builds.request_if_replicated(
+                state, ids[key], source.id, replica_state.REASON_REFRESH
+            )
+
+    while not disconnect.is_set():
+        try:
+            async with org_vault(state, [source]):
+                conn = await asyncio.to_thread(pg_logical.PgConnection.from_source(source).connect)
+            try:
+                await asyncio.to_thread(pg_logical.ensure_slot, conn, name, list(ids))
+                await _ask(set(ids))
+                # A burst ends after a read with nothing new, or _LOGICAL_MAX_DELAY_SECONDS after
+                # its first change: a table written to without pause still asks.
+                pending: set[tuple[str, str]] = set()
+                first = 0.0
+                while not disconnect.is_set():
+                    changed = await asyncio.to_thread(
+                        pg_logical.read_changes, conn, name, _LOGICAL_READ_LIMIT
+                    )
+                    now = time.monotonic()
+                    if changed and not pending:
+                        first = now
+                    pending |= changed
+                    if pending and (not changed or now - first >= _LOGICAL_MAX_DELAY_SECONDS):
+                        await _ask(pending)
+                        pending = set()
+                    if not changed:
+                        await asyncio.sleep(_LOGICAL_POLL_SECONDS)
+            finally:
+                await asyncio.to_thread(conn.close)
+        except asyncio.CancelledError:
+            raise
+        except Exception as failed:
+            log.warning(
+                "logical replication of source %r failed (%s); reading its slot again in %.0fs",
+                source.id,
+                failed,
+                _CHANGE_STREAM_RETRY_SECONDS,
+            )
+            await asyncio.sleep(_CHANGE_STREAM_RETRY_SECONDS)
 
 
 def _lands_by_pipeline(engine: Any, src: Any, tbl: dict) -> bool:

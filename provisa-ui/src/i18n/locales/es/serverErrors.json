@@ -314,6 +314,8 @@
       "relationship_not_found": "No se encontró la relación '{{relationship}}'",
       "relationship_saved": "Relación '{{relationship}}' guardada",
       "remigrated": "Se volvió a migrar {{source}}.{{table}}",
+      "logical_replication_refused": "La señal de cambio nativa del origen '{{source}}' necesita la replicación lógica de su base de datos, y {{reason}}.",
+      "change_signal_no_receiver": "Provisa no recibe la señal de cambio {{signal}} de un origen de tipo {{type}}, por lo que una tabla del origen '{{source}}' nunca se actualizaría con ella. Capture el origen con Debezium y use debezium.",
       "change_signal_not_honoured": "Un origen de tipo {{type}} aún no puede comprobarse en busca de cambios, por lo que la señal de cambio {{signal}} nunca se consultaría. Use ttl para el origen «{{source}}».",
       "sentinel_path_not_applicable": "Un origen de tipo {{type}} no puede tener una ruta centinela: ningún productor suyo puede marcar un cambio en sus datos, o el origen no se sondea. Quite la ruta centinela del origen «{{source}}».",
       "source_cache_ttl_required": "El origen «{{source}}» necesita un TTL de caché: cada una de sus tablas es una réplica que se actualiza según ese reloj con la señal de cambio {{signal}}. Establézcalo en «Gestión de carga y actualidad» del origen.",
