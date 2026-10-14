@@ -40,12 +40,12 @@ import { fetchSandboxLimits, openDemoSandbox, SandboxRefused } from "../api/demo
 import { JoinNotice } from "../components/JoinNotice";
 import { DemoOpenPage } from "../pages/demos/DemoOpenPage";
 import {
-  SANDBOX_TOKEN_KEY,
   adoptSandboxTokenFromLocation,
   sandboxDestination,
+  sandboxToken,
 } from "../lib/sandboxSession";
 import { storedToken } from "../lib/sessionToken";
-import { getStored, removeStored } from "../lib/browserStorage";
+import { endVisit } from "../lib/browserStorage";
 
 const assign = vi.fn();
 
@@ -55,7 +55,7 @@ beforeEach(() => {
     configurable: true,
     value: { ...window.location, assign, hostname: "cloud.provisa.dev", protocol: "https:", port: "" },
   });
-  removeStored(SANDBOX_TOKEN_KEY, { global: true });
+  endVisit();
 });
 
 function openAt(name: string) {
@@ -113,7 +113,7 @@ describe("the sandbox's own address", () => {
     const replace = vi.spyOn(window.history, "replaceState");
     const location = { hash: "#provisa_sandbox=provisa_pat_xyz", pathname: "/", search: "" };
     expect(adoptSandboxTokenFromLocation(location as Location)).toBe(true);
-    expect(getStored(SANDBOX_TOKEN_KEY, { global: true })).toBe("provisa_pat_xyz");
+    expect(sandboxToken()).toBe("provisa_pat_xyz");
     expect(storedToken()).toBe("provisa_pat_xyz");
     expect(replace).toHaveBeenCalledWith(null, "", "/");
   });

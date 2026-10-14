@@ -32,9 +32,7 @@ export const SUPERUSER_TOKEN_KEY = "provisa_su_token";
  */
 export function storedToken(): string | null {
   return (
-    getStored(SUPERUSER_TOKEN_KEY, { global: true }) ??
-    // REQ-2006: a demo sandbox visitor's token (lib/sandboxSession), on the sandbox's own address.
-    getStored("provisa_sandbox_token", { global: true }) ??
-    getStored("provisa_token", { global: true })
+    // REQ-2006: in a live demo's tab these are the visitor's own (browserStorage's visit).
+    getStored(SUPERUSER_TOKEN_KEY, { global: true }) ?? getStored("provisa_token", { global: true })
   );
 }

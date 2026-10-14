@@ -17,7 +17,7 @@ import {
 } from "./serverReachability";
 import { isEngineProbePath, noteRequestEnd, noteRequestStart } from "./engineWake";
 import { noteOrgSelectionRefusal } from "./orgSelection";
-import { getStored, removeStored } from "./browserStorage";
+import { getStored, removeStored, visitorActive } from "./browserStorage";
 
 // REQ-1267: on an auth-enforced deploy (firebase/basic) the bearer token lives in
 // localStorage and must ride on EVERY same-origin request. The Apollo link already adds it
@@ -64,6 +64,8 @@ export function selectedEnv(): string | null {
  * `provisa_token` because it is an explicit override of whatever else the browser is holding.
  */
 export async function currentBearer(): Promise<string | null> {
+  // REQ-2006: a live demo's tab runs as its visitor, never as the login the browser holds.
+  if (visitorActive()) return storedToken();
   const live = await currentFirebaseToken();
   if (live !== null) return live;
   return storedToken();

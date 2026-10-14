@@ -26,7 +26,8 @@ import { DirectionSync } from "./i18n/direction.tsx";
 import "./index.css";
 import App from "./App.tsx";
 import { cacheRestored } from "./apolloClient.ts";
-import { isOrgSubdomainHost } from "./lib/authHost.ts";
+import { isOrgSubdomainHost, orgFromHost } from "./lib/authHost.ts";
+import { setStored, visitorActive } from "./lib/browserStorage.ts";
 import { LOGOUT_PATH, signOut } from "./lib/session.ts";
 
 declare global {
@@ -64,7 +65,11 @@ async function bootstrap() {
   // plane (lib/authHost.ts) — so it borrows the bearer from there instead of starting Firebase
   // locally, where signInWithPopup would fail with auth/unauthorized-domain. Returns false while
   // redirecting to the control-plane login, in which case there is nothing worth rendering.
-  if (isOrgSubdomainHost()) {
+  // REQ-2006: a live demo's tab runs as its own visitor: it borrows no login and starts no
+  // sign-in. On the sandbox's own address the host names its org.
+  if (visitorActive()) {
+    if (isOrgSubdomainHost()) setStored("provisa_org", orgFromHost(), { global: true });
+  } else if (isOrgSubdomainHost()) {
     const { establishOrgSubdomainSession } = await import("./lib/crossSubdomainAuth.ts");
     if (!(await establishOrgSubdomainSession())) return;
     // REQ-1486: on an org's own address the Host names the org, so its branding is read without a
