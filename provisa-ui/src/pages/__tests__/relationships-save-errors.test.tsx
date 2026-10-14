@@ -67,7 +67,7 @@ const TABLES = {
 };
 const DOMAINS = { domains: [] };
 const UPSERT = {
-  upsertRelationship: vi.fn<(input: Record<string, unknown>) => Promise<unknown>>(),
+  upsertRelationship: vi.fn<(input: Record<string, unknown>, isNew: boolean) => Promise<unknown>>(),
 };
 const DELETE = { deleteRelationship: vi.fn() };
 const AUTH = { capabilities: ["create_relationship"] };
@@ -122,6 +122,7 @@ describe("RelationshipsPage: the reverse form", () => {
       targetColumn: "customer_id",
       cardinality: "one-to-many",
     });
+    expect(UPSERT.upsertRelationship.mock.calls[0][1]).toBe(true); // the reverse is created
     await waitFor(() => expect(screen.queryByTestId("reverse-relationship-form")).toBeNull());
   });
 
@@ -169,6 +170,7 @@ describe("RelationshipsPage: editing a relationship", () => {
       sourceTableId: "access_log",
       targetTableId: "customers",
     });
+    expect(UPSERT.upsertRelationship.mock.calls[0][1]).toBe(false); // the same id: an update
     expect(within(panel()).getByRole("button", { name: "Save" })).not.toHaveAttribute(
       "data-loading",
     );

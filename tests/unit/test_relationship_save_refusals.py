@@ -114,8 +114,10 @@ def _input(**fields: Any) -> RelationshipInput:
     return RelationshipInput(**{**base, **fields})
 
 
-async def _save(input: RelationshipInput):
-    return await schema_mutation.save_relationship(input, owner=None, needs_review=False)
+async def _save(input: RelationshipInput, *, creating: bool = True):
+    return await schema_mutation.save_relationship(
+        input, owner=None, needs_review=False, creating=creating
+    )
 
 
 async def test_a_table_named_by_its_physical_name_when_it_has_an_alias_is_refused(plane):
@@ -164,9 +166,10 @@ async def test_the_mutation_refuses_an_ambiguous_source_rather_than_raising(plan
     monkeypatch.setattr(capabilities, "has_capability", lambda _info, _cap: True)
     before = await _stored(plane)
     info: Any = types.SimpleNamespace(context={})
-    result = await schema_mutation._upsert_relationship_impl(
+    result = await schema_mutation._save_relationship_as_caller(
         info,
         _input(id="orders-to-customers", source_table_id="orders", target_table_id="customers"),
+        creating=True,
     )
     assert result.params is not None
     assert (result.success, result.code, result.params["end"]) == (
@@ -190,7 +193,8 @@ async def test_the_reverse_of_a_relationship_saves_with_the_same_alias_on_its_ow
 
 async def test_saving_a_relationship_again_keeps_its_own_alias(plane):
     result = await _save(
-        _input(
+        creating=False,
+        input=_input(
             id="access-to-customer",
             source_table_id="access_log",
             target_table_id="customers",
@@ -198,6 +202,34 @@ async def test_saving_a_relationship_again_keeps_its_own_alias(plane):
             target_column="id",
             cardinality="many-to-one",
             graphql_alias=None,
-        )
+        ),
     )
     assert (result.success, result.code) == (True, "schema.relationship_saved")
+
+
+async def test_a_create_on_an_id_that_exists_is_refused_and_an_update_on_a_missing_one_too(plane):
+    before = await _stored(plane)
+    taken = await _save(_input(id="access-to-customer", alias="OWNS", graphql_alias="owns"))
+    assert (taken.success, taken.code, taken.params) == (
+        False,
+        "schema.relationship_id_taken",
+        {"relationship": "access-to-customer"},
+    )
+    missing = await _save(_input(id="customers-to-access_log"), creating=False)
+    assert (missing.success, missing.code) == (False, "schema.relationship_not_found")
+    assert await _stored(plane) == before
+
+
+async def test_a_graphql_alias_another_relationship_of_the_source_holds_is_refused(plane):
+    first = await _save(_input())
+    assert first.success, first.message
+    before = await _stored(plane)
+    result = await _save(
+        _input(id="customers-to-access_log-2", alias="VISITED", graphql_alias="byCustomer")
+    )
+    assert (result.success, result.code, result.params) == (
+        False,
+        "schema.relationship_graphql_alias_taken",
+        {"alias": "byCustomer", "table": "customers", "relationship": "customers-to-access_log"},
+    )
+    assert await _stored(plane) == before

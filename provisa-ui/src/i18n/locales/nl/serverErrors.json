@@ -406,7 +406,9 @@
       "source_id_taken": "Bron '{{source}}' bestaat al",
       "domain_id_taken": "Domein '{{domain}}' bestaat al",
       "role_id_taken": "Rol '{{role}}' bestaat al",
-      "role_updated": "Rol '{{role}}' bijgewerkt"
+      "role_updated": "Rol '{{role}}' bijgewerkt",
+      "relationship_id_taken": "Relatie '{{relationship}}' bestaat al",
+      "relationship_graphql_alias_taken": "De GraphQL-alias '{{alias}}' is al de alias van relatie '{{relationship}}' vanuit '{{table}}'"
     },
     "secrets": {
       "name_refused": "{{name}} is geen naam binnen de secrets van deze organisatie in {{service}}: een naam is relatief ten opzichte van de organisatie en kan deze niet verlaten",

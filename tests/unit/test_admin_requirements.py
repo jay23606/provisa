@@ -333,13 +333,13 @@ class TestREQ165AdminSettings:
 class TestREQ166EditableRelationships:
     """REQ-166"""
 
-    def test_upsert_relationship_exists_in_admin_schema(self):
-        # REQ-166: add form requires an upsert_relationship mutation
+    def test_create_relationship_exists_in_admin_schema(self):
+        # REQ-166: add form requires a create_relationship mutation
         import inspect
         from provisa.api.admin import schema_mutation as admin_mutation_mod
 
         src = inspect.getsource(admin_mutation_mod)
-        assert "upsert_relationship" in src
+        assert "create_relationship" in src
 
     def test_delete_relationship_exists_in_admin_schema(self):
         # REQ-166: delete action requires a delete_relationship mutation

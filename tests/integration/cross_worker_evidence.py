@@ -196,11 +196,11 @@ def run(order: list[Worker], rows: list, tag: str) -> None:
 
     # 5. relationship -------------------------------------------------------------------------
     res = author.admin(
-        'mutation { upsertRelationship(input: {id: "orders-customers", sourceTableId: "orders", '
+        'mutation { createRelationship(input: {id: "orders-customers", sourceTableId: "orders", '
         'targetTableId: "customers", sourceColumn: "id", targetColumn: "id", '
         'cardinality: "many-to-one"}) { success message } }'
     )
-    print(f"[{tag}] upsertRelationship -> {json.dumps(res)[:200]}")
+    print(f"[{tag}] createRelationship -> {json.dumps(res)[:200]}")
     observe(
         order,
         lambda w: (lambda r: (not _refused(r), r))(

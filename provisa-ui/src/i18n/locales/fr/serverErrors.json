@@ -406,7 +406,9 @@
       "source_id_taken": "La source '{{source}}' existe déjà",
       "domain_id_taken": "Le domaine '{{domain}}' existe déjà",
       "role_id_taken": "Le rôle « {{role}} » existe déjà",
-      "role_updated": "Rôle « {{role}} » mis à jour"
+      "role_updated": "Rôle « {{role}} » mis à jour",
+      "relationship_id_taken": "La relation « {{relationship}} » existe déjà",
+      "relationship_graphql_alias_taken": "L'alias GraphQL « {{alias}} » est déjà l'alias de la relation « {{relationship}} » depuis « {{table}} »"
     },
     "secrets": {
       "name_refused": "{{name}} n'est pas un nom situé dans les secrets de cette organisation dans {{service}} : un nom est relatif à l'organisation et ne peut pas en sortir",

@@ -6175,5 +6175,7 @@
   "it/serverErrors.json::serverErrors.schema.role_id_taken": "Role '{{role}}' already exists",
   "it/serverErrors.json::serverErrors.schema.role_updated": "Role '{{role}}' updated",
   "it/serverErrors.json::serverErrors.actions.function_exists": "Function '{{name}}' already exists",
-  "it/serverErrors.json::serverErrors.actions.webhook_exists": "Webhook '{{name}}' already exists"
+  "it/serverErrors.json::serverErrors.actions.webhook_exists": "Webhook '{{name}}' already exists",
+  "it/serverErrors.json::serverErrors.schema.relationship_id_taken": "Relationship '{{relationship}}' already exists",
+  "it/serverErrors.json::serverErrors.schema.relationship_graphql_alias_taken": "GraphQL alias '{{alias}}' is already the alias of relationship '{{relationship}}' from '{{table}}'"
 }

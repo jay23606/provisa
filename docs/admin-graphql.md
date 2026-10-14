@@ -446,9 +446,13 @@ Sugar for registering a star-schema fact. Lowers to an aggregate MV, creates dim
 
 ### Relationships
 
-#### `upsertRelationship(input: RelationshipInput!) → MutationResult`
+#### `createRelationship(input: RelationshipInput!) → MutationResult`
 
-Create or update a relationship. The gate checks the source table's domain (not the target's). A cross-domain edge is stored with `needsReview: true`. A caller lacking `create_relationship` is queued as a creation request. Junction (many-to-many) edges require matching key-list lengths. (REQ-019, REQ-020, REQ-366, REQ-434) [tool-verified: `provisa/api/admin/schema_mutation.py:2297-2300`]
+Create a relationship. The gate checks the source table's domain (not the target's). A cross-domain edge is stored with `needsReview: true`. A caller lacking `create_relationship` is queued as a creation request. Junction (many-to-many) edges require matching key-list lengths. Refused by name, before anything is written: an id that exists (`schema.relationship_id_taken`); a table name that resolves to no registered table or to more than one (`schema.relationship_unknown_source`, `_target`, `_junction`, `schema.relationship_ambiguous_table`); a Cypher alias or a GraphQL alias another relationship of the same source table holds (`schema.relationship_alias_taken`, `schema.relationship_graphql_alias_taken`). A table is named by its virtual name: its alias when it has one. (REQ-019, REQ-020, REQ-366, REQ-434) [tool-verified: `provisa/api/admin/schema_mutation.py` `_save_relationship_as_caller`, `save_relationship`]
+
+#### `updateRelationship(input: RelationshipInput!) → MutationResult`
+
+Change an existing relationship, with the same checks as `createRelationship`. An id no relationship holds is refused (`schema.relationship_not_found`). A change needs the right itself; it is never queued as a request. (REQ-019, REQ-020) [tool-verified: `provisa/api/admin/schema_mutation.py` `_save_relationship_as_caller`]
 
 #### `deleteRelationship(id: String!) → MutationResult`
 

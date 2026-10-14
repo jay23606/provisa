@@ -171,15 +171,18 @@ export function OssieInterchangePanel() {
         const key: ItemKey = `rel:${rel.name}`;
         if (!checked.has(key)) continue;
         outcome[key] = await attempt(() =>
-          upsertRelationship({
-            id: rel.name,
-            sourceTableId: rel.from,
-            targetTableId: rel.to,
-            // A key of several columns is one ordered, comma-separated list on each end.
-            sourceColumn: rel.from_columns.join(","),
-            targetColumn: rel.to_columns.join(","),
-            cardinality: "many-to-one",
-          }),
+          upsertRelationship(
+            {
+              id: rel.name,
+              sourceTableId: rel.from,
+              targetTableId: rel.to,
+              // A key of several columns is one ordered, comma-separated list on each end.
+              sourceColumn: rel.from_columns.join(","),
+              targetColumn: rel.to_columns.join(","),
+              cardinality: "many-to-one",
+            },
+            true, // an imported relationship is a new one
+          ),
         );
       }
       for (const m of proposals.metrics) {

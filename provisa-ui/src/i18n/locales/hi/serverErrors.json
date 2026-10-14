@@ -406,7 +406,9 @@
       "source_id_taken": "स्रोत '{{source}}' पहले से मौजूद है",
       "domain_id_taken": "डोमेन '{{domain}}' पहले से मौजूद है",
       "role_id_taken": "भूमिका '{{role}}' पहले से मौजूद है",
-      "role_updated": "भूमिका '{{role}}' अपडेट की गई"
+      "role_updated": "भूमिका '{{role}}' अपडेट की गई",
+      "relationship_id_taken": "संबंध '{{relationship}}' पहले से मौजूद है",
+      "relationship_graphql_alias_taken": "GraphQL उपनाम '{{alias}}' पहले से '{{table}}' से संबंध '{{relationship}}' का उपनाम है"
     },
     "secrets": {
       "name_refused": "{{name}} {{service}} में इस संगठन के सीक्रेट्स के भीतर का नाम नहीं है: नाम संगठन के सापेक्ष होता है और उससे बाहर नहीं जा सकता",

@@ -196,7 +196,7 @@ async def _ask(user: str, rel_id: str, source: str, target: str) -> int:
     """``user`` asks for a relationship they may not create; the id of the queued request."""
     from provisa.api.admin.types import RelationshipInput
 
-    queued = await schema_mutation._upsert_relationship_impl(
+    queued = await schema_mutation._save_relationship_as_caller(
         _info(user),
         RelationshipInput(
             id=rel_id,
@@ -206,6 +206,7 @@ async def _ask(user: str, rel_id: str, source: str, target: str) -> int:
             target_column="id",
             cardinality="many-to-one",
         ),
+        creating=True,
     )
     assert queued.code == "schema.relationship_request_queued", queued.message
     assert isinstance(queued.params, dict)
@@ -465,7 +466,7 @@ async def test_a_request_submitted_over_rest_is_held_to_the_same_count(plane):
 async def test_a_creation_that_fails_leaves_the_request_pending_for_a_retry(plane):
     from provisa.api.admin.types import RelationshipInput
 
-    queued = await schema_mutation._upsert_relationship_impl(
+    queued = await schema_mutation._save_relationship_as_caller(
         _info("asker"),
         RelationshipInput(
             id="orders_customers",
@@ -475,6 +476,7 @@ async def test_a_creation_that_fails_leaves_the_request_pending_for_a_retry(plan
             target_column="id",
             cardinality="sideways",
         ),
+        creating=True,
     )
     assert isinstance(queued.params, dict)
     rid = queued.params["id"]

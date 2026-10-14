@@ -102,11 +102,11 @@ query {
 }
 ```
 
-Create a relationship (REQ-019):
+Create a relationship (REQ-019). An id that exists is refused; a relationship is changed with `updateRelationship`, which takes the same input:
 
 ```graphql
 mutation {
-  upsertRelationship(input: {
+  createRelationship(input: {
     id: "orders-to-customers"
     sourceTableId: "orders"
     targetTableId: "customers"
@@ -123,7 +123,7 @@ Declare a junction-backed relationship (REQ-1586):
 
 ```graphql
 mutation {
-  upsertRelationship(input: {
+  createRelationship(input: {
     id: "pets-bonded-pair"
     sourceTableId: "pets"
     targetTableId: "pets"

@@ -269,13 +269,16 @@ describe("Ossie interchange panel (REQ-1316)", () => {
     await openReview();
     await user.click(screen.getByTestId("ossie-apply"));
     await waitFor(() => expect(upsertRelationship).toHaveBeenCalledTimes(1));
-    expect(upsertRelationship).toHaveBeenCalledWith({
-      id: "orders_customers",
-      sourceTableId: "orders",
-      targetTableId: "customers",
-      sourceColumn: "customer_id",
-      targetColumn: "id",
-      cardinality: "many-to-one",
-    });
+    expect(upsertRelationship).toHaveBeenCalledWith(
+      {
+        id: "orders_customers",
+        sourceTableId: "orders",
+        targetTableId: "customers",
+        sourceColumn: "customer_id",
+        targetColumn: "id",
+        cardinality: "many-to-one",
+      },
+      true, // an imported relationship is created
+    );
   });
 });
