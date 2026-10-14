@@ -99,9 +99,11 @@ class TestTheChatQuotesWhatItHandsOn:
 
         seen = {}
 
-        async def _run_sql(state, role, sql, limit=None, offset=0):
+        async def _run_sql(
+            state, role, sql, limit=None, offset=0, *, redirect=False, redirect_format=None
+        ):
             seen["sql"] = sql
-            return {"columns": [], "rows": [], "row_count": 0}
+            return {"columns": [], "rows": [], "row_count": 0, "truncated": False}
 
         monkeypatch.setattr(chat.mcp_tools, "run_sql", _run_sql)
         result = await chat._execute_tool(
@@ -115,9 +117,11 @@ class TestTheChatQuotesWhatItHandsOn:
 
         seen = {}
 
-        async def _run_sql(state, role, sql, limit=None, offset=0):
+        async def _run_sql(
+            state, role, sql, limit=None, offset=0, *, redirect=False, redirect_format=None
+        ):
             seen["sql"] = sql
-            return {"columns": [], "rows": [], "row_count": 0}
+            return {"columns": [], "rows": [], "row_count": 0, "truncated": False}
 
         monkeypatch.setattr(chat.mcp_tools, "run_sql", _run_sql)
         result = await chat._execute_tool(

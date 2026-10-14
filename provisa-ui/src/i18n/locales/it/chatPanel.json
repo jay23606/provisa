@@ -28,6 +28,9 @@
     "yes": "Sì",
     "no": "No",
     "typeSomethingElse": "Scrivi qualcos'altro",
-    "confirm": "Conferma"
+    "confirm": "Conferma",
+    "graphCaption": "Nodi: {{nodes}} · Relazioni: {{relationships}}",
+    "downloadPng": "Scarica PNG",
+    "openOnGraphPage": "Apri nella pagina Grafo"
   }
 }

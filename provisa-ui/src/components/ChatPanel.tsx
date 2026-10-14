@@ -57,6 +57,7 @@ import type { ChoiceAnswer, ClientToolResult, PresentChoiceRequest } from "../mc
 import { useResizableWidth } from "../hooks/useResizableWidth";
 import { FormField, FormFooter, FormLayout } from "./form/FormLayout";
 import { Tip, TipSurface } from "./Tip";
+import { ChatArtifact } from "./ChatArtifact";
 
 const MIN_WIDTH = 320;
 const MAX_WIDTH = 900;
@@ -552,8 +553,9 @@ export function ChatPanel() {
               }}
             >
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {m.text || (busy && i === messages.length - 1 ? "…" : "")}
+                {m.text || (busy && i === messages.length - 1 && !m.artifacts ? "…" : "")}
               </ReactMarkdown>
+              {m.artifacts?.map((a, j) => <ChatArtifact key={j} artifact={a} />)}
               {m.text && (
                 <CopyButton value={m.text} timeout={1500}>
                   {({ copied, copy }) => (

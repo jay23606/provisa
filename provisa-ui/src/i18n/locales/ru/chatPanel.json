@@ -28,6 +28,9 @@
     "yes": "Да",
     "no": "Нет",
     "typeSomethingElse": "Ввести другое",
-    "confirm": "Подтвердить"
+    "confirm": "Подтвердить",
+    "graphCaption": "Узлы: {{nodes}} · Связи: {{relationships}}",
+    "downloadPng": "Скачать PNG",
+    "openOnGraphPage": "Открыть на странице «Граф»"
   }
 }
