@@ -1140,10 +1140,12 @@ async def _native_tables_rdbms(  # REQ-012, REQ-252
         return [AvailableTableType(name=row[0], comment=row[1] or None) for row in result.rows]
 
     if t == "sqlserver":
+        # `$1`: SQLServerDriver binds the canonical $N placeholders (bind_positionally); a `?`
+        # written here bound no value, and SQL Server refused it (07002 COUNT field incorrect).
         result = await pool.execute(
             source_id,
             "SELECT TABLE_NAME, NULL FROM INFORMATION_SCHEMA.TABLES "
-            "WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME",
+            "WHERE TABLE_SCHEMA = $1 AND TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME",
             [schema_name],
         )
         return [AvailableTableType(name=row[0], comment=None) for row in result.rows]
@@ -1426,7 +1428,7 @@ async def native_columns(  # REQ-1732
         result = await pool.execute(
             source_id,
             "SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS "
-            "WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION",
+            "WHERE TABLE_SCHEMA = $1 AND TABLE_NAME = $2 ORDER BY ORDINAL_POSITION",
             [schema_name, table_name],
         )
         return [(row[0], to_ir(row[1], "sqlserver")) for row in result.rows]
@@ -1557,6 +1559,11 @@ _PARAM_DOLLAR = (
     "SELECT table_name, column_name FROM information_schema.columns "
     "WHERE table_schema = $1 ORDER BY table_name, ordinal_position"
 )
+_PARAM_DOLLAR_UPPER = (
+    "SELECT TABLE_NAME, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS "
+    "WHERE TABLE_SCHEMA = $1 ORDER BY TABLE_NAME, ORDINAL_POSITION"
+)
+# Fabric's and Synapse's driver (MssqlWarehouseDriver) hands the statement to pyodbc as written.
 _PARAM_QMARK_UPPER = (
     "SELECT TABLE_NAME, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS "
     "WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION"
@@ -1565,7 +1572,7 @@ _PARAM_QMARK_UPPER = (
 _SCHEMA_COLUMNS_SQL: dict[str, tuple[str, bool]] = {
     "trino": (_PARAM_DOLLAR, True),
     **{kind: (_PARAM_DOLLAR, True) for kind in _POSTGRES_WIRE},
-    "sqlserver": (_PARAM_QMARK_UPPER, True),
+    "sqlserver": (_PARAM_DOLLAR_UPPER, True),
     "fabric": (_PARAM_QMARK_UPPER, True),
     "synapse": (_PARAM_QMARK_UPPER, True),
     "oracle": (

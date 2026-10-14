@@ -50,3 +50,34 @@ def test_a_placeholder_without_a_value_is_refused():
 
 def test_no_params_leaves_the_sql_alone():
     assert bind_positionally("a = 'x%'", None, "%s") == ("a = 'x%'", [])
+
+
+def test_values_with_no_placeholder_to_bind_them_are_refused():
+    """A statement written with the driver's own `?` binds none of the values given: SQL Server
+    ran it with none and answered "07002 COUNT field incorrect" (generic-rdbms sqlserver)."""
+    with pytest.raises(ValueError, match="no \\$N placeholder"):
+        bind_positionally("SELECT 1 WHERE a = ?", ["dbo"], "?")
+
+
+async def test_sql_server_listings_bind_their_schema():
+    """Every SQL Server listing statement is written with `$N`, which SQLServerDriver binds."""
+    from types import SimpleNamespace
+
+    from provisa.api.admin import introspect
+
+    bound: list[tuple[str, list]] = []
+
+    class _Pool:
+        def has(self, _sid):
+            return True
+
+        async def execute(self, _sid, sql, params=None):
+            bound.append(bind_positionally(sql, params, "?"))
+            return SimpleNamespace(rows=[])
+
+    await introspect._native_tables_rdbms("ss", "sqlserver", "dbo", _Pool())
+    await introspect.native_columns("ss", "sqlserver", "dbo", "widgets", _Pool())
+    statement, _ = introspect._SCHEMA_COLUMNS_SQL["sqlserver"]
+    await _Pool().execute("ss", statement, ["dbo"])
+
+    assert [params for _sql, params in bound] == [["dbo"], ["dbo", "widgets"], ["dbo"]]
