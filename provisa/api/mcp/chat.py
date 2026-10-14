@@ -102,7 +102,8 @@ _TOOLS: list[Any] = [
             "this table — NOT a guessed PascalCase-plus-domain-prefix transform. A guessed label "
             "can collide with a different table's in another domain and MATCH the wrong node "
             "type silently, or simply not exist. ALWAYS call this before writing a Cypher query "
-            "for a table."
+            "for a table. Returns node_pattern, the label as a MATCH writes it (unquoted), and "
+            "relationships, the table's typed, directed relationship patterns."
         ),
         "input_schema": {
             "type": "object",
@@ -564,7 +565,12 @@ _CLIENT_TOOLS: list[Any] = [
                     "description": (
                         'Optional, one key per route: /query -> {"query": "query Name { ... }"} '
                         '(GraphQL — name the operation), /graph -> {"query": "MATCH ..."} '
-                        '(Cypher), /sql -> {"sql": "SELECT ..."}, '
+                        '(Cypher), and for /graph optionally "view": {"groupBy": "<property>" '
+                        "(the Group by control: a node property name, null for none), "
+                        '"collapseGroups": true|false, "layout": "force"|"hierarchy", '
+                        '"maxNodes": <n>} -- the Graph page\'s own view controls; a /graph '
+                        "navigate with a view and NO query sets them on the graph already on "
+                        'screen, keeping its query. /sql -> {"sql": "SELECT ..."}, '
                         '/grpc -> {"grpcMethod": "QuerySIrisIris()"} (the exact rpc name from '
                         "graphql_field_names' grpc_query_method, plus a literal trailing '()' — "
                         "required by the gRPC page's parser), "
@@ -777,8 +783,18 @@ _SYSTEM = (
     "- GraphQL: call graphql_field_names for the table first (its SQL-plane name is usually "
     "different, e.g. a domain-uniqueness prefix like `s__` that can't be guessed). Name the "
     "query operation, e.g. `query GetIris { s__irisIris { ... } }`.\n"
-    "- Cypher: call cypher_field_names for the table first (its node label and property names "
-    "are a separate derivation from GraphQL's, not the same names).\n"
+    "- Cypher: call cypher_field_names for each table first (its node label and property names "
+    "are a separate derivation from GraphQL's, not the same names). Write each label exactly as "
+    "its node_pattern gives it -- a domain table's label is two labels, `(n:Shop:Orders)`, never "
+    "backticked -- and relate nodes only along the typed, directed relationships it lists, e.g. "
+    "`(o:Shop:Orders)-[:PLACED_BY]->(c:Shop:Customers)`. Write a pattern as one path, e.g. "
+    "`(o:Shop:Orders)<-[:ON_ORDER]-(i:Shop:OrderItems)-[:OF_PRODUCT]->(p:Shop:Products)`, or one "
+    "MATCH per path: comma-separated patterns and a bare `--` do not parse here, an untyped "
+    "`-[]-` matches every relationship, and a join on columns in WHERE draws no relationship. "
+    "A /graph navigate is "
+    "checked before it "
+    "reaches the page: if it is refused, correct the statement from the error and navigate "
+    "again.\n"
     "- gRPC: call graphql_field_names for the table — it also returns grpc_query_method/"
     "grpc_aggregate_method, the real rpc name. state.grpcMethod is that name plus `()`, e.g. "
     '`"QuerySIrisIris()"` — this is deterministic, not a guess; never omit the trailing `()`, '
@@ -789,6 +805,11 @@ _SYSTEM = (
     "for any domain id containing a hyphen or space (reproduced live).\n"
     "- OpenAPI: same as JSON:API — call graphql_field_names and use its openapi_path verbatim as "
     "state.openApiUrl, never reassembled from the plain schema/table names.\n"
+    "The Graph page's view -- group by, collapse every group, layout, max nodes -- is set through "
+    "navigate's state.view, never by rewriting the query: asked to group the graph on screen by "
+    "an attribute, navigate to /graph with only state.view.groupBy (the node property name) and "
+    "no query. Never change a query the user did not ask to change. A control you have no state "
+    "key for, you say you cannot set; never guess a key.\n"
     "For any of these, do the lookup (if needed) once per table, build the query, navigate with "
     "state once, then stop — report the outcome; never re-run the naming lookup, search_catalog, "
     "or navigate again for the same table in the same turn just to double-check work that already "
@@ -1177,6 +1198,26 @@ def _prepare_client_call(call: dict) -> tuple[dict, str | None]:
     return prepared, None if error is None else _unquoted_note(error)
 
 
+async def _refused_graph_navigates(state: Any, role: str, calls: list[dict]) -> dict[str, str]:
+    """Each navigate whose Cypher statement could not run on the Graph page, by call id, with the
+    tool result the model gets instead: the statement never reaches the page, and the model
+    corrects it from the real error."""
+    from provisa.api.mcp.cypher_check import cypher_read_problem, graph_query
+
+    refused: dict[str, str] = {}
+    for call in calls:
+        query = graph_query(call)
+        if query is None:
+            continue
+        problem = await cypher_read_problem(state, role, query)
+        if problem is not None:
+            refused[call["id"]] = (
+                "Not navigated: this Cypher statement does not run, so it was not put on the "
+                f"Graph page. {problem}. Correct the statement and navigate again."
+            )
+    return refused
+
+
 def _split_tool_calls(calls: list[dict]) -> tuple[list[dict], list[dict]]:
     """Normalized {id, name, input} tool calls -> (client_calls, server_calls)."""
     client_calls = [c for c in calls if c["name"] in _CLIENT_TOOL_NAMES]
@@ -1380,6 +1421,21 @@ async def _run_chat_anthropic(
                 }
             )
 
+        refused = await _refused_graph_navigates(
+            state, role, [{"id": b.id, "name": b.name, "input": b.input} for b in client_blocks]
+        )
+        for block in client_blocks:
+            if block.id in refused:
+                yield {"type": "tool_result", "name": block.name, "is_error": True}
+                tool_results.append(
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": block.id,
+                        "content": refused[block.id],
+                        "is_error": True,
+                    }
+                )
+        client_blocks = [b for b in client_blocks if b.id not in refused]
         if client_blocks:
             # REQ-1795: stop here — the browser must execute these, then resume by POSTing the
             # full history again with the assistant content below plus a tool_result for every
@@ -1625,6 +1681,19 @@ async def _run_chat_aisuite(
                 }
             )
 
+        refused = await _refused_graph_navigates(state, role, client_calls)
+        for call in client_calls:
+            if call["id"] in refused:
+                yield {"type": "tool_result", "name": call["name"], "is_error": True}
+                tool_results.append(
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": call["id"],
+                        "content": refused[call["id"]],
+                        "is_error": True,
+                    }
+                )
+        client_calls = [c for c in client_calls if c["id"] not in refused]
         if client_calls:
             prepared_calls = []
             for raw_call in client_calls:

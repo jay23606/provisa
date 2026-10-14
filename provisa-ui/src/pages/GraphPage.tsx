@@ -16,6 +16,8 @@ import { useDomainFilter } from "../context/DomainFilterContext";
 import { GraphFrame } from "../components/graph/GraphFrame";
 import {
   type FrameData,
+  type FrameView,
+  type GraphView,
   type RelLineOverride,
   type GNode,
   type GEdge,
@@ -64,7 +66,11 @@ export function GraphPage() {
   // A query to run: the guided tour's localStorage hand-off at mount, then one per navigation
   // hand-off (useNavPayload below), whether the page was just opened or already open. Each has its
   // own sequence number, and the run effect runs each one once.
-  const [forwarded, setForwarded] = useState<{ query: string; seq: number } | null>(() => {
+  const [forwarded, setForwarded] = useState<{
+    query: string;
+    seq: number;
+    view?: FrameView;
+  } | null>(() => {
     const pending = getStored("provisa.graph.pending_query");
     return pending ? { query: pending, seq: 0 } : null;
   });
@@ -72,11 +78,23 @@ export function GraphPage() {
   const [frames, setFrames] = useState<FrameData[]>(graphState.frames);
   const [history, setHistory] = useState<string[]>(graphState.history);
   const [historyQuery, setHistoryQuery] = useState<string | null>(null);
-  useNavPayload<{ query?: string; autoRun?: boolean }>((payload) => {
-    if (!payload.query) return;
-    const query = payload.query;
-    if (payload.autoRun) setForwarded((prev) => ({ query, seq: (prev?.seq ?? 0) + 1 }));
-    else setHistoryQuery(query);
+  // A view a navigation asks for, by frame: applied by the frame once per seq.
+  const [frameViews, setFrameViews] = useState<Record<string, FrameView>>({});
+  const viewSeqRef = useRef(0);
+  useNavPayload<{ query?: string; autoRun?: boolean; view?: GraphView }>((payload) => {
+    const { maxNodes: requestedMax, ...frameView } = payload.view ?? {};
+    if (requestedMax !== undefined) setMaxNodes(requestedMax);
+    const view: FrameView | undefined =
+      Object.keys(frameView).length > 0 ? { ...frameView, seq: ++viewSeqRef.current } : undefined;
+    if (payload.query) {
+      const query = payload.query;
+      if (payload.autoRun) setForwarded((prev) => ({ query, seq: (prev?.seq ?? 0) + 1, view }));
+      else setHistoryQuery(query);
+      return;
+    }
+    // No query: the view is for the frame on screen, the newest one, and its query is kept.
+    const newest = framesRef.current[0];
+    if (view && newest) setFrameViews((views) => ({ ...views, [newest.id]: view }));
   });
   const [schemaNodeLabels, setSchemaNodeLabels] = useState<SchemaNodeLabel[]>([]);
   const [schemaRels, setSchemaRels] = useState<SchemaRel[]>([]);
@@ -306,9 +324,10 @@ export function GraphPage() {
   }, [schemaNodeLabels, schemaRels, role?.id, checkedDomains]);
 
   const runQuery = useCallback(
-    async (query: string) => {
+    async (query: string, view?: FrameView) => {
       if (!query) return;
       const id = crypto.randomUUID();
+      if (view) setFrameViews((views) => ({ ...views, [id]: view }));
       const start = Date.now();
       setFrames((f) => {
         const next = [
@@ -425,7 +444,7 @@ export function GraphPage() {
     ranSeqRef.current = forwarded.seq;
     removeStored("provisa.graph.pending_query");
     setHistoryQuery(forwarded.query);
-    runQuery(forwarded.query);
+    runQuery(forwarded.query, forwarded.view);
   }, [runQuery, authLoading, forwarded]);
 
   const closeFrame = useCallback((id: string) => {
@@ -956,6 +975,7 @@ export function GraphPage() {
               <GraphFrame
                 key={frame.id}
                 frame={frame}
+                requestedView={frameViews[frame.id]}
                 onClose={closeFrame}
                 onRerun={rerunFrame}
                 onTableDrop={onTableDrop}
