@@ -20,11 +20,45 @@ corrects the statement from it.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 
-async def cypher_read_problem(state: Any, role_id: str, query: str) -> str | None:
-    """Why ``query`` cannot be run on the Graph page as ``role_id``, or None when it can."""
+@dataclass(frozen=True)
+class GraphRead:
+    """A Cypher read checked for the Graph page: why it cannot go there (None when it can), and
+    each result column the page draws, by name: ``node``, ``edge`` or ``path``."""
+
+    problem: str | None
+    columns: dict[str, str]
+
+
+def _unreturned_relationships(ast: Any, columns: dict[str, str]) -> str | None:
+    """A read that matches a path but returns only its nodes: the Graph page draws no edge
+    between them, so it can neither connect nor group them."""
+    from provisa.cypher.parser import PathFunction
+
+    hops = [
+        t or "untyped"
+        for m in ast.match_clauses
+        for r in (m.pattern.pattern if isinstance(m.pattern, PathFunction) else m.pattern).rels
+        for t in (r.types or [None])
+    ]
+    kinds = set(columns.values())
+    if not hops or "node" not in kinds or kinds & {"edge", "path"}:
+        return None
+    return (
+        f"it matches relationship(s) {', '.join(sorted(set(hops)))} but returns only nodes "
+        f"({', '.join(n for n, k in columns.items() if k == 'node')}), so the Graph page draws no "
+        "edges and cannot connect or group them. Bind each relationship on the path, e.g. "
+        "-[r:TYPE]->, and return it alongside the nodes (or bind the path, p = (...), and "
+        "return p)"
+    )
+
+
+async def check_graph_read(state: Any, role_id: str, query: str) -> GraphRead:
+    """``query`` checked for the Graph page as ``role_id``."""
+    from provisa.api.rest.cypher_drawing import graph_columns
     from provisa.api.rest.cypher_exec import _build_label_map
     from provisa.api.role_surface import role_surface
     from provisa.compiler.sql_rewrite import make_semantic_sql
@@ -43,17 +77,18 @@ async def cypher_read_problem(state: Any, role_id: str, query: str) -> str | Non
 
     surface = role_surface(state, role_id)
     if surface is None:
-        return f"the schema of role {role_id!r} is not loaded"
+        return GraphRead(f"the schema of role {role_id!r} is not loaded", {})
     try:
         ast = parse_cypher(query)
     except CypherParseError as exc:
-        return str(exc)
+        return GraphRead(str(exc), {})
     label_map = _build_label_map(surface.context, role_id, state)
     try:
         sql_ast, _params, graph_vars = cypher_to_sql(ast, label_map, {})
         sql_ast = apply_graph_rewrites(sql_ast, graph_vars, label_map)
     except (CypherTranslateError, CypherCrossSourceError, UnregisteredRelationshipType) as exc:
-        return str(exc)
+        return GraphRead(str(exc), {})
+    columns = graph_columns(graph_vars)
     role = effective_domain_access_role(role_id, state.roles)
     violations = validate_sql(
         make_semantic_sql(sql_ast.sql(dialect="postgres"), surface.context),
@@ -75,8 +110,8 @@ async def cypher_read_problem(state: Any, role_id: str, query: str) -> str | Non
         bypass_uncovered_relationships=True,
     )
     if violations:
-        return "; ".join(f"[{v.code}] {v.message}" for v in violations)
-    return None
+        return GraphRead("; ".join(f"[{v.code}] {v.message}" for v in violations), columns)
+    return GraphRead(_unreturned_relationships(ast, columns), columns)
 
 
 def graph_query(call: dict) -> str | None:

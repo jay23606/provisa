@@ -306,6 +306,41 @@ describe("ChatPanel — present_choice widget (REQ-1810)", () => {
   });
 });
 
+describe("ChatPanel — a navigate's result carries the server's confirmation", () => {
+  it("adds what the Graph page was handed to the result, since the page reports nothing back", async () => {
+    fetchMcpChatStatus.mockResolvedValue({ configured: true, reason: "" });
+    const input = { route: "/graph", state: { query: "MATCH (a)-[r:R]->(b) RETURN a, r, b" } };
+    const confirmation = "The Graph page was handed the statement.";
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        sseResponse([
+          {
+            type: "awaiting_client_tools",
+            assistant_content: [{ type: "tool_use", id: "c1", name: "navigate", input }],
+            server_tool_results: [],
+            pending: [{ id: "c1", name: "navigate", input, confirmation }],
+          },
+          { type: "done" },
+        ]),
+      )
+      .mockResolvedValueOnce(sseResponse([{ type: "text", text: "Ok." }, { type: "done" }]));
+
+    render(<ChatPanel />);
+    fireEvent.click(screen.getByTestId("chat-panel-toggle"));
+    const textarea = await screen.findByPlaceholderText(/Ask me a question/);
+    fireEvent.change(textarea, { target: { value: "graph it" } });
+    fireEvent.keyDown(textarea, { key: "Enter" });
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    const [, secondInit] = fetchMock.mock.calls[1];
+    const sentBody = JSON.parse((secondInit as RequestInit).body as string);
+    const result = JSON.parse(sentBody.messages.at(-1).content[0].content);
+    expect(result.message).toBe(`Navigated to /graph. ${confirmation}`);
+    fetchMock.mockRestore();
+  });
+});
+
 describe("ChatPanel — copy button (REQ-1811)", () => {
   it("copies a message's text to the clipboard", async () => {
     Object.assign(navigator, { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });

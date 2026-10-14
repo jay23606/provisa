@@ -25,7 +25,7 @@ from __future__ import annotations
 import pytest
 
 from provisa.api.mcp import tools
-from provisa.api.mcp.cypher_check import cypher_read_problem, graph_query
+from provisa.api.mcp.cypher_check import check_graph_read, graph_query
 from provisa.compiler import naming as _naming
 from provisa.compiler.context import build_context
 from provisa.compiler.rls import RLSContext
@@ -35,6 +35,11 @@ from tests.role_state import RoleState
 from tests.unit.test_group_by import _col
 
 pytestmark = pytest.mark.asyncio
+
+
+async def cypher_read_problem(state, role, query):
+    return (await check_graph_read(state, role, query)).problem
+
 
 _ROLE = "analyst"
 _COLUMNS = {
@@ -143,10 +148,32 @@ async def test_a_network_of_sample_orders_items_and_products_written_as_one_path
     typed and directed along the registered relationships."""
     label = await _labels(state)
     query = (
+        f"MATCH (o:{label['orders']})<-[on:ON_ORDER]-(i:{label['order_items']})"
+        f"-[of:OF_PRODUCT]->(p:{label['products']}) RETURN o, on, i, of, p LIMIT 25"
+    )
+    read = await check_graph_read(state, _ROLE, query)
+    assert read.problem is None
+    assert read.columns == {"o": "node", "on": "edge", "i": "node", "of": "edge", "p": "node"}
+
+
+async def test_a_path_returning_only_its_nodes_is_refused(state):
+    """ "Show this analysis in a network graph", then "group by theme": a path whose
+    relationships are not returned draws no edges, so the page cannot connect or group it."""
+    label = await _labels(state)
+    query = (
         f"MATCH (o:{label['orders']})<-[:ON_ORDER]-(i:{label['order_items']})"
         f"-[:OF_PRODUCT]->(p:{label['products']}) RETURN o, i, p LIMIT 25"
     )
-    assert await cypher_read_problem(state, _ROLE, query) is None
+    problem = await cypher_read_problem(state, _ROLE, query)
+    assert problem is not None
+    assert "OF_PRODUCT, ON_ORDER" in problem and "return it" in problem
+
+
+async def test_a_bound_path_returned_whole_draws_its_relationships(state):
+    label = await _labels(state)
+    query = f"MATCH p = (o:{label['orders']})-[:PLACED_BY]->(c:{label['customers']}) RETURN p"
+    read = await check_graph_read(state, _ROLE, query)
+    assert read.problem is None and read.columns == {"p": "path"}
 
 
 @pytest.mark.parametrize(

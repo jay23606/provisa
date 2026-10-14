@@ -34,7 +34,7 @@ from tests.unit.test_mcp_chat import (  # the chat's fakes, and the key its vend
 pytestmark = pytest.mark.asyncio
 
 _BAD = "MATCH (o:Shop:Orders), (c:Shop:Customers) RETURN o, c"
-_GOOD = "MATCH (o:Shop:Orders)-[:PLACED_BY]->(c:Shop:Customers) RETURN o, c LIMIT 25"
+_GOOD = "MATCH (o:Shop:Orders)-[r:PLACED_BY]->(c:Shop:Customers) RETURN o, r, c LIMIT 25"
 
 
 def _navigate(call_id: str, state: dict):
@@ -62,11 +62,13 @@ def _checks(monkeypatch):
     monkeypatch.setenv("PROVISA_MCP_CHAT_MODEL", "claude-haiku-5-5")
     checked: list[str] = []
 
-    async def _problem(_state, _role, query):
+    async def _check(_state, _role, query):
         checked.append(query)
-        return "Unexpected token ',' at pos 21" if query == _BAD else None
+        if query == _BAD:
+            return cypher_check.GraphRead("Unexpected token ',' at pos 21", {})
+        return cypher_check.GraphRead(None, {"o": "node", "c": "node", "r": "edge"})
 
-    monkeypatch.setattr(cypher_check, "cypher_read_problem", _problem)
+    monkeypatch.setattr(cypher_check, "check_graph_read", _check)
     return checked
 
 
@@ -98,4 +100,48 @@ async def test_a_navigate_that_sets_only_the_view_goes_through_unchecked(monkeyp
     events = [ev async for ev in chat_mod.run_chat(_state(), "analyst", convo)]
     paused = next(e for e in events if e["type"] == "awaiting_client_tools")
     assert paused["pending"][0]["input"]["state"] == {"view": {"groupBy": "region"}}
+    assert _checks == []
+    # Its result can confirm only the request: the page does not report back what it drew.
+    assert paused["pending"][0]["confirmation"] == (
+        'The Graph page was asked to set its view to {"groupBy": "region"} on the graph already '
+        "on screen; the page does not report back what it drew."
+    )
+
+
+async def test_a_navigate_that_reaches_the_page_carries_what_its_result_can_confirm(
+    monkeypatch, _checks
+):
+    """ "I've opened the Graph page with the analysis rendered" was said with nothing to say so:
+    the browser reports only that it navigated, so the result carries what the page was handed."""
+    _install_fake_anthropic(monkeypatch, [_navigate("t1", {"query": _GOOD, "autoRun": True})])
+    convo = [{"role": "user", "content": "show this in a network graph"}]
+    events = [ev async for ev in chat_mod.run_chat(_state(), "analyst", convo)]
+    paused = next(e for e in events if e["type"] == "awaiting_client_tools")
+    assert paused["pending"][0]["confirmation"] == (
+        "The Graph page was handed the statement, which checks clean and returns node column(s) "
+        "o, c; edge column(s) r. The page runs it; it does not report back the rows it drew."
+    )
+
+
+async def test_a_navigate_off_the_graph_page_carries_no_confirmation(monkeypatch, _checks):
+    _install_fake_anthropic(
+        monkeypatch,
+        [
+            SimpleNamespace(
+                content=[
+                    _block(
+                        type="tool_use",
+                        name="navigate",
+                        id="t1",
+                        input={"route": "/sql", "state": {"sql": "SELECT 1", "autoRun": True}},
+                    )
+                ],
+                stop_reason="tool_use",
+            )
+        ],
+    )
+    convo = [{"role": "user", "content": "show it on the SQL page"}]
+    events = [ev async for ev in chat_mod.run_chat(_state(), "analyst", convo)]
+    paused = next(e for e in events if e["type"] == "awaiting_client_tools")
+    assert "confirmation" not in paused["pending"][0]
     assert _checks == []
