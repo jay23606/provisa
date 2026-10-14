@@ -29,7 +29,9 @@ export function PanelWorking({
   children: ReactNode;
 }) {
   return (
-    <div className="split-pane__fill">
+    // In the panel's flow, scrolled with its body: a working surface is a form or a result, not a
+    // grid that takes the panel's height (split-pane__fill), which squeezed what it holds to fit.
+    <div className="split-pane__working">
       <div className="split-pane__bar">
         <Button
           variant="subtle"

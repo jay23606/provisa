@@ -856,6 +856,13 @@ main {
   flex-direction: column;
   gap: 0.5rem;
 }
+/* A working surface in place of the item (schema discovery, a mapping, a test run): in the
+ * panel's flow, scrolled with its body. */
+.split-pane__working {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
 /* A row of the panel's own controls above a view (the way back from a preview). */
 .split-pane__bar {
   flex: 0 0 auto;
@@ -867,8 +874,10 @@ main {
   flex: 1 1 auto;
   min-height: 0;
 }
-/* A form's Save and Cancel stay at the foot of the panel while the form scrolls above them. */
-.split-pane__body .form-footer:last-child {
+/* A form's Save and Cancel stay at the foot of the panel while the form scrolls above them: the
+ * footer that ends a form, not one with more of the panel after it (schema discovery's Discover
+ * row, above the columns it found), which would cover what scrolls beneath it. */
+.split-pane__body .form-layout:last-child > .form-footer:last-child {
   position: sticky;
   bottom: -0.75rem;
   margin-bottom: -0.75rem;
