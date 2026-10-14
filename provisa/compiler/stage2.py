@@ -205,8 +205,11 @@ def build_governance_context(  # REQ-002, REQ-005, REQ-040, REQ-263, REQ-265, RE
         gov.all_columns[table_id] = [
             (c["column_name"], c.get("data_type", "varchar"))
             for c in cols
-            # A column the relation a statement reads does not hold is not expanded from `*`.
+            # A column the relation a statement reads does not hold is not expanded from `*`: a
+            # remote table's reference column, or an API parameter (a native filter column, an
+            # input the payload never carries -- REQ-301).
             if (table_id, c["column_name"]) not in ctx.columns_outside_relation
+            and not c.get("native_filter_type")
         ]
         embeddings = {
             c["column_name"]: c["embedding_model"]

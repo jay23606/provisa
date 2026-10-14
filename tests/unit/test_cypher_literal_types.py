@@ -42,6 +42,7 @@ def _label_map() -> CypherLabelMap:
         table_id=1,
         source_id="pg",
         catalog_name="postgresql",
+        source_type="postgresql",
         schema_name="public",
         table_name="orders",
         domain_id="sales",

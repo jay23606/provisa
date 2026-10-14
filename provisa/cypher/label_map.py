@@ -26,6 +26,7 @@ from provisa.compiler.naming import (
 )
 from provisa.compiler.sql_types import key_list
 from provisa.core import domain_policy
+from provisa.compiler.complexity import api_source_types
 
 if TYPE_CHECKING:
     from provisa.compiler.sql_gen import CompilationContext
@@ -468,8 +469,14 @@ def _build_node_mappings(
             for c in col_names
             if (table_meta.table_id, c) not in _gov_obj
         }
+        # REQ-301: an API-backed table is read from what it was materialized as (a hot VALUES CTE,
+        # an engine-cache table), whose columns are the SQL names -- a field's own spelling
+        # (photoUrls) is no column of it.
+        _materialized = table_meta.source_type in api_source_types()
         phys_props: dict[str, str] = {
-            _apply_cql_property(c): c for c in col_names if (table_meta.table_id, c) not in _gov_obj
+            _apply_cql_property(c): props[_apply_cql_property(c)] if _materialized else c
+            for c in col_names
+            if (table_meta.table_id, c) not in _gov_obj
         }
         map_props = frozenset(
             prop for prop, c in phys_props.items() if (table_meta.table_id, c) in object_columns

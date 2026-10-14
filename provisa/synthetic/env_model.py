@@ -68,14 +68,6 @@ LIMITATIONS: tuple[dict[str, str], ...] = (
 )
 
 
-def api_source_types() -> frozenset[str]:
-    """The source types whose tables are backed by an API."""
-    from provisa.api_source.models import ApiSourceType
-    from provisa.compiler.complexity import REMOTE_API_SOURCE_TYPES
-
-    return frozenset(e.value for e in ApiSourceType) | REMOTE_API_SOURCE_TYPES
-
-
 def required_parameters(table: dict) -> list[str]:
     """The columns of ``table`` (a fetch_tables row) carrying a parameter a read of it must give
     (REQ-1986): with any, the table has no full set of rows to measure or to generate from."""
@@ -210,6 +202,7 @@ async def model_plan(state: Any, conn: Any, parent: str, env: str) -> dict[str, 
     commands of each API source. ``ready`` when every other table has a profile and no column of
     it is left with nothing to generate from."""
     from provisa.api.admin.db_queries import fetch_relationships, fetch_tables
+    from provisa.compiler.complexity import api_source_types
     from provisa.core.models import BUILT_IN_SOURCE_IDS
     from provisa.core.request_context import require_current_org
     from provisa.synthetic.run import profile_runs_in, uncovered_columns

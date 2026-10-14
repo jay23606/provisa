@@ -903,7 +903,7 @@ async def _reject_unbound_writes(parsed: Any, state: Any) -> None:
     if handling != DIRECT:
         # REQ-1942, Reversible: kept in the environment's change log, never run on the source --
         # except an API's mutation, which cannot be kept: its effect is opaque.
-        from provisa.synthetic.env_model import api_source_types
+        from provisa.compiler.complexity import api_source_types
 
         if state.source_types.get(source_id) in api_source_types():
             raise PermissionError(
@@ -1883,18 +1883,12 @@ async def route_governed(
 
     # REQ-863 pipeline order: governance → post-governance optimization → routing.
     # Lower the ONE accepted reference model — the semantic domain.table the catalog
-    # advertises — to catalog-physical for the engine. rewrite_semantic_to_catalog_physical
-    # is the same lowering the GQL/Cypher path uses (_govern_and_route_compiled); the raw-SQL
-    # path previously used qualify_with_catalogs, which only re-qualified already-physical refs
-    # and left a semantic ref like "pet_store"."inquiries" unresolved → "schema doesn't exist".
-    from provisa.compiler.sql_rewrite import (
-        normalize_table_refs,
-        rewrite_semantic_to_catalog_physical,
-    )
+    # advertises — to catalog-physical for the engine: lower_to_catalog_physical, the same
+    # lowering the GQL/Cypher path uses (_govern_and_route_compiled). It normalizes the refs
+    # first: an UNQUOTED semantic ref like `pet_store.inquiries` is invisible to the literal-match
+    # rename, so it is parsed, qualified and quoted before it is lowered.
+    from provisa.compiler.sql_rewrite import lower_to_catalog_physical
 
-    # normalize_table_refs first (sqlglot parse-based): an UNQUOTED semantic ref like
-    # `pet_store.inquiries` is invisible to the literal-match rewrite, so it must be
-    # parsed, qualified and quoted before rewrite_semantic_to_catalog_physical can lower it.
     # REQ-031: an UPDATE/DELETE/INSERT/MERGE always routes DIRECT — the engine terminal takes no
     # writes. decide_route only applies that rule when told; the raw-SQL surfaces (pgwire, /data/sql)
     # parse the statement themselves, so the type must be passed through explicitly.
@@ -2004,9 +1998,7 @@ async def route_governed(
     # call (see _off_loop's own docstring).
     _physical_sql = await _kept_lowering(
         governed.memo,
-        lambda: rewrite_semantic_to_catalog_physical(
-            normalize_table_refs(governed_semantic, ctx), ctx
-        ),
+        lambda: lower_to_catalog_physical(governed_semantic, ctx),
     )
     _physical_sql, _nf_clean_params, _extracted_nf = extract_nf_args(
         _physical_sql, embedded_params or [], context_parameters(ctx)
@@ -2240,9 +2232,7 @@ async def route_governed(
             # View bodies are stored in semantic form; after expansion, lower any
             # newly-introduced semantic refs to catalog-physical (same pass the outer SQL
             # went through at line 456 before routing).
-            _qualified = rewrite_semantic_to_catalog_physical(
-                normalize_table_refs(_qualified, ctx), ctx
-            )
+            _qualified = lower_to_catalog_physical(_qualified, ctx)
 
         _routed_sql = _qualified
         physical_sql = await _kept_engine_form(
@@ -4496,7 +4486,7 @@ async def _route_compiled(
     open like the raw-SQL path — the terminal finalizes it. REQ-544 (amended 2026-09-30):
     ``cache_hint`` is the response-cache opt-in the REQUEST carried, handed through unchanged."""
     from provisa.compiler.sql_rewrite import (
-        rewrite_semantic_to_catalog_physical,
+        lower_to_catalog_physical,
         rewrite_semantic_to_physical,
     )
     from provisa.transpiler.router import Route
@@ -4522,9 +4512,7 @@ async def _route_compiled(
     # tables. This MUST complete before extract_sources/decide_route so routing observes the
     # reduced source set (a query whose second source is fully inlined collapses to DIRECT).
     # REQ-1882: off-loaded, same rationale as the raw-SQL path's rewrite call above.
-    _exec_sql = await _kept_lowering(
-        memo, lambda: rewrite_semantic_to_catalog_physical(governed_sql, ctx)
-    )
+    _exec_sql = await _kept_lowering(memo, lambda: lower_to_catalog_physical(governed_sql, ctx))
     _view_map = getattr(state, "view_sql_map", None)
     if _view_map:
         from provisa.compiler.view_expand import expand_view_refs
