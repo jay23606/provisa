@@ -374,7 +374,7 @@
     "demos": {
       "weblogs": {
         "title": "The web shop's logs",
-        "summary": "A web shop's question, which pages are slow and which SQL makes them slow: its sources, the tables they become, the join of its two logs, and Polly's answer."
+        "summary": "A web shop's question, which pages are slow and which SQL makes them slow: its sources, the tables they become, the join of its two logs, and the answer in SQL and over REST."
       },
       "sonnets": {
         "title": "Shakespeare's sonnets",

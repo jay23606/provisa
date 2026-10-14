@@ -374,7 +374,7 @@
     "demos": {
       "weblogs": {
         "title": "Os logs da loja virtual",
-        "summary": "A pergunta de uma loja online, quais páginas são lentas e qual SQL as torna lentas: suas fontes, as tabelas que elas viram, a junção dos seus dois logs e a resposta da Polly."
+        "summary": "A pergunta de uma loja online, quais páginas são lentas e qual SQL as torna lentas: suas fontes, as tabelas que elas viram, a junção dos seus dois logs e a resposta em SQL e via REST."
       },
       "sonnets": {
         "title": "Os sonetos de Shakespeare",

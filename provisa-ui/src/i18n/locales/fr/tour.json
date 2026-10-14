@@ -374,7 +374,7 @@
     "demos": {
       "weblogs": {
         "title": "Les journaux de la boutique en ligne",
-        "summary": "La question d'une boutique en ligne, quelles pages sont lentes et quel SQL les rend lentes : ses sources, les tables qu'elles deviennent, la jointure de ses deux journaux et la réponse de Polly."
+        "summary": "La question d'une boutique en ligne, quelles pages sont lentes et quel SQL les rend lentes : ses sources, les tables qu'elles deviennent, la jointure de ses deux journaux et la réponse en SQL et par REST."
       },
       "sonnets": {
         "title": "Les sonnets de Shakespeare",

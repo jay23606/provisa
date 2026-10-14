@@ -374,7 +374,7 @@
     "demos": {
       "weblogs": {
         "title": "De logs van de webwinkel",
-        "summary": "De vraag van een webwinkel, welke pagina's traag zijn en welke SQL ze traag maakt: zijn bronnen, de tabellen die ze worden, de koppeling van zijn twee logs en het antwoord van Polly."
+        "summary": "De vraag van een webwinkel, welke pagina's traag zijn en welke SQL ze traag maakt: zijn bronnen, de tabellen die ze worden, de koppeling van zijn twee logs en het antwoord in SQL en via REST."
       },
       "sonnets": {
         "title": "De sonnetten van Shakespeare",

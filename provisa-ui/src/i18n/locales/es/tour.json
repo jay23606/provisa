@@ -374,7 +374,7 @@
     "demos": {
       "weblogs": {
         "title": "Los registros de la tienda web",
-        "summary": "La pregunta de una tienda web, qué páginas son lentas y qué SQL las hace lentas: sus fuentes, las tablas que forman, la unión de sus dos registros y la respuesta de Polly."
+        "summary": "La pregunta de una tienda web, qué páginas son lentas y qué SQL las hace lentas: sus fuentes, las tablas que forman, la unión de sus dos registros y la respuesta en SQL y por REST."
       },
       "sonnets": {
         "title": "Los sonetos de Shakespeare",
