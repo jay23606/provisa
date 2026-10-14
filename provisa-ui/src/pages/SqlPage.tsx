@@ -186,7 +186,8 @@ export function SqlPage() {
   const [copied, setCopied] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const editorViewRef = useRef<EditorView | null>(null);
-  const pendingAutoRunRef = useRef(false);
+  // The statement a hand-off asked to run, until the working state holds it and it is run.
+  const pendingAutoRunRef = useRef<string | null>(null);
   const pendingRunAfterFormatRef = useRef(false);
   const [nlText, setNlText] = useState(active0.nlText);
   const [nlLoading, setNlLoading] = useState(false);
@@ -498,7 +499,7 @@ export function SqlPage() {
     setTabs([...merged, tab]);
     setActiveTabId(tab.id);
     loadTabIntoWorkingState(tab);
-    pendingAutoRunRef.current = payload.autoRun === true;
+    pendingAutoRunRef.current = payload.autoRun === true ? payload.sql : null;
   });
 
   // REQ-1322: the server expansion severs the metric link permanently (no re-ingestion path), so it
@@ -718,8 +719,10 @@ export function SqlPage() {
   }, [sqlText, role, sampleMode, sampleSize, activeTabId, statsEnabled, resetGrid]);
 
   useEffect(() => {
-    if (pendingAutoRunRef.current && sqlText.trim()) {
-      pendingAutoRunRef.current = false;
+    // The handed statement, once it is the editor's: on a page the hand-off opened, this runs in
+    // the same commit as the hand-off, still holding the text of the tab that was active.
+    if (pendingAutoRunRef.current !== null && sqlText === pendingAutoRunRef.current) {
+      pendingAutoRunRef.current = null;
       // REQ-1359: "Open in SQL" must copy the SQL in, prettify it, then execute.
       const pretty = formatSql(sqlText, { language: "postgresql" });
       if (pretty !== sqlText) {
