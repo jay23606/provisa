@@ -38,6 +38,17 @@ function nodeClusterId(n: GNode, clusterKey: string): string | null {
   return raw !== null && raw !== undefined ? String(raw) : null;
 }
 
+/** Every group the nodes fall into at ``level``: what "collapse every group" collapses. */
+export function clusterIds(nodes: Map<string, GNode>, level: Exclude<ClusterLevel, "none">) {
+  const clusterKey = clusterKeyFor(level);
+  const ids = new Set<string>();
+  nodes.forEach((n) => {
+    const cid = nodeClusterId(n, clusterKey);
+    if (cid !== null) ids.add(cid);
+  });
+  return ids;
+}
+
 // Returns compound nodes, child data nodes, intra-cluster edges, and free↔free edges.
 // Port nodes and meta-edges are deferred — call buildClusterMetaEdges after layout.
 export function buildClusterElements(

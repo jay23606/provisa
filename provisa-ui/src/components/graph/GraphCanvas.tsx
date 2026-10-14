@@ -22,6 +22,7 @@ import {
   buildClusterElements,
   buildClusterMetaEdges,
   cidToId,
+  clusterIds,
   type ClusterLevel,
 } from "./graph-clusters";
 import { buildGraphStylesheet } from "./graph-stylesheet";
@@ -67,6 +68,7 @@ export function GraphCanvas({
   showingParentsCircular,
   onCyReady,
   clusterLevel,
+  requestedView,
   hullSvgRef,
   isExpanded,
   note,
@@ -137,6 +139,19 @@ export function GraphCanvas({
     });
   }, []);
 
+  // A requested view's groups collapse once its nodes are there (a frame is drawn after its
+  // query answers); the viewer's own expanding afterwards stands.
+  const collapsedForSeqRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!requestedView?.collapseGroups || collapsedForSeqRef.current === requestedView.seq) return;
+    if (clusterLevel === "none" || nodes.size === 0) return;
+    collapsedForSeqRef.current = requestedView.seq;
+    const all = clusterIds(nodes, clusterLevel);
+    collapsedClustersRef.current = all;
+    /* eslint-disable-next-line react-hooks/set-state-in-effect -- a navigation's requested view, applied once per seq to the nodes the frame now holds */
+    setCollapsedClusters(all);
+  }, [requestedView, clusterLevel, nodes]);
+
   // Stable ref so computeHulls can be passed to useGraphLayout before the callback is defined
   const computeHullsRef = useRef<() => void>(() => {});
 
@@ -176,6 +191,14 @@ export function GraphCanvas({
     sizeOverridesRef,
     computeHullsRef,
   });
+
+  // A requested view's layout, set once per seq: the toggle the canvas's own control flips.
+  const laidOutForSeqRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!requestedView?.layout || laidOutForSeqRef.current === requestedView.seq) return;
+    laidOutForSeqRef.current = requestedView.seq;
+    if (requestedView.layout !== layoutMode) toggleLayout();
+  }, [requestedView, layoutMode, toggleLayout]);
 
   const computeHulls = useCallback(() => {
     const cy = cyRef.current;

@@ -50,6 +50,9 @@ export interface CanvasProps {
   onToggleParentsCircular: (nodeKey: string) => void;
   onCyReady?: (cy: CyInstance | null) => void;
   clusterLevel: ClusterLevel;
+  /** A view a navigation asked for (Polly's navigate): its layout, and whether every group starts
+   *  collapsed. Applied once per ``seq``, after which the viewer's own changes stand. */
+  requestedView?: { layout?: LayoutMode; collapseGroups?: boolean; seq: number };
   hullSvgRef?: React.Ref<SVGSVGElement>;
   isExpanded?: boolean;
 }

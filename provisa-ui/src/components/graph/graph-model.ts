@@ -401,6 +401,19 @@ export interface GraphStats {
 }
 
 // ── Frame data ────────────────────────────────────────────────────────────────
+/** The Graph page's view controls a navigation may set alongside its query (Polly's navigate,
+ *  an in-app link): the attribute nodes are grouped by (null: none), whether every group starts
+ *  collapsed, the layout, and the most nodes a frame draws. */
+export interface GraphView {
+  groupBy?: string | null;
+  collapseGroups?: boolean;
+  layout?: "force" | "hierarchy";
+  maxNodes?: number;
+}
+
+/** A frame's part of a requested view, applied once per ``seq``. */
+export type FrameView = Omit<GraphView, "maxNodes"> & { seq: number };
+
 export interface FrameData {
   id: string;
   query: string;

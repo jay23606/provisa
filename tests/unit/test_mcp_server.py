@@ -689,7 +689,8 @@ async def test_cypher_field_names_returns_the_compiled_label_maps_real_names(sta
         id_column="id",
         physical_properties={"id": "id", "customerId": "customer_id"},
     )
-    fake_label_map = SimpleNamespace(nodes={"Orders": fake_node})
+    # The table's relationships are the label map's: here it has none.
+    fake_label_map = SimpleNamespace(nodes={"Orders": fake_node}, aliases={})
     with patch(
         "provisa.api.rest.cypher_exec._build_label_map", return_value=fake_label_map
     ) as builder:
@@ -702,6 +703,8 @@ async def test_cypher_field_names_returns_the_compiled_label_maps_real_names(sta
         {"name": "id", "cypher_property": "id"},
         {"name": "customer_id", "cypher_property": "customerId"},
     ]
+    assert result["node_pattern"] == "(n:Sales:Orders)"
+    assert result["relationships"] == []
 
 
 async def test_cypher_field_names_unknown_table_raises(state):

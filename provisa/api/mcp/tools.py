@@ -340,12 +340,33 @@ async def cypher_field_names(state: Any, role: str, schema: str, table: str) -> 
         raise ValueError(
             f"{schema}.{table} is not exposed in the compiled Cypher graph schema right now"
         )
+
+    def _pattern(type_name: str) -> str:
+        return f"(:{label_map.nodes[type_name].label})"
+
+    relationships = sorted(
+        {
+            f"{_pattern(rel.source_label)}-[:{rel.rel_type}]->{_pattern(rel.target_label)}"
+            for rels in label_map.aliases.values()
+            for rel in rels
+            if meta.type_name in (rel.source_label, rel.target_label)
+            and rel.source_label in label_map.nodes
+            and rel.target_label in label_map.nodes
+        }
+    )
     return {
+        # A domain table's label is two labels, domain then table ("Shop:Orders"), each a plain
+        # name: written as they are, never in backticks, which would make them one label that
+        # matches nothing.
         "label": node.label,
+        "node_pattern": f"(n:{node.label})",
         "id_property": node.id_column,
         "columns": [
             {"name": phys, "cypher_property": cyp} for cyp, phys in node.physical_properties.items()
         ],
+        # Its registered relationships, typed and directed as a MATCH writes them: tables are
+        # related only along these, never by matching columns in WHERE.
+        "relationships": relationships,
     }
 
 

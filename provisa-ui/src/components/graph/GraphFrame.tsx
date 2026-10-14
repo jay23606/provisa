@@ -19,6 +19,9 @@ import { useTranslation } from "react-i18next";
 import type { Relationship } from "../../types/admin";
 import { injectExclusion } from "./graph-model";
 import type { GNode, GEdge, GraphStats, RelLineOverride, FrameData } from "./graph-model";
+import type { FrameView } from "./graph-model";
+import { useRequestedView } from "./use-requested-view";
+import { useColumnWidths } from "./use-column-widths";
 import CodeMirror from "@uiw/react-codemirror";
 import * as _neo4jCypherMod from "@neo4j-cypher/codemirror";
 import "@neo4j-cypher/codemirror/css/cypher-codemirror.css";
@@ -64,6 +67,8 @@ import { ResultRedirectNotice } from "../ResultRedirectNotice";
 // ── Frame component ───────────────────────────────────────────────────────────
 interface GraphFrameProps {
   frame: FrameData;
+  /** A view a navigation asked for this frame: its group-by, collapse and layout. */
+  requestedView?: FrameView;
   onClose: (id: string) => void;
   onRerun: (id: string, query: string) => void;
   onTableDrop?: (frameId: string, compoundLabel: string) => void;
@@ -98,6 +103,7 @@ interface GraphFrameProps {
 
 export function GraphFrame({
   frame,
+  requestedView,
   onClose,
   onRerun,
   onTableDrop,
@@ -186,15 +192,9 @@ export function GraphFrame({
     `provisa.graph.clusterLevel.${frame.id}`,
     "none",
   );
+  const canvasView = useRequestedView(requestedView, setClusterLevel);
   const [tableWrap, setTableWrap] = useState(false);
-  const [tableColWidths, setTableColWidths] = useState<number[]>(() =>
-    frame.columns.map(() => 180),
-  );
-  const prevColumnsKey = useRef(frame.columns.join(","));
-  if (frame.columns.join(",") !== prevColumnsKey.current) {
-    prevColumnsKey.current = frame.columns.join(",");
-    setTableColWidths(frame.columns.map(() => 180));
-  }
+  const [tableColWidths, setTableColWidths] = useColumnWidths(frame.columns);
   const canvasCyRef = useRef<CyInstance | null>(null);
   const canvasHullSvgRef = useRef<SVGSVGElement | null>(null);
   const inspWidthRef = useRef(inspectorWidth);
@@ -839,6 +839,7 @@ export function GraphFrame({
                   (window as unknown as Record<string, unknown>).__cy = cy;
               }}
               clusterLevel={clusterLevel}
+              requestedView={canvasView}
               hullSvgRef={canvasHullSvgRef}
               isExpanded={expanded}
               note={frame.truncated && <GraphCutNote count={frame.nodes.size} />}
