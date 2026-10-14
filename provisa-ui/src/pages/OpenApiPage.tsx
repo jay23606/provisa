@@ -18,6 +18,9 @@ import { useDomainFilter } from "../context/DomainFilterContext";
 import "./OpenApiPage.css";
 import { actingRoleHeader } from "../lib/actingRole";
 
+// How long a driven call's response may take: a query on a loaded demo answers in seconds.
+const RESPONSE_WAIT_MS = 60000;
+
 export function OpenApiPage() {
   const { t } = useTranslation();
   // Computed, not the raw setting: the raw value is "auto" when the user follows the system, and
@@ -40,10 +43,14 @@ export function OpenApiPage() {
   // already open. Each hand-off has its own sequence number and is driven in the docs once, as soon
   // as the docs frame has loaded.
   const [handoff, setHandoff] = useState<{ url: string; seq: number } | null>(null);
+  // The last hand-off's response is on screen (REQ-2010: a demo tour step waits for it; the
+  // response itself is inside the docs frame, out of the page's reach).
+  const [answered, setAnswered] = useState(false);
   useNavPayload<{ openApiUrl?: string; autoRun?: boolean }>((payload) => {
     if (!payload.openApiUrl || payload.autoRun !== true) return;
     const url = payload.openApiUrl;
     setHandoff((prev) => ({ url, seq: (prev?.seq ?? 0) + 1 }));
+    setAnswered(false);
   });
   // The document the frame has loaded (its key), so a hand-off waits for the current frame.
   const [frameLoaded, setFrameLoaded] = useState<string | null>(null);
@@ -191,12 +198,14 @@ export function OpenApiPage() {
         await waitFor(() => !!block.querySelector(".btn.execute.opblock-control__btn"));
         (block.querySelector(".btn.execute.opblock-control__btn") as HTMLElement | null)?.click();
 
-        await waitFor(
+        const responded = await waitFor(
           () =>
             !!block.querySelector(
               ".responses-wrapper .live-responses-table, .responses-wrapper .microlight",
             ),
+          RESPONSE_WAIT_MS,
         );
+        setAnswered(responded);
         (block.querySelector(".responses-wrapper") as HTMLElement | null)?.scrollIntoView({
           behavior: "smooth",
           block: "start",
@@ -214,7 +223,7 @@ export function OpenApiPage() {
   }, [handoff, frameLoaded, frameKey, drive]);
 
   return (
-    <div className="openapi-page page">
+    <div className="openapi-page page" data-answered={answered ? "" : undefined}>
       {loadError && (
         <p className="openapi-load-error">{t("openApiPage.loadError", { error: loadError })}</p>
       )}

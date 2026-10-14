@@ -19,9 +19,33 @@ import type { ExampleQuery } from "../api/setup";
 import type { TourStep } from "./tourSteps";
 import type { TourPrerequisites } from "./tourPrerequisites";
 
-/** REQ-2013: a demo's track needs the sources its steps show. */
+/** REQ-2013: a demo's track needs the sources and tables its steps show. */
 export function demoTourPrerequisites(defs: readonly DemoTourStepDef[]): TourPrerequisites {
-  return { sources: defs.flatMap((d) => (d.source !== undefined ? [d.source] : [])) };
+  return {
+    sources: defs.flatMap((d) => (d.source !== undefined ? [d.source] : [])),
+    tables: defs.flatMap((d) => (d.table !== undefined ? [d.table] : [])),
+  };
+}
+
+/** REQ-2012: a step asking Polly is shown only with the answer stored for it when the demo's
+ * template was built; nothing is asked live, so a demo not built from a template leaves it out. */
+export function demoStepShown(def: DemoTourStepDef): boolean {
+  return def.polly === undefined || def.answer !== undefined;
+}
+
+/**
+ * What marks a demo's track walked: the demo and a hash of its steps' keys and routes. A revised
+ * track hashes differently, so a control plane that walked the old one offers the new one again.
+ */
+export function demoTrackStamp(name: string, defs: readonly DemoTourStepDef[]): string {
+  const text = JSON.stringify(defs.map((d) => [d.key, d.route ?? null]));
+  // FNV-1a, 32 bits: a short, stable fingerprint, not a secret.
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return `${name}:${hash.toString(16).padStart(8, "0")}`;
 }
 
 /** One step of tour.yaml, as the server sends it: its page, and exactly one target. */
@@ -31,16 +55,30 @@ export interface DemoTourStepDef {
   capability?: Capability;
   /** A source, by id: its row on the Sources page. */
   source?: string;
+  /** A registered table, as `<source id>.<table name>`: its row on the Tables page. */
+  table?: string;
   /** A relationship, by alias: its row on the Relationships page. */
   relationship?: string;
   /** An example query of the demo, by name: opened in a new GraphiQL tab and run. */
   example?: string;
   /** A statement: opened in a new SQL explorer tab and run. */
   sql?: string;
+  /** A REST call, as "<METHOD> <path>[?<params>]": driven in the OpenAPI page and run. */
+  api?: string;
+  /** A JSON:API request, its path and query: opened on the JSON:API page and run. */
+  jsonapi?: string;
+  /** A gRPC call, as the gRPC page takes one ("<Method>(by=[...], funcs=[...])"): sent. */
+  grpc?: string;
+  /** A Cypher query: run in a new frame of the Graph page. */
+  cypher?: string;
   /** A glossary term, by name: opened on the Glossary page, its definition and links shown. */
   term?: string;
   /** A role (or "all"): shown in the SQL explorer's run-as picker, picked on Next. */
   role?: string;
+  /** A question for Polly: the panel opens on it and its stored `answer`, as an exchange. */
+  polly?: string;
+  /** REQ-2012: Polly's answer to `polly`, stored when the demo's template was built. */
+  answer?: string;
 }
 
 /** Answers that come from the server are slow on a loaded demo; a run's result waits this long. */
@@ -61,6 +99,9 @@ export function demoTourSteps(
     };
     if (def.source !== undefined) {
       return { ...page, element: `[data-testid="sources-row-${def.source}"]` };
+    }
+    if (def.table !== undefined) {
+      return { ...page, element: `[data-table-row="${def.table}"]` };
     }
     if (def.relationship !== undefined) {
       return { ...page, element: `[data-tour-relationship="${def.relationship}"]` };
@@ -89,6 +130,44 @@ export function demoTourSteps(
         waitMs: RESULT_WAIT_MS,
       };
     }
+    // Each runs on its page and is awaited as the SQL statement is: by a mark the page shows only
+    // once this hand-off's answer is in.
+    if (def.api !== undefined) {
+      return {
+        ...page,
+        openQuery: { stateKey: "openApiUrl", text: def.api },
+        readySelector: ".openapi-page[data-answered]",
+        element: ".openapi-frame",
+        waitMs: RESULT_WAIT_MS,
+      };
+    }
+    if (def.jsonapi !== undefined) {
+      return {
+        ...page,
+        openQuery: { stateKey: "jsonapiUrl", text: def.jsonapi },
+        readySelector: '[data-testid="jsonapi-summary-tab"]',
+        element: ".jsonapi-panel",
+        waitMs: RESULT_WAIT_MS,
+      };
+    }
+    if (def.grpc !== undefined) {
+      return {
+        ...page,
+        openQuery: { stateKey: "grpcMethod", text: def.grpc },
+        readySelector: ".grpc-panel-right[data-answered]",
+        element: ".grpc-panel-right",
+        waitMs: RESULT_WAIT_MS,
+      };
+    }
+    if (def.cypher !== undefined) {
+      return {
+        ...page,
+        openQuery: { stateKey: "query", text: def.cypher },
+        readySelector: '.graph-stream[data-handoff-status="done"]',
+        element: ".graph-stream .gf-frame",
+        waitMs: RESULT_WAIT_MS,
+      };
+    }
     if (def.term !== undefined) {
       return {
         ...page,
@@ -101,6 +180,17 @@ export function demoTourSteps(
         ...page,
         element: RUN_AS,
         chooseOnNext: { open: RUN_AS, option: `[data-sql-role-option="${def.role}"]` },
+      };
+    }
+    if (def.polly !== undefined) {
+      if (def.answer === undefined) {
+        throw new Error(`Tour: step ${def.key} asks Polly with no stored answer`);
+      }
+      return {
+        ...page,
+        pollyOpen: true,
+        pollyExchange: { question: def.polly, answer: def.answer },
+        element: '[data-testid="chat-panel"]',
       };
     }
     throw new Error(`Tour: step ${def.key} names no target`);

@@ -82,5 +82,9 @@ describe("GrpcPage — a hand-off while the page is open", () => {
     await waitFor(() =>
       expect(runs.slice(before).some((u) => u === "/data/grpc/Customers")).toBe(true),
     );
+    // REQ-2010: the response is in, marked for a demo tour step that waits on it.
+    await waitFor(() =>
+      expect(document.querySelector(".grpc-panel-right[data-answered]")).not.toBeNull(),
+    );
   });
 });

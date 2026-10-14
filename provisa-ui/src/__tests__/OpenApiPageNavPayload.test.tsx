@@ -17,7 +17,11 @@ import { MantineProvider } from "@mantine/core";
 import { MemoryRouter, useNavigate } from "react-router-dom";
 
 vi.mock("../context/AuthContext", () => ({
-  useAuth: () => ({ role: { id: "org_admin" }, selectedRoles: [{ id: "org_admin" }], loading: false }),
+  useAuth: () => ({
+    role: { id: "org_admin" },
+    selectedRoles: [{ id: "org_admin" }],
+    loading: false,
+  }),
 }));
 vi.mock("../context/DomainFilterContext", () => ({
   useDomainFilter: () => ({ checkedDomains: new Set<string>() }),
@@ -91,5 +95,51 @@ describe("OpenApiPage — a hand-off while the page is open", () => {
 
     act(() => screen.getByText("/pet-store/inquiries").click());
     await waitFor(() => expect(opened).toContain("/pet-store/inquiries"));
+  });
+});
+
+describe("OpenApiPage — a handed call's response (REQ-2010)", () => {
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = () => undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("<html><body></body></html>", { status: 200 })),
+    );
+  });
+
+  it("marks the page answered once the call's response is in, and not before", async () => {
+    const { container } = render(
+      <MantineProvider>
+        <MemoryRouter initialEntries={["/openapi"]}>
+          <Polly path="/pet-store/users" />
+          <OpenApiPage />
+        </MemoryRouter>
+      </MantineProvider>,
+    );
+    const frame = await waitFor(() => {
+      const f = container.querySelector("iframe");
+      expect(f).not.toBeNull();
+      return f as HTMLIFrameElement;
+    });
+    (
+      frame.contentWindow as unknown as { Element: typeof Element }
+    ).Element.prototype.scrollIntoView = () => undefined;
+    const doc = frame.contentDocument!;
+    // One operation whose Execute answers only when the test says so.
+    doc.body.innerHTML = `<div class="opblock"><span class="opblock-summary-method">GET</span>
+      <span data-path="/pet-store/users"></span><button class="opblock-summary-control"></button>
+      <button class="btn execute opblock-control__btn"></button><div class="responses-wrapper"></div></div>`;
+    let executed = false;
+    doc.querySelector(".execute")!.addEventListener("click", () => {
+      executed = true;
+    });
+    fireEvent.load(frame);
+    const page = container.querySelector(".openapi-page")!;
+
+    act(() => screen.getByText("/pet-store/users").click());
+    await waitFor(() => expect(executed).toBe(true));
+    expect(page.hasAttribute("data-answered")).toBe(false);
+    doc.querySelector(".responses-wrapper")!.innerHTML = '<pre class="microlight">[]</pre>';
+    await waitFor(() => expect(page.hasAttribute("data-answered")).toBe(true));
   });
 });

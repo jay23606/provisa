@@ -28,6 +28,9 @@ class Question:
     answer_sql: str
 
 
+# The question the weblogs tour asks Polly, its answer stored when the demo's template is built.
+TOUR_QUESTION = "Which pages are slowest, and which SQL makes them slow?"
+
 QUESTIONS = (
     Question(
         "How many customers does the shop have?", 'SELECT COUNT(*) AS a FROM "shop"."customers"'
@@ -72,5 +75,12 @@ QUESTIONS = (
         "Which database table did the shop's SQL statements touch most often?",
         'SELECT table_name AS a FROM "shop"."view_slow_statements_by_table" WHERE statements = '
         '(SELECT MAX(statements) FROM "shop"."view_slow_statements_by_table")',
+    ),
+    # The weblogs tour's question (demo/named/weblogs/tour.yaml, step weblogsAsk): right when the
+    # reply names the slowest page, on average.
+    Question(
+        TOUR_QUESTION,
+        'SELECT path AS a FROM "shop"."view_slowest_pages" GROUP BY path '
+        "ORDER BY AVG(page_ms) DESC LIMIT 1",
     ),
 )

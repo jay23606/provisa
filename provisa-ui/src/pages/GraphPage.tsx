@@ -75,6 +75,8 @@ export function GraphPage() {
     return pending ? { query: pending, seq: 0 } : null;
   });
   const ranSeqRef = useRef<number | null>(null);
+  // The frame the last forwarded query runs in.
+  const [handoffFrameId, setHandoffFrameId] = useState<string | null>(null);
   const [frames, setFrames] = useState<FrameData[]>(graphState.frames);
   const [history, setHistory] = useState<string[]>(graphState.history);
   const [historyQuery, setHistoryQuery] = useState<string | null>(null);
@@ -324,9 +326,9 @@ export function GraphPage() {
   }, [schemaNodeLabels, schemaRels, role?.id, checkedDomains]);
 
   const runQuery = useCallback(
-    async (query: string, view?: FrameView) => {
+    async (query: string, view?: FrameView, frameId?: string) => {
       if (!query) return;
-      const id = crypto.randomUUID();
+      const id = frameId ?? crypto.randomUUID();
       if (view) setFrameViews((views) => ({ ...views, [id]: view }));
       const start = Date.now();
       setFrames((f) => {
@@ -444,7 +446,9 @@ export function GraphPage() {
     ranSeqRef.current = forwarded.seq;
     removeStored("provisa.graph.pending_query");
     setHistoryQuery(forwarded.query);
-    runQuery(forwarded.query, forwarded.view);
+    const frameId = crypto.randomUUID();
+    setHandoffFrameId(frameId);
+    runQuery(forwarded.query, forwarded.view, frameId);
   }, [runQuery, authLoading, forwarded]);
 
   const closeFrame = useCallback((id: string) => {
@@ -957,7 +961,12 @@ export function GraphPage() {
           key={historyQuery ?? "initial"}
         />
 
-        <div className="graph-stream">
+        {/* REQ-2010: the status of the last forwarded query's frame, which a demo tour step waits
+            on until it is done. */}
+        <div
+          className="graph-stream"
+          data-handoff-status={frames.find((f) => f.id === handoffFrameId)?.status}
+        >
           {frames.length === 0 && (
             <div className="graph-stream-empty" role="status" data-testid="graph-empty-state">
               <div className="graph-stream-empty-icon" aria-hidden="true">

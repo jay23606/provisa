@@ -14,7 +14,7 @@
 // the page runs a narrower query than the one the visitor clicked through from.
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, waitFor } from "../test-utils/render";
+import { render, screen, waitFor } from "../test-utils/render";
 
 vi.mock("../context/AuthContext", () => ({
   useAuth: () => ({ role: { id: "org_admin" }, selectedRoles: [{ id: "org_admin" }] }),
@@ -77,5 +77,30 @@ describe("JsonApiPage — navigation hand-off", () => {
       expect(shown).toContain("includeNodes=true");
       expect(shown).toContain("include=user.id%2Cuser.name");
     });
+  });
+});
+
+describe("JsonApiPage — a handed request's answer (REQ-2010)", () => {
+  it("shows the answer of a request handed over to run, which a demo tour step waits for", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        String(url).startsWith("/data/jsonapi/pet-store/")
+          ? new Response(JSON.stringify({ data: [], meta: {} }), {
+              status: 200,
+              headers: { "content-type": "application/vnd.api+json" },
+            })
+          : new Response("[]", { status: 200, headers: { "content-type": "application/json" } }),
+      ),
+    );
+    render(<JsonApiPage />, {
+      initialEntries: [
+        {
+          pathname: "/jsonapi",
+          state: { jsonapiUrl: "/data/jsonapi/pet-store/inquiries", autoRun: true },
+        },
+      ],
+    });
+    expect(await screen.findByTestId("jsonapi-summary-tab")).toBeInTheDocument();
   });
 });

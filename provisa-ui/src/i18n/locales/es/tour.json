@@ -293,48 +293,32 @@
         "description": "🤖 El modelo y sus relaciones están disponibles para los agentes de IA — Polly y los agentes que se conectan por MCP — y determinan las consultas que esos agentes escriben.<p>Un agente se ejecuta bajo un rol, así que se le aplica la misma regla que a una persona: una consulta que hace joins fuera de las relaciones registradas <strong>falla</strong>. Se hace cumplir, no es solo una recomendación.</p><p>Además, es decisión suya. Para que un agente descubra relaciones, conceda a su rol el derecho <code>ignore_relationships</code>; para mantenerlo dentro de barreras, deje al rol sin él. Es la misma concesión deliberada que para una identidad de confianza (nunca se aplica en modo de alta seguridad).</p>"
       },
       "weblogsSources": {
-        "title": "Los dos registros de una tienda web",
-        "description": "Esta demo lee como tablas los registros de una pequeña tienda web. <strong>shop_access</strong> es el registro de acceso de nginx: una fila por solicitud, con su ruta, estado y tiempo."
+        "title": "De qué trata esta demo",
+        "description": "Una pequeña tienda web quiere saber qué páginas son lentas y qué SQL las hace lentas. La respuesta está repartida entre el registro de acceso de nginx, el registro de sentencias de la base de datos y la propia base de datos de la tienda. El recorrido muestra cómo Provisa lee archivos de registro como tablas, los une entre fuentes y los gobierna por rol, y luego le plantea la pregunta a Polly."
       },
-      "weblogsDbLog": {
-        "title": "El registro de la base de datos",
-        "description": "<strong>shop_db_log</strong> es el registro de sentencias de la base de datos de la tienda: una fila por sentencia ejecutada, con su duración. Ninguno de los dos se copia ni se carga antes; ambos se leen donde están."
+      "weblogsLogFiles": {
+        "title": "Tres fuentes",
+        "description": "La tienda tiene tres fuentes: <strong>shop-db</strong>, su base de datos PostgreSQL, y dos fuentes de registro, <strong>shop_access</strong> y <strong>shop_db_log</strong>. Provisa lee cada archivo de registro donde está, una línea por fila, y de nuevo cada 30 segundos; nada se carga ni se copia antes."
+      },
+      "weblogsTables": {
+        "title": "Las fuentes se vuelven tablas",
+        "description": "Los datos de cada fuente están registrados como tablas: los clientes, productos y pedidos de la tienda, y una tabla por registro, con sus líneas separadas en columnas como ruta, estado y tiempo. Las vistas, consultas guardadas sobre ellas, añaden las páginas más lentas y el SQL que ejecutó cada solicitud."
       },
       "weblogsJoin": {
         "title": "Una solicitud, dos registros",
-        "description": "nginx da un id a cada solicitud, y la tienda nombra cada conexión a la base de datos con él. La relación <strong>LOGGED_FOR</strong> une por ese id cada sentencia con la solicitud a la que sirvió."
+        "description": "nginx da un id a cada solicitud, y la tienda nombra cada conexión a la base de datos con él. La relación <strong>LOGGED_FOR</strong> indica a Provisa que una cada sentencia con su solicitud por ese id, así que ninguna consulta tiene que escribir la unión."
       },
-      "weblogsSlowestPages": {
-        "title": "Las páginas más lentas",
-        "description": "Una de las consultas de ejemplo de la demo, ejecutada: cada ruta con su número de solicitudes y su tiempo medio y máximo, las diez más lentas primero. Una sola consulta GraphQL las agrupa y ordena."
+      "weblogsRest": {
+        "title": "La misma pregunta por REST",
+        "description": "Otra vez las páginas más lentas, como llamada REST: cada ruta con su número de solicitudes y su tiempo medio y más largo. Cada superficie que sirve Provisa lee el mismo modelo gobernado, así que REST da la respuesta que darían SQL o GraphQL, con los mismos derechos."
       },
-      "weblogsStatements": {
-        "title": "El SQL detrás de una página lenta",
-        "description": "Las mismas solicitudes unidas a sus sentencias: para las páginas más lentas, cada sentencia que ejecutaron y cuánto tardó. Ahí se fue el tiempo."
+      "weblogsAsk": {
+        "title": "Preguntar a Polly",
+        "description": "Polly, la asistente, recibe la pregunta de la demo en palabras sencillas: ¿qué páginas son las más lentas y qué SQL las hace lentas? Fíjese en las páginas que nombra y en las sentencias que señala; las encontró consultando las tablas y vistas que acaba de ver."
       },
-      "weblogsDbErrors": {
-        "title": "Solicitudes que fallaron en la base de datos",
-        "description": "Solicitudes cuya sentencia falló, agrupadas por página y por código de error de la base de datos. El registro web muestra un 500; el de la base de datos dice por qué."
-      },
-      "weblogsCustomers": {
-        "title": "Clientes, como administrador",
-        "description": "Los clientes de la tienda, leídos como administrador. Están todas las columnas, también el correo electrónico."
-      },
-      "weblogsAnalyst": {
-        "title": "Cambiar al analista",
-        "description": "El rol analyst no puede ver direcciones de correo. Siguiente cambia a ese rol."
-      },
-      "weblogsCustomersMasked": {
-        "title": "Clientes, como analista",
-        "description": "La misma consulta como analista. La columna email ha desaparecido: los derechos del rol deciden lo que devuelve cada consulta, sea cual sea el lenguaje en que se escriba."
-      },
-      "weblogsRoleBack": {
-        "title": "Volver a todos los roles",
-        "description": "Siguiente vuelve a todos los roles. Después vienen la visita del producto y sus Deep Dives."
-      },
-      "weblogsGlossary": {
-        "title": "Las palabras de la propia tienda",
-        "description": "El glosario de la demo dice qué significan los registros: <strong>slow page</strong> es un tipo de solicitud web, derivado de la latencia de página. Sus términos y los vínculos entre ellos, la ontología de la tienda, permiten encontrar los registros por lo que significan y no por nombres de columna."
+      "weblogsDone": {
+        "title": "Lo que acaba de ver",
+        "description": "Tres fuentes se convirtieron en tablas, una relación unió los dos registros por un id de solicitud, y la pregunta de la tienda se respondió con ellas por REST y por Polly. Listo abre el menú de los demás recorridos."
       }
     },
     "status": {
@@ -350,7 +334,7 @@
     "demos": {
       "weblogs": {
         "title": "Los registros de la tienda web",
-        "summary": "Los registros web y de base de datos de la tienda, unidos: las páginas más lentas y el SQL que las explica, las solicitudes que fallaron en la base de datos y lo que puede ver un analista."
+        "summary": "La pregunta de una tienda web, qué páginas son lentas y qué SQL las hace lentas: sus fuentes, las tablas que forman, la unión de sus dos registros y la respuesta de Polly."
       }
     }
   }
