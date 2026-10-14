@@ -36,7 +36,15 @@ def test_a_newer_push_replaces_only_its_own_refs_run():
 
 def test_the_whole_run_is_one_job_in_one_suite_wide_queue():
     jobs = _caller()["jobs"]
-    assert list(jobs) == ["lanes"], "a job outside the queue would run beside another run's lanes"
+    # Besides the lanes, only the step that turns a dispatched short SHA into the full one
+    # (actions/checkout fetches no short SHA): one API call, nothing checked out, no lane run,
+    # done before the lanes job, which needs it, starts.
+    assert list(jobs) == ["resolve-ref", "lanes"], (
+        "a job outside the queue would run beside another run's lanes"
+    )
+    resolver = jobs["resolve-ref"]
+    assert [s.get("uses") for s in resolver["steps"]] == [None]
+    assert jobs["lanes"]["needs"] == "resolve-ref"
     lanes = jobs["lanes"]
     assert lanes["uses"] == "./.github/workflows/integration-suite-lanes.yml"
     assert lanes["concurrency"]["group"] == "integration-suite"  # no ref: every branch shares it
@@ -55,6 +63,13 @@ def test_the_suite_runs_on_pushes_to_both_branches_nightly_and_on_demand():
     triggers = _caller()[True]  # YAML reads the key `on` as a boolean
     assert triggers["push"]["branches"] == ["main"]
     assert "schedule" in triggers and "workflow_dispatch" in triggers
+
+
+def test_a_short_sha_is_resolved_to_the_full_commit_the_lanes_check_out():
+    jobs = _caller()["jobs"]
+    (step,) = jobs["resolve-ref"]["steps"]
+    assert "gh api" in step["run"] and "{7,39}" in step["run"]
+    assert jobs["lanes"]["with"]["ref"] == "${{ needs.resolve-ref.outputs.ref }}"
 
 
 def test_the_dispatchers_choices_reach_the_lanes():
