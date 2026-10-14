@@ -93,9 +93,17 @@ def test_a_qdrant_store_is_saved_as_one_snapshot_a_collection(tmp_path, monkeypa
     ]
 
 
-@pytest.mark.parametrize("has_setup", [True, False], ids=["setup", "no-setup"])
+@pytest.mark.parametrize(
+    ("has_setup", "replicates", "expected"),
+    [
+        (True, False, ["up", "set up", "dump", "down"]),  # sonnets: its sources are read live
+        (True, True, ["up", "set up", "seed", "dump", "down"]),
+        (False, True, ["up", "seed", "dump", "down"]),
+    ],
+    ids=["setup-live", "setup-replicated", "no-setup"],
+)
 def test_a_demo_s_setup_runs_after_its_stores_come_up_and_before_its_seed(
-    tmp_path, monkeypatch, has_setup
+    tmp_path, monkeypatch, has_setup, replicates, expected
 ):
     named = tmp_path / "named"
     demo = named / "sonnets"
@@ -109,14 +117,12 @@ def test_a_demo_s_setup_runs_after_its_stores_come_up_and_before_its_seed(
     monkeypatch.setattr(builder.Stores, "down", lambda self: done.append("down"))
     monkeypatch.setattr(builder, "_set_up", lambda *_a: done.append("set up"))
     monkeypatch.setattr(builder, "_seed", lambda *_a: done.append("seed"))
+    monkeypatch.setattr(builder, "_replicates", lambda *_a: replicates)
     monkeypatch.setattr(builder.bundles, "pack", lambda _demo, _manifest: b"bundle")
     args = argparse.Namespace(
         name="sonnets", named_dir=named, out=tmp_path / "out", commit="a" * 40, timeout=60.0
     )
     assert builder.build(args) == 0
-    expected = (
-        ["up", "set up", "seed", "dump", "down"] if has_setup else ["up", "seed", "dump", "down"]
-    )
     assert done == expected
 
 
