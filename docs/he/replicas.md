@@ -111,7 +111,7 @@ PROVISA_MATERIALIZE_URL="postgresql://provisa:secret@replicas.internal:5432/repl
 | בדיקת שינוי | `change_signal: probe` או `ttl_probe`, `cache_ttl` | נבנית מחדש רק אחרי שהבדיקה מדווחת על שינוי; הבדיקה רצה כל `cache_ttl` | בדיקה אחת לכל מרווח, ובנייה מחדש רק בשינוי |
 | הזנת שינויים בדחיפה | מקור Kafka או WebSocket; `change_signal: debezium` במקור עם בלוק `cdc`; `change_signal: native` ב-PostgreSQL‏, MongoDB או Cosmos DB | עדכנית עד כדי השהיית ההזנה וה-debounce | Kafka‏, WebSocket ו-Debezium: דבר לאחר הבנייה הראשונה, ההזנה נושאת את השורות. PostgreSQL‏, MongoDB ו-Cosmos DB: בנייה מחדש לכל התפרצות שינויים |
 | TTL לפי תפקיד | `role_ttl` על טבלה | תפקיד ברשימה מקבל רפליקה עד ה-TTL שלו; `cache_ttl` של הטבלה נשאר הרצפה | פחות בניות מחדש: קריאה של תפקיד סובלני אינה מבקשת אחת |
-| הגנת עומס | `load_protected: true`, עם `cache_ttl` או בדיקה | שאילתות לעולם אינן קוראות את המקור; הרצן לבדו מרענן את הרפליקה | רק הרענונים המתוזמנים |
+| הגנת עומס | `load_protected: true`, עם `cache_ttl`, בדיקה או `off_peak_window` | שאילתות לעולם אינן קוראות את המקור; הרצן לבדו מרענן את הרפליקה, ועם חלון שעות שפל רק כשהוא פתוח | רק הרענונים המתוזמנים |
 | שער עדכניות | `freshness_gate: true` על מקור | כל קריאה נבדקת מול `change_signal` ו-`cache_ttl` של המקור קודם; פסק דין "מיושן" מרענן לפני הקריאה | רענון בנתיב הקריאה כשמיושן |
 
 [tool-verified: `provisa/core/replicate.py`; `provisa/federation/replica_builds.py` `_next_refresh_at`, `_probe_decides`; `provisa/federation/query_residency.py` `freshness_verdict`, `is_stale_of`; `provisa/federation/role_ttl.py` `effective_ttl`; `provisa/freshness/source_gate.py` `gate_source`; `provisa/events/push_wiring.py` `wire_push_listeners`, `_run_change_stream`]

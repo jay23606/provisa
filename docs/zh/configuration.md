@@ -965,7 +965,7 @@ tables:
 
 拒绝时返回 HTTP 403 及代码 `query.operator_floor`，pgwire 上返回 SQLSTATE `42501`，Flight 和 gRPC 上返回 `PERMISSION_DENIED`。(REQ-030)
 
-`load_protected` 或 `replicate: 0` 的表，在任何传输上都不会被查询实时读取。查询读取的是它的副本。只有复制及其刷新会读取数据源：当 `cache_ttl` 或新鲜度检查要求时才刷新；两者都没有时，副本只构建一次，之后仅通过变更流或调度器刷新。(REQ-1907)(REQ-1141, REQ-826) [tool-verified: `tests/integration/test_operator_floor_e2e.py`]
+`load_protected` 或 `replicate: 0` 的表，在任何传输上都不会被查询实时读取。查询读取的是它的副本。只有复制及其刷新会读取数据源：当 `cache_ttl` 或新鲜度检查要求时才刷新；两者都没有时，副本只构建一次，之后仅通过变更流或调度器刷新。(REQ-1907)(REQ-1141, REQ-826) [tool-verified: `tests/integration/test_operator_floor_e2e.py`] 对于带有 `off_peak_window`（在表或其数据源上，按 `off_peak_tz` 解读）的此类表，刷新只在窗口打开时运行：在窗口之外到期或被请求的刷新会等到窗口下一次打开，没有 `cache_ttl` 的窗口每次打开刷新一次。首次构建从不被推迟，因为对该表的读取在等待它。 [tool-verified: `provisa/federation/replica_builds.py` `_deferred_until`, `_next_refresh_at`; `tests/integration/test_off_peak_window_refresh_e2e.py`]
 
 ### `replicate` 设置
 

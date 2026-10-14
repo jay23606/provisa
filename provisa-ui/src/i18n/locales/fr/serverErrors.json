@@ -249,6 +249,7 @@
       "row_limit_reached": "La réplique de {{table}} n'a pas été construite : une lecture s'arrête à max_rows={{max_rows}} (graphql_remote.max_rows), et le service distant avait encore des données après {{rows}} lignes. Une réplique est la table entière ; elle n'est donc pas tronquée à la limite. Augmentez graphql_remote.max_rows.",
       "spool_full": "La construction de la réplique de {{table}} a été refusée : la mise en spool de la réponse de sa source nécessite {{needed}} octets du répertoire de spool de ce nœud, au-delà de la limite de {{limit}} (replication.spool_max_bytes).",
       "table_gone": "La table {{schema}}.{{table}} de la source {{source}} n'est plus enregistrée ; sa réplique n'est donc pas construite.",
+      "waiting_off_peak_window": "la table est protégée contre la charge et sa fenêtre creuse est fermée ; elle est rafraîchie à l'ouverture de la fenêtre",
       "waiting_engine_jobs": "le moteur a atteint sa limite de tâches d'arrière-plan (replication.engine_jobs)",
       "waiting_source_cap": "la source a atteint sa limite de lectures en direct (max_live_concurrency)",
       "waiting_shutdown": "le nœud qui l'avait pris en charge s'arrêtait ; le prochain passage le construit"

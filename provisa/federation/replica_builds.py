@@ -391,25 +391,66 @@ async def _probe_decides(state: Any, key: ReplicaKey, source: Any, table: Any) -
     )
 
 
+def _off_peak_window(source: Any, table: Any) -> Any:
+    """The off-peak window a load-protected table is refreshed in (REQ-1141), or None: one
+    not load-protected, or naming no window, is refreshed whenever it is due."""
+    from provisa.federation.scheduled_refresh import resolve_refresh_policy
+
+    policy = resolve_refresh_policy(source, table)
+    return policy.window if policy.load_protected else None
+
+
 def _next_refresh_at(state: Any) -> Any:
     """When a replica completed now is next due, by its declared cache TTL; None for a table
     with no TTL of its own (its refresh is then only what a reader's tolerance asks for), for
     one whose probe decides (:func:`_probe_decides`), and for one that left the model while it
-    was built."""
+    was built. A load-protected table with an off-peak window and no TTL is due at the window's
+    next opening: once per window (REQ-1141)."""
 
     async def due(key: ReplicaKey, now: datetime) -> datetime | None:
         from provisa.federation.role_ttl import declared_cache_ttl
+        from provisa.federation.scheduled_refresh import next_window_open
 
         try:
             source, table, _sources = await _model_row(state, key)
         except ReplicaTableGone:
             return None
-        ttl = declared_cache_ttl(table, source)
-        if not ttl or await _probe_decides(state, key, source, table):
+        if await _probe_decides(state, key, source, table):
             return None
-        return now + timedelta(seconds=ttl)
+        ttl = declared_cache_ttl(table, source)
+        if ttl:
+            return now + timedelta(seconds=ttl)
+        window = _off_peak_window(source, table)
+        if window is None:
+            return None
+        return datetime.fromtimestamp(next_window_open(window, now.timestamp()), UTC)
 
     return due
+
+
+def _deferred_until(state: Any) -> Any:
+    """When a build of a replica that stands in this store may run, when it may not run now: a
+    load-protected table's refresh runs only while its off-peak window is open (REQ-1141).
+    None -- run now -- for any other table, inside the window, and for a replica not yet built
+    here: its first build is what reads of it wait on."""
+
+    async def until(key: ReplicaKey, now: datetime) -> datetime | None:
+        from provisa.federation.scheduled_refresh import next_window_open, window_open
+
+        try:
+            source, table, _sources = await _model_row(state, key)
+        except ReplicaTableGone:
+            return None
+        window = _off_peak_window(source, table)
+        if window is None or window_open(window, now.timestamp()):
+            return None
+        async with state.tenant_db.acquire() as conn:
+            record = await replica_state.read(conn, key)
+        if record is None or not record.exists_in(store_identity(state)):
+            return None
+        return datetime.fromtimestamp(next_window_open(window, now.timestamp()), UTC)
+
+    return until
 
 
 def _source_cap(state: Any) -> Any:
@@ -935,6 +976,7 @@ def make_runner(state: Any, org_id: str, platform_url: str) -> ReplicaRunner:
         group_of=lambda key: group_of(state, key),
         build_group=lambda keys, progress: build_group(state, keys, progress),
         plan_indexes=lambda key, landed_at: plan_indexes(state, key, landed_at),
+        deferred_until=_deferred_until(state),
         build_indexes=lambda item: build_indexes(state, item),
     )
 

@@ -249,6 +249,7 @@
       "row_limit_reached": "הרפליקה של {{table}} לא נבנתה: קריאה שלה נעצרת ב-max_rows={{max_rows}} (graphql_remote.max_rows), ולמקור המרוחק היו נתונים נוספים אחרי {{rows}} שורות. רפליקה היא הטבלה כולה, ולכן אינה נחתכת במגבלה. הגדילו את graphql_remote.max_rows.",
       "spool_full": "בניית הרפליקה של {{table}} נדחתה: אחסון זמני של תשובת המקור דורש {{needed}} בתים בספריית ה-spool של צומת זה, מעבר למגבלה של {{limit}} (replication.spool_max_bytes).",
       "table_gone": "הטבלה {{schema}}.{{table}} של המקור {{source}} אינה רשומה עוד, ולכן הרפליקה שלה אינה נבנית.",
+      "waiting_off_peak_window": "הטבלה מוגנת מעומס וחלון שעות השפל שלה סגור; היא תרוענן כשהחלון ייפתח",
       "waiting_engine_jobs": "המנוע הגיע למגבלת משימות הרקע שלו (replication.engine_jobs)",
       "waiting_source_cap": "המקור הגיע למגבלת הקריאות החיות שלו (max_live_concurrency)",
       "waiting_shutdown": "הצומת שתפס אותו היה בתהליך כיבוי; המעבר הבא יבנה אותו"

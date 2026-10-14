@@ -249,6 +249,7 @@
       "row_limit_reached": "{{table}} のレプリカはビルドされませんでした: 読み取りは max_rows={{max_rows}}（graphql_remote.max_rows）で止まり、{{rows}} 行の後にもリモートにデータがありました。レプリカはテーブル全体であるため、上限で切り詰められることはありません。graphql_remote.max_rows を増やしてください。",
       "spool_full": "{{table}} のレプリカのビルドは拒否されました: ソースの応答をスプールするには、このノードのスプールディレクトリに {{needed}} バイトが必要で、上限の {{limit}} を超えます (replication.spool_max_bytes)。",
       "table_gone": "ソース {{source}} のテーブル {{schema}}.{{table}} は登録されなくなったため、レプリカはビルドされません。",
+      "waiting_off_peak_window": "テーブルは負荷保護されており、オフピーク時間帯が閉じています。時間帯が開くと更新されます",
       "waiting_engine_jobs": "エンジンがバックグラウンドジョブの上限に達しています (replication.engine_jobs)",
       "waiting_source_cap": "ソースがライブ読み取りの上限に達しています (max_live_concurrency)",
       "waiting_shutdown": "これを取得したノードがシャットダウン中でした。次のパスでビルドされます"

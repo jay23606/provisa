@@ -965,7 +965,7 @@ The operator's settings are the floor. A request can move above it, toward older
 
 Refusals return HTTP 403 with code `query.operator_floor`, SQLSTATE `42501` over pgwire, and `PERMISSION_DENIED` over Flight and gRPC. (REQ-030) [tool-verified: `provisa/api/app.py` `_operator_floor_handler`]
 
-A table that is `load_protected` or `replicate: 0` is never read live by a query on any transport. Queries read its replica. Only the replication and its refreshes read the source: a refresh runs when a `cache_ttl` or freshness check calls for one, and with neither the replica is built once and then refreshed only through a change feed or the scheduler. (REQ-1907) (REQ-1141, REQ-826) [tool-verified: `tests/integration/test_operator_floor_e2e.py`]
+A table that is `load_protected` or `replicate: 0` is never read live by a query on any transport. Queries read its replica. Only the replication and its refreshes read the source: a refresh runs when a `cache_ttl` or freshness check calls for one, and with neither the replica is built once and then refreshed only through a change feed or the scheduler. (REQ-1907) (REQ-1141, REQ-826) [tool-verified: `tests/integration/test_operator_floor_e2e.py`] On such a table with an `off_peak_window` (on the table or its source, read in `off_peak_tz`), a refresh runs only while the window is open: one that falls due or is asked for outside it waits for the window's next opening, and a window with no `cache_ttl` refreshes once per opening. The first build is never held, because reads of the table wait for it. [tool-verified: `provisa/federation/replica_builds.py` `_deferred_until`, `_next_refresh_at`; `tests/integration/test_off_peak_window_refresh_e2e.py`]
 
 ### The `replicate` setting
 

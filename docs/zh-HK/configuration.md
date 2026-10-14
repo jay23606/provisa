@@ -965,7 +965,7 @@ tables:
 
 拒絕時傳回 HTTP 403 及代碼 `query.operator_floor`，pgwire 上傳回 SQLSTATE `42501`，Flight 和 gRPC 上傳回 `PERMISSION_DENIED`。(REQ-030)
 
-`load_protected` 或 `replicate: 0` 的表，在任何傳輸上都不會被查詢即時讀取。查詢讀取的是它的複本。只有複製及其刷新會讀取資料來源：當 `cache_ttl` 或新鮮度檢查要求時才刷新；兩者皆無時，複本只建構一次，之後僅透過變更串流或排程器刷新。(REQ-1907)(REQ-1141, REQ-826) [tool-verified: `tests/integration/test_operator_floor_e2e.py`]
+`load_protected` 或 `replicate: 0` 的表，在任何傳輸上都不會被查詢即時讀取。查詢讀取的是它的複本。只有複製及其刷新會讀取資料來源：當 `cache_ttl` 或新鮮度檢查要求時才刷新；兩者皆無時，複本只建構一次，之後僅透過變更串流或排程器刷新。(REQ-1907)(REQ-1141, REQ-826) [tool-verified: `tests/integration/test_operator_floor_e2e.py`] 對於帶有 `off_peak_window`（在表或其資料來源上，按 `off_peak_tz` 解讀）的此類表，刷新只在視窗開啟時執行：在視窗之外到期或被請求的刷新會等到視窗下一次開啟，沒有 `cache_ttl` 的視窗每次開啟刷新一次。首次建置從不被延後，因為對該表的讀取在等待它。 [tool-verified: `provisa/federation/replica_builds.py` `_deferred_until`, `_next_refresh_at`; `tests/integration/test_off_peak_window_refresh_e2e.py`]
 
 ### `replicate` 設定
 

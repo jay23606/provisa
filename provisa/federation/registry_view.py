@@ -273,6 +273,9 @@ def _build_registered_tables(registered: list[dict]) -> list[Any]:
                 # put on its replica is read there even on an attach-capable engine.
                 replicate=rt["replicate"],
                 load_protected=rt["load_protected"],
+                # REQ-1141: when a load-protected table's replica may be refreshed.
+                off_peak_window=rt["off_peak_window"],
+                off_peak_tz=rt["off_peak_tz"],
                 region=rt["region"],  # REQ-1921
                 probe_type=rt["probe_type"],  # REQ-982
                 # REQ-1443: a checker table's rows are the results of running its contract, so
