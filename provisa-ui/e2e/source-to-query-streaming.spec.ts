@@ -182,10 +182,15 @@ async function pollUntilLanded(
   sql: string,
   minRows: number,
   timeoutMs: number,
+  produce?: () => void,
 ): Promise<string[][]> {
   const deadline = Date.now() + timeoutMs;
   let rows: string[][] = [];
   while (Date.now() < deadline) {
+    // A kafka listener lands what is produced once it is consuming (a new group starts at the
+    // topic's end), and a save re-wires it asynchronously: a message produced before it is
+    // positioned is never landed. Produced again before each poll; the table's key lands it once.
+    produce?.();
     rows = await runSqlOnPage(page, sql);
     if (rows.length >= minRows) return rows;
     await new Promise((r) => setTimeout(r, 3000));
@@ -522,18 +527,15 @@ test.describe("source to query through the UI: kafka (REQ-1739/REQ-1745/REQ-1766
     await page.getByTestId("table-edit-save").click();
     await expect(page.getByTestId("table-edit-save")).toBeHidden({ timeout: 15000 });
 
-    // 4. Produce one message on the registered topic — push_wiring's listener (re-wired on save,
-    // same state.push_listener_disconnects idempotency websocket's test comment describes) picks
-    // it up asynchronously.
-    produceKafkaMessage(topic, { id: "kafka-1", value: "hello-kafka" });
-
-    // 5. SQL page: same REQ-1733 CDC-listener mechanism as websocket — asynchronous, retry rather
-    // than assert immediately.
+    // 4. Produce a message on the registered topic and query it on the SQL page: push_wiring's
+    // listener (re-wired on save, same state.push_listener_disconnects idempotency websocket's
+    // test comment describes) picks it up asynchronously, so the poll produces until it lands.
     const rows = await pollUntilLanded(
       page,
       `SELECT id, value FROM pet_store.${registered} ORDER BY id`,
       1,
       180000,
+      () => produceKafkaMessage(topic, { id: "kafka-1", value: "hello-kafka" }),
     );
     expect(rows).toEqual([["kafka-1", "hello-kafka"]]);
   });
@@ -686,13 +688,12 @@ test.describe("source to query through the UI: kafka (REQ-1739/REQ-1745/REQ-1766
     await page.getByTestId("table-edit-save").click();
     await expect(page.getByTestId("table-edit-save")).toBeHidden({ timeout: 15000 });
 
-    produceKafkaMessage(topic, { id: "kafka-registry-1", value: "hello-kafka-registry" });
-
     const landedRows = await pollUntilLanded(
       page,
       `SELECT id, value FROM pet_store.${registered} ORDER BY id`,
       1,
       180000,
+      () => produceKafkaMessage(topic, { id: "kafka-registry-1", value: "hello-kafka-registry" }),
     );
     expect(landedRows).toEqual([["kafka-registry-1", "hello-kafka-registry"]]);
   });
@@ -798,13 +799,12 @@ test.describe("source to query through the UI: kafka (REQ-1739/REQ-1745/REQ-1766
     await page.getByTestId("table-edit-save").click();
     await expect(page.getByTestId("table-edit-save")).toBeHidden({ timeout: 15000 });
 
-    produceKafkaMessage(topic, { id: "sample-2", value: "hello-sample-2" });
-
     const landedRows = await pollUntilLanded(
       page,
       `SELECT id, value FROM pet_store.${registered} ORDER BY id`,
       1,
       180000,
+      () => produceKafkaMessage(topic, { id: "sample-2", value: "hello-sample-2" }),
     );
     expect(landedRows).toEqual([["sample-2", "hello-sample-2"]]);
   });
