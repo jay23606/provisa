@@ -363,6 +363,42 @@
       "weblogsStatements": {
         "title": "慢頁面背後的 SQL",
         "description": "把最慢的頁面與其請求執行的語句關聯起來，用普通 SQL 查詢示範的兩個檢視。檢視是已儲存的查詢，Provisa 在執行前把它展開進這條語句。這裏可以逐條語句看到時間花在了哪裏。"
+      },
+      "filesIntro": {
+        "title": "即時數據湖",
+        "description": "一個城市以檔案形式發佈開放數據：市民投訴每月一個 CSV 檔案，建築許可為 Parquet，預算為 Excel，巡查紀錄為 JSON。<strong>drop</strong> 是建基於該資料夾的一個檔案數據源：每個檔案都是一張表，在原處讀取，毋須載入步驟。問題是：哪些街區在施工地盤附近的投訴最多？"
+      },
+      "filesComplaints": {
+        "title": "一張表涵蓋多個檔案",
+        "description": "<strong>complaints</strong> 是涵蓋資料夾中每個名為 complaints_*.csv 的檔案的一張表。每個月的檔案都是其中一部分；新月份的檔案不需要自己的表。"
+      },
+      "filesMonths": {
+        "title": "來自每個檔案的行",
+        "description": "按月統計的投訴：每個月都來自各自的檔案，作為一張表讀取。請找出每個月度檔案對應的一行。"
+      },
+      "filesFormats": {
+        "title": "每種格式一個檔案",
+        "description": "<strong>building_permits</strong> 從 Parquet 檔案讀取，預算從 Excel 活頁簿讀取，巡查紀錄從 JSON 檔案讀取。每一張都是與其他表一樣受管治的表。"
+      },
+      "filesJoin": {
+        "title": "有許可地址上的投訴",
+        "description": "關係 DRAWS 將一份建築許可與在其地址提出的投訴連接起來。回答該問題的視圖沿着這一關係進行連接。"
+      },
+      "filesTerm": {
+        "title": "甚麼是未結投訴",
+        "description": "詞彙表說明了甚麼是未結投訴：城市尚未結案的投訴。這樣的詞彙說明了目錄中數據的含義。"
+      },
+      "filesAnswer": {
+        "title": "答案",
+        "description": "儲存視圖 complaints_near_construction 按街區統計在有有效許可的地址提出的投訴。看看哪個街區排在第一位。"
+      },
+      "filesRest": {
+        "title": "透過 REST 得到同一答案",
+        "description": "同一視圖作為 REST 調用。每張表和每個視圖都以相同方式、在相同規則下透過 REST、GraphQL 和 SQL 提供。"
+      },
+      "filesDone": {
+        "title": "一個資料夾變成了目錄",
+        "description": "一個資料夾變成了受管治的目錄：表、關係、一個詞彙和一個儲存視圖，沒有載入任何數據。新的月度投訴檔案不需要新表：萬用模式已經包含了它。"
       }
     },
     "status": {
@@ -383,6 +419,10 @@
       "sonnets": {
         "title": "莎士比亞十四行詩",
         "summary": "154首十四行詩被轉成向量、按意義搜尋並長成一張圖：它們共有的主題，以及莎士比亞自我呼應的詩行。"
+      },
+      "files": {
+        "title": "即時數據湖",
+        "summary": "一個城市的開放數據檔案，就地讀取為一個目錄：哪些街區在施工地盤附近的投訴最多？"
       }
     }
   }

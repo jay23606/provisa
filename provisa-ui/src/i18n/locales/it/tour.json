@@ -363,6 +363,42 @@
       "weblogsStatements": {
         "title": "L'SQL dietro una pagina lenta",
         "description": "Le pagine più lente unite alle istruzioni eseguite dalle loro richieste, in SQL semplice su due viste della demo. Una vista è una query salvata che Provisa espande in questa istruzione prima di eseguirla. Ecco dove è andato il tempo, istruzione per istruzione."
+      },
+      "filesIntro": {
+        "title": "Un data lake istantaneo",
+        "description": "Una città pubblica i suoi dati aperti come file: le segnalazioni dei cittadini in un file CSV al mese, i permessi edilizi in Parquet, il bilancio in Excel e le ispezioni in JSON. <strong>drop</strong> è una sorgente di file su quella cartella: ogni file è una tabella, letta dove si trova, senza passo di caricamento. La domanda: quali quartieri hanno più segnalazioni vicino a cantieri attivi?"
+      },
+      "filesComplaints": {
+        "title": "Una tabella su molti file",
+        "description": "<strong>complaints</strong> è una tabella su ogni file chiamato complaints_*.csv nella cartella. Il file di ogni mese ne fa parte; il file di un nuovo mese non ha bisogno di una tabella propria."
+      },
+      "filesMonths": {
+        "title": "Righe da ogni file",
+        "description": "Le segnalazioni contate per mese: ogni mese viene dal proprio file, letto come un'unica tabella. Cerchi una riga per ogni file mensile."
+      },
+      "filesFormats": {
+        "title": "Un file per ogni formato",
+        "description": "<strong>building_permits</strong> è letta da un file Parquet, come il bilancio da una cartella di lavoro Excel e le ispezioni da un file JSON. Ognuna è una tabella governata come le altre."
+      },
+      "filesJoin": {
+        "title": "Segnalazioni a indirizzi autorizzati",
+        "description": "La relazione DRAWS collega un permesso edilizio alle segnalazioni fatte al suo indirizzo. La vista che risponde alla domanda si unisce lungo di essa."
+      },
+      "filesTerm": {
+        "title": "Che cos'è una segnalazione aperta",
+        "description": "Il glossario dice che cos'è una segnalazione aperta: una che la città non ha ancora chiuso. Termini come questo dicono che cosa significano i dati del catalogo."
+      },
+      "filesAnswer": {
+        "title": "La risposta",
+        "description": "La vista memorizzata complaints_near_construction conta, per ogni quartiere, le segnalazioni fatte a un indirizzo con un permesso attivo. Guardi quale quartiere viene per primo."
+      },
+      "filesRest": {
+        "title": "La stessa risposta via REST",
+        "description": "La stessa vista come chiamata REST. Ogni tabella e vista è servita via REST, GraphQL e SQL allo stesso modo, con le stesse regole."
+      },
+      "filesDone": {
+        "title": "Una cartella è diventata un catalogo",
+        "description": "Una cartella di file è diventata un catalogo governato: tabelle, relazioni, un termine del glossario e una vista memorizzata, senza caricare nulla. Un nuovo file mensile di segnalazioni non ha bisogno di una nuova tabella: il modello lo include già."
       }
     },
     "status": {
@@ -383,6 +419,10 @@
       "sonnets": {
         "title": "I sonetti di Shakespeare",
         "summary": "I 154 sonetti trasformati in vettori, cercati per significato e cresciuti in un grafo: i temi che condividono e i versi in cui Shakespeare fa eco a se stesso."
+      },
+      "files": {
+        "title": "Data lake istantaneo",
+        "summary": "I file di dati aperti di una città, letti sul posto come un unico catalogo: quali quartieri hanno più segnalazioni vicino a cantieri attivi?"
       }
     }
   }

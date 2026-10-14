@@ -1,0 +1,59 @@
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+#
+# The files demo's own tour (REQ-2010, REQ-2032): what the demo is and its question; how it fits --
+# one files source over a folder, the monthly complaint files read as one table, a file of each
+# format a table, the relationship that joins permits to complaints, a glossary term -- each step
+# on a real row; then the answer, the stored view, in SQL and over REST; then a recap. Step kinds
+# and checks are as tour.yaml of the weblogs demo describes them.
+# Where the tour's "Look around on my own" leaves the visitor: the SQL page.
+landing:
+  route: /sql
+  capability: query_development
+steps:
+- key: filesIntro
+  route: /sources
+  capability: source_registration
+  source: drop
+- key: filesComplaints
+  route: /tables
+  capability: table_registration
+  table: drop.complaints
+- key: filesMonths
+  route: /sql
+  capability: query_development
+  sql: >-
+    SELECT SUBSTRING(opened_at, 1, 7) AS month, COUNT(*) AS complaints
+    FROM "city"."complaints" GROUP BY 1 ORDER BY 1
+- key: filesFormats
+  route: /tables
+  capability: table_registration
+  table: drop.building_permits
+- key: filesJoin
+  route: /relationships
+  capability: create_relationship
+  relationship: DRAWS
+- key: filesTerm
+  route: /admin/glossary
+  capability: glossary_read
+  term: open complaint
+- key: filesAnswer
+  route: /sql
+  capability: query_development
+  sql: >-
+    SELECT neighborhood, complaints, active_permits
+    FROM "city"."view_complaints_near_construction" ORDER BY complaints DESC
+- key: filesRest
+  route: /openapi
+  capability: query_development
+  api: GET /data/rest/city/view_complaints_near_construction?limit=10
+- key: filesDone
+  route: /sources
+  capability: source_registration
+  source: drop

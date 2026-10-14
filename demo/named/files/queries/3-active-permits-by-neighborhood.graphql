@@ -1,0 +1,13 @@
+# Building permits, read from a Parquet file: how many are active in each neighborhood and what
+# the work is worth.
+query ActivePermitsByNeighborhood {
+  c__permitsGroupBy(by: [neighborhood, status], order_by: [{ groupKey: { neighborhood: asc } }]) {
+    groupKey
+    aggregate {
+      count
+      sum {
+        valuation
+      }
+    }
+  }
+}

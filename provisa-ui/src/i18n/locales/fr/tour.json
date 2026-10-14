@@ -363,6 +363,42 @@
       "weblogsStatements": {
         "title": "Le SQL derrière une page lente",
         "description": "Les pages les plus lentes jointes aux instructions qu'ont exécutées leurs requêtes, en SQL simple sur deux vues de la démo. Une vue est une requête enregistrée que Provisa développe dans cette instruction avant de l'exécuter. Voici où le temps est passé, instruction par instruction."
+      },
+      "filesIntro": {
+        "title": "Un data lake instantané",
+        "description": "Une ville publie ses données ouvertes sous forme de fichiers : les plaintes des habitants dans un fichier CSV par mois, les permis de construire en Parquet, le budget en Excel et les inspections en JSON. <strong>drop</strong> est une source de fichiers sur ce dossier : chaque fichier est une table, lue là où elle se trouve, sans étape de chargement. La question : quels quartiers ont le plus de plaintes près des chantiers actifs ?"
+      },
+      "filesComplaints": {
+        "title": "Une table sur plusieurs fichiers",
+        "description": "<strong>complaints</strong> est une table sur chaque fichier nommé complaints_*.csv du dossier. Le fichier de chaque mois en fait partie ; le fichier d'un nouveau mois n'a pas besoin de sa propre table."
+      },
+      "filesMonths": {
+        "title": "Des lignes de chaque fichier",
+        "description": "Les plaintes comptées par mois : chaque mois vient de son propre fichier, lu comme une seule table. Cherchez une ligne par fichier mensuel."
+      },
+      "filesFormats": {
+        "title": "Un fichier de chaque format",
+        "description": "<strong>building_permits</strong> est lue depuis un fichier Parquet, comme le budget depuis un classeur Excel et les inspections depuis un fichier JSON. Chacune est une table gouvernée comme les autres."
+      },
+      "filesJoin": {
+        "title": "Plaintes aux adresses autorisées",
+        "description": "La relation DRAWS relie un permis de construire aux plaintes faites à son adresse. La vue qui répond à la question fait sa jointure le long de cette relation."
+      },
+      "filesTerm": {
+        "title": "Ce qu'est une plainte ouverte",
+        "description": "Le glossaire dit ce qu'est une plainte ouverte : une plainte que la ville n'a pas encore close. Des termes comme celui-ci disent ce que signifient les données du catalogue."
+      },
+      "filesAnswer": {
+        "title": "La réponse",
+        "description": "La vue stockée complaints_near_construction compte, pour chaque quartier, les plaintes faites à une adresse ayant un permis actif. Regardez quel quartier arrive en tête."
+      },
+      "filesRest": {
+        "title": "La même réponse via REST",
+        "description": "La même vue en appel REST. Chaque table et chaque vue est servie via REST, GraphQL et SQL de la même façon, selon les mêmes règles."
+      },
+      "filesDone": {
+        "title": "Un dossier devenu catalogue",
+        "description": "Un dossier de fichiers est devenu un catalogue gouverné : des tables, des relations, un terme du glossaire et une vue stockée, sans rien charger. Un nouveau fichier mensuel de plaintes n'a pas besoin d'une nouvelle table : le motif l'inclut déjà."
       }
     },
     "status": {
@@ -383,6 +419,10 @@
       "sonnets": {
         "title": "Les sonnets de Shakespeare",
         "summary": "Les 154 sonnets plongés dans des vecteurs, cherchés par le sens et devenus un graphe : les thèmes qu'ils partagent et les vers où Shakespeare se fait écho à lui-même."
+      },
+      "files": {
+        "title": "Data lake instantané",
+        "summary": "Les fichiers de données ouvertes d'une ville, lus sur place comme un seul catalogue : quels quartiers ont le plus de plaintes près des chantiers actifs ?"
       }
     }
   }

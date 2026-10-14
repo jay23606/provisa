@@ -1,0 +1,9 @@
+# Inspections of permitted work, read from a JSON file: how they turned out.
+query InspectionResults {
+  c__inspectionsGroupBy(by: [result], order_by: [{ aggregate: { count: desc } }]) {
+    groupKey
+    aggregate {
+      count
+    }
+  }
+}

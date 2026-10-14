@@ -192,7 +192,7 @@ def _inject_warnings_into_response(response, warnings: list):
     return response
 
 
-def _count_rows_per_source(field_rows: list, ctx) -> dict[str, int]:
+def _count_rows_per_source(field_rows: list, ctx, root_type: str) -> dict[str, int]:
     """Count matched rows per source_id using join cardinality in the result.
 
     For one-to-many joins, sums the nested array lengths across all parent rows.
@@ -203,6 +203,8 @@ def _count_rows_per_source(field_rows: list, ctx) -> dict[str, int]:
     one selection, so the join fields present are read off the first row; a query that selected
     no join does no per-row work, however many joins the role's context holds. A source no
     selected join targets has no entry, and its caller reports the field's own row count for it.
+    Only the joins of the field's own type (``root_type``) are its: another type's join of the
+    same name is no field of these rows, which may hold a column of that name.
     """
     if not field_rows or not ctx or not hasattr(ctx, "joins"):
         return {}
@@ -211,8 +213,8 @@ def _count_rows_per_source(field_rows: list, ctx) -> dict[str, int]:
         return {}
     selected = [
         (join_field, join_meta.cardinality == "one-to-many", join_meta.target.source_id)
-        for (_, join_field), join_meta in ctx.joins.items()
-        if join_field in first
+        for (type_name, join_field), join_meta in ctx.joins.items()
+        if type_name == root_type and join_field in first
     ]
     if not selected:
         return {}
@@ -351,6 +353,7 @@ def _record_per_source_stats(
     rows: int,
     ctx,
     state,
+    canonical_field: str,
     decision=None,
     dataloader_sources: set | None = None,
     per_source_ms: dict[str, float] | None = None,
@@ -367,7 +370,11 @@ def _record_per_source_stats(
     For all other sources: one entry with the engine execution time.
     Per-source row counts use join cardinality from the result for one-to-many joins.
     """
-    joined_rows = _count_rows_per_source(field_rows or [], ctx) if field_rows else {}
+    joined_rows = (
+        _count_rows_per_source(field_rows, ctx, ctx.tables[canonical_field].type_name)
+        if field_rows
+        else {}
+    )
     for src_id in sources or set():
         source_type = getattr(state, "source_types", {}).get(src_id, "")
         if decision is None or decision.route != Route.DIRECT:

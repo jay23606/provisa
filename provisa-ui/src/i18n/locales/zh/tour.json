@@ -363,6 +363,42 @@
       "weblogsStatements": {
         "title": "慢页面背后的 SQL",
         "description": "把最慢的页面与其请求执行的语句关联起来，用普通 SQL 查询演示的两个视图。视图是已保存的查询，Provisa 在运行前把它展开进这条语句。这里可以逐条语句看到时间花在了哪里。"
+      },
+      "filesIntro": {
+        "title": "即时数据湖",
+        "description": "一座城市以文件形式发布开放数据：居民投诉每月一个 CSV 文件，建筑许可为 Parquet，预算为 Excel，检查记录为 JSON。<strong>drop</strong> 是基于该文件夹的一个文件数据源：每个文件都是一张表，在原处读取，无需加载步骤。问题是：哪些街区在施工现场附近的投诉最多？"
+      },
+      "filesComplaints": {
+        "title": "一张表覆盖多个文件",
+        "description": "<strong>complaints</strong> 是覆盖文件夹中每个名为 complaints_*.csv 的文件的一张表。每个月的文件都是其中一部分；新月份的文件不需要自己的表。"
+      },
+      "filesMonths": {
+        "title": "来自每个文件的行",
+        "description": "按月统计的投诉：每个月都来自各自的文件，作为一张表读取。请找到每个月度文件对应的一行。"
+      },
+      "filesFormats": {
+        "title": "每种格式一个文件",
+        "description": "<strong>building_permits</strong> 从 Parquet 文件读取，预算从 Excel 工作簿读取，检查记录从 JSON 文件读取。每一张都是与其他表一样受治理的表。"
+      },
+      "filesJoin": {
+        "title": "有许可地址上的投诉",
+        "description": "关系 DRAWS 将一份建筑许可与在其地址提出的投诉连接起来。回答该问题的视图沿着这一关系进行连接。"
+      },
+      "filesTerm": {
+        "title": "什么是未结投诉",
+        "description": "术语表说明了什么是未结投诉：城市尚未结案的投诉。这样的术语说明了目录中数据的含义。"
+      },
+      "filesAnswer": {
+        "title": "答案",
+        "description": "存储视图 complaints_near_construction 按街区统计在有有效许可的地址提出的投诉。看看哪个街区排在第一位。"
+      },
+      "filesRest": {
+        "title": "通过 REST 得到同一答案",
+        "description": "同一视图作为 REST 调用。每张表和每个视图都以相同方式、在相同规则下通过 REST、GraphQL 和 SQL 提供。"
+      },
+      "filesDone": {
+        "title": "一个文件夹变成了目录",
+        "description": "一个文件夹变成了受治理的目录：表、关系、一个术语和一个存储视图，没有加载任何数据。新的月度投诉文件不需要新表：通配模式已经包含了它。"
       }
     },
     "status": {
@@ -383,6 +419,10 @@
       "sonnets": {
         "title": "莎士比亚十四行诗",
         "summary": "154首十四行诗被转成向量、按意义搜索并长成一张图：它们共有的主题，以及莎士比亚自我呼应的诗行。"
+      },
+      "files": {
+        "title": "即时数据湖",
+        "summary": "一座城市的开放数据文件，就地读取为一个目录：哪些街区在施工现场附近的投诉最多？"
       }
     }
   }

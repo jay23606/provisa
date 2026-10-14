@@ -1,0 +1,19 @@
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+#
+# The files demo's card on provisa.dev's live demos page (REQ-2006, REQ-2032).
+title: Instant data lake
+description: >-
+  A city's open-data drop -- 311 complaints in monthly CSV files, building permits in Parquet, the
+  budget in Excel and inspections in JSON -- read in place as one governed catalog, with no load
+  step: which neighborhoods have the most complaints near active construction?
+screenshot: card.png
+published: true
+# The oldest Provisa this demo's bundle runs on (REQ-2049): the first release carrying the demo.
+requires_provisa: 0.1.0a485

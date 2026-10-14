@@ -8,7 +8,7 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 
-"""Per-source row counts for a GraphQL field's stats walk only the joins the query selected.
+"""Per-source row counts for a GraphQL field's stats walk only the joins the query selected (#265).
 
 The count used to pass over every result row once per join in the role's whole context, whether
 or not the query selected a join: a 6M-row scan through a context holding joins spent a minute
@@ -45,7 +45,7 @@ def _context(n_unselected: int = 50) -> SimpleNamespace:
 
 def test_a_query_that_selected_no_join_walks_no_rows():
     rows = _Rows({"id": i, "region": "east"} for i in range(1000))
-    assert _count_rows_per_source(rows, _context()) == {}
+    assert _count_rows_per_source(rows, _context(), "Order") == {}
     assert rows.walks == 0
 
 
@@ -58,14 +58,14 @@ def test_selected_joins_are_counted_in_one_pass():
             {"id": 4, "customer": {"id": 9}, "items": [{"sku": "c"}]},
         ]
     )
-    assert _count_rows_per_source(rows, _context()) == {"crm": 3, "warehouse": 3}
+    assert _count_rows_per_source(rows, _context(), "Order") == {"crm": 3, "warehouse": 3}
     assert rows.walks == 1
 
 
 def test_a_source_no_selected_join_targets_has_no_entry():
     """Its caller then reports the field's own row count for it, not zero."""
     ctx = SimpleNamespace(joins={("Customer", "orders"): _join("sales", "one-to-many")})
-    assert _count_rows_per_source([{"id": 1}, {"id": 2}], ctx) == {}
+    assert _count_rows_per_source([{"id": 1}, {"id": 2}], ctx, "Customer") == {}
 
 
 def test_two_selected_joins_on_one_source_add_up():
@@ -76,4 +76,12 @@ def test_two_selected_joins_on_one_source_add_up():
         }
     )
     rows = [{"customer": {"id": 1}, "contacts": [{"id": 1}, {"id": 2}]}]
-    assert _count_rows_per_source(rows, ctx) == {"crm": 3}
+    assert _count_rows_per_source(rows, ctx, "Order") == {"crm": 3}
+
+
+def test_another_type_s_join_of_a_column_s_name_is_not_counted():
+    """A view's column ``complaints`` (a count) is no join, though the permits type has a join of
+    that name: the stats used to take it for one and fail the read, len() of an int."""
+    ctx = SimpleNamespace(joins={("Permits", "complaints"): _join("drop", "one-to-many")})
+    rows = [{"neighborhood": "Eastgate", "complaints": 82}]
+    assert _count_rows_per_source(rows, ctx, "ViewComplaintsNearConstruction") == {}
