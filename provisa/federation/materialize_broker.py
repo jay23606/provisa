@@ -11,7 +11,7 @@
 """Serializes every operation against the embedded DuckDB materialize store across `--workers N`
 processes (REQ-1901) -- WITHOUT any persistent cross-process broker, election, or socket.
 
-A dedicated SENTINEL LOCK FILE (`<db_path>.lock`, `fcntl.flock`) is the synchronization primitive:
+A dedicated SENTINEL LOCK FILE (`<db_path>.lock`, `lock_fd`) is the synchronization primitive:
 every operation acquires it (a blocking OS-level mutex -- no polling, no backoff, no parsing
 DuckDB's own error text to guess whether a failure means "busy" or "broken"), ATTACHes the actual
 store file (now guaranteed uncontested), does its one operation, DETACHes (closes the connection),
@@ -32,7 +32,6 @@ lose and reconnect, because no connection ever outlives one call.
 
 from __future__ import annotations
 
-import fcntl
 import os
 import threading
 import time
@@ -40,6 +39,8 @@ from collections.abc import Callable
 from typing import Any
 
 import duckdb
+
+from provisa.core.host_lock import lock_fd, unlock_fd
 
 _MAT_STORE_ALIAS = "mat_store"
 _LOCK_SUFFIX = ".lock"
@@ -55,17 +56,13 @@ def _lock_exclusive(fd: int) -> None:
     from provisa.core import request_deadline
 
     if request_deadline.remaining() is None:
-        fcntl.flock(fd, fcntl.LOCK_EX)
+        lock_fd(fd, wait=True)
         return
-    while True:
-        try:
-            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            return
-        except BlockingIOError:
-            left = request_deadline.remaining()
-            if left is None or left <= 0:
-                raise TimeoutError("request budget spent waiting for the materialize store lock")
-            time.sleep(min(_LOCK_POLL_S, left))
+    while not lock_fd(fd, wait=False):
+        left = request_deadline.remaining()
+        if left is None or left <= 0:
+            raise TimeoutError("request budget spent waiting for the materialize store lock")
+        time.sleep(min(_LOCK_POLL_S, left))
 
 
 _GEN_SUFFIX = ".gen"
@@ -192,7 +189,7 @@ def _with_store(
                     _bump_generation(db_path)
             return (result, store_canary(db_path)) if canary else result
         finally:
-            fcntl.flock(lockfile.fileno(), fcntl.LOCK_UN)
+            unlock_fd(lockfile.fileno())
 
 
 def _table_columns(con: Any, schema: str, table: str) -> list[str] | None:

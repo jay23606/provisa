@@ -36,7 +36,6 @@ instead.
 
 from __future__ import annotations
 
-import fcntl
 import logging
 import os
 import secrets
@@ -48,6 +47,7 @@ from typing import IO, Any
 import pyarrow as pa
 
 from provisa.core import request_deadline
+from provisa.core.host_lock import lock_fd
 from provisa.core.ir_arrow import arrow_schema, rows_to_batch
 from provisa.federation.data_replicator import SourceCaps, SourceRead
 from provisa.federation.replica_errors import BuildFailure
@@ -130,9 +130,7 @@ def sweep(directory: Path) -> list[Path]:
         except FileNotFoundError:
             continue  # its build ended between the listing and this open
         try:
-            try:
-                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except BlockingIOError:
+            if not lock_fd(fd, wait=False):
                 continue  # held: a running build's
             path.unlink(missing_ok=True)
             removed.append(path)
@@ -176,7 +174,7 @@ class SpoolFile:
             with shield.lock:
                 shield.settle()
                 fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_EXCL, 0o600)
-                fcntl.flock(fd, fcntl.LOCK_EX)
+                lock_fd(fd, wait=True)
             # A sweep in another process may have taken the file between its creation and its
             # lock and removed it: the name must still be this file.
             try:

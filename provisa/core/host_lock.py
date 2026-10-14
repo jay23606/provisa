@@ -8,7 +8,8 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 
-"""An exclusive lock among the processes of one host: ``flock`` on a lock file.
+"""An exclusive lock among the processes of one host, on a lock file: ``flock``, and on Windows,
+which has no ``fcntl``, ``msvcrt.locking`` of the file's first byte.
 
 The operating system holds the lock for an open file and releases it when that file is closed,
 which it is when the holding process ends, however it ends. So nothing is renewed and nothing
@@ -21,13 +22,63 @@ one host) and for limits that are per host by nature.
 
 from __future__ import annotations
 
-import fcntl
+import errno
 import hashlib
 import os
+import sys
 import tempfile
 from pathlib import Path
 
 from provisa.core import request_deadline
+
+if sys.platform == "win32":
+    import msvcrt
+
+    def _lock(fd: int, wait: bool) -> bool:
+        # A lock on Windows is a byte range from the file's position: its first byte, always.
+        os.lseek(fd, 0, os.SEEK_SET)
+        if not wait:
+            try:
+                msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+            except OSError as e:
+                if e.errno in (errno.EACCES, errno.EDEADLK):
+                    return False
+                raise
+            return True
+        while True:
+            try:
+                msvcrt.locking(fd, msvcrt.LK_LOCK, 1)
+                return True
+            except OSError as e:
+                # LK_LOCK gives up after ten one-second tries; the wait is not bounded.
+                if e.errno != errno.EDEADLK:
+                    raise
+
+    def unlock_fd(fd: int) -> None:
+        """Release the lock ``lock_fd`` took on ``fd``; closing the file releases it too."""
+        os.lseek(fd, 0, os.SEEK_SET)
+        msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+
+else:
+    import fcntl
+
+    def _lock(fd: int, wait: bool) -> bool:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX if wait else fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return False
+        return True
+
+    def unlock_fd(fd: int) -> None:
+        """Release the lock ``lock_fd`` took on ``fd``; closing the file releases it too."""
+        fcntl.flock(fd, fcntl.LOCK_UN)
+
+
+def lock_fd(fd: int, *, wait: bool) -> bool:
+    """Take the exclusive lock on the open file ``fd``: waiting for its holder, or, with
+    ``wait=False``, only if nobody holds it (False when somebody does). Released when the file is
+    closed, or by ``unlock_fd``."""
+    return _lock(fd, wait)
 
 
 class FileLock:
@@ -37,7 +88,7 @@ class FileLock:
         self.path = path
         self._fd: int | None = None
 
-    def _take(self, flags: int) -> bool:
+    def _take(self, wait: bool) -> bool:
         if self._fd is not None:
             raise RuntimeError(f"{self.path} is already held by this lock")
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -46,19 +97,19 @@ class FileLock:
             shield.settle()
             fd = os.open(self.path, os.O_RDWR | os.O_CREAT, 0o600)
             try:
-                fcntl.flock(fd, flags)
-            except BlockingIOError:
-                os.close(fd)
-                return False
+                taken = lock_fd(fd, wait=wait)
             except BaseException:
                 os.close(fd)
                 raise
+            if not taken:
+                os.close(fd)
+                return False
             self._fd = fd
         return True
 
     def try_acquire(self) -> bool:
         """Take the lock if nobody holds it. Never waits."""
-        return self._take(fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return self._take(wait=False)
 
     def acquire(self) -> None:
         """Take the lock, waiting for the holder to release it. For work outside a request (the
@@ -68,7 +119,7 @@ class FileLock:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         fd = os.open(self.path, os.O_RDWR | os.O_CREAT, 0o600)
         try:
-            fcntl.flock(fd, fcntl.LOCK_EX)
+            lock_fd(fd, wait=True)
         except BaseException:
             os.close(fd)
             raise

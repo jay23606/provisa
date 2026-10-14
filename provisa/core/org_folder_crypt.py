@@ -42,7 +42,6 @@ name.
 # Requirements: REQ-1992
 from __future__ import annotations
 
-import fcntl
 import logging
 import os
 import re
@@ -54,6 +53,8 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterator
+
+from provisa.core.host_lock import lock_fd
 
 log = logging.getLogger(__name__)
 
@@ -201,7 +202,7 @@ def _locked(lock: Path) -> Iterator[None]:
     lock.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     fd = os.open(lock, os.O_RDWR | os.O_CREAT, 0o600)
     try:
-        fcntl.flock(fd, fcntl.LOCK_EX)
+        lock_fd(fd, wait=True)
         yield
     finally:
         os.close(fd)

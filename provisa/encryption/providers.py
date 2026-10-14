@@ -39,13 +39,14 @@ together end with one key rather than one each.
 from __future__ import annotations
 
 import base64
-import fcntl
 import hashlib
 import os
 from abc import ABC, abstractmethod
 from pathlib import Path
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+from provisa.core.host_lock import lock_fd
 
 _MASTER_KEY_ENV = "PROVISA_ENCRYPTION_KEY"  # base64-encoded 32-byte master key
 _KEYCHAIN_SERVICE = "provisa-encryption"
@@ -337,10 +338,11 @@ def mint_master_key(key_id: str | None = None) -> None:
     The check and the store happen under an exclusive lock on a file beside the keystore: workers
     that reach a first write together would otherwise each see no key, each generate one, and the
     last store would win — leaving what the others had already encrypted unreadable. The lock is
-    the operating system's (``flock``), released when the file closes however this exits."""
+    the operating system's (``host_lock.lock_fd``), released when the file closes however this
+    exits."""
     lock_path = _local_keystore_dir() / f"{key_id or 'master'}.lock"
     lock_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     with open(lock_path, "w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+        lock_fd(lock.fileno(), wait=True)
         if not master_key_present(key_id):
             store_master_key(generate_master_key_b64(), key_id)
