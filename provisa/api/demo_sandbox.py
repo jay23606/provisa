@@ -204,6 +204,9 @@ async def _build(demo: PublishedDemo, org_id: str, person: str, kind: str) -> st
     # for none.
     await clone_model(_pool(), org_schema(demo.template_org), org_schema(org_id), landing=COPIED)
     await org_files.prepare(org_id, state.admin_db, _stop_org_servers)
+    # The demo version it is opened from: its examples and tour are that version's, whatever is
+    # published after (demo_directory_of).
+    (org_files.folder(org_id) / _DEMO_DIRECTORY_FILE).write_text(str(demo.directory))
     from provisa.api.demo_replicas import copy_to_sandbox
 
     await copy_to_sandbox(demo.template_org, org_id)
@@ -219,6 +222,12 @@ async def _build(demo: PublishedDemo, org_id: str, person: str, kind: str) -> st
             )
     await grant_membership(_admin_pool(), person, org_id, joined_via=JOINED_VIA_ADMIN)
     await grant_org_role(rt.model_db, person, SANDBOX_ROLE, granter_capabilities=DEPLOYMENT_GRANTER)
+    # And the demo's own roles (an analyst, say), so its tour can run as each of them; never a
+    # built-in role, which would carry what the sandbox role withholds (REQ-1597).
+    from provisa.api.demo_templates import demo_roles
+
+    for role_id in demo_roles(demo.template_org):
+        await grant_org_role(rt.model_db, person, role_id, granter_capabilities=DEPLOYMENT_GRANTER)
     ensure_repo(org_id)
     async with rt.model_db.acquire() as conn:
         await write_through(
@@ -237,6 +246,27 @@ async def _build(demo: PublishedDemo, org_id: str, person: str, kind: str) -> st
         user_id=person, org_id=org_id, name=_TOKEN_NAME, role_id=SANDBOX_ROLE
     )
     return secret
+
+
+_DEMO_DIRECTORY_FILE = "demo-directory"
+
+
+async def demo_directory_of(org_id: str) -> Path | None:
+    """The directory of the demo version a sandbox-tier org serves: a template's, the version its
+    demo is served at; a sandbox's, the one it was opened from. None for an org that is neither
+    (the demos' examples and tour are shown to nobody else)."""
+    from provisa.api.demo_templates import demo_of_template
+    from provisa.core import org_files
+    from provisa.core.org_ids import is_sandbox_tier_org, is_template_org
+
+    if is_template_org(org_id):
+        return demo_of_template(org_id).directory
+    if not is_sandbox_tier_org(org_id):
+        return None
+    recorded = org_files.folder(org_id) / _DEMO_DIRECTORY_FILE
+    if not recorded.is_file():
+        return None  # no sandbox of that id is open: nothing to show
+    return Path(recorded.read_text())
 
 
 _touched: dict[str, float] = {}

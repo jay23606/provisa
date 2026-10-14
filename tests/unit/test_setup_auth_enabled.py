@@ -34,7 +34,7 @@ async def test_status_demo_no_auth_is_unsecured(monkeypatch):
     monkeypatch.setattr(setup_router, "_idp_override", lambda: None)
     monkeypatch.delenv("PROVISA_NAMED_DEMO_DIR", raising=False)
     monkeypatch.setattr("provisa.api.admin._config_io.read_config", lambda: {})
-    result = await setup_status()
+    result = await setup_status(_request())
     assert result == {
         "needs_setup": True,
         "demo_mode": True,
@@ -55,7 +55,7 @@ async def test_status_demo_firebase_config_is_enforced(monkeypatch):
         "provisa.api.admin._config_io.read_config",
         lambda: {"auth": {"provider": "firebase"}},
     )
-    result = await setup_status()
+    result = await setup_status(_request())
     assert result == {
         "needs_setup": False,
         "demo_mode": True,
@@ -73,7 +73,7 @@ async def test_status_non_demo_no_auth_needs_setup(monkeypatch):
     monkeypatch.setattr(setup_router, "_idp_override", lambda: None)
     monkeypatch.delenv("PROVISA_NAMED_DEMO_DIR", raising=False)
     monkeypatch.setattr("provisa.api.admin._config_io.read_config", lambda: {})
-    result = await setup_status()
+    result = await setup_status(_request())
     assert result == {
         "needs_setup": True,
         "demo_mode": False,
@@ -83,3 +83,11 @@ async def test_status_non_demo_no_auth_needs_setup(monkeypatch):
         "example_queries": [],  # REQ-2009: no named demo was started
         "demo_tour": [],  # REQ-2010
     }
+
+
+def _request(headers: dict[str, str] | None = None):
+    """A request to /setup/status, with ``headers``."""
+    from starlette.requests import Request
+
+    raw = [(k.lower().encode(), v.encode()) for k, v in (headers or {}).items()]
+    return Request({"type": "http", "method": "GET", "path": "/setup/status", "headers": raw})

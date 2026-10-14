@@ -141,3 +141,91 @@ def test_a_bundle_that_needs_a_newer_provisa_is_refused_by_name(tmp_path_factory
     assert pulled.returncode == 2
     assert "needs Provisa 99.0.0 or newer; this is Provisa" in pulled.stderr
     assert not (work / "demos" / "alpha").exists() or not any((work / "demos" / "alpha").iterdir())
+
+
+def test_a_sandbox_is_shown_the_example_queries_of_the_bundle_it_was_opened_from(
+    tmp_path_factory, registry
+):
+    """REQ-2006/REQ-2049: the demo's example queries ride on /setup/status (REQ-2009). The sandbox
+    tier serves many demos, so it answers with those of the sandbox's own demo, from its bundle."""
+    work = tmp_path_factory.mktemp("bundle_examples")
+    named = work / "named"
+    demo = published_demo(named, "alpha")
+    (demo / "queries").mkdir()
+    (demo / "queries" / "1-animals.graphql").write_text(
+        "# Every animal\nquery { animals { name } }\n"
+    )
+    _publish(registry, named, work / "out", "d" * 40, ["ant", "ape"])
+    tier = _tier(work, registry)
+    tier.start(timeout=240)
+    try:
+        sandbox = _open(tier)
+        status = httpx.get(
+            f"{tier.base_url}/setup/status",
+            headers={
+                "Authorization": f"Bearer {sandbox['token']}",
+                "x-org-provisa": sandbox["org_id"],
+            },
+            timeout=60,
+        )
+        assert status.status_code == 200, status.text
+        body = status.json()
+        assert body["named_demo"] == "alpha", body
+        assert body["example_queries"] == [
+            {"name": "1-animals", "query": "# Every animal\nquery { animals { name } }\n"}
+        ]
+    finally:
+        tier.stop_process()
+
+
+def test_a_visitor_reads_what_the_demo_shows_its_admin_and_runs_as_its_own_roles(
+    tmp_path_factory, registry
+):
+    """A demo names its own roles (org_admin, a keeper), never the sandbox role. Its visitor holds
+    the sandbox role, which sees what org_admin sees (REQ-1597), and the demo's own roles, so its
+    tour can run as each (weblogs: analyst; test_weblogs_bundle_e2e, run 38596957161)."""
+    import yaml
+
+    work = tmp_path_factory.mktemp("bundle_roles")
+    named = work / "named"
+    demo = published_demo(named, "alpha")
+    config = yaml.safe_load((demo / "config.yaml").read_text())
+    config["roles"] = [
+        {"id": "keeper", "capabilities": ["query_development"], "domain_access": ["zoo"]}
+    ]
+    for column in config["tables"][0]["columns"]:
+        column["visible_to"] = (
+            ["org_admin", "keeper"] if column["name"] == "name" else ["org_admin"]
+        )
+    (demo / "config.yaml").write_text(yaml.safe_dump(config))
+    _publish(registry, named, work / "out", "e" * 40, ["ant", "ape"])
+    tier = _tier(work, registry)
+    tier.start(timeout=240)
+    try:
+        sandbox = _open(tier)
+        assert _names(tier, sandbox) == ["ant", "ape"]
+        as_keeper = httpx.post(
+            f"{tier.base_url}/data/sql",
+            json={"sql": "SELECT name FROM animals"},
+            headers={
+                "Authorization": f"Bearer {sandbox['token']}",
+                "x-org-provisa": sandbox["org_id"],
+                "X-Provisa-Role": "keeper",
+            },
+            timeout=120,
+        )
+        assert as_keeper.status_code == 200, as_keeper.text
+        assert sorted(r["name"] for r in as_keeper.json()["data"]["sql"]) == ["ant", "ape"]
+        as_admin = httpx.post(
+            f"{tier.base_url}/data/sql",
+            json={"sql": "SELECT name FROM animals"},
+            headers={
+                "Authorization": f"Bearer {sandbox['token']}",
+                "x-org-provisa": sandbox["org_id"],
+                "X-Provisa-Role": "org_admin",
+            },
+            timeout=120,
+        )
+        assert as_admin.status_code == 403, as_admin.text  # REQ-1597: never org_admin itself
+    finally:
+        tier.stop_process()

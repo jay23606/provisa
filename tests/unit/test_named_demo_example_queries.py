@@ -25,7 +25,7 @@ def test_a_named_demo_s_queries_are_read_in_file_name_order(tmp_path, monkeypatc
     (tmp_path / "queries" / "1-a.graphql").write_text("query A { a }")
     (tmp_path / "queries" / "notes.md").write_text("not a query")
     monkeypatch.setenv(demo.NAMED_DEMO_DIR_ENV, str(tmp_path))
-    assert demo.example_queries() == [
+    assert demo.example_queries(demo.started_demo_directory()) == [
         {"name": "1-a", "query": "query A { a }"},
         {"name": "2-b", "query": "query B { b }"},
     ]
@@ -33,9 +33,9 @@ def test_a_named_demo_s_queries_are_read_in_file_name_order(tmp_path, monkeypatc
 
 def test_no_named_demo_ships_no_queries(tmp_path, monkeypatch):
     monkeypatch.delenv(demo.NAMED_DEMO_DIR_ENV, raising=False)
-    assert demo.example_queries() == []
+    assert demo.example_queries(demo.started_demo_directory()) == []
     monkeypatch.setenv(demo.NAMED_DEMO_DIR_ENV, str(tmp_path))  # a demo with no queries/
-    assert demo.example_queries() == []
+    assert demo.example_queries(demo.started_demo_directory()) == []
 
 
 async def test_the_setup_status_carries_them(tmp_path, monkeypatch):
@@ -49,7 +49,7 @@ async def test_the_setup_status_carries_them(tmp_path, monkeypatch):
         return {"needs_setup": False, "demo_mode": True}
 
     monkeypatch.setattr(setup_router, "_setup_state", state)
-    assert await setup_router.setup_status() == {
+    assert await setup_router.setup_status(_request()) == {
         "needs_setup": False,
         "demo_mode": True,
         "named_demo": tmp_path.name,
@@ -144,3 +144,11 @@ def test_each_sonnets_example_is_valid_against_the_demo_s_views(path):
     admin = {"id": "org_admin", "capabilities": [], "domain_access": ["*"]}
     errors = validate(_views_schema(_SONNETS, admin), parse(path.read_text()))
     assert errors == [], [e.message for e in errors]
+
+
+def _request(headers: dict[str, str] | None = None):
+    """A request to /setup/status, with ``headers``."""
+    from starlette.requests import Request
+
+    raw = [(k.lower().encode(), v.encode()) for k, v in (headers or {}).items()]
+    return Request({"type": "http", "method": "GET", "path": "/setup/status", "headers": raw})
