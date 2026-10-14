@@ -191,3 +191,24 @@ def test_a_named_meta_role_is_refused_and_every_named_role_must_be_held():
 def test_the_id_is_the_sorted_set():
     assert meta_role_id(["west", "east", "west"]) == "meta:east+west"
     assert meta_role.is_meta_role_id("meta:a+b") and not meta_role.is_meta_role_id("east")
+
+
+def test_a_held_role_with_no_data_surface_is_no_member():
+    """REQ-1327: platform_admin has no data surface. "Role: All" acting as it and the org's roles
+    built a meta-role that failed on its surface (KeyError 'platform_admin') and took its
+    control-plane rights; the set acts as the roles that reach data."""
+    state, _ = _state(
+        rls={"east": RLSContext.empty(), "west": RLSContext.empty()},
+        reads={"east": [1], "west": [1]},
+        roles={
+            "east": _role("east"),
+            "west": _role("west"),
+            "platform_admin": _role("platform_admin", caps=("cross_org",), domains=()),
+        },
+    )
+    meta = ensure_meta_role(state, ["east", "platform_admin", "west"])
+    assert meta == "meta:east+west"
+    assert "cross_org" not in state.roles[meta]["capabilities"]
+    assert ensure_meta_role(state, ["east", "platform_admin"]) == "east"
+    with pytest.raises(PermissionError, match="No schema available"):
+        ensure_meta_role(state, ["platform_admin", "nobody"])

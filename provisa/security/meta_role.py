@@ -216,7 +216,19 @@ def _build(state: Any, meta_id: str, member_ids: list[str]) -> None:
 def ensure_meta_role(state: Any, members: list[str]) -> str:
     """The meta-role acting as ``members`` (roles the caller holds, two or more), built on first
     use. A rebuild of the model rebuilds it from the rebuilt members while requests may still be
-    acting as it (:func:`rebuild_meta_roles`); each use is recorded so a rebuild knows that."""
+    acting as it (:func:`rebuild_meta_roles`); each use is recorded so a rebuild knows that.
+
+    A held role with no data surface -- platform_admin, control-plane only (REQ-1327), or a role
+    reaching no domain -- reaches no data, so it is no member of the data role the set acts as:
+    the set acts as the roles that have one, and as the one role when one is left. Built with it,
+    the meta-role took its control-plane rights, and building it failed on its missing surface
+    (KeyError 'platform_admin'), on every request and at every model rebuild after."""
+    data = sorted({m for m in members if m in state.surfaces})
+    if not data:
+        raise PermissionError(f"No schema available for roles {sorted(set(members))}")
+    if len(data) == 1:
+        return data[0]
+    members = data
     meta_id = meta_role_id(members)
     if meta_id not in state.roles or state.meta_roles.get(meta_id) is None:
         with _LOCK:
