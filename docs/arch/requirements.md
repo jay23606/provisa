@@ -23455,3 +23455,147 @@ A named demo, vulnerabilities (Are we shipping an exploited vulnerability?): A d
 **Code:** —
 
 **Tests:** —
+
+### REQ-2037 · UI {#REQ-2037}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+An industry vertical demo, insurance: Where is our property exposure concentrated against hazard risk? Private data (generated): policies by county. Public data (govdata): fema_nri_* and weather_daily_by_county. Pattern for every vertical demo: one focused business question, answered by joining generated private company data with public government data from govdata; one private source, two or three govdata tables, one materialized view, and the settled demo tour shape (scenario and features; how the pieces fit; predesigned queries on two or three surfaces; one Polly question answered at template build and served stored, [REQ-2012](#REQ-2012); recap). Data is landed at build as TTL -1 replicas ([REQ-2031](#REQ-2031)); the build fails, naming the table, when a govdata table it needs is empty. A per-vertical glossary uses the industry's own terms.
+
+**Use case:** A insurance buyer opens the insurance demo and sees their own kind of question answered across company and public data.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-2038 · UI {#REQ-2038}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+An industry vertical demo, pharma: Which of our products face shortage or recall risk? Private data (generated): product catalog and supply. Public data (govdata): fda_drug_shortages, fda_drug_recalls, medicaid_drug_utilization. Pattern for every vertical demo: one focused business question, answered by joining generated private company data with public government data from govdata; one private source, two or three govdata tables, one materialized view, and the settled demo tour shape (scenario and features; how the pieces fit; predesigned queries on two or three surfaces; one Polly question answered at template build and served stored, [REQ-2012](#REQ-2012); recap). Data is landed at build as TTL -1 replicas ([REQ-2031](#REQ-2031)); the build fails, naming the table, when a govdata table it needs is empty. A per-vertical glossary uses the industry's own terms.
+
+**Use case:** A pharma buyer opens the pharma demo and sees their own kind of question answered across company and public data.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-2039 · UI {#REQ-2039}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+An industry vertical demo, agriculture: Does weather explain crop insurance losses in our portfolio? Private data (generated): farm portfolio. Public data (govdata): nass_crop_production, rma_crop_insurance, weather_daily_by_county. Pattern for every vertical demo: one focused business question, answered by joining generated private company data with public government data from govdata; one private source, two or three govdata tables, one materialized view, and the settled demo tour shape (scenario and features; how the pieces fit; predesigned queries on two or three surfaces; one Polly question answered at template build and served stored, [REQ-2012](#REQ-2012); recap). Data is landed at build as TTL -1 replicas ([REQ-2031](#REQ-2031)); the build fails, naming the table, when a govdata table it needs is empty. A per-vertical glossary uses the industry's own terms.
+
+**Use case:** A agriculture buyer opens the agriculture demo and sees their own kind of question answered across company and public data.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-2040 · UI {#REQ-2040}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+An industry vertical demo, audit firm: Single Audit readiness: do a nonprofit client's recorded federal awards match what the government reports paying it? It shows row rules by engagement (each team sees only its own clients), lineage, and the per-query audit record as evidence. Private data (generated): client general ledger and grant schedule. Public data (govdata): usaspending_* awards, exempt_org_master, exempt_org_990. Pattern for every vertical demo: one focused business question, answered by joining generated private company data with public government data from govdata; one private source, two or three govdata tables, one materialized view, and the settled demo tour shape (scenario and features; how the pieces fit; predesigned queries on two or three surfaces; one Polly question answered at template build and served stored, [REQ-2012](#REQ-2012); recap). Data is landed at build as TTL -1 replicas ([REQ-2031](#REQ-2031)); the build fails, naming the table, when a govdata table it needs is empty. A per-vertical glossary uses the industry's own terms.
+
+**Use case:** A audit firm buyer opens the audit firm demo and sees their own kind of question answered across company and public data.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-2041 · UI {#REQ-2041}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+An industry vertical demo, tax firm: Nonprofit 990 benchmarking: are a client's executive pay and overhead in line with peers of similar size and mission? It shows metrics (overhead ratio, pay as a share of expenses) and masking of client figures by role; it may ship as a second tour of the audit-firm demo, sharing the 990 tables. Private data (generated): client draft 990 figures. Public data (govdata): exempt_org_990 (peer filings), exempt_org_master. Pattern for every vertical demo: one focused business question, answered by joining generated private company data with public government data from govdata; one private source, two or three govdata tables, one materialized view, and the settled demo tour shape (scenario and features; how the pieces fit; predesigned queries on two or three surfaces; one Polly question answered at template build and served stored, [REQ-2012](#REQ-2012); recap). Data is landed at build as TTL -1 replicas ([REQ-2031](#REQ-2031)); the build fails, naming the table, when a govdata table it needs is empty. A per-vertical glossary uses the industry's own terms.
+
+**Use case:** A tax firm buyer opens the tax firm demo and sees their own kind of question answered across company and public data.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-2042 · UI {#REQ-2042}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+An industry vertical demo, local government: Opioid settlement funds: which areas have the highest overdose deaths relative to current treatment spending? It shows a plain-language public-sector glossary, a materialized view for the council's dashboard, and a public role beside a staff role. Private data (generated): county or city budget lines and program spend. Public data (govdata): cdc_county_overdose_deaths, usaspending_by_county, ACS demographics. Pattern for every vertical demo: one focused business question, answered by joining generated private company data with public government data from govdata; one private source, two or three govdata tables, one materialized view, and the settled demo tour shape (scenario and features; how the pieces fit; predesigned queries on two or three surfaces; one Polly question answered at template build and served stored, [REQ-2012](#REQ-2012); recap). Data is landed at build as TTL -1 replicas ([REQ-2031](#REQ-2031)); the build fails, naming the table, when a govdata table it needs is empty. A per-vertical glossary uses the industry's own terms.
+
+**Use case:** A local government buyer opens the local government demo and sees their own kind of question answered across company and public data.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-2043 · UI {#REQ-2043}
+
+**Status:** 💡 proposed · **Priority:** MAY · **Type:** behavioral
+
+An industry vertical demo, banking: Which loans are concentrated in counties at high disaster risk? Private data (generated): loan book. Public data (govdata): fema_nri_* and weather_daily_by_county. Pattern for every vertical demo: one focused business question, answered by joining generated private company data with public government data from govdata; one private source, two or three govdata tables, one materialized view, and the settled demo tour shape (scenario and features; how the pieces fit; predesigned queries on two or three surfaces; one Polly question answered at template build and served stored, [REQ-2012](#REQ-2012); recap). Data is landed at build as TTL -1 replicas ([REQ-2031](#REQ-2031)); the build fails, naming the table, when a govdata table it needs is empty. A per-vertical glossary uses the industry's own terms.
+
+**Use case:** A banking buyer opens the banking demo and sees their own kind of question answered across company and public data.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-2044 · UI {#REQ-2044}
+
+**Status:** 💡 proposed · **Priority:** MAY · **Type:** behavioral
+
+An industry vertical demo, markets: Which portfolio holdings face regulatory or lobbying exposure? Private data (generated): holdings. Public data (govdata): sec_company_tickers, filing_*, lobbying_filings, cftc_trades. Pattern for every vertical demo: one focused business question, answered by joining generated private company data with public government data from govdata; one private source, two or three govdata tables, one materialized view, and the settled demo tour shape (scenario and features; how the pieces fit; predesigned queries on two or three surfaces; one Polly question answered at template build and served stored, [REQ-2012](#REQ-2012); recap). Data is landed at build as TTL -1 replicas ([REQ-2031](#REQ-2031)); the build fails, naming the table, when a govdata table it needs is empty. A per-vertical glossary uses the industry's own terms.
+
+**Use case:** A markets buyer opens the markets demo and sees their own kind of question answered across company and public data.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-2045 · UI {#REQ-2045}
+
+**Status:** 💡 proposed · **Priority:** MAY · **Type:** behavioral
+
+An industry vertical demo, reinsurance: Catastrophe accumulation across ceded portfolios, by region. Private data (generated): treaties and ceded exposures. Public data (govdata): FEMA national risk index tables. Pattern for every vertical demo: one focused business question, answered by joining generated private company data with public government data from govdata; one private source, two or three govdata tables, one materialized view, and the settled demo tour shape (scenario and features; how the pieces fit; predesigned queries on two or three surfaces; one Polly question answered at template build and served stored, [REQ-2012](#REQ-2012); recap). Data is landed at build as TTL -1 replicas ([REQ-2031](#REQ-2031)); the build fails, naming the table, when a govdata table it needs is empty. A per-vertical glossary uses the industry's own terms.
+
+**Use case:** A reinsurance buyer opens the reinsurance demo and sees their own kind of question answered across company and public data.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-2046 · UI {#REQ-2046}
+
+**Status:** 💡 proposed · **Priority:** MAY · **Type:** behavioral
+
+An industry vertical demo, healthcare: Are members steered to low-quality, understaffed facilities? Private data (generated): claims. Public data (govdata): cms_hospital_quality, cms_pbj_nurse_staffing. Pattern for every vertical demo: one focused business question, answered by joining generated private company data with public government data from govdata; one private source, two or three govdata tables, one materialized view, and the settled demo tour shape (scenario and features; how the pieces fit; predesigned queries on two or three surfaces; one Polly question answered at template build and served stored, [REQ-2012](#REQ-2012); recap). Data is landed at build as TTL -1 replicas ([REQ-2031](#REQ-2031)); the build fails, naming the table, when a govdata table it needs is empty. A per-vertical glossary uses the industry's own terms.
+
+**Use case:** A healthcare buyer opens the healthcare demo and sees their own kind of question answered across company and public data.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-2047 · UI {#REQ-2047}
+
+**Status:** 💡 proposed · **Priority:** MAY · **Type:** behavioral
+
+An industry vertical demo, retail: Which stocked items are under a recall? Private data (generated): inventory. Public data (govdata): fda_device_recalls, vehicle_recalls. Pattern for every vertical demo: one focused business question, answered by joining generated private company data with public government data from govdata; one private source, two or three govdata tables, one materialized view, and the settled demo tour shape (scenario and features; how the pieces fit; predesigned queries on two or three surfaces; one Polly question answered at template build and served stored, [REQ-2012](#REQ-2012); recap). Data is landed at build as TTL -1 replicas ([REQ-2031](#REQ-2031)); the build fails, naming the table, when a govdata table it needs is empty. A per-vertical glossary uses the industry's own terms.
+
+**Use case:** A retail buyer opens the retail demo and sees their own kind of question answered across company and public data.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-2048 · UI {#REQ-2048}
+
+**Status:** 💡 proposed · **Priority:** MAY · **Type:** behavioral
+
+An industry vertical demo, manufacturing: Which bill-of-materials parts depend on imported critical minerals? Private data (generated): bill of materials and suppliers. Public data (govdata): comtrade_flows, trade_exports_critical_minerals, epa_facilities. Pattern for every vertical demo: one focused business question, answered by joining generated private company data with public government data from govdata; one private source, two or three govdata tables, one materialized view, and the settled demo tour shape (scenario and features; how the pieces fit; predesigned queries on two or three surfaces; one Polly question answered at template build and served stored, [REQ-2012](#REQ-2012); recap). Data is landed at build as TTL -1 replicas ([REQ-2031](#REQ-2031)); the build fails, naming the table, when a govdata table it needs is empty. A per-vertical glossary uses the industry's own terms.
+
+**Use case:** A manufacturing buyer opens the manufacturing demo and sees their own kind of question answered across company and public data.
+
+**Code:** —
+
+**Tests:** —

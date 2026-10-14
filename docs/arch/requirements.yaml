@@ -82706,3 +82706,465 @@
   notes: 'Maintainer 2026-10-14, via the lead: approved as one of the capability demos (logs, AI/vector, NoSQL,
     enterprise SaaS, files, streaming, data residency, cybersecurity). Lead''s elaboration: the scenario, data and
     feature assignment in the description.'
+- id: REQ-2037
+  status: proposed
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI
+  feature: product-tour-and-demos-named-demos
+  priority: SHOULD
+  type: behavioral
+  description: 'An industry vertical demo, insurance: Where is our property exposure concentrated against hazard
+    risk? Private data (generated): policies by county. Public data (govdata): fema_nri_* and weather_daily_by_county.
+    Pattern for every vertical demo: one focused business question, answered by joining generated private company
+    data with public government data from govdata; one private source, two or three govdata tables, one materialized
+    view, and the settled demo tour shape (scenario and features; how the pieces fit; predesigned queries on two
+    or three surfaces; one Polly question answered at template build and served stored, REQ-2012; recap). Data is
+    landed at build as TTL -1 replicas (REQ-2031); the build fails, naming the table, when a govdata table it needs
+    is empty. A per-vertical glossary uses the industry''s own terms.'
+  use_case: A insurance buyer opens the insurance demo and sees their own kind of question answered across company
+    and public data.
+  scenario: 'Given the insurance demo started from its template
+
+
+    When a visitor walks its tour to the end
+
+
+    Then every predesigned query returns rows joining the private data to the public data, and the stored Polly
+    answer is shown
+
+
+    And no request leaves the demo for a live external account'
+  related_reqs:
+  - REQ-2006
+  - REQ-2012
+  - REQ-2031
+  notes: 'Maintainer 2026-10-14, via the lead: experiment with industry vertical demos, each with a very focused
+    problem (banking, markets, insurance, reinsurance, healthcare, pharma, retail, manufacturing, agriculture, then
+    audit firms, tax firms, local governments). SHOULD = the first experiment set (insurance, pharma, agriculture,
+    audit, tax, local government), measured by sandbox events before others are built. Lead''s elaboration: the
+    questions and table choices.'
+- id: REQ-2038
+  status: proposed
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI
+  feature: product-tour-and-demos-named-demos
+  priority: SHOULD
+  type: behavioral
+  description: 'An industry vertical demo, pharma: Which of our products face shortage or recall risk? Private data
+    (generated): product catalog and supply. Public data (govdata): fda_drug_shortages, fda_drug_recalls, medicaid_drug_utilization.
+    Pattern for every vertical demo: one focused business question, answered by joining generated private company
+    data with public government data from govdata; one private source, two or three govdata tables, one materialized
+    view, and the settled demo tour shape (scenario and features; how the pieces fit; predesigned queries on two
+    or three surfaces; one Polly question answered at template build and served stored, REQ-2012; recap). Data is
+    landed at build as TTL -1 replicas (REQ-2031); the build fails, naming the table, when a govdata table it needs
+    is empty. A per-vertical glossary uses the industry''s own terms.'
+  use_case: A pharma buyer opens the pharma demo and sees their own kind of question answered across company and
+    public data.
+  scenario: 'Given the pharma demo started from its template
+
+
+    When a visitor walks its tour to the end
+
+
+    Then every predesigned query returns rows joining the private data to the public data, and the stored Polly
+    answer is shown
+
+
+    And no request leaves the demo for a live external account'
+  related_reqs:
+  - REQ-2006
+  - REQ-2012
+  - REQ-2031
+  notes: 'Maintainer 2026-10-14, via the lead: experiment with industry vertical demos, each with a very focused
+    problem (banking, markets, insurance, reinsurance, healthcare, pharma, retail, manufacturing, agriculture, then
+    audit firms, tax firms, local governments). SHOULD = the first experiment set (insurance, pharma, agriculture,
+    audit, tax, local government), measured by sandbox events before others are built. Lead''s elaboration: the
+    questions and table choices.'
+- id: REQ-2039
+  status: proposed
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI
+  feature: product-tour-and-demos-named-demos
+  priority: SHOULD
+  type: behavioral
+  description: 'An industry vertical demo, agriculture: Does weather explain crop insurance losses in our portfolio?
+    Private data (generated): farm portfolio. Public data (govdata): nass_crop_production, rma_crop_insurance, weather_daily_by_county.
+    Pattern for every vertical demo: one focused business question, answered by joining generated private company
+    data with public government data from govdata; one private source, two or three govdata tables, one materialized
+    view, and the settled demo tour shape (scenario and features; how the pieces fit; predesigned queries on two
+    or three surfaces; one Polly question answered at template build and served stored, REQ-2012; recap). Data is
+    landed at build as TTL -1 replicas (REQ-2031); the build fails, naming the table, when a govdata table it needs
+    is empty. A per-vertical glossary uses the industry''s own terms.'
+  use_case: A agriculture buyer opens the agriculture demo and sees their own kind of question answered across company
+    and public data.
+  scenario: 'Given the agriculture demo started from its template
+
+
+    When a visitor walks its tour to the end
+
+
+    Then every predesigned query returns rows joining the private data to the public data, and the stored Polly
+    answer is shown
+
+
+    And no request leaves the demo for a live external account'
+  related_reqs:
+  - REQ-2006
+  - REQ-2012
+  - REQ-2031
+  notes: 'Maintainer 2026-10-14, via the lead: experiment with industry vertical demos, each with a very focused
+    problem (banking, markets, insurance, reinsurance, healthcare, pharma, retail, manufacturing, agriculture, then
+    audit firms, tax firms, local governments). SHOULD = the first experiment set (insurance, pharma, agriculture,
+    audit, tax, local government), measured by sandbox events before others are built. Lead''s elaboration: the
+    questions and table choices.'
+- id: REQ-2040
+  status: proposed
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI
+  feature: product-tour-and-demos-named-demos
+  priority: SHOULD
+  type: behavioral
+  description: 'An industry vertical demo, audit firm: Single Audit readiness: do a nonprofit client''s recorded
+    federal awards match what the government reports paying it? It shows row rules by engagement (each team sees
+    only its own clients), lineage, and the per-query audit record as evidence. Private data (generated): client
+    general ledger and grant schedule. Public data (govdata): usaspending_* awards, exempt_org_master, exempt_org_990.
+    Pattern for every vertical demo: one focused business question, answered by joining generated private company
+    data with public government data from govdata; one private source, two or three govdata tables, one materialized
+    view, and the settled demo tour shape (scenario and features; how the pieces fit; predesigned queries on two
+    or three surfaces; one Polly question answered at template build and served stored, REQ-2012; recap). Data is
+    landed at build as TTL -1 replicas (REQ-2031); the build fails, naming the table, when a govdata table it needs
+    is empty. A per-vertical glossary uses the industry''s own terms.'
+  use_case: A audit firm buyer opens the audit firm demo and sees their own kind of question answered across company
+    and public data.
+  scenario: 'Given the audit firm demo started from its template
+
+
+    When a visitor walks its tour to the end
+
+
+    Then every predesigned query returns rows joining the private data to the public data, and the stored Polly
+    answer is shown
+
+
+    And no request leaves the demo for a live external account'
+  related_reqs:
+  - REQ-2006
+  - REQ-2012
+  - REQ-2031
+  notes: 'Maintainer 2026-10-14, via the lead: experiment with industry vertical demos, each with a very focused
+    problem (banking, markets, insurance, reinsurance, healthcare, pharma, retail, manufacturing, agriculture, then
+    audit firms, tax firms, local governments). SHOULD = the first experiment set (insurance, pharma, agriculture,
+    audit, tax, local government), measured by sandbox events before others are built. Lead''s elaboration: the
+    questions and table choices.'
+- id: REQ-2041
+  status: proposed
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI
+  feature: product-tour-and-demos-named-demos
+  priority: SHOULD
+  type: behavioral
+  description: 'An industry vertical demo, tax firm: Nonprofit 990 benchmarking: are a client''s executive pay and
+    overhead in line with peers of similar size and mission? It shows metrics (overhead ratio, pay as a share of
+    expenses) and masking of client figures by role; it may ship as a second tour of the audit-firm demo, sharing
+    the 990 tables. Private data (generated): client draft 990 figures. Public data (govdata): exempt_org_990 (peer
+    filings), exempt_org_master. Pattern for every vertical demo: one focused business question, answered by joining
+    generated private company data with public government data from govdata; one private source, two or three govdata
+    tables, one materialized view, and the settled demo tour shape (scenario and features; how the pieces fit; predesigned
+    queries on two or three surfaces; one Polly question answered at template build and served stored, REQ-2012;
+    recap). Data is landed at build as TTL -1 replicas (REQ-2031); the build fails, naming the table, when a govdata
+    table it needs is empty. A per-vertical glossary uses the industry''s own terms.'
+  use_case: A tax firm buyer opens the tax firm demo and sees their own kind of question answered across company
+    and public data.
+  scenario: 'Given the tax firm demo started from its template
+
+
+    When a visitor walks its tour to the end
+
+
+    Then every predesigned query returns rows joining the private data to the public data, and the stored Polly
+    answer is shown
+
+
+    And no request leaves the demo for a live external account'
+  related_reqs:
+  - REQ-2006
+  - REQ-2012
+  - REQ-2031
+  notes: 'Maintainer 2026-10-14, via the lead: experiment with industry vertical demos, each with a very focused
+    problem (banking, markets, insurance, reinsurance, healthcare, pharma, retail, manufacturing, agriculture, then
+    audit firms, tax firms, local governments). SHOULD = the first experiment set (insurance, pharma, agriculture,
+    audit, tax, local government), measured by sandbox events before others are built. Lead''s elaboration: the
+    questions and table choices.'
+- id: REQ-2042
+  status: proposed
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI
+  feature: product-tour-and-demos-named-demos
+  priority: SHOULD
+  type: behavioral
+  description: 'An industry vertical demo, local government: Opioid settlement funds: which areas have the highest
+    overdose deaths relative to current treatment spending? It shows a plain-language public-sector glossary, a
+    materialized view for the council''s dashboard, and a public role beside a staff role. Private data (generated):
+    county or city budget lines and program spend. Public data (govdata): cdc_county_overdose_deaths, usaspending_by_county,
+    ACS demographics. Pattern for every vertical demo: one focused business question, answered by joining generated
+    private company data with public government data from govdata; one private source, two or three govdata tables,
+    one materialized view, and the settled demo tour shape (scenario and features; how the pieces fit; predesigned
+    queries on two or three surfaces; one Polly question answered at template build and served stored, REQ-2012;
+    recap). Data is landed at build as TTL -1 replicas (REQ-2031); the build fails, naming the table, when a govdata
+    table it needs is empty. A per-vertical glossary uses the industry''s own terms.'
+  use_case: A local government buyer opens the local government demo and sees their own kind of question answered
+    across company and public data.
+  scenario: 'Given the local government demo started from its template
+
+
+    When a visitor walks its tour to the end
+
+
+    Then every predesigned query returns rows joining the private data to the public data, and the stored Polly
+    answer is shown
+
+
+    And no request leaves the demo for a live external account'
+  related_reqs:
+  - REQ-2006
+  - REQ-2012
+  - REQ-2031
+  notes: 'Maintainer 2026-10-14, via the lead: experiment with industry vertical demos, each with a very focused
+    problem (banking, markets, insurance, reinsurance, healthcare, pharma, retail, manufacturing, agriculture, then
+    audit firms, tax firms, local governments). SHOULD = the first experiment set (insurance, pharma, agriculture,
+    audit, tax, local government), measured by sandbox events before others are built. Lead''s elaboration: the
+    questions and table choices.'
+- id: REQ-2043
+  status: proposed
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI
+  feature: product-tour-and-demos-named-demos
+  priority: MAY
+  type: behavioral
+  description: 'An industry vertical demo, banking: Which loans are concentrated in counties at high disaster risk?
+    Private data (generated): loan book. Public data (govdata): fema_nri_* and weather_daily_by_county. Pattern
+    for every vertical demo: one focused business question, answered by joining generated private company data with
+    public government data from govdata; one private source, two or three govdata tables, one materialized view,
+    and the settled demo tour shape (scenario and features; how the pieces fit; predesigned queries on two or three
+    surfaces; one Polly question answered at template build and served stored, REQ-2012; recap). Data is landed
+    at build as TTL -1 replicas (REQ-2031); the build fails, naming the table, when a govdata table it needs is
+    empty. A per-vertical glossary uses the industry''s own terms.'
+  use_case: A banking buyer opens the banking demo and sees their own kind of question answered across company and
+    public data.
+  scenario: 'Given the banking demo started from its template
+
+
+    When a visitor walks its tour to the end
+
+
+    Then every predesigned query returns rows joining the private data to the public data, and the stored Polly
+    answer is shown
+
+
+    And no request leaves the demo for a live external account'
+  related_reqs:
+  - REQ-2006
+  - REQ-2012
+  - REQ-2031
+  notes: 'Maintainer 2026-10-14, via the lead: experiment with industry vertical demos, each with a very focused
+    problem (banking, markets, insurance, reinsurance, healthcare, pharma, retail, manufacturing, agriculture, then
+    audit firms, tax firms, local governments). SHOULD = the first experiment set (insurance, pharma, agriculture,
+    audit, tax, local government), measured by sandbox events before others are built. Lead''s elaboration: the
+    questions and table choices.'
+- id: REQ-2044
+  status: proposed
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI
+  feature: product-tour-and-demos-named-demos
+  priority: MAY
+  type: behavioral
+  description: 'An industry vertical demo, markets: Which portfolio holdings face regulatory or lobbying exposure?
+    Private data (generated): holdings. Public data (govdata): sec_company_tickers, filing_*, lobbying_filings,
+    cftc_trades. Pattern for every vertical demo: one focused business question, answered by joining generated private
+    company data with public government data from govdata; one private source, two or three govdata tables, one
+    materialized view, and the settled demo tour shape (scenario and features; how the pieces fit; predesigned queries
+    on two or three surfaces; one Polly question answered at template build and served stored, REQ-2012; recap).
+    Data is landed at build as TTL -1 replicas (REQ-2031); the build fails, naming the table, when a govdata table
+    it needs is empty. A per-vertical glossary uses the industry''s own terms.'
+  use_case: A markets buyer opens the markets demo and sees their own kind of question answered across company and
+    public data.
+  scenario: 'Given the markets demo started from its template
+
+
+    When a visitor walks its tour to the end
+
+
+    Then every predesigned query returns rows joining the private data to the public data, and the stored Polly
+    answer is shown
+
+
+    And no request leaves the demo for a live external account'
+  related_reqs:
+  - REQ-2006
+  - REQ-2012
+  - REQ-2031
+  notes: 'Maintainer 2026-10-14, via the lead: experiment with industry vertical demos, each with a very focused
+    problem (banking, markets, insurance, reinsurance, healthcare, pharma, retail, manufacturing, agriculture, then
+    audit firms, tax firms, local governments). SHOULD = the first experiment set (insurance, pharma, agriculture,
+    audit, tax, local government), measured by sandbox events before others are built. Lead''s elaboration: the
+    questions and table choices.'
+- id: REQ-2045
+  status: proposed
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI
+  feature: product-tour-and-demos-named-demos
+  priority: MAY
+  type: behavioral
+  description: 'An industry vertical demo, reinsurance: Catastrophe accumulation across ceded portfolios, by region.
+    Private data (generated): treaties and ceded exposures. Public data (govdata): FEMA national risk index tables.
+    Pattern for every vertical demo: one focused business question, answered by joining generated private company
+    data with public government data from govdata; one private source, two or three govdata tables, one materialized
+    view, and the settled demo tour shape (scenario and features; how the pieces fit; predesigned queries on two
+    or three surfaces; one Polly question answered at template build and served stored, REQ-2012; recap). Data is
+    landed at build as TTL -1 replicas (REQ-2031); the build fails, naming the table, when a govdata table it needs
+    is empty. A per-vertical glossary uses the industry''s own terms.'
+  use_case: A reinsurance buyer opens the reinsurance demo and sees their own kind of question answered across company
+    and public data.
+  scenario: 'Given the reinsurance demo started from its template
+
+
+    When a visitor walks its tour to the end
+
+
+    Then every predesigned query returns rows joining the private data to the public data, and the stored Polly
+    answer is shown
+
+
+    And no request leaves the demo for a live external account'
+  related_reqs:
+  - REQ-2006
+  - REQ-2012
+  - REQ-2031
+  notes: 'Maintainer 2026-10-14, via the lead: experiment with industry vertical demos, each with a very focused
+    problem (banking, markets, insurance, reinsurance, healthcare, pharma, retail, manufacturing, agriculture, then
+    audit firms, tax firms, local governments). SHOULD = the first experiment set (insurance, pharma, agriculture,
+    audit, tax, local government), measured by sandbox events before others are built. Lead''s elaboration: the
+    questions and table choices.'
+- id: REQ-2046
+  status: proposed
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI
+  feature: product-tour-and-demos-named-demos
+  priority: MAY
+  type: behavioral
+  description: 'An industry vertical demo, healthcare: Are members steered to low-quality, understaffed facilities?
+    Private data (generated): claims. Public data (govdata): cms_hospital_quality, cms_pbj_nurse_staffing. Pattern
+    for every vertical demo: one focused business question, answered by joining generated private company data with
+    public government data from govdata; one private source, two or three govdata tables, one materialized view,
+    and the settled demo tour shape (scenario and features; how the pieces fit; predesigned queries on two or three
+    surfaces; one Polly question answered at template build and served stored, REQ-2012; recap). Data is landed
+    at build as TTL -1 replicas (REQ-2031); the build fails, naming the table, when a govdata table it needs is
+    empty. A per-vertical glossary uses the industry''s own terms.'
+  use_case: A healthcare buyer opens the healthcare demo and sees their own kind of question answered across company
+    and public data.
+  scenario: 'Given the healthcare demo started from its template
+
+
+    When a visitor walks its tour to the end
+
+
+    Then every predesigned query returns rows joining the private data to the public data, and the stored Polly
+    answer is shown
+
+
+    And no request leaves the demo for a live external account'
+  related_reqs:
+  - REQ-2006
+  - REQ-2012
+  - REQ-2031
+  notes: 'Maintainer 2026-10-14, via the lead: experiment with industry vertical demos, each with a very focused
+    problem (banking, markets, insurance, reinsurance, healthcare, pharma, retail, manufacturing, agriculture, then
+    audit firms, tax firms, local governments). SHOULD = the first experiment set (insurance, pharma, agriculture,
+    audit, tax, local government), measured by sandbox events before others are built. Lead''s elaboration: the
+    questions and table choices.'
+- id: REQ-2047
+  status: proposed
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI
+  feature: product-tour-and-demos-named-demos
+  priority: MAY
+  type: behavioral
+  description: 'An industry vertical demo, retail: Which stocked items are under a recall? Private data (generated):
+    inventory. Public data (govdata): fda_device_recalls, vehicle_recalls. Pattern for every vertical demo: one
+    focused business question, answered by joining generated private company data with public government data from
+    govdata; one private source, two or three govdata tables, one materialized view, and the settled demo tour shape
+    (scenario and features; how the pieces fit; predesigned queries on two or three surfaces; one Polly question
+    answered at template build and served stored, REQ-2012; recap). Data is landed at build as TTL -1 replicas (REQ-2031);
+    the build fails, naming the table, when a govdata table it needs is empty. A per-vertical glossary uses the
+    industry''s own terms.'
+  use_case: A retail buyer opens the retail demo and sees their own kind of question answered across company and
+    public data.
+  scenario: 'Given the retail demo started from its template
+
+
+    When a visitor walks its tour to the end
+
+
+    Then every predesigned query returns rows joining the private data to the public data, and the stored Polly
+    answer is shown
+
+
+    And no request leaves the demo for a live external account'
+  related_reqs:
+  - REQ-2006
+  - REQ-2012
+  - REQ-2031
+  notes: 'Maintainer 2026-10-14, via the lead: experiment with industry vertical demos, each with a very focused
+    problem (banking, markets, insurance, reinsurance, healthcare, pharma, retail, manufacturing, agriculture, then
+    audit firms, tax firms, local governments). SHOULD = the first experiment set (insurance, pharma, agriculture,
+    audit, tax, local government), measured by sandbox events before others are built. Lead''s elaboration: the
+    questions and table choices.'
+- id: REQ-2048
+  status: proposed
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI
+  feature: product-tour-and-demos-named-demos
+  priority: MAY
+  type: behavioral
+  description: 'An industry vertical demo, manufacturing: Which bill-of-materials parts depend on imported critical
+    minerals? Private data (generated): bill of materials and suppliers. Public data (govdata): comtrade_flows,
+    trade_exports_critical_minerals, epa_facilities. Pattern for every vertical demo: one focused business question,
+    answered by joining generated private company data with public government data from govdata; one private source,
+    two or three govdata tables, one materialized view, and the settled demo tour shape (scenario and features;
+    how the pieces fit; predesigned queries on two or three surfaces; one Polly question answered at template build
+    and served stored, REQ-2012; recap). Data is landed at build as TTL -1 replicas (REQ-2031); the build fails,
+    naming the table, when a govdata table it needs is empty. A per-vertical glossary uses the industry''s own terms.'
+  use_case: A manufacturing buyer opens the manufacturing demo and sees their own kind of question answered across
+    company and public data.
+  scenario: 'Given the manufacturing demo started from its template
+
+
+    When a visitor walks its tour to the end
+
+
+    Then every predesigned query returns rows joining the private data to the public data, and the stored Polly
+    answer is shown
+
+
+    And no request leaves the demo for a live external account'
+  related_reqs:
+  - REQ-2006
+  - REQ-2012
+  - REQ-2031
+  notes: 'Maintainer 2026-10-14, via the lead: experiment with industry vertical demos, each with a very focused
+    problem (banking, markets, insurance, reinsurance, healthcare, pharma, retail, manufacturing, agriculture, then
+    audit firms, tax firms, local governments). SHOULD = the first experiment set (insurance, pharma, agriculture,
+    audit, tax, local government), measured by sandbox events before others are built. Lead''s elaboration: the
+    questions and table choices.'
