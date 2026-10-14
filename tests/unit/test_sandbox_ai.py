@@ -174,3 +174,34 @@ def test_a_roles_client_uses_the_key_resolved_for_the_tier_endpoint(tier_ai, mon
         current_org.reset(token)
     assert made["providers"] == {"openai": {"base_url": _URL, "api_key": "sk-test"}}
     assert made["model"] == "openai:anthropic/claude-haiku-5.5"
+
+
+async def test_a_visitor_cannot_choose_the_model_the_tier_endpoint_runs(tier_ai, monkeypatch):
+    """The endpoint and its key are the deployment's and nothing meters a visitor's use: a
+    sandbox's override of a role's model on it is ignored; a role on the visitor's own endpoint
+    keeps their model."""
+    from provisa.core import org_settings
+
+    async def overrides(_db):
+        return {
+            "ai_models": {
+                "mcp_chat": {"vendor": "provisa-sandbox-ai", "model": "anthropic/claude-opus-5.5"},
+                "sql_generation": {"vendor": "mine", "model": "my-own-model"},
+            },
+            "ai_endpoints": [
+                {"id": "mine", "style": "openai", "base_url": "https://mine.example/v1"}
+            ],
+        }
+
+    monkeypatch.setattr(org_settings, "read_org_overrides", overrides)
+    monkeypatch.setattr("provisa.api.admin._config_io.read_config", lambda: {"ai_models": {}})
+    token = current_org.set("sbx0123456789ab")
+    try:
+        resolved = await org_settings.resolve_org_config(object())  # type: ignore[arg-type]
+    finally:
+        current_org.reset(token)
+    assert resolved["ai_models"]["mcp_chat"] == {
+        "vendor": "provisa-sandbox-ai",
+        "model": "anthropic/claude-haiku-5.5",
+    }
+    assert resolved["ai_models"]["sql_generation"] == {"vendor": "mine", "model": "my-own-model"}

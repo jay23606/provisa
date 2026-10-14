@@ -125,3 +125,23 @@ async def vendor_keys(org_id: str | None) -> dict[str, str]:
             "deployment org's vault"
         )
     return {ENDPOINT_ID: key}
+
+
+def pin_model(cfg: dict[str, Any], org_id: str | None) -> dict[str, Any]:
+    """``cfg`` with every role that names the tier's endpoint on the tier's model: the endpoint and
+    its key are the deployment's, and nothing meters a visitor's use of them, so a sandbox's own
+    settings choose whether a role uses the endpoint, never which model it runs there. A role on
+    an endpoint the visitor configured keeps the model they chose."""
+    if not defaults_for(org_id):
+        return cfg
+    model = _setting("sandbox.ai_model")
+    roles = cfg.get("ai_models") or {}
+    pinned = {
+        role: (
+            {**choice, "model": model}
+            if isinstance(choice, dict) and choice.get("vendor") == ENDPOINT_ID
+            else choice
+        )
+        for role, choice in roles.items()
+    }
+    return {**cfg, "ai_models": pinned}

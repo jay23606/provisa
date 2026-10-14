@@ -108,10 +108,11 @@ async def resolve_org_config(model_db: Database) -> dict[str, Any]:
     A sandbox-tier org's are layered on the tier's AI models (provisa.core.sandbox_ai, REQ-2006)."""
     from provisa.api.admin._config_io import read_config
     from provisa.core.request_context import current_org
-    from provisa.core.sandbox_ai import defaults_for
+    from provisa.core.sandbox_ai import defaults_for, pin_model
 
-    base = merge_org_overrides(read_config(), defaults_for(current_org.get()))
-    return merge_org_overrides(base, await read_org_overrides(model_db))
+    org_id = current_org.get()
+    base = merge_org_overrides(read_config(), defaults_for(org_id))
+    return pin_model(merge_org_overrides(base, await read_org_overrides(model_db)), org_id)
 
 
 async def write_org_overrides(
