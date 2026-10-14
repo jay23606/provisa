@@ -206,7 +206,7 @@ class SourceRowLoader:
         # A registered adapter loader always wins: it is the type's OWN row-fetch (openapi call,
         # connector pgwire replica SELECT, REQ-954), used in preference to the engine terminal even
         # for a type the engine could otherwise scan — the wiring registers one only when needed.
-        loader = self._adapter_loaders.get(stype)
+        loader = self._adapter_loaders.get(stype) or _floored_file_loader(source, stype)
         if loader is not None:
             return await loader(source, table)
         if stype in _ADAPTER_FETCH_ONLY:
@@ -226,6 +226,8 @@ class SourceRowLoader:
           that cursor.
         - A type with a registered adapter loader is read by it: through the adapter's own
           cursor or Arrow stream where its client has one, else whole, as a single document.
+        - A floored csv or parquet source, which no engine attaches, is read from its file
+          (:func:`_floored_file_loader`).
         - Any other type is read by the engine, which streams Arrow batches; where the engine
           attaches the source in place it is also declared engine-reachable.
 
@@ -256,7 +258,7 @@ class SourceRowLoader:
             projection = _projection(table, lambda: dialect)
             sql = f"SELECT {projection} FROM {relation}"
             return DirectTableSource(lambda: open_direct_stream(pools, source.id, sql, []), columns)
-        loader = self._adapter_loaders.get(stype)
+        loader = self._adapter_loaders.get(stype) or _floored_file_loader(source, stype)
         if loader is not None:
             # An adapter whose client has a cursor carries its own stream (``replica_source``,
             # set where the adapter is made); one without is read whole, as a single document.
@@ -602,13 +604,25 @@ def _duckdb_extension_scratch_batches(
 _FILE_READERS = {"csv": "read_csv_auto", "parquet": "read_parquet"}
 
 
+def _floored_file_loader(source: Any, stype: str) -> AdapterLoader | None:
+    """The reader of a csv or parquet source the operator floors, None for any other (#255).
+
+    A floored source (``replicate: 0``, ``load_protected``; REQ-030/826/1141) has no live attach on
+    any engine (REQ-1912), so its rows cannot be read through one; the file is read by
+    :func:`make_file_loader`. A file source that is not floored keeps the engine's read of its
+    attach, which copies a replica in place without its rows passing through Provisa."""
+    from provisa.core.operator_floor import floor_setting
+
+    if stype not in _FILE_READERS or floor_setting(source) is None:
+        return None
+    return make_file_loader(stype)
+
+
 def make_file_loader(source_type: str) -> AdapterLoader:
     """Build the row-fetch of a csv or parquet file source (#255): the file read straight, through a
-    scratch DuckDB connection, with the reader the DuckDB engine's own scanner view uses.
-
-    A source the operator floors (``replicate: 0``, REQ-030/826/1141) has no live attach on any
-    engine (REQ-1912), so its replica cannot be built by an engine read of that attach; it is built
-    from the file, as a sqlite file's is (:func:`make_sqlite_loader`)."""
+    scratch DuckDB connection, with the reader the DuckDB engine's own scanner view uses -- for a
+    source floored to its replica (:func:`_floored_file_loader`), as a sqlite file is read by
+    :func:`make_sqlite_loader`."""
     from provisa.compiler.sql_literals import sql_literal
     from provisa.core.org_files import resolve_path
     from provisa.core.secrets import resolve_secrets

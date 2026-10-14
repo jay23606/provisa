@@ -92,6 +92,23 @@ async def test_a_file_source_read_whole_lands_the_registered_columns(tmp_path):
     assert rows == [{"id": 1, "name": "a"}, {"id": 2, "name": "b"}, {"id": 3, "name": "c"}]
 
 
+@pytest.mark.parametrize("kind", ["csv", "parquet"])
+def test_a_file_source_not_floored_keeps_the_engines_in_place_copy(tmp_path, kind):
+    """Its attach exists: the engine copies the replica in place, its rows never passing through
+    Provisa."""
+    source = SimpleNamespace(
+        id="shop_orders", type=kind, path=_file(tmp_path, kind), replicate=None
+    )
+    assert floor_setting(source) is None
+    reader = _loader().replica_source(SimpleNamespace(source_pools=None), source, _table(), COLUMNS)
+    assert isinstance(reader, EngineTableSource)
+
+
+async def test_a_floored_file_source_read_by_the_event_loop_is_read_from_the_file(tmp_path):
+    source = _floored("csv", _file(tmp_path, "csv"))
+    assert len(await _loader().load(source, _table())) == 3
+
+
 def test_a_file_source_with_no_path_is_refused_by_name():
     source = SimpleNamespace(id="shop_orders", type="csv", path=None, replicate=0)
     with pytest.raises(ValueError, match="csv source 'shop_orders' has no path"):
