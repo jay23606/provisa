@@ -17,7 +17,8 @@
 #   qdrant    the vector store, its collection recovered from dump/qdrant/sonnet_lines.snapshot at
 #             start (Qdrant's --snapshot; a collection already there is kept).
 #
-# Ports: 28532 the database, 28533 Qdrant; each can be moved by its variable.
+# Ports: 28532 the database, 28533 Qdrant; each can be moved by its variable. Set empty, a port is
+# published on a free one (the sandbox tier's node runs several versions at once).
 x-demo-labels: &demo-labels
   com.provisa.demo: sonnets
 
@@ -30,12 +31,16 @@ services:
     labels:
       <<: *demo-labels
       com.provisa.demo.role: rdb
+      # Where the config reads it (the sandbox tier's node writes stores.env from these).
+      com.provisa.demo.host_env: SONNETS_PG_HOST
+      com.provisa.demo.port_env: SONNETS_PG_PORT
+      com.provisa.demo.port: "5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: sonnets
     ports:
-      - "${SONNETS_PG_PORT:-28532}:5432"
+      - "${SONNETS_PG_PORT-28532}:5432"
     volumes:
       - sonnets_run_pg:/var/lib/postgresql/data
       - ./dump/postgres.sql:/docker-entrypoint-initdb.d/10-sonnets.sql:ro
@@ -51,8 +56,11 @@ services:
     labels:
       <<: *demo-labels
       com.provisa.demo.role: vector
+      com.provisa.demo.host_env: SONNETS_QDRANT_HOST
+      com.provisa.demo.port_env: SONNETS_QDRANT_PORT
+      com.provisa.demo.port: "6333"
     ports:
-      - "${SONNETS_QDRANT_PORT:-28533}:6333"
+      - "${SONNETS_QDRANT_PORT-28533}:6333"
     command: ["./qdrant", "--snapshot", "/snapshots/sonnet_lines.snapshot:sonnet_lines"]
     # Read only for Provisa: it reads with the read-only key (config.yaml vectors), and writing
     # needs the other, which it is not given. The store is shared by every sandbox of the demo.
