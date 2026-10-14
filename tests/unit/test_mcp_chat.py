@@ -14,6 +14,7 @@ from contextlib import asynccontextmanager
 from types import SimpleNamespace
 
 import pytest
+import yaml
 
 from provisa.api.mcp import chat as chat_mod
 from provisa.api.mcp import tools as mcp_tools
@@ -1163,3 +1164,98 @@ class TestResponseGuidance:
 
     def test_a_graph_path_returns_its_relationships(self):
         assert "binds every relationship on it and returns it with the nodes" in chat_mod._SYSTEM
+
+
+def _stop_reply():
+    return SimpleNamespace(
+        choices=[
+            SimpleNamespace(
+                message=SimpleNamespace(content="hi", tool_calls=None), finish_reason="stop"
+            )
+        ]
+    )
+
+
+class TestEveryCallIsCapped:
+    """No model call goes out without a cap on what it may generate: with none, OpenRouter
+    reserves the model's whole output limit (65,536 or 131,072 tokens) against the account's
+    credit and refuses the call with 402 when that is more than the credit left -- the bake-off's
+    run 38613079392 -- and nothing bounds what one call can spend."""
+
+    async def _first_call(self, monkeypatch, tmp_path, config: dict) -> dict:
+        import os
+
+        cfg = tmp_path / "provisa.yaml"
+        cfg.write_text(yaml.safe_dump({"sources": [], **config}))
+        monkeypatch.setitem(os.environ, "PROVISA_CONFIG", str(cfg))
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test")
+        holder = _install_fake_aisuite(monkeypatch, [_stop_reply()])
+        convo = [{"role": "user", "content": "hi"}]
+        async for _ in chat_mod.run_chat(_state(), "analyst", convo):
+            pass
+        return holder["provider"].calls[0]
+
+    @pytest.mark.asyncio
+    async def test_a_gateway_call_is_capped_with_max_tokens(self, monkeypatch, tmp_path):
+        call = await self._first_call(
+            monkeypatch,
+            tmp_path,
+            {
+                "ai_endpoints": [
+                    {
+                        "id": "openrouter",
+                        "style": "openai",
+                        "base_url": "https://openrouter.ai/api/v1",
+                        "api_key_env": "OPENROUTER_API_KEY",
+                    }
+                ],
+                "ai_models": {"mcp_chat": {"vendor": "openrouter", "model": "qwen/qwen3.8-flash"}},
+            },
+        )
+        assert call["max_tokens"] == chat_mod._MAX_TOKENS
+
+    @pytest.mark.asyncio
+    async def test_an_openai_call_is_capped_as_openai_takes_it(self, monkeypatch, tmp_path):
+        call = await self._first_call(
+            monkeypatch,
+            tmp_path,
+            {"ai_models": {"mcp_chat": {"vendor": "openai", "model": "gpt-5"}}},
+        )
+        assert call["max_completion_tokens"] == chat_mod._MAX_TOKENS
+        assert "max_tokens" not in call
+
+    def test_each_provider_takes_the_cap_by_its_own_name(self):
+        assert chat_mod._output_cap("anthropic", custom_endpoint=True) == {
+            "max_tokens": chat_mod._MAX_TOKENS
+        }
+        assert chat_mod._output_cap("ollama", custom_endpoint=False) == {
+            "options": {"num_predict": chat_mod._MAX_TOKENS}
+        }
+        assert chat_mod._output_cap("mistral", custom_endpoint=False) == {
+            "max_tokens": chat_mod._MAX_TOKENS
+        }
+
+    def test_a_google_model_is_capped_as_vertex_takes_it(self):
+        assert chat_mod._output_cap("google", custom_endpoint=False) == {
+            "max_output_tokens": chat_mod._MAX_TOKENS
+        }
+
+    @pytest.mark.asyncio
+    async def test_an_anthropic_call_is_capped_the_same(self, monkeypatch):
+        holder = _install_fake_anthropic(
+            monkeypatch,
+            [SimpleNamespace(content=[_block(type="text", text="hi")], stop_reason="end_turn")],
+        )
+        async for _ in chat_mod.run_chat(_state(), "analyst", [{"role": "user", "content": "hi"}]):
+            pass
+        assert holder["client"].messages.calls[0]["max_tokens"] == chat_mod._MAX_TOKENS
+
+
+def test_polly_searches_before_saying_it_has_no_tool():
+    """Asked "Which pages are slowest, and which SQL makes them slow?", Haiku called no tool and
+    answered that it had none for page load times -- the demo's slowest-pages view answers it."""
+    assert (
+        "never answer that you have no tool or data for something you have not searched the "
+        "catalog for in this turn" in chat_mod._SYSTEM
+    )
