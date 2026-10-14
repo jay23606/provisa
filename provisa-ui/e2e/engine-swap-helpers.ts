@@ -924,10 +924,25 @@ export async function queryRebootBackend(sql: string, timeoutMs = 30000): Promis
     }
     lastError = await res.text();
     if (Date.now() > deadline) {
-      expect(res.ok, lastError).toBeTruthy();
+      expect(res.ok, `${lastError}\nreplica builds: ${await rebootReplicaBuilds()}`).toBeTruthy();
     }
     await new Promise((r) => setTimeout(r, 1000));
   }
+}
+
+/** The reboot backend's replica build records, as text: a failed read says what its replica's
+ * build was doing (requested and waiting, running, failed, or built). */
+async function rebootReplicaBuilds(): Promise<string> {
+  const res = await fetch(`${REBOOT_BACKEND_URL}/admin/graphql`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      query:
+        "{ replicaBuilds { convergenceError builds { sourceId tableName state requestedReason " +
+        "method startedAt rowsCopied completedAt verifiedAt nextRefreshAt lastError waitingOn failedAttempts } } }",
+    }),
+  });
+  return res.text();
 }
 
 /** Delete every leftover `e2e_swap_*` source under the reboot-harness org before a fresh case
