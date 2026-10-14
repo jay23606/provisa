@@ -32,7 +32,7 @@ def _state():
     return RoleState(
         contexts={"analyst": object()},
         roles={"analyst": {"id": "analyst"}},
-        tenant_db=SimpleNamespace(acquire=lambda: _FakeAcquire(object())),
+        model_db=SimpleNamespace(acquire=lambda: _FakeAcquire(object())),
     )
 
 

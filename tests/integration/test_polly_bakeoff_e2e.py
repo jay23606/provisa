@@ -87,14 +87,21 @@ class Answer:
     seconds: float = 0.0
     usage: dict[str, Any] = field(default_factory=dict)
     error: str | None = None
+    # Each tool the model called, its input, and whether it failed: what a wrong answer is read
+    # against.
+    tools: list[dict[str, Any]] = field(default_factory=list)
 
 
-def _ask(server: Any, question: str) -> tuple[str, dict[str, Any], str | None, float]:
-    """One question as its own conversation: Polly's reply, the turn's usage, an error."""
+def _ask(
+    server: Any, question: str
+) -> tuple[str, dict[str, Any], str | None, float, list[dict[str, Any]]]:
+    """One question as its own conversation: Polly's reply, the turn's usage, an error, the
+    turn's time, and the tools it called (name, input, whether the call failed)."""
     started = time.monotonic()
     text: list[str] = []
     usage: dict[str, Any] = {}
     error = None
+    tools: list[dict[str, Any]] = []
     with httpx.stream(
         "POST",
         f"{server.base_url}/admin/mcp/chat",
@@ -109,11 +116,16 @@ def _ask(server: Any, question: str) -> tuple[str, dict[str, Any], str | None, f
             event = json.loads(line[5:].strip())
             if event["type"] == "text":
                 text.append(event["text"])
+            elif event["type"] == "tool_use":
+                tools.append({"name": event["name"], "input": event["input"], "is_error": None})
+            elif event["type"] == "tool_result":
+                called = next(t for t in reversed(tools) if t["name"] == event["name"])
+                called["is_error"] = event["is_error"]
             elif event["type"] == "usage":
                 usage = event
             elif event["type"] == "error":
                 error = event["error"]
-    return "".join(text), usage, error, time.monotonic() - started
+    return "".join(text), usage, error, time.monotonic() - started, tools
 
 
 def _cost(usage: dict[str, Any]) -> float | None:
@@ -231,7 +243,7 @@ def test_polly_bakeoff(server, run):
         _use_model(server, model)
         answers = []
         for question in QUESTIONS:
-            reply, usage, error, seconds = _ask(server, question.text)
+            reply, usage, error, seconds, tools = _ask(server, question.text)
             want = expected[question.text]
             answers.append(
                 Answer(
@@ -242,6 +254,7 @@ def test_polly_bakeoff(server, run):
                     seconds=seconds,
                     usage=usage,
                     error=error,
+                    tools=tools,
                 )
             )
         report["models"].append(_summary(model, answers))

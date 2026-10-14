@@ -125,11 +125,11 @@ async def _catalog(state: Any, role: str | None) -> list[CatalogTable]:
     ``build_catalog_tables`` wrapper (used by the Arrow Flight server, whose RPC handlers run on
     plain threads with no event loop of their own, so it must spin one up). Routing through that
     wrapper here via ``asyncio.to_thread`` created a SECOND event loop and tried to use
-    ``state.tenant_db``'s pool — bound to the main loop — from within it, which async DB drivers
+    ``state.model_db``'s pool — bound to the main loop — from within it, which async DB drivers
     reject (a cross-event-loop connection reuse, not something the driver treats as safe to
     share). Every MCP tool that reaches here (list_schemas, list_tables, search_catalog) was
     failing on that mismatch."""
-    if not state.tenant_db:
+    if not state.model_db:
         return []
     raw = await _build_catalog_tables_async(state, role)
     return _semantic_catalog(raw, _meta_index(state))
@@ -470,7 +470,7 @@ async def list_glossary_terms(
     from provisa.core.repositories import glossary as glossary_repo
 
     _require_glossary_read(request)
-    pool = state.tenant_db
+    pool = state.model_db
     assert pool is not None
     async with pool.acquire() as conn:
         return await glossary_repo.list_terms(
@@ -498,7 +498,7 @@ async def create_glossary_term(
 
     _require_glossary_rw(request)
     org_id = require_active_org_id(request)
-    pool = state.tenant_db
+    pool = state.model_db
     assert pool is not None
     async with pool.acquire() as conn:
         declared = _declared_domains(request, domains, current=set())
@@ -536,7 +536,7 @@ async def update_glossary_term(
 
     _require_glossary_rw(request)
     org_id = require_active_org_id(request)
-    pool = state.tenant_db
+    pool = state.model_db
     assert pool is not None
     found = False
     async with pool.acquire() as conn:
@@ -576,7 +576,7 @@ async def delete_glossary_term(
 
     _require_glossary_rw(request)
     org_id = require_active_org_id(request)
-    pool = state.tenant_db
+    pool = state.model_db
     assert pool is not None
     async with pool.acquire() as conn:
         await _require_term_curatable(conn, term_id, request)
@@ -609,7 +609,7 @@ async def add_glossary_term_edge(
 
     _require_glossary_rw(request)
     org_id = require_active_org_id(request)
-    pool = state.tenant_db
+    pool = state.model_db
     assert pool is not None
     async with pool.acquire() as conn:
         await _require_term_curatable(conn, term_id, request)
@@ -637,7 +637,7 @@ async def remove_glossary_term_edge(
 
     _require_glossary_rw(request)
     org_id = require_active_org_id(request)
-    pool = state.tenant_db
+    pool = state.model_db
     assert pool is not None
     async with pool.acquire() as conn:
         await _require_term_curatable(conn, term_id, request)
@@ -655,7 +655,7 @@ async def list_data_products(state: Any, role: str, request: Any) -> list[dict]:
     from provisa.core.repositories import data_product as data_product_repo
 
     require_capability_request(request, "data_product_read")
-    pool = state.tenant_db
+    pool = state.model_db
     assert pool is not None
     async with pool.acquire() as conn:
         return await data_product_repo.list_all(conn)
@@ -690,7 +690,7 @@ async def create_data_product(  # REQ-1855
     require_capability_request(request, "data_product_rw")
     from provisa.api.admin.capabilities import require_right_in_domains_request
 
-    pool = state.tenant_db
+    pool = state.model_db
     assert pool is not None
     async with pool.acquire() as conn:
         # REQ-1944: the product's domain, and the one it is moved out of when it exists.
@@ -730,7 +730,7 @@ async def delete_data_product(state: Any, role: str, request: Any, id: str) -> d
     require_capability_request(request, "data_product_rw")
     from provisa.api.admin.capabilities import require_right_in_domains_request
 
-    pool = state.tenant_db
+    pool = state.model_db
     assert pool is not None
     async with pool.acquire() as conn:
         stored = await data_product_repo.get(conn, id)
@@ -774,7 +774,7 @@ async def upsert_metric(  # REQ-1856
         ai_context=ai_context,
         visible_to=list(visible_to) if visible_to else ["*"],
     )
-    pool = state.tenant_db
+    pool = state.model_db
     assert pool is not None
     async with pool.acquire() as conn:
         await metric_repo.upsert(conn, model)
@@ -795,7 +795,7 @@ async def delete_metric(state: Any, role: str, request: Any, name: str) -> dict:
     from provisa.core.repositories import metric as metric_repo
 
     require_capability_request(request, "table_registration")
-    pool = state.tenant_db
+    pool = state.model_db
     assert pool is not None
     async with pool.acquire() as conn:
         deleted = await metric_repo.delete(conn, name)
@@ -1295,7 +1295,7 @@ async def search_terms(state: Any, role: str, query: str, *, limit: int = 25) ->
     # domain_access is read directly rather than through a request's claims. ``None`` back from
     # domains_within is an unlimited role — the one place that decides what ``*`` means.
     allowed = domains_within(sorted(domain_access_for_claims([role], state.roles)))
-    pool = state.tenant_db
+    pool = state.model_db
     assert pool is not None
     async with pool.acquire() as conn:
         return await glossary_repo.search_terms(
@@ -1377,7 +1377,7 @@ async def _queue_mcp_proposal(
     payload["_proposed_via"] = "mcp"
     payload["_proposed_role"] = role
 
-    pool = state.tenant_db
+    pool = state.model_db
     assert pool is not None
     async with pool.acquire() as conn:
         request_id = await cr_repo.create(conn, request_type, capability, payload, proposer)
