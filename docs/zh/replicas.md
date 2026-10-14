@@ -109,7 +109,7 @@ PROVISA_MATERIALIZE_URL="postgresql://provisa:secret@replicas.internal:5432/repl
 | 实时读取 | `replicate: -1` | 截至查询时是最新的 | 每个查询都读取数据源 |
 | TTL | `change_signal: ttl`, `cache_ttl` | 副本不比 `cache_ttl` 更旧 | 每个 `cache_ttl` 重建一次；有 `watermark_column` 时，只重建超过水位线的行 |
 | 变更探测 | `change_signal: probe` 或 `ttl_probe`，`cache_ttl` | 仅在探测报告有变更后才重建；探测每个 `cache_ttl` 运行一次 | 每个间隔一次探测，仅在有变更时重建 |
-| 推送变更流 | Kafka 或 WebSocket 数据源；MongoDB 或 Cosmos DB 上的 `change_signal: native` | 新鲜度在变更流滞后与防抖范围之内 | Kafka 和 WebSocket：无，变更流自带行。MongoDB 和 Cosmos DB：每一批变更重建一次 |
+| 推送变更流 | Kafka 或 WebSocket 数据源；带 `cdc` 块的数据源上的 `change_signal: debezium`；MongoDB 或 Cosmos DB 上的 `change_signal: native` | 新鲜度在变更流滞后与防抖范围之内 | Kafka、WebSocket 和 Debezium：首次构建后无，变更流自带行。MongoDB 和 Cosmos DB：每一批变更重建一次 |
 | 按角色 TTL | 表上的 `role_ttl` | 列出的角色接受不超过其自身 TTL 的副本；表的 `cache_ttl` 仍是下限 | 重建更少：宽容角色的读取从不请求重建 |
 | 负载保护 | `load_protected: true`，配合 `cache_ttl` 或探测 | 查询从不读取数据源；仅由运行器刷新副本 | 仅计划内的刷新 |
 | 新鲜度闸门 | 数据源上的 `freshness_gate: true` | 每次读取都先对照数据源的 `change_signal` 和 `cache_ttl` 检查；判定为过期则在读取前先刷新 | 过期时在读取路径中进行一次刷新 |
@@ -136,8 +136,9 @@ PROVISA_MATERIALIZE_URL="postgresql://provisa:secret@replicas.internal:5432/repl
   ```
 
 - **WebSocket 数据源。** 其数据流以同样方式应用。[tool-verified: `provisa/events/push_wiring.py` `_build_provider`]
+- **带 `change_signal: debezium` 的表**（在表或其数据源上），其数据源的 `cdc` 块指明 Kafka 传输和连接器的 topic 前缀。首次读取构建副本；之后 topic `{topic_prefix}.{schema}.{table}` 上的每个变更事件都按主键应用，包括删除，且仅在变更落地后才提交 offset。[tool-verified: `provisa/events/push_wiring.py` `_captured_by_debezium`, `_debezium_provider`; `provisa/subscriptions/debezium_provider.py` `ack`]
 - **带 `change_signal: native` 的 MongoDB 或 Cosmos DB 表**（在表或其数据源上）。变更流上的每一批变更都会请求重建副本。[tool-verified: `provisa/events/push_wiring.py` `_change_feed_opted_in`, `_run_change_stream`]
 
 被推送的表需要声明主键；没有主键的表会被跳过并写入日志。[tool-verified: `provisa/events/push_wiring.py` `wire_push_listeners`]
 
-带有推送变更信号的表在读取路径上视为新鲜，因为它的变更流就是它的新鲜度检查。[tool-verified: `provisa/federation/query_residency.py` `freshness_verdict`] 只对确实由上述某种变更流服务的表声明推送信号。
+带有推送变更信号的表在读取路径上视为新鲜，因为它的变更流就是它的新鲜度检查。[tool-verified: `provisa/federation/query_residency.py` `freshness_verdict`] 因此，无人接收的推送信号会被拒绝：除 Kafka、WebSocket、ingest、MongoDB 或 Cosmos DB 以外任何类型上的 `change_signal: native`，在保存数据源或表以及加载配置时都会被拒绝；没有 `cdc` 块的数据源上的 `debezium` 同样如此。[tool-verified: `provisa/core/change_signal.py` `native_signal_refusal`; `provisa/core/config_loader.py` `_validate_change_signal`; `provisa/api/admin/_change_feed.py` `table_change_feed_refusal`]

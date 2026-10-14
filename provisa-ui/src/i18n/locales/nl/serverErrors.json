@@ -314,6 +314,7 @@
       "relationship_not_found": "Relatie '{{relationship}}' niet gevonden",
       "relationship_saved": "Relatie '{{relationship}}' opgeslagen",
       "remigrated": "{{source}}.{{table}} opnieuw gemigreerd",
+      "change_signal_no_receiver": "Provisa ontvangt het wijzigingssignaal {{signal}} niet van een bron van het type {{type}}, dus een tabel van bron '{{source}}' zou er nooit door worden vernieuwd. Leg de bron vast met Debezium en gebruik debezium.",
       "change_signal_not_honoured": "Een bron van het type {{type}} kan nog niet op wijzigingen worden gecontroleerd, dus het wijzigingssignaal {{signal}} zou nooit worden geraadpleegd. Gebruik ttl voor bron '{{source}}'.",
       "sentinel_path_not_applicable": "Een bron van het type {{type}} kan geen sentinelpad hebben: geen eigen producent kan een wijziging in de gegevens markeren, of de bron wordt niet gepeild. Verwijder het sentinelpad uit bron '{{source}}'.",
       "source_cache_ttl_required": "Bron '{{source}}' heeft een Cache-TTL nodig: elke tabel ervan is een replica die onder het wijzigingssignaal {{signal}} volgens die klok wordt vernieuwd. Stel deze in onder 'Belastingbeheer en actualiteit' van de bron.",

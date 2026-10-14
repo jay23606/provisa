@@ -200,7 +200,7 @@ class DebeziumNotificationProvider(NotificationProvider):  # REQ-261, REQ-285
             bootstrap_servers=self._bootstrap_servers,
             group_id=self._consumer_group_id,
             auto_offset_reset="latest",
-            enable_auto_commit=True,
+            enable_auto_commit=False,  # REQ-1734: ack() commits what was landed, not a timer
         )
         await self._consumer.start()
         log.info(
@@ -219,6 +219,7 @@ class DebeziumNotificationProvider(NotificationProvider):  # REQ-261, REQ-285
                         table=table,
                         row={},
                         timestamp=datetime.now(timezone.utc),
+                        ack_token=(msg.topic, msg.partition, msg.offset),  # REQ-1734
                     )
                     continue
 
@@ -242,6 +243,7 @@ class DebeziumNotificationProvider(NotificationProvider):  # REQ-261, REQ-285
 
                 event = self._extract_event(envelope, table)
                 if event is not None:
+                    event.ack_token = (msg.topic, msg.partition, msg.offset)  # REQ-1734
                     yield event
 
         except Exception as exc:
@@ -251,6 +253,15 @@ class DebeziumNotificationProvider(NotificationProvider):  # REQ-261, REQ-285
             await self._consumer.stop()
             self._consumer = None
             await self._close_registry()
+
+    async def ack(self, events: list[ChangeEvent]) -> None:  # REQ-1734
+        """Commit what *events* landed, so a restart resumes after them and never past an event
+        still waiting to be landed."""
+        if self._consumer is None:
+            return
+        from provisa.subscriptions.kafka_provider import commit_landed
+
+        await commit_landed(self._consumer, events)
 
     async def _close_registry(self) -> None:
         registry, self._registry = self._registry, None

@@ -80,15 +80,27 @@ async def source_change_feed_refusal(conn: Any, input: Any) -> MutationResult | 
 async def table_change_feed_refusal(
     conn: Any, source_id: str, table_signal: str | None
 ) -> MutationResult | None:
-    """For a table save: refused when the table follows its MongoDB source's change feed and the
+    """For a table save: refused when its change signal is ``native`` on a source type whose
+    change feed nothing receives, or when it follows its MongoDB source's change feed and the
     source's server serves no change streams."""
     from provisa.core.repositories import source as source_repo
 
+    from provisa.core.change_signal import native_signal_refusal
+
     source = await source_repo.get(conn, source_id)
     # A table of a source that is not registered is refused by the save's own source check.
-    if source is None or not follows_change_feed(
-        source["type"], table_signal, source["change_signal"]
-    ):
+    if source is None:
+        return None
+    signal = table_signal if table_signal is not None else source["change_signal"]
+    refused = native_signal_refusal(source["type"], signal)
+    if refused is not None:
+        return MutationResult(
+            success=False,
+            message=f"Table of source {source_id!r}: {refused}",
+            code="schema.change_signal_no_receiver",
+            params={"source": source_id, "type": source["type"], "signal": signal},
+        )
+    if not follows_change_feed(source["type"], table_signal, source["change_signal"]):
         return None
     return await _check(
         SimpleNamespace(

@@ -185,3 +185,20 @@ class TestChangeSignalValidation:
         src = Source(id="s1", type=SourceType.mysql, database="app", change_signal="debezium")
         with pytest.raises(ValueError, match="requires source-level cdc"):
             _validate_change_signal(self._cfg(src, None))
+
+    @pytest.mark.parametrize("stype", [SourceType.postgresql, SourceType.mysql])
+    def test_native_on_a_type_nothing_receives_is_refused_by_name(self, stype):
+        """A native signal on a source whose change feed Provisa does not follow would land
+        nothing and still be counted fresh: refused, naming the type."""
+        src = Source(id="s1", type=stype, database="app")
+        with pytest.raises(ValueError, match=rf"'native' is not received from a '{stype.value}'"):
+            _validate_change_signal(self._cfg(src, "native"))
+
+    def test_native_inherited_from_the_source_is_refused_too(self):
+        src = Source(id="s1", type=SourceType.postgresql, database="app", change_signal="native")
+        with pytest.raises(ValueError, match="'native' is not received"):
+            _validate_change_signal(self._cfg(src, None))
+
+    @pytest.mark.parametrize("stype", [SourceType.mongodb, SourceType.websocket])
+    def test_native_on_a_type_whose_feed_is_followed_is_accepted(self, stype):
+        _validate_change_signal(self._cfg(Source(id="s1", type=stype, database="app"), "native"))
