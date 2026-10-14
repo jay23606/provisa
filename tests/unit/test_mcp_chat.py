@@ -1277,3 +1277,61 @@ def test_polly_searches_before_saying_it_has_no_tool():
         "never answer that you have no tool or data for something you have not searched the "
         "catalog for in this turn" in chat_mod._SYSTEM
     )
+
+
+def _schemas_call(call_id: str):
+    return SimpleNamespace(
+        content=[_block(type="tool_use", name="list_schemas", input={}, id=call_id)],
+        stop_reason="tool_use",
+    )
+
+
+@pytest.mark.asyncio
+class TestTheLastRoundAnswers:
+    """REQ-1838, never go silent: Gemini and Qwen spent all eight rounds of the bake-off's demo
+    question still calling tools, and the turn ended with no text at all (run 38625083413)."""
+
+    async def test_the_last_round_is_asked_to_call_no_tool(self, monkeypatch):
+        holder = _install_fake_anthropic(
+            monkeypatch,
+            [
+                _schemas_call("tu1"),
+                SimpleNamespace(
+                    content=[_block(type="text", text="Two schemas.")], stop_reason="end_turn"
+                ),
+            ],
+        )
+        monkeypatch.setattr(mcp_tools, "list_schemas", lambda *_a, **_k: _async_result([]))
+        convo = [{"role": "user", "content": "go"}]
+        events = [
+            ev async for ev in chat_mod.run_chat(_state(), "analyst", convo, max_iterations=2)
+        ]
+        first, last = holder["client"].messages.calls
+        from anthropic import omit
+
+        assert first["tool_choice"] is omit  # the model's own choice, as on any other round
+        assert last["tool_choice"] == {"type": "none"}
+        assert [e["text"] for e in events if e["type"] == "text"] == ["Two schemas."]
+
+    async def test_rounds_spent_still_calling_tools_end_saying_so(self, monkeypatch):
+        _install_fake_anthropic(monkeypatch, [_schemas_call("tu1"), _schemas_call("tu2")])
+        monkeypatch.setattr(mcp_tools, "list_schemas", lambda *_a, **_k: _async_result([]))
+        convo = [{"role": "user", "content": "go"}]
+        events = [
+            ev async for ev in chat_mod.run_chat(_state(), "analyst", convo, max_iterations=2)
+        ]
+        assert events[-3] == chat_mod._STEPS_SPENT
+        assert [e["type"] for e in events[-2:]] == ["usage", "done"]
+
+    async def test_the_aisuite_last_round_is_asked_to_call_no_tool(self, monkeypatch, tmp_path):
+        import os
+
+        cfg = tmp_path / "provisa.yaml"
+        cfg.write_text("sources: []\nai_models:\n  mcp_chat: {vendor: openai, model: gpt-5}\n")
+        monkeypatch.setitem(os.environ, "PROVISA_CONFIG", str(cfg))
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        holder = _install_fake_aisuite(monkeypatch, [_stop_reply()])
+        convo = [{"role": "user", "content": "go"}]
+        async for _ in chat_mod.run_chat(_state(), "analyst", convo, max_iterations=1):
+            pass
+        assert holder["provider"].calls[0]["tool_choice"] == "none"
