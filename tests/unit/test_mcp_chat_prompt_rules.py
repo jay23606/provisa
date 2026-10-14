@@ -84,3 +84,36 @@ class TestNavigateRouteCatalogAndState:  # REQ-1846
         prepared, note = chat_mod._prepare_client_call(call)
         assert prepared == call
         assert note is None
+
+
+class TestClaimsAndFailures:
+    """From a maintainer's transcript on the sonnets demo."""
+
+    def test_nothing_is_claimed_done_beside_the_call_that_does_it(self):
+        # "Done -- the Cypher explorer (/graph) is now running this...", written with the navigate.
+        s = _flat(chat_mod._SYSTEM)
+        assert (
+            "Text you write in the same message as a tool call is written before that call's result exists"
+            in s
+        )
+        assert "never say there that anything is done, open, running, shown or fixed" in s
+
+    def test_a_failure_is_explained_only_from_its_error(self):
+        # A binder error on _nf_query was blamed on "an active natural-language / vector search ...
+        # stuck on the Graph page's state", and the user told to clear a search box there is none of.
+        s = _flat(chat_mod._SYSTEM)
+        assert "Explain a failure only from its error text and the tool results" in s
+        assert "never invent a cause, a mechanism, or UI state" in s
+        assert "never tell the user to change something you have not seen" in s
+
+    def test_a_provisa_error_is_said_quoted_and_worked_around(self):
+        s = _flat(chat_mod._SYSTEM)
+        assert "'Binder Error', an internal column such as _nf_query) -- is a Provisa error" in s
+        assert "say so, quote it, and offer a working way to the same answer" in s
+        assert "never a step for the user to fix it" in s
+
+    def test_a_picture_and_a_graph_page_view_are_both_done_not_offered(self):
+        # "collapse by theme ... or render it as a picture here in the chat?"
+        s = _flat(chat_mod._SYSTEM)
+        assert "Never offer a choice between a picture in the chat and the Graph page" in s
+        assert "do both in the same turn: render_graph, and navigate to /graph" in s
