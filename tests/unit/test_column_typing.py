@@ -145,3 +145,14 @@ def test_the_parse_keeps_the_structure_and_never_names_a_model_type():
     assert parse_native_type("timestamp(3) with time zone").kind == "scalar"
     assert parse_native_type("varchar(3)").kind == "scalar"
     assert parse_native_type("arraylike").kind == "scalar"
+
+
+def test_a_spelling_only_its_platform_has_registers_as_its_ir_name():
+    """Databricks lists a 64-bit integer as ``long``, which no reader after registration knows
+    without the platform: a draft's replica failed "unknown SQL type 'long' for platform
+    'duckdb'". It registers as bigint; a sized spelling keeps its size."""
+    from provisa.core.ir_types import column_typing
+
+    assert column_typing("LONG", "databricks").data_type == "bigint"
+    assert column_typing("decimal(10,2)", "databricks").data_type == "decimal(10,2)"
+    assert column_typing("long").data_type == "long"

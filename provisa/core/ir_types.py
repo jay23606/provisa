@@ -417,11 +417,14 @@ def column_typing(native_type: str, platform: str | None = None) -> ColumnTyping
 
     An array, struct or map is ``json``, with the source's spelling recorded and, for an array
     of one primitive type at any nesting, its depth and element type. Anything else keeps the
-    spelling it was listed with and carries no hidden attribute."""
+    spelling it was listed with and carries no hidden attribute -- except a spelling only its
+    platform has (Databricks' ``long``), which is no type anything after registration can read
+    without knowing the platform: it registers as its IR name. A sized spelling keeps its size."""
     spelling = native_type.strip().lower()
     shape = parse_native_type(spelling)
     if not shape.nested:
-        return ColumnTyping(spelling)
+        own = _PLATFORM_ALIASES.get(platform.split("+", 1)[0], {}) if platform else {}
+        return ColumnTyping(own.get(spelling, spelling))
     read_from = platform.split("+", 1)[0] if platform else None
     typed = _array_of_a_primitive(shape, platform)
     if typed is None:
