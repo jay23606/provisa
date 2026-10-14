@@ -949,14 +949,14 @@ Una scrittura invalida ogni voce di cache che l'organizzazione che scrive detien
 Tre parti incidono su quanto è recente un risultato e su quanto carico una query impone ai sistemi a monte. (REQ-030)
 
 - **La sorgente a monte.** Idealmente gestisce da sé la propria contropressione: limiti di connessione, timeout delle istruzioni, repliche di lettura.
-- **L'operatore.** Protegge la piattaforma, Provisa stessa, dalla contropressione. Quando una sorgente non può proteggersi, l'operatore protegge anche lei. Le impostazioni stanno su sorgenti e tabelle: `load_protected`, `prefer_materialized`, i `federation_hints` della sorgente, la soglia di reindirizzamento dei risultati grandi, il cluster Kafka su cui scrivono i sink e il watermark registrato di ogni tabella.
+- **L'operatore.** Protegge la piattaforma, Provisa stessa, dalla contropressione. Quando una sorgente non può proteggersi, l'operatore protegge anche lei. Le impostazioni stanno su sorgenti e tabelle: `load_protected`, `replicate`, i `federation_hints` della sorgente, la soglia di reindirizzamento dei risultati grandi, il cluster Kafka su cui scrivono i sink e il watermark registrato di ogni tabella.
 - **L'utente finale.** Bilancia velocità e attualità, una richiesta alla volta.
 
 Le impostazioni dell'operatore sono il pavimento. Una richiesta può spostarsi sopra di esso, verso dati più vecchi o meno carico; attivare la cache delle risposte è l'esempio tipico. Non può mai scendere sotto. Un suggerimento di richiesta che lo farebbe viene rifiutato con un errore che nomina l'impostazione dell'operatore, senza essere applicato né ignorato in silenzio.
 
 | Input della richiesta | Cosa può fare | Rifiutato quando |
 | --- | --- | --- |
-| `@route(engine: DIRECT)`, `-- @provisa route=direct` | Scegliere il driver diretto per una sorgente | la sorgente è `load_protected` o `prefer_materialized` |
+| `@route(engine: DIRECT)`, `-- @provisa route=direct` | Scegliere il driver diretto per una sorgente | una tabella letta dall'istruzione è `load_protected` o `replicate: 0` |
 | `@join`, `@reorder`, `@broadcastSize`, `/*+ ... */` | Impostare una proprietà di sessione del motore lasciata libera dai `federation_hints` della sorgente | modifica una proprietà impostata dall'operatore |
 | `X-Provisa-Redirect-Threshold`, `@redirect(threshold:)` | Reindirizzare un risultato prima | supera la soglia dell'operatore |
 | `@sink(broker:)`, broker di `X-Provisa-Sink` | Ripetere il broker dell'operatore | nomina un altro broker, o `KAFKA_BOOTSTRAP_SERVERS` non è configurato |
@@ -965,7 +965,55 @@ Le impostazioni dell'operatore sono il pavimento. Una richiesta può spostarsi s
 
 I rifiuti restituiscono HTTP 403 con il codice `query.operator_floor`, SQLSTATE `42501` su pgwire e `PERMISSION_DENIED` su Flight e gRPC. (REQ-030)
 
-Una sorgente `load_protected` o `prefer_materialized` non viene mai letta dal vivo da una query, su nessun trasporto. Le query leggono la sua copia caricata. Solo il caricamento e i suoi aggiornamenti leggono la sorgente: un aggiornamento avviene quando `cache_ttl` o un controllo di freschezza lo richiede; senza nessuno dei due la copia viene caricata una volta e poi aggiornata solo tramite un feed di modifiche o lo scheduler. (REQ-1907) (REQ-1141, REQ-826)
+Una tabella `load_protected` o con `replicate: 0` non viene mai letta dal vivo da una query, su nessun trasporto. Le query leggono la sua replica. Solo la replicazione e i suoi aggiornamenti leggono la sorgente: un aggiornamento avviene quando `cache_ttl` o un controllo di freschezza lo richiede; senza nessuno dei due la replica viene costruita una volta e poi aggiornata solo tramite un feed di modifiche o lo scheduler. (REQ-1907) (REQ-1141, REQ-826) [tool-verified: `tests/integration/test_operator_floor_e2e.py`]
+
+### L'impostazione `replicate`
+
+`replicate` è un intero su una tabella. Una tabella senza valore prende quello della sua origine e, se nessuno dei due è impostato, vale la soglia globale. Una replica è una copia di una tabella di origine conservata nello store del motore e aggiornata secondo le impostazioni di tempestività della tabella; non è un flusso continuo di modifiche. (REQ-826) [tool-verified: `provisa/core/replicate.py`]
+
+| Valore | Nome | Significato |
+| --- | --- | --- |
+| non impostato | Default | Vale la soglia globale |
+| `-1` | Never | Letta dal vivo ovunque esista un percorso live. Replicata solo su un motore che non può leggere l'origine sul posto |
+| `N` maggiore di 0 | Hot-N | Letta dal vivo finché la tabella non supera N istruzioni governate per intervallo, poi servita dalla sua replica |
+| `0` | Always | Le letture provengono dalla replica |
+
+Solo Always è una garanzia. Never e i valori Hot sono al meglio delle possibilità. `load_protected` con `replicate: -1` viene rifiutato al caricamento della configurazione e al salvataggio. Un'origine con `replicate: 0` non ha attach dal vivo su nessun motore, quindi ogni sua tabella è servita dalla propria replica.
+
+Il vincolo si valuta sulle tabelle lette da un'istruzione. Un'istruzione che non legge alcuna tabella servita da una replica mantiene il percorso diretto anche quando la sua origine ha altre tabelle replicate. [tool-verified: `provisa/federation/registry_view.py` `operator_floor`]
+
+Una replica è indicizzata sulla chiave primaria dichiarata e sulle colonne su cui si uniscono le relazioni dichiarate, con indici costruiti dopo il caricamento. Dove questi indici accelerano i join, dove conservare le repliche e come scegliere la loro freschezza è in [Replicas](replicas.md). (REQ-2015) [tool-verified: `provisa/federation/replica_indexes.py`]
+
+### Replicazione hot
+
+Una tabella il cui `replicate` non è impostato, o è `N` maggiore di 0, viene letta dal vivo finché non è molto richiesta.
+
+```yaml
+replication:
+  hot_threshold: 100       # statements per interval for a table left at Default
+  hot_interval: 60         # seconds: the window the count is taken over, and how often it is judged
+  hot_max_rows: 10000000   # a larger table is not replicated for being busy
+```
+
+| Impostazione | Variabile d'ambiente | Default |
+| --- | --- | --- |
+| `replication.hot_threshold` | `PROVISA_REPLICATION_HOT_THRESHOLD` | 100 |
+| `replication.hot_interval` | `PROVISA_REPLICATION_HOT_INTERVAL` | 60 |
+| `replication.hot_max_rows` | `PROVISA_REPLICATION_HOT_MAX_ROWS` | 10000000 |
+
+Tutte e tre sono impostazioni dell'operatore: l'interfaccia di amministrazione le mostra sotto Hot Tables e un valore salvato si applica alla valutazione successiva.
+
+Come si conta una tabella:
+
+- Un'istruzione governata conta ogni tabella che legge una sola volta, indipendentemente da quante volte la legge.
+- Un'istruzione servita dalla cache delle risposte non conta. Non ha caricato la sorgente.
+- Un'istruzione rifiutata dalla governance non conta.
+
+Una tabella viene promossa quando il suo conteggio raggiunge la sua soglia (il proprio `N`, altrimenti quello della sua origine, altrimenti `hot_threshold`) e retrocessa quando il conteggio scende sotto la metà. La promozione richiede la costruzione di una replica; la tabella è letta dal vivo finché la costruzione non termina, poi dalla replica. La retrocessione riporta subito le letture alla sorgente.
+
+Una tabella non viene promossa quando contiene più righe di `hot_max_rows`, quando il suo segnale di modifica è `ttl` o `ttl_probe` e né essa né la sua origine dichiarano un `cache_ttl`, o quando il livello hot di Redis la gestisce già. Il riepilogo della tabella nell'interfaccia di amministrazione indica quale caso si applica.
+
+I conteggi risiedono in Redis. Con un Redis condiviso (`cache.redis_url`) coprono ogni processo della distribuzione. Con il Redis embedded sono per processo, quindi la promozione funziona solo quando un solo worker serve le richieste; con più worker e senza Redis condiviso nulla viene promosso, e il riepilogo lo segnala. [tool-verified: `provisa/federation/replica_hot.py`]
 
 ## Autenticazione
 
@@ -1426,6 +1474,8 @@ Lo store di materializzazione è di default `TENANT_DATABASE_URL`.
 Quando un'origine non può essere collegata dal vivo (nessun connettore ATTACH per il motore selezionato), atterra nello store di materializzazione del motore. Ordine di risoluzione: `PROVISA_MATERIALIZE_URL` esplicito → default dichiarato dal motore → errore esplicito (nessun fallback silenzioso). [tool-verified: `engine.py` `materialize_store`]
 
 DuckDB dichiara il proprio file embedded (`~/.provisa/materialize.duckdb`) come default. Tutti gli altri motori usano di default `TENANT_DATABASE_URL` (PostgreSQL). Sovrascrivi qualsiasi motore con `PROVISA_MATERIALIZE_URL`.
+
+Lo store decide cosa fanno gli indici di una replica per i join: uno store PostgreSQL indicizza le repliche e un motore che esegue SQL al suo interno legge quegli indici, mentre DuckDB esegue i join sulle repliche del suo file embedded su una copia per istruzione. Vedere [Replicas](replicas.md#use-a-relational-database-as-the-replica-store-where-the-engine-runs-sql-in-it). (REQ-2015)
 
 ### Hint di federazione per origine
 

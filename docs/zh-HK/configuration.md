@@ -2,6 +2,30 @@
 
 Provisa 透過 YAML 檔案組態（預設：`config/provisa.yaml`）。(REQ-528)
 
+## 包含檔案（REQ-1669）
+
+使用 `includes:` 將一份組態拆分到多個檔案中。包含檔案在此鍵下列出片段路徑；Provisa 會在驗證前合併它們，產生與將所有內容寫在單一檔案中相同的結果。
+
+```yaml
+# provisa-with-sources.yaml — wrapper that adds a Neo4j source to the base config
+includes:
+  - /path/to/config/provisa-install.yaml
+  - /path/to/demo/sources/neo4j/fragment.yaml
+```
+
+僅包含 `includes:` 的包裝檔案是合法的。`load_control_plane` 會遍歷這些包含項，因此 `control_plane:` 部分取自設定了該項的那個被包含檔案。[tool-verified: `provisa/core/config_loader.py:154-166`]
+
+**合併規則** [tool-verified: `provisa/core/config_loader.py:104-146`]
+
+- 路徑相對於包含檔案解析。絕對路徑按原樣使用。
+- 清單類小節（`sources`、`tables`、`domains`、`relationships`、`roles` 等）採用附加方式——片段中的項目跟在包含檔案的項目之後。
+- 包含檔案未設定的純量或對應鍵，取自片段。
+- 兩個檔案對同一個鍵設定了不同的值，視為衝突；載入失敗，並指出衝突的鍵。
+- 兩個檔案中的相同值不視為衝突。
+- `includes` 可以巢狀。一個檔案——無論是直接還是透過另一個片段——包含自身會被拒絕。
+- `includes` 在載入時被消耗，永遠不會出現在驗證後的組態中。
+
+
 ## 數據來源
 
 ```yaml
@@ -424,6 +448,8 @@ sources:
     type: files
     path: /data/lake/         # directory; each file becomes a table
 ```
+
+**Kaggle 數據集**無法透過此檔案新增——它們需要即時權杖，以及僅在「數據來源」表單中提供的數據集選擇器（數據來源 → 訂閱 → Kaggle）。匯出為 YAML 的 Kaggle 數據來源會顯示為 `type: files`，並在 `federation_hints` 中帶有 `kaggle_owner` 和 `kaggle_ref`。從 Kaggle 重新下載需要 `refreshKaggleSource` 變更（mutation）或 UI 刷新流程，而不是編輯 YAML。請參閱數據來源類型參考中的 [Kaggle 數據集](sources.md#kaggle-datasets)。
 
 #### API／遠端數據來源
 
@@ -912,7 +938,7 @@ tables:
 
 沒有該提示時，請求既不讀取也不寫入快取。有提示時，仍由上述設定決定：只有當讀取的每個數據來源都設定了 `cache_enabled: true`，而且每個表解析出的 TTL 大於 0，結果才會被快取。如請求提供了 `ttl`，條目的存活時間就是該值；否則為所讀取各表中最短的解析 TTL。(REQ-544)
 
-該提示只是以接受較舊的數據來換取速度。它絕不會令讀取比營運方設定所容許的更新：落地與副本的新鮮度（`cache_ttl`、`change_signal`）、`row_materialize`、`load_protected` 快照以及新鮮度檢查，對帶提示與不帶提示的請求完全一樣適用。請參閱本文件中有關新鮮度與負載的章節。(REQ-544)
+該提示只是以接受較舊的數據來換取速度。它絕不會令讀取比營運方設定所容許的更新：落地與副本的新鮮度（`cache_ttl`、`change_signal`）、`row_materialize`、`load_protected` 快照以及新鮮度檢查，對帶提示與不帶提示的請求完全一樣適用。請參閱[新鮮度與負載：由誰決定](#freshness-and-load-who-decides)。(REQ-544)
 
 `@noCache` 和 `-- @provisa no_cache=true` 已不再存在：快取預設關閉，因此無需繞過。
 
@@ -923,14 +949,14 @@ tables:
 有三方共同決定結果有多新，以及一次查詢為其後端系統帶來多大負載。(REQ-030)
 
 - **上游資料來源。** 理想情況下它自行管理背壓：連線數上限、語句逾時、唯讀副本。
-- **營運方。** 保護平台（即 Provisa 本身）免受背壓。上游無法自我保護時，營運方亦保護上游。相關設定位於資料來源和表上：`load_protected`、`prefer_materialized`、資料來源的 `federation_hints`、大結果重新導向門檻、sink 寫入的 Kafka 叢集，以及每張表登記的 watermark。
+- **營運方。** 保護平台（即 Provisa 本身）免受背壓。上游無法自我保護時，營運方亦保護上游。相關設定位於資料來源和表上：`load_protected`、`replicate`、資料來源的 `federation_hints`、大結果重新導向門檻、sink 寫入的 Kafka 叢集，以及每張表登記的 watermark。
 - **最終用戶。** 逐個請求地在速度和新鮮度之間取捨。
 
 營運方的設定是下限。請求可以在下限之上移動，走向較舊的資料或較低的負載；選擇啟用回應快取就是常見的例子。請求永遠不能低於下限。會低於下限的請求提示會被拒絕，錯誤訊息會指明營運方的設定，既不會被悄悄套用，也不會被悄悄捨棄。
 
 | 請求輸入 | 允許做甚麼 | 何時被拒絕 |
 | --- | --- | --- |
-| `@route(engine: DIRECT)`、`-- @provisa route=direct` | 為單一資料來源選擇直連驅動 | 資料來源為 `load_protected` 或 `prefer_materialized` |
+| `@route(engine: DIRECT)`、`-- @provisa route=direct` | 為單一資料來源選擇直連驅動 | 語句讀取的某張表為 `load_protected` 或 `replicate: 0` |
 | `@join`、`@reorder`、`@broadcastSize`、`/*+ ... */` | 設定資料來源 `federation_hints` 未設定的引擎工作階段屬性 | 修改了營運方已設定的屬性 |
 | `X-Provisa-Redirect-Threshold`、`@redirect(threshold:)` | 更早地重新導向結果 | 高於營運方的門檻 |
 | `@sink(broker:)`、`X-Provisa-Sink` 中的 broker | 重複營運方的 broker | 指定了其他 broker，或未設定 `KAFKA_BOOTSTRAP_SERVERS` |
@@ -939,7 +965,55 @@ tables:
 
 拒絕時傳回 HTTP 403 及代碼 `query.operator_floor`，pgwire 上傳回 SQLSTATE `42501`，Flight 和 gRPC 上傳回 `PERMISSION_DENIED`。(REQ-030)
 
-`load_protected` 或 `prefer_materialized` 的資料來源，在任何傳輸上都不會被查詢即時讀取。查詢讀取的是它已落地的副本。只有落地及其刷新會讀取資料來源：當 `cache_ttl` 或新鮮度檢查要求時才刷新；兩者皆無時，副本只落地一次，之後僅透過變更串流或排程器刷新。(REQ-1907)(REQ-1141, REQ-826)
+`load_protected` 或 `replicate: 0` 的表，在任何傳輸上都不會被查詢即時讀取。查詢讀取的是它的複本。只有複製及其刷新會讀取資料來源：當 `cache_ttl` 或新鮮度檢查要求時才刷新；兩者皆無時，複本只建構一次，之後僅透過變更串流或排程器刷新。(REQ-1907)(REQ-1141, REQ-826) [tool-verified: `tests/integration/test_operator_floor_e2e.py`]
+
+### `replicate` 設定
+
+`replicate` 是表上的一個整數。未設定值的表沿用其資料來源的值；兩者皆未設定時，適用全域門檻。複本是資料來源表的一份拷貝，保存在引擎的儲存區中，並按表的時效性設定刷新；它不是持續的變更串流。(REQ-826) [tool-verified: `provisa/core/replicate.py`]
+
+| 值 | 名稱 | 含義 |
+| --- | --- | --- |
+| 未設定 | 預設 | 適用全域門檻 |
+| `-1` | 從不 | 凡存在即時路徑之處均即時讀取。僅在引擎無法就地讀取資料來源時才複製 |
+| 大於 0 的 `N` | Hot-N | 即時讀取，直至該表在每個間隔內被 N 條受治理語句讀取，之後由其複本提供服務 |
+| `0` | 一律 | 讀取來自複本 |
+
+只有「一律」是保證。「從不」和 Hot 值都是盡力而為。`load_protected` 與 `replicate: -1` 同時出現時，會在設定載入和儲存時被拒絕。`replicate: 0` 的資料來源在任何引擎上都沒有即時附加，因此它的每張表都由其複本提供服務。
+
+下限按語句所讀取的表來判斷。不讀取任何由複本提供服務的表的語句，即使其資料來源還有其他被複製的表，也保留直連路由。[tool-verified: `provisa/federation/registry_view.py` `operator_floor`]
+
+複本按其宣告的主索引鍵，以及其宣告的關係所連接的欄位建立索引，索引在複本落地後建構。這些索引在哪些情況下加速聯結、複本應存放何處以及如何選擇其新鮮度，請參閱 [Replicas](replicas.md)。(REQ-2015) [tool-verified: `provisa/federation/replica_indexes.py`]
+
+### Hot 複製
+
+`replicate` 未設定或為大於 0 的 `N` 的表，在繁忙之前一直即時讀取。
+
+```yaml
+replication:
+  hot_threshold: 100       # statements per interval for a table left at Default
+  hot_interval: 60         # seconds: the window the count is taken over, and how often it is judged
+  hot_max_rows: 10000000   # a larger table is not replicated for being busy
+```
+
+| 設定 | 環境變數 | 預設值 |
+| --- | --- | --- |
+| `replication.hot_threshold` | `PROVISA_REPLICATION_HOT_THRESHOLD` | 100 |
+| `replication.hot_interval` | `PROVISA_REPLICATION_HOT_INTERVAL` | 60 |
+| `replication.hot_max_rows` | `PROVISA_REPLICATION_HOT_MAX_ROWS` | 10000000 |
+
+這三項都是營運方設定：管理介面在 Hot Tables 下顯示它們，儲存的值在下一次評估時生效。
+
+表的計數方式：
+
+- 一條受治理語句對其讀取的每張表只計一次，無論讀取多少次。
+- 由回應快取應答的語句不計數。它沒有為資料來源帶來負載。
+- 被治理拒絕的語句不計數。
+
+表的計數達到其門檻（其自身的 `N`，否則是其資料來源的，否則是 `hot_threshold`）時被提升，計數降至門檻的一半以下時被降級。提升會請求建構複本；在建構完成之前，該表仍即時讀取，之後從複本讀取。降級會立即讓讀取回到資料來源。
+
+表在下列情況下不會被提升：列數超過 `hot_max_rows`；其變更訊號為 `ttl` 或 `ttl_probe`，而它和它的資料來源都沒有宣告 `cache_ttl`；或 Redis 熱層已經在管理它。管理介面中該表的摘要會說明是哪一種情況。
+
+計數保存在 Redis 中。使用共用 Redis（`cache.redis_url`）時，計數涵蓋部署的所有行程。使用內嵌 Redis 時，計數按行程各自統計，因此只有在單一工作行程處理請求時才會提升；有多個工作行程而沒有共用 Redis 時不會提升任何表，摘要中會說明這一點。[tool-verified: `provisa/federation/replica_hot.py`]
 
 ## 驗證
 
@@ -1400,6 +1474,8 @@ PROVISA_ENGINE_URL="mysql+pymysql://user:pass@host:3306/db"
 當某個數據來源無法即時附加（所選引擎沒有對應的 ATTACH 連接器）時，它會落地到該引擎的具體化儲存區。解析順序：明確的 `PROVISA_MATERIALIZE_URL` → 引擎宣告的預設值 → 直接報錯（不會悄悄退回）。[tool-verified: `engine.py` `materialize_store`]
 
 DuckDB 宣告其內嵌檔案（`~/.provisa/materialize.duckdb`）為預設值。其他所有引擎皆預設為 `TENANT_DATABASE_URL`（PostgreSQL）。任一引擎都可用 `PROVISA_MATERIALIZE_URL` 覆寫。
+
+儲存區決定複本的索引對聯結起什麼作用：PostgreSQL 儲存區會為複本建立索引，在其中執行 SQL 的引擎會讀取這些索引；而 DuckDB 則在每條語句的複本拷貝之上聯結其內嵌檔案中的複本。請參閱 [Replicas](replicas.md#use-a-relational-database-as-the-replica-store-where-the-engine-runs-sql-in-it)。(REQ-2015)
 
 ### 各數據來源的聯邦提示
 

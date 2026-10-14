@@ -759,7 +759,7 @@ relationships:
     refresh_interval: 600          # refresh every 10 minutes
 ```
 
-### Automaterialización
+### Automaterialización {: #auto-materialization }
 
 Configure `materialize: true` en una relación para generar automáticamente una vista materializada para JOINs entre orígenes. (REQ-158) Esto evita consultas federadas costosas precalculando el resultado del JOIN.
 
@@ -836,7 +836,7 @@ materialized_views:
     enabled: true
 ```
 
-## Vistas (conjuntos de datos computados gobernados)
+## Vistas (conjuntos de datos computados gobernados) {: #views-governed-computed-datasets }
 
 Las vistas son conjuntos de datos computados definidos en SQL con gobierno completo a nivel de columna. (REQ-133) Son el mecanismo gobernado para añadir agregaciones, transformaciones y métricas derivadas al modelo. (REQ-136)
 
@@ -922,7 +922,7 @@ tables:
 
 Configurar `cache_enabled: false` en un origen desactiva la caché para todas las tablas de ese origen, sin importar el TTL a nivel de tabla. (REQ-544) Las claves de caché siempre incluyen `role_id` + valores de contexto RLS para la partición de seguridad. (REQ-544)
 
-### Activación por solicitud
+### Activación por solicitud {: #per-request-opt-in }
 
 La caché de respuestas está desactivada para toda solicitud que no la pida. (REQ-544) Una solicitud la activa con:
 
@@ -944,19 +944,19 @@ La indicación solo acepta datos más antiguos a cambio de velocidad. Nunca hace
 
 Una escritura invalida toda entrada de caché que la organización que escribe tiene para las tablas que escribió; las entradas de otra organización para la misma tabla no se tocan. Si la invalidación falla, la solicitud falla en lugar de dejar entradas obsoletas. (REQ-544, REQ-595)
 
-## Frescura y carga: quién decide
+## Frescura y carga: quién decide {: #freshness-and-load-who-decides }
 
 Tres partes influyen en lo reciente que es un resultado y en cuánta carga pone una consulta sobre los sistemas que hay detrás. (REQ-030)
 
 - **La fuente de origen.** Lo ideal es que gestione su propia contrapresión: límites de conexiones, tiempos de espera de sentencias, réplicas de lectura.
-- **El operador.** Protege la plataforma, Provisa misma, de la contrapresión. Cuando una fuente no puede protegerse, el operador la protege también. Los ajustes para ello están en fuentes y tablas: `load_protected`, `prefer_materialized`, los `federation_hints` de la fuente, el umbral de redirección de resultados grandes, el clúster de Kafka al que escriben los sinks y el watermark registrado de cada tabla.
+- **El operador.** Protege la plataforma, Provisa misma, de la contrapresión. Cuando una fuente no puede protegerse, el operador la protege también. Los ajustes para ello están en fuentes y tablas: `load_protected`, `replicate`, los `federation_hints` de la fuente, el umbral de redirección de resultados grandes, el clúster de Kafka al que escriben los sinks y el watermark registrado de cada tabla.
 - **El usuario final.** Equilibra velocidad y actualidad, petición a petición.
 
 Los ajustes del operador son el suelo. Una petición puede moverse por encima de él, hacia datos más antiguos o menos carga; activar la caché de respuestas es el ejemplo habitual. Nunca puede bajar de él. Una pista de petición que lo haría se rechaza con un error que nombra el ajuste del operador, sin aplicarse ni descartarse en silencio.
 
 | Entrada de la petición | Qué puede hacer | Se rechaza cuando |
 | --- | --- | --- |
-| `@route(engine: DIRECT)`, `-- @provisa route=direct` | Elegir el driver directo para una fuente | la fuente es `load_protected` o `prefer_materialized` |
+| `@route(engine: DIRECT)`, `-- @provisa route=direct` | Elegir el driver directo para una fuente | una tabla que lee la instrucción es `load_protected` o `replicate: 0` |
 | `@join`, `@reorder`, `@broadcastSize`, `/*+ ... */` | Fijar una propiedad de sesión del motor que los `federation_hints` de la fuente dejaron libre | cambia una propiedad que fijó el operador |
 | `X-Provisa-Redirect-Threshold`, `@redirect(threshold:)` | Redirigir un resultado antes | supera el umbral del operador |
 | `@sink(broker:)`, broker de `X-Provisa-Sink` | Repetir el broker del operador | nombra otro broker o no hay `KAFKA_BOOTSTRAP_SERVERS` configurado |
@@ -965,7 +965,55 @@ Los ajustes del operador son el suelo. Una petición puede moverse por encima de
 
 Los rechazos devuelven HTTP 403 con el código `query.operator_floor`, SQLSTATE `42501` por pgwire y `PERMISSION_DENIED` por Flight y gRPC. (REQ-030)
 
-Una fuente `load_protected` o `prefer_materialized` nunca se lee en vivo desde una consulta en ningún transporte. Las consultas leen su copia aterrizada. Solo el aterrizaje y sus refrescos leen la fuente: un refresco ocurre cuando `cache_ttl` o una comprobación de frescura lo pide; sin ninguno, la copia aterriza una vez y luego solo se refresca mediante un feed de cambios o el planificador. (REQ-1907) (REQ-1141, REQ-826)
+Una tabla `load_protected` o con `replicate: 0` nunca se lee en vivo desde una consulta en ningún transporte. Las consultas leen su réplica. Solo la replicación y sus refrescos leen el origen: un refresco ocurre cuando `cache_ttl` o una comprobación de frescura lo pide; sin ninguno, la réplica se construye una vez y luego solo se refresca mediante un feed de cambios o el planificador. (REQ-1907) (REQ-1141, REQ-826) [tool-verified: `tests/integration/test_operator_floor_e2e.py`]
+
+### El ajuste `replicate` {: #the-replicate-setting }
+
+`replicate` es un entero en una tabla. Una tabla sin valor toma el de su origen y, cuando ninguno está definido, se aplica el umbral global. Una réplica es una copia de una tabla de origen que se mantiene en el almacén del motor y se refresca según los ajustes de puntualidad de la tabla; no es un flujo continuo de cambios. (REQ-826) [tool-verified: `provisa/core/replicate.py`]
+
+| Valor | Nombre | Significado |
+| --- | --- | --- |
+| sin definir | Predeterminado | Se aplica el umbral global |
+| `-1` | Nunca | Se lee en vivo dondequiera que exista una ruta en vivo. Solo se replica en un motor que no puede leer el origen in situ |
+| `N` mayor que 0 | Hot-N | Se lee en vivo hasta que la tabla supera N instrucciones gobernadas por intervalo; entonces se sirve desde su réplica |
+| `0` | Siempre | Las lecturas provienen de la réplica |
+
+Solo Siempre es una garantía. Nunca y los valores Hot son de mejor esfuerzo. `load_protected` con `replicate: -1` se rechaza al cargar y al guardar la configuración. Un origen con `replicate: 0` no tiene attach en vivo en ningún motor, de modo que cada una de sus tablas se sirve desde su réplica.
+
+El piso se juzga por las tablas que lee una instrucción. Una instrucción que no lee ninguna tabla servida desde una réplica conserva su ruta directa aunque su origen tenga otras tablas replicadas. [tool-verified: `provisa/federation/registry_view.py` `operator_floor`]
+
+Una réplica se indexa por su clave primaria declarada y por las columnas sobre las que se unen sus relaciones declaradas; los índices se construyen después de aterrizar. Dónde esos índices aceleran las uniones, dónde conservar las réplicas y cómo elegir su frescura se explica en [Réplicas](replicas.md). (REQ-2015) [tool-verified: `provisa/federation/replica_indexes.py`]
+
+### Replicación hot {: #hot-replication }
+
+Una tabla cuyo `replicate` no está definido, o es `N` mayor que 0, se lee en vivo hasta que tiene mucha actividad.
+
+```yaml
+replication:
+  hot_threshold: 100       # statements per interval for a table left at Default
+  hot_interval: 60         # seconds: the window the count is taken over, and how often it is judged
+  hot_max_rows: 10000000   # a larger table is not replicated for being busy
+```
+
+| Ajuste | Variable de entorno | Por defecto |
+| --- | --- | --- |
+| `replication.hot_threshold` | `PROVISA_REPLICATION_HOT_THRESHOLD` | 100 |
+| `replication.hot_interval` | `PROVISA_REPLICATION_HOT_INTERVAL` | 60 |
+| `replication.hot_max_rows` | `PROVISA_REPLICATION_HOT_MAX_ROWS` | 10000000 |
+
+Los tres son ajustes del operador: la interfaz de administración los muestra en Hot Tables, y un valor guardado se aplica en la siguiente evaluación.
+
+Cómo se cuenta una tabla:
+
+- Una instrucción gobernada cuenta cada tabla que lee una sola vez, sin importar cuántas veces la lea.
+- Una instrucción respondida desde la caché de respuestas no cuenta. No puso carga en el origen.
+- Una instrucción que el gobierno rechazó no cuenta.
+
+Una tabla se promueve cuando su recuento alcanza su umbral (su propio `N`, si no el de su origen, si no `hot_threshold`) y se degrada cuando el recuento cae por debajo de la mitad. La promoción solicita la construcción de una réplica; la tabla se lee en vivo hasta que esa construcción termina y después desde la réplica. La degradación devuelve las lecturas al origen de inmediato.
+
+Una tabla no se promueve cuando contiene más filas que `hot_max_rows`, cuando su señal de cambio es `ttl` o `ttl_probe` y ni ella ni su origen declaran un `cache_ttl`, o cuando el nivel hot de Redis ya la gestiona. El resumen de la tabla en la interfaz de administración indica cuál es el caso.
+
+Los recuentos viven en Redis. Con un Redis compartido (`cache.redis_url`) abarcan todos los procesos del despliegue. Con el Redis integrado son por proceso, de modo que la promoción solo se ejecuta cuando un único worker atiende solicitudes; con varios workers y sin Redis compartido no se promueve nada, y el resumen lo indica. [tool-verified: `provisa/federation/replica_hot.py`]
 
 ## Autenticación
 
@@ -1029,7 +1077,7 @@ Activado por defecto con los valores mostrados; el bloque solo los ajusta. (REQ-
 
 Los PAT no necesitan ningún bloque de configuración — siempre se aceptan, y el almacén se crea junto con el resto del esquema del plano de control. (REQ-1263) Lo configurable es la expiración que un usuario puede solicitar al emitirlo: de 1 a 366 días, o ninguna para un token que no expira. Ver [Modelo de seguridad](security.md#tokens-de-acceso-personal).
 
-### TLS mutuo
+### TLS mutuo {: #mutual-tls }
 
 La verificación de certificado de cliente se configura mediante variable de entorno en lugar de en `provisa.yaml`, junto a la configuración de certificado TLS que extiende. (REQ-1228)
 
@@ -1271,7 +1319,7 @@ db.statement: SELECT * FROM orders WHERE region = ? AND amount > ?
 
 Provisa selecciona OTLP/HTTP u OTLP/gRPC a partir del esquema de la URL del endpoint. (REQ-549) Las URL que comienzan con `http://` o `https://` usan OTLP/HTTP, con `/v1/traces`, `/v1/metrics` y `/v1/logs` añadidos automáticamente. (REQ-549) Cualquier otro esquema usa OTLP/gRPC con `insecure=True`. (REQ-549) [tool-verified: `provisa/api/otel_setup.py` lines 60–70]
 
-## Motor de federación
+## Motor de federación {: #federation-engine }
 
 Configurar un motor de federación es opcional. El valor por defecto es `duckdb` — sin configuración, en proceso, sin servicio externo requerido (REQ-989). Elija otro motor cuando necesite escala MPP o quiera reutilizar un almacén existente.
 
@@ -1314,7 +1362,7 @@ Precedencia: variable de entorno `PROVISA_ENGINE` → campo de configuración `f
 | `firebird` | Firebird | Por dialecto | No | Ninguno (solo aterrizaje) | Credenciales por dialecto |
 | `sqlalchemy` | Otra base de datos relacional (por URL de conexión) | Por dialecto | No | Ninguno (solo aterrizaje) | Credenciales por dialecto |
 
-### Referencia de motores
+### Referencia de motores {: #engine-reference }
 
 #### trino / trino-byo
 
@@ -1426,6 +1474,8 @@ El almacén de materialización usa por defecto `TENANT_DATABASE_URL`.
 Cuando un origen no puede conectarse (attach) en vivo (no hay conector ATTACH para el motor seleccionado), aterriza en el almacén de materialización del motor. Orden de resolución: `PROVISA_MATERIALIZE_URL` explícito → valor por defecto declarado por el motor → error explícito (sin reserva silenciosa). [tool-verified: `engine.py` `materialize_store`]
 
 DuckDB declara su archivo integrado (`~/.provisa/materialize.duckdb`) como su valor por defecto. Todos los demás motores usan por defecto `TENANT_DATABASE_URL` (PostgreSQL). Anule cualquier motor con `PROVISA_MATERIALIZE_URL`.
+
+El almacén decide lo que hacen los índices de una réplica en las uniones: un almacén PostgreSQL indexa las réplicas y un motor que ejecuta SQL en él lee esos índices, mientras que DuckDB une las réplicas de su archivo integrado sobre una copia por instrucción. Consulte [Réplicas](replicas.md#use-a-relational-database-as-the-replica-store-where-the-engine-runs-sql-in-it). (REQ-2015)
 
 ### Hints de federación por origen
 
