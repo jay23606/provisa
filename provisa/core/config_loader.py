@@ -506,10 +506,16 @@ def _validate_neo4j_sources(config: ProvisaConfig) -> None:  # REQ-1668, REQ-168
 
             check_table(tbl)
             continue
+        if tbl.query_template and stype == "elasticsearch":
+            # REQ-2017: an Elasticsearch table with a native query is a native search.
+            from provisa.elasticsearch.native_query import check_table as check_search_table
+
+            check_search_table(tbl)
+            continue
         if tbl.query_template and not is_query_api:
             raise ValueError(
                 f"table {tbl.table_name!r}: query_template is only valid under a neo4j, sparql, "
-                "mongodb, cosmosdb, qdrant, node or python source"
+                "mongodb, elasticsearch, cosmosdb, qdrant, node or python source"
             )
 
 

@@ -58,6 +58,21 @@ class ESConnection:  # REQ-1672
         auth = (username, password) if username and password else None
         return cls(base_url=base.rstrip("/"), auth=auth)
 
+    @classmethod
+    def from_source(cls, source: Any) -> "ESConnection":
+        """The connection a registered source names: its host and port, TLS from its mapping,
+        and its credentials resolved."""
+        from provisa.core.secrets import resolve_secrets
+
+        mapping = getattr(source, "mapping", None) or {}
+        return cls.build(
+            resolve_secrets(getattr(source, "host", "") or "localhost"),
+            int(getattr(source, "port", 0) or 9200),
+            tls=bool(mapping.get("tls", False)),
+            username=getattr(source, "username", None) or None,
+            password=resolve_secrets(getattr(source, "password", "") or "") or None,
+        )
+
     def _client(self) -> httpx.Client:
         return httpx.Client(base_url=self.base_url, auth=self.auth, timeout=self.timeout)
 
@@ -226,3 +241,53 @@ def table_index_and_columns(
             f"{', '.join(missing)} of table {table_name!r}"
         )
     return index, resolved
+
+
+_PIT_KEEPALIVE = "1m"
+
+
+def search_hits(
+    conn: ESConnection, index: str, body: dict, batch_rows: int
+) -> Iterator[list[dict]]:  # REQ-2017
+    """The hits of a native search (``body``, a bound ``_search`` request), a page at a time.
+    The pages are read in a point in time with ``search_after``, so the whole answer is one
+    view of the index however many pages it takes. A ``size`` in the request is the most hits
+    read; with no sort the hits come by score, as a search ranks them."""
+    limit = body.get("size")
+    request = {k: v for k, v in body.items() if k != "size"}
+    request.setdefault("sort", ["_score"])
+    request["track_total_hits"] = False
+    read = 0
+    with conn._client() as c:
+        opened = c.post(f"/{index}/_pit", params={"keep_alive": _PIT_KEEPALIVE})
+        opened.raise_for_status()
+        pit = opened.json()["id"]
+        try:
+            after: list | None = None
+            while limit is None or read < limit:
+                size = min(batch_rows, _RESULT_WINDOW)
+                if limit is not None:
+                    size = min(size, limit - read)
+                page = {**request, "size": size, "pit": {"id": pit, "keep_alive": _PIT_KEEPALIVE}}
+                if after is not None:
+                    page["search_after"] = after
+                resp = c.post("/_search", json=page)
+                resp.raise_for_status()
+                answer = resp.json()
+                pit = answer.get("pit_id", pit)
+                hits = answer.get("hits", {}).get("hits", [])
+                if not hits:
+                    break
+                read += len(hits)
+                yield hits
+                after = hits[-1]["sort"]
+        finally:
+            c.request("DELETE", "/_pit", json={"id": pit})
+
+
+def search_aggregations(conn: ESConnection, index: str, body: dict) -> dict:  # REQ-2017
+    """The aggregations a native search answers (its hits are not read)."""
+    with conn._client() as c:
+        resp = c.post(f"/{index}/_search", json={**body, "size": 0, "track_total_hits": False})
+        resp.raise_for_status()
+        return resp.json().get("aggregations") or {}

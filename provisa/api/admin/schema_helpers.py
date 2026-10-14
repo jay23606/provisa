@@ -444,7 +444,7 @@ async def _fetch_table_with_columns(
         # pipeline table's native query, which has no endpoint and is read from its row.
         query_template=(
             row["query_template"]
-            if _source_type in ("mongodb", "cosmosdb", "qdrant")
+            if _source_type in ("mongodb", "elasticsearch", "cosmosdb", "qdrant")
             else _query_template_for(row["source_id"], row["table_name"])
         ),
         file_glob=row.get("file_glob"),  # REQ-788
