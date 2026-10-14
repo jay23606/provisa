@@ -17,7 +17,12 @@ import { render, screen, act, fireEvent } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { useNavPayload } from "../hooks/useNavPayload";
 import { MantineProvider } from "@mantine/core";
-import { demoTourSteps, type DemoTourStepDef } from "../tour/demoTour";
+import {
+  demoStepShown,
+  demoTourSteps,
+  demoTrackStamp,
+  type DemoTourStepDef,
+} from "../tour/demoTour";
 import {
   NamedDemoContext,
   NO_NAMED_DEMO,
@@ -31,6 +36,7 @@ const t = (key: string) => key;
 // REQ-2013: the org has every object the product tour's steps show.
 // REQ-2013: the org of each test: the weblogs demo's, unless a test names another.
 const org = vi.hoisted(() => ({ current: null as unknown }));
+const showExchange = vi.hoisted(() => vi.fn());
 vi.mock("../hooks/useOrgHas", () => {
   // One function, as the hook's useCallback gives: a new one each render re-runs the tour's step.
   const read = () => Promise.resolve(org.current);
@@ -55,6 +61,8 @@ vi.mock("../context/pollyState", async (importOriginal) => ({
     setUnconfiguredReason: () => {},
     openPolly: () => Promise.resolve(),
     closePolly: () => {},
+    showExchange,
+    shownExchange: null,
   }),
 }));
 vi.mock("../context/AuthContext", () => ({
@@ -64,7 +72,7 @@ vi.mock("../context/AuthContext", () => ({
   }),
 }));
 
-const { TourProvider, useTour } = await import("../tour/useTour");
+const { TourProvider, useTour, resetTourStateForDemoSession } = await import("../tour/useTour");
 
 beforeEach(() => {
   org.current = WEBLOGS_ORG;
@@ -101,6 +109,65 @@ describe("a demo's steps, as the runner walks them", () => {
       open: '[data-testid="sql-role"]',
       option: '[data-sql-role-option="analyst"]',
     });
+  });
+
+  it("runs a call on each API surface's page and waits for its answer there", () => {
+    const [api, jsonapi, grpc, cypher] = demoTourSteps(
+      [
+        { key: "a", route: "/openapi", api: "GET /data/rest/shop/pages?groupBy=path" },
+        { key: "j", route: "/jsonapi", jsonapi: "/data/jsonapi/shop/pages" },
+        { key: "g", route: "/grpc", grpc: "QuerySPagesGroupBy(by=[path])" },
+        { key: "c", route: "/graph", cypher: "MATCH (p:S__Pages) RETURN p" },
+      ],
+      EXAMPLES,
+    );
+    // Each is the hand-off its page reads, and the mark it shows once that hand-off is answered.
+    expect(api.openQuery).toEqual({
+      stateKey: "openApiUrl",
+      text: "GET /data/rest/shop/pages?groupBy=path",
+    });
+    expect(api.readySelector).toBe(".openapi-page[data-answered]");
+    expect(jsonapi.openQuery).toEqual({ stateKey: "jsonapiUrl", text: "/data/jsonapi/shop/pages" });
+    expect(jsonapi.readySelector).toBe('[data-testid="jsonapi-summary-tab"]');
+    expect(grpc.openQuery).toEqual({
+      stateKey: "grpcMethod",
+      text: "QuerySPagesGroupBy(by=[path])",
+    });
+    expect(grpc.readySelector).toBe(".grpc-panel-right[data-answered]");
+    expect(cypher.openQuery).toEqual({ stateKey: "query", text: "MATCH (p:S__Pages) RETURN p" });
+    expect(cypher.readySelector).toBe('.graph-stream[data-handoff-status="done"]');
+    for (const step of [api, jsonapi, grpc, cypher]) expect(step.waitMs).toBe(60000);
+  });
+
+  it("points a table at its row on the Tables page", () => {
+    const [table] = demoTourSteps([{ key: "t", table: "shop_access.shop_access" }], EXAMPLES);
+    expect(table.element).toBe('[data-table-row="shop_access.shop_access"]');
+  });
+
+  it("opens Polly on a question with its stored answer, and needs that answer", () => {
+    const answered = { key: "p", polly: "Which pages are slowest?", answer: "/checkout" };
+    const [step] = demoTourSteps([answered], EXAMPLES);
+    expect(step.pollyOpen).toBe(true);
+    expect(step.pollyExchange).toEqual({ question: answered.polly, answer: "/checkout" });
+    expect(step.element).toBe('[data-testid="chat-panel"]');
+    // REQ-2012: nothing is asked live, so a question with no stored answer is left out.
+    expect(demoStepShown(answered)).toBe(true);
+    expect(demoStepShown({ key: "p", polly: answered.polly })).toBe(false);
+    expect(() => demoTourSteps([{ key: "p", polly: answered.polly }], EXAMPLES)).toThrow(
+      /no stored answer/,
+    );
+  });
+
+  it("stamps a track by its demo and its steps' keys and routes", () => {
+    const track: DemoTourStepDef[] = [{ key: "a", route: "/sources", source: "x" }];
+    expect(demoTrackStamp("weblogs", track)).toBe(demoTrackStamp("weblogs", [...track]));
+    expect(demoTrackStamp("weblogs", track)).not.toBe(demoTrackStamp("sonnets", track));
+    expect(demoTrackStamp("weblogs", track)).not.toBe(
+      demoTrackStamp("weblogs", [...track, { key: "b", source: "y" }]),
+    );
+    expect(demoTrackStamp("weblogs", track)).not.toBe(
+      demoTrackStamp("weblogs", [{ ...track[0], route: "/tables" }]),
+    );
   });
 
   it("refuses a step naming an example the demo does not ship", () => {
@@ -186,13 +253,56 @@ describe("the tour button in a named demo", () => {
 
     // Walked to its end in this demo: the menu opens, the track marked done.
     expect(await screen.findByTestId("tour-menu")).toBeInTheDocument();
-    expect(localStorage.getItem(storageKey("provisa_tour_demo_track_done"))).toBe("true");
+    expect(localStorage.getItem(storageKey("provisa_tour_demo_track_done"))).toBe(
+      demoTrackStamp("weblogs", WEBLOGS.tour),
+    );
+  });
+
+  it("offers a revised track again, though the one before it was walked", async () => {
+    // Walked on this control plane before the track gained a step.
+    const before = WEBLOGS.tour.slice(0, 1);
+    localStorage.setItem(
+      storageKey("provisa_tour_demo_track_done"),
+      demoTrackStamp("weblogs", before),
+    );
+    renderTour(WEBLOGS);
+    fireEvent.click(screen.getByText("launch"));
+    await act(async () => chunksResolve());
+    expect(await screen.findByText("tour.steps.weblogsSources.title")).toBeInTheDocument();
+  });
+
+  it("shows a Polly question with its stored answer, asking nothing", async () => {
+    showExchange.mockClear();
+    const ask = { key: "weblogsAsk", polly: "Which pages?", answer: "/checkout" };
+    renderTour({ ...WEBLOGS, tour: [WEBLOGS.tour[0], ask] });
+    fireEvent.click(screen.getByText("launch"));
+    await act(async () => chunksResolve());
+    expect(await screen.findByText("tour.steps.weblogsSources.title")).toBeInTheDocument();
+    fireEvent.click(document.querySelector<HTMLElement>(".driver-popover-next-btn")!);
+    await act(async () => {});
+    expect(showExchange).toHaveBeenCalledWith({ question: "Which pages?", answer: "/checkout" });
+  });
+
+  it("leaves out a Polly question with no stored answer", async () => {
+    renderTour({
+      ...WEBLOGS,
+      tour: [WEBLOGS.tour[0], { key: "weblogsAsk", polly: "Which pages?" }, WEBLOGS.tour[1]],
+    });
+    fireEvent.click(screen.getByText("launch"));
+    await act(async () => chunksResolve());
+    expect(await screen.findByText("tour.steps.weblogsSources.title")).toBeInTheDocument();
+    fireEvent.click(document.querySelector<HTMLElement>(".driver-popover-next-btn")!);
+    expect(await screen.findByText("tour.steps.weblogsDbLog.title")).toBeInTheDocument();
+    expect(screen.queryByText("tour.steps.weblogsAsk.title")).toBeNull();
   });
 
   it("opens the menu once the demo's track is done, the product tour not offered", async () => {
     // REQ-2013: the weblogs demo has none of the standard demo's pet store, which the product
     // tour's query card shows.
-    localStorage.setItem(storageKey("provisa_tour_demo_track_done"), "true");
+    localStorage.setItem(
+      storageKey("provisa_tour_demo_track_done"),
+      demoTrackStamp("weblogs", WEBLOGS.tour),
+    );
     renderTour(WEBLOGS);
     fireEvent.click(screen.getByText("launch"));
     await act(async () => chunksResolve());
@@ -248,11 +358,28 @@ describe("starting the tour from the top in a named demo", () => {
   });
 
   it("starts with the demo's story, even once it has been walked", async () => {
-    localStorage.setItem(storageKey("provisa_tour_demo_track_done"), "true");
+    localStorage.setItem(
+      storageKey("provisa_tour_demo_track_done"),
+      demoTrackStamp("weblogs", WEBLOGS.tour),
+    );
     renderTour(WEBLOGS);
     fireEvent.click(screen.getByText("start"));
     await act(async () => chunksResolve());
     expect(await screen.findByText("tour.steps.weblogsSources.title")).toBeInTheDocument();
+  });
+});
+
+describe("a fresh demo session", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
+  it("forgets the track walked by the visitor before", () => {
+    const key = storageKey("provisa_tour_demo_track_done");
+    localStorage.setItem(key, demoTrackStamp("weblogs", WEBLOGS.tour));
+    resetTourStateForDemoSession();
+    expect(localStorage.getItem(key)).toBeNull();
   });
 });
 

@@ -81732,7 +81732,7 @@
   feature: chat-assistant-models
   priority: SHOULD
   type: behavioral
-  description: 'Polly''s spend is metered and, in demo sandboxes, capped. Every model call marks the repeated prefix (the tool definitions, the system prompt and the conversation so far) for the prompt cache, on Anthropic''s API and, for an Anthropic model, through an OpenAI-wire gateway such as OpenRouter; other vendors cache a repeated prefix by themselves. Each turn ends with a usage event: its fresh input, output, cache-read and cache-write tokens summed over every call, tool round trips included, and its cost at the model''s price in polly.model_prices, an operator setting holding a price table the operator sees and edits (USD per million tokens, one entry a model; an entry that does not read is refused when it is saved). When the gateway is OpenRouter the event also carries what OpenRouter billed. A model with no price reports tokens and no cost. In a demo sandbox org, Polly runs the model polly.sandbox_model (default claude-haiku-5-5), its spend is metered from that cost, and it refuses by name when the sandbox''s budget (polly.sandbox_budget_usd, default $0.50) or the daily budget of every sandbox together (polly.daily_budget_usd, default $10) is used up: "this demo''s assistant budget is used up" or "... for today"; the rest of the sandbox keeps working, and there is no fallback model. Polly''s panel in a sandbox shows what is left. A tour step that asks Polly a fixed question is answered once, when the demo''s template is built, and the stored answer is served to visitors at no cost. A bake-off (.github/workflows/polly-bakeoff.yml, manual dispatch) asks a list of models ten weblogs questions with known answers and reports accuracy, cost per question (median and p90), questions per $0.50 and latency.'
+  description: 'Polly''s spend is metered and, in demo sandboxes, capped. Every model call marks the repeated prefix (the tool definitions, the system prompt and the conversation so far) for the prompt cache, on Anthropic''s API and, for an Anthropic model, through an OpenAI-wire gateway such as OpenRouter; other vendors cache a repeated prefix by themselves. Each turn ends with a usage event: its fresh input, output, cache-read and cache-write tokens summed over every call, tool round trips included, and its cost at the model''s price in polly.model_prices, an operator setting holding a price table the operator sees and edits (USD per million tokens, one entry a model; an entry that does not read is refused when it is saved). When the gateway is OpenRouter the event also carries what OpenRouter billed. A model with no price reports tokens and no cost. In a demo sandbox org, Polly runs the model polly.sandbox_model (default claude-haiku-5-5), its spend is metered from that cost, and it refuses by name when the sandbox''s budget (polly.sandbox_budget_usd, default $0.50) or the daily budget of every sandbox together (polly.daily_budget_usd, default $10) is used up: "this demo''s assistant budget is used up" or "... for today"; the rest of the sandbox keeps working, and there is no fallback model. Polly''s panel in a sandbox shows what is left. A tour step that asks Polly a fixed question is answered once, when the demo''s template is built, and the stored answer is served to visitors at no cost. A bake-off (.github/workflows/polly-bakeoff.yml, manual dispatch) asks a list of models eleven weblogs questions with known answers, the weblogs tour''s Polly question among them, and reports accuracy, cost per question (median and p90), questions per $0.50 and latency.'
   use_case: A visitor to a demo asks Polly a handful of questions on the house, the operator knows what each costs and what the day will cost at most, and the maintainer picks the sandbox's model from measured cost and accuracy.
   scenario: 'Given a demo sandbox whose Polly budget is $0.50
 
@@ -81763,23 +81763,23 @@
   priority: SHOULD
   type: behavioral
   feature: product-tour-and-demos-named-demos
-  description: 'A named demo has its own tour, the story of the demo told with its own data, for a demo that runs with no one to present it. Its steps are written with the demo (demo/named/<name>/tour.yaml) and reach the UI on /setup/status with its example queries; the guided tour runs them as the demo''s track. Starting the tour in a named demo starts its track, and the tour button offers it first until it has been walked to its end in that demo (each demo, and each fresh start of one, being its own control plane); the Deep Dives menu lists it first, marked once done, and the product tour and Deep Dives follow it. Each step names a page and one object of the demo: a source (its row on Sources), a relationship (its row on Relationships, by alias), an example query (opened in a new GraphQL explorer tab and run), a statement (opened in a new SQL explorer tab and run), a glossary term (opened on the Glossary), or a role (picked in the SQL explorer''s run-as picker when the visitor moves on, all roles again at the end). A step''s words are translated like every other tour step''s, in every language the UI speaks. A unit test holds every step''s object to the demo''s config and example queries, every page to the right its gate needs, and every step''s words to each language. The weblogs demo''s track: the shop''s two logs (the web server''s and the database''s), joined on the request id, the slowest pages and the SQL behind them, the requests that failed in the database, the glossary and ontology that name what the logs mean, and the customers as an administrator and then as the analyst, whose email addresses are gone.'
-  use_case: 'A prospect opens the weblogs demo on a kiosk and starts the tour: it walks them through the shop''s own logs, queries and rights in eleven steps, then offers the product tour.'
+  description: 'A named demo has its own tour, the story of the demo told with its own data, for a demo that runs with no one to present it. Its steps are written with the demo (demo/named/<name>/tour.yaml) and reach the UI on /setup/status with its example queries; the guided tour runs them as the demo''s track. Starting the tour in a named demo starts its track, and the tour button offers it first until it has been walked to its end in that demo (each demo, and each fresh start of one, being its own control plane; a fresh demo session forgets it), the mark holding the demo and a hash of its steps'' keys and routes so a revised track is offered again; the Deep Dives menu lists it first, marked once done, and the product tour and Deep Dives follow it. Each step names a page and one object of the demo: a source (its row on Sources), a table (its row on Tables), a relationship (its row on Relationships, by alias), an example query (opened in a new GraphQL explorer tab and run), a statement (opened in a new SQL explorer tab and run), a REST call (driven on the OpenAPI page and run), a JSON:API request, a gRPC call or a Cypher query (each run on its own page), every one of them awaited until its answer is in, a glossary term (opened on the Glossary), a role (picked in the SQL explorer''s run-as picker when the visitor moves on, all roles again at the end), or a question for Polly, shown in the Polly panel with the answer stored for it when the demo''s template was built (REQ-2012) and nothing sent; a question with no stored answer is left out of the track. A step''s words are translated like every other tour step''s, in every language the UI speaks. A unit test holds every step''s object to the demo''s config and example queries (a REST or JSON:API path, a gRPC method and a Cypher label to the names the schema build gives the demo''s tables), every page to the right its gate needs, and every step''s words to each language. A track is the scenario (the business problem and the features it exercises), then how the demo fits together (sources, tables, commands, materialized views and relationships, those the demo has, each at its real row), then the business question asked on two or three fitting surfaces and then of Polly, one governed answer across protocols, then a recap. The weblogs demo''s track: which pages are slow and which SQL makes them slow; its three sources; the tables they become; the LOGGED_FOR relationship joining the two logs on the request id; the slowest pages as a REST call; Polly asked "Which pages are slowest, and which SQL makes them slow?", a graded question of the Polly bake-off; and a recap.'
+  use_case: 'A prospect opens the weblogs demo on a kiosk and starts the tour: it walks them through the shop''s question, its sources, tables and the join of its two logs, and Polly''s answer, then opens the tour menu.'
   scenario: 'Given the weblogs demo started for the first time in a browser
 
     When the visitor starts the tour
 
     Then the weblogs track runs, beginning at the shop''s access log on the Sources page
 
-    When it reaches the analyst step and the visitor moves on
+    When it reaches the Polly step
 
-    Then the SQL explorer runs as the analyst and the customers'' email column is gone
+    Then Polly opens on the tour''s question and the answer stored for it, and nothing is sent
 
     When the track ends
 
-    Then the Deep Dives menu opens with the track first, marked done, and the run-as picker is back on all roles'
+    Then the Deep Dives menu opens with the track first, marked done'
   related_reqs: [REQ-1945, REQ-2008, REQ-2009, REQ-1641]
-  notes: 'Maintainer approval through the lead, 2026-10-13: a use-case tour for unattended demos; a named demo gets its own story track told with its own data, shown first when that demo is open, the generic Deep Dives still available after it; the demo''s steps live with it (tour.yaml), delivered through /setup/status; the existing tour engine runs them; step text translated like other tour steps; a CI check verifies every step target exists in the demo''s config/queries. The role step uses the SQL explorer''s run-as picker (REQ-1013) rather than the app-wide role, because the explorer''s statements run as its own picker; the target kinds, the done mark per control plane and org, and "start the tour" opening the track are the implementation''s.'
+  notes: 'Maintainer approval through the lead, 2026-10-13: a use-case tour for unattended demos; a named demo gets its own story track told with its own data, shown first when that demo is open, the generic Deep Dives still available after it; the demo''s steps live with it (tour.yaml), delivered through /setup/status; the existing tour engine runs them; step text translated like other tour steps; a CI check verifies every step target exists in the demo''s config/queries. The role step uses the SQL explorer''s run-as picker (REQ-1013) rather than the app-wide role, because the explorer''s statements run as its own picker; the target kinds, the done mark per control plane and org, and "start the tour" opening the track are the implementation''s. Maintainer 2026-10-14, through the lead: the track shape (scenario, how it fits together, one Polly question, recap); the done mark versioned by the track and cleared by a fresh demo session; the Polly question answered at template build and served stored (REQ-2012), never live, left out where there is no stored answer; REST, JSON:API, gRPC and Cypher steps, the question asked on two or three of them before Polly.'
 - id: REQ-2013
   status: proposed
   since: 2026-10
@@ -83207,3 +83207,71 @@
     audit firms, tax firms, local governments). SHOULD = the first experiment set (insurance, pharma, agriculture,
     audit, tax, local government), measured by sandbox events before others are built. Lead''s elaboration: the
     questions and table choices.'
+- id: REQ-2016
+  status: in-progress
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI
+  feature: product-tour-and-demos-named-demos
+  priority: SHOULD
+  type: behavioral
+  description: 'The sonnets named demo: Shakespeare''s 154 sonnets in Postgres, embedded into Qdrant, searched
+    by meaning, grown into a graph. Its database holds a row a sonnet (number, first line, sequence: Fair Youth
+    for 1 to 126, Dark Lady for 127 to 154), a row a line (loaded from the text of Project Gutenberg eBook #1041,
+    committed with the demo), the five themes it searches for, and an echo table. The statement command embed_lines
+    writes every line''s embedding (sentence-transformers/all-MiniLM-L6-v2, a local model) to the Qdrant collection
+    sonnet_lines through embed() and the collection''s write route. The search table lines_like is read live in
+    Qdrant under its arguments (a phrase, a count). Five materialized views each store one fixed search joined
+    back to the lines it found, with its score. The python command link_echoes asks the vector store, for each
+    line, for its three nearest lines in other sonnets and writes them, with their similarity, to the echo table
+    through Provisa as the caller. Relationships make a graph: Line IN Sonnet, Line EVOKES Theme (through the
+    theme views), Line ECHOES Line (through the echo table, with its score). Its tour opens on what the demo is
+    and the question it asks -- which themes run through the sonnets, and where Shakespeare echoes himself -- says
+    in each step what Provisa does, leads with the echo network (sonnets 36 and 96 end on the same couplet) and
+    then the themes, and asks the question on two or three surfaces, Cypher for the echo network, before the
+    stored Polly answer. (SETUP:) A named demo may ship setup.yaml, an ordered list of its own commands
+    (command: <name>, called as org_admin with no arguments) and materialized-view builds (refresh: <view>),
+    run once per control plane through the API after the server is healthy, by scripts/run_demo_setup.py:
+    start-ui-install.sh runs it, and a demo''s template build runs the same list. A demo whose name is in the
+    operator setting demo.setup_completed is not set up again; the name is added when every step has succeeded,
+    and removing it sets the demo up again on its next start. The first step that fails stops the run, naming
+    the step; nothing is retried. (EXTRAS:) A named demo names in its demo.yaml the optional dependency groups
+    it needs (extras: [vector]); start-ui-install.sh installs them for that demo alone, and every other start
+    installs nothing more.'
+  use_case: 'A visitor opens the sonnets demo and sees one model take a corpus from rows to vectors to a
+    governed search to a graph: the themes the sonnets share and the lines where Shakespeare repeats himself,
+    walked in Cypher.'
+  scenario: 'Given the sonnets demo started for the first time
+
+    When the server is healthy
+
+    Then its setup embeds every line into Qdrant, links each line to its three nearest lines in other sonnets,
+    and builds the five theme views, and marks the demo set up
+
+    When the visitor runs the tour''s Cypher of the echo network
+
+    Then line 13 of sonnet 36 and line 13 of sonnet 96 echo each other with a similarity near 0.99
+
+    Given the demo started again on the same control plane
+
+    Then its setup runs nothing'
+  related_reqs: [REQ-1858, REQ-2010, REQ-2012, REQ-2001, REQ-2002, REQ-1983, REQ-2000, REQ-1586]
+  code:
+  - demo/named/sonnets/config.yaml
+  - demo/named/sonnets/echoes.py
+  - demo/named/sonnets/setup.yaml
+  - scripts/run_demo_setup.py
+  - scripts/demo_extras.py
+  - start-ui-install.sh
+  - provisa/core/settings_catalog.py
+  tests:
+  - tests/unit/test_demo_setup.py
+  - tests/unit/test_named_demo_tour.py
+  notes: 'Lead, 2026-10-14: the demo (Postgres sonnets, embed_lines, lines_like, theme MVs, link_echoes, the
+    three relationships, 4-6 example queries with a Cypher of cross-sonnet echoes); no governance or role angle.
+    Offline check: the Fair Youth / Dark Lady split does not show in unsupervised clusters, so the tour makes no
+    clustering claim and leads with the echo network. Maintainer, through the lead: setup.yaml run once per
+    control plane through the API by the launcher and the template build, marked in a deployment setting, a
+    failed step stopping the run by name with no retry; the vector extra installed only for a demo that declares
+    it. link_echoes is a python command, because Qdrant is live-only and a search table takes literal arguments
+    (no per-row search).'

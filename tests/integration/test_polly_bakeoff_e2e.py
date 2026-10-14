@@ -12,7 +12,7 @@
 
 Runs on manual dispatch only (.github/workflows/polly-bakeoff.yml), with a paid API key: it is
 marked ``requires_polly_bakeoff`` and is in no other lane. Brings the weblogs demo up on an
-isolated instance and asks Polly the same ten questions on each model in ``POLLY_BAKEOFF_MODELS``
+isolated instance and asks Polly the same eleven questions on each model in ``POLLY_BAKEOFF_MODELS``
 (comma-separated), through ``POLLY_BAKEOFF_VIA`` -- ``openrouter`` (OPENROUTER_API_KEY; model ids
 as OpenRouter names them) or ``anthropic`` (ANTHROPIC_API_KEY; Anthropic's ids).
 

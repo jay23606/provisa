@@ -16,6 +16,7 @@ from graphql import parse, validate
 from provisa.core import demo
 
 _WEBLOGS = Path(__file__).resolve().parents[2] / "demo" / "named" / "weblogs"
+_SONNETS = Path(__file__).resolve().parents[2] / "demo" / "named" / "sonnets"
 
 
 def test_a_named_demo_s_queries_are_read_in_file_name_order(tmp_path, monkeypatch):
@@ -58,14 +59,29 @@ async def test_the_setup_status_carries_them(tmp_path, monkeypatch):
 
 
 def _weblogs_views_schema():
-    """The GraphQL schema the analyst is served for the weblogs demo's views, built from the
-    demo's own config as the server builds it (the views' declared columns and types)."""
+    """The GraphQL schema the analyst is served for the weblogs demo's views."""
+    config = yaml.safe_load((_WEBLOGS / "config.yaml").read_text())
+    (role,) = [r for r in config["roles"] if r["id"] == "analyst"]
+    return _views_schema(_WEBLOGS, role)
+
+
+def _views_schema(home: Path, role: dict):
+    """The GraphQL schema ``role`` is served for a demo's views, built from the demo's own config
+    as the server builds it (the views' declared columns and types)."""
     from provisa.compiler import naming
     from provisa.compiler.introspect import ColumnMetadata
     from provisa.compiler.schema_gen import SchemaInput, generate_schema
     from provisa.core.config_loader import views_as_tables
 
-    config = views_as_tables(yaml.safe_load((_WEBLOGS / "config.yaml").read_text()))
+    from provisa.core.models import Table
+
+    raw = yaml.safe_load((home / "config.yaml").read_text())
+    # A view's GraphQL fields as the config model reads them: what it declares, else the
+    # model's own default (Table.enable_aggregates / enable_group_by).
+    fields = {
+        name: Table.model_fields[name].default for name in ("enable_aggregates", "enable_group_by")
+    }
+    config = views_as_tables(raw)
     views = [t for t in config["tables"] if "view_sql" in t]
     tables, column_types = [], {}
     for i, view in enumerate(views, start=1):
@@ -77,8 +93,7 @@ def _weblogs_views_schema():
                 "schema_name": view["schema"],
                 "table_name": view["table"],
                 "view_sql": view["view_sql"],
-                "enable_aggregates": view["enable_aggregates"],
-                "enable_group_by": view["enable_group_by"],
+                **{name: view.get(name, default) for name, default in fields.items()},
                 "columns": [
                     {"column_name": c["name"], "visible_to": c["visible_to"]}
                     for c in view["columns"]
@@ -92,7 +107,6 @@ def _weblogs_views_schema():
             ColumnMetadata(column_name=c["name"], data_type=c["data_type"], is_nullable=True)
             for c in view["columns"]
         ]
-    (role,) = [r for r in config["roles"] if r["id"] == "analyst"]
     naming.configure(gql="apollo_graphql")
     return generate_schema(
         SchemaInput(
@@ -118,4 +132,15 @@ def test_the_weblogs_demo_ships_one_example_a_view():
 def test_each_weblogs_example_is_valid_against_the_demo_s_views(path):
     # That each runs and answers rows is tests/integration/test_weblogs_demo.py's, on the demo.
     errors = validate(_weblogs_views_schema(), parse(path.read_text()))
+    assert errors == [], [e.message for e in errors]
+
+
+SONNETS_QUERIES = sorted((_SONNETS / "queries").glob("*.graphql"))
+
+
+@pytest.mark.parametrize("path", SONNETS_QUERIES, ids=[p.stem for p in SONNETS_QUERIES])
+def test_each_sonnets_example_is_valid_against_the_demo_s_views(path):
+    # REQ-2016. That each runs and answers rows is tests/integration/test_sonnets_demo.py's.
+    admin = {"id": "org_admin", "capabilities": [], "domain_access": ["*"]}
+    errors = validate(_views_schema(_SONNETS, admin), parse(path.read_text()))
     assert errors == [], [e.message for e in errors]

@@ -293,48 +293,72 @@
         "description": "🤖 The model and its relationships are available to AI agents — Polly, and agents connecting over MCP — and they shape the queries those agents write.<p>An agent runs under a role, so the same rule applies to it as to a person: a query that joins outside the registered relationships <strong>fails</strong>. This is enforced, not advisory.</p><p>It is also your choice. To let an agent discover relationships, grant its role the <code>ignore_relationships</code> right; to keep it inside guardrails, leave the role without it. It is the same deliberate grant as for a trusted identity (never honored in high-security mode).</p>"
       },
       "weblogsSources": {
-        "title": "A web shop's two logs",
-        "description": "This demo reads a small web shop's own logs as tables. <strong>shop_access</strong> is nginx's access log: one row for each request, with its path, status and time."
+        "title": "What this demo is",
+        "description": "A small web shop wants to know which pages are slow, and which SQL makes them slow. The answer is split across nginx's access log, the database's statement log and the shop's own database. The tour shows how Provisa reads log files as tables, joins them across sources and governs them by role, then puts the question to Polly."
       },
-      "weblogsDbLog": {
-        "title": "The database's log",
-        "description": "<strong>shop_db_log</strong> is the shop database's statement log: one row for each statement it ran, with how long it took. Neither log is copied or loaded first; both are read where they are."
+      "weblogsLogFiles": {
+        "title": "Three sources",
+        "description": "The shop has three sources: <strong>shop-db</strong>, its PostgreSQL database, and two log sources, <strong>shop_access</strong> and <strong>shop_db_log</strong>. Provisa reads each log file where it sits, one line to a row, and again every 30 seconds; nothing is loaded or copied first."
+      },
+      "weblogsTables": {
+        "title": "Sources become tables",
+        "description": "Each source's data is registered as tables: the shop's customers, products and orders, and one table for each log, its lines split into columns such as path, status and time. Views, saved queries over them, add the slowest pages and the SQL each request ran."
       },
       "weblogsJoin": {
         "title": "One request, two logs",
-        "description": "nginx gives every request an id, and the shop names each database connection after it. The <strong>LOGGED_FOR</strong> relationship joins each statement to the request it served on that id."
+        "description": "nginx gives every request an id, and the shop names each database connection after it. The <strong>LOGGED_FOR</strong> relationship tells Provisa to join a statement to its request on that id, so no query has to spell out the join."
       },
-      "weblogsSlowestPages": {
-        "title": "The slowest pages",
-        "description": "One of the demo's example queries, run: each path with its request count and its average and longest time, the ten slowest first. One GraphQL query groups and ranks them."
+      "weblogsRest": {
+        "title": "The same question over REST",
+        "description": "The slowest pages again, as a REST call: each path with its request count and its average and longest time. Every surface Provisa serves reads the same governed model, so REST gives the answer SQL or GraphQL would, under the same rights."
       },
-      "weblogsStatements": {
-        "title": "The SQL behind a slow page",
-        "description": "The same requests joined to their statements: for the slowest pages, each statement they ran and how long it took. This is where the time went."
+      "weblogsAsk": {
+        "title": "Ask Polly",
+        "description": "Polly, the assistant, takes the demo's question in plain words: which pages are slowest, and which SQL makes them slow? Look for the pages it names and the statements it blames; it found them by querying the tables and views you just saw."
       },
-      "weblogsDbErrors": {
-        "title": "Requests that failed in the database",
-        "description": "Requests whose statement failed, grouped by page and by the database's error code. The web log shows a 500; the database log says why."
+      "weblogsDone": {
+        "title": "What you just saw",
+        "description": "Three sources became tables, a relationship joined the two logs on a request id, and the shop's question was answered from them over REST and by Polly. Done opens the menu of the other tours."
       },
-      "weblogsCustomers": {
-        "title": "Customers, as an administrator",
-        "description": "The shop's customers, read as the administrator. Every column is there, the email address included."
+      "sonnetsIntro": {
+        "title": "Shakespeare's sonnets, by meaning",
+        "description": "Shakespeare's 154 sonnets in Postgres, embedded into Qdrant, searched by meaning, grown into a graph. The question: which themes run through the sonnets, and where does Shakespeare echo himself? <strong>sonnets</strong> is the Postgres source, a row for each sonnet and for each of its 2,155 lines."
       },
-      "weblogsAnalyst": {
-        "title": "Switch to the analyst",
-        "description": "The analyst role may not see email addresses. Next switches to it."
+      "sonnetsVectors": {
+        "title": "The vector store",
+        "description": "<strong>vectors</strong> is Qdrant. It holds a point for each line, its vector the embedding of the line's words, and Provisa reads and writes it as it does any other source."
       },
-      "weblogsCustomersMasked": {
-        "title": "Customers, as the analyst",
-        "description": "The same query as the analyst. The email column is gone: the role's rights decide what every query returns, whichever language it is written in."
+      "sonnetsLines": {
+        "title": "Every line, embedded",
+        "description": "The line table holds a row for each of the 2,155 lines. The command <strong>embed_lines</strong> is one governed SQL statement: its embed() turns each line's words into a vector, and the rows are written to Qdrant through the collection's write route."
       },
-      "weblogsRoleBack": {
-        "title": "Back to all roles",
-        "description": "Next switches back to all roles. The product tour and its Deep Dives are next."
+      "sonnetsSearch": {
+        "title": "A search by meaning",
+        "description": "<strong>lines_like</strong> is a search table: Provisa reads it live in Qdrant under the arguments the statement gives it, here a phrase and how many lines to find. Look at each line's score: how near it is to the phrase."
       },
-      "weblogsGlossary": {
-        "title": "The shop's own words",
-        "description": "The demo's glossary says what the logs mean: <strong>slow page</strong> is a kind of web request, derived from page latency. Its terms and the links between them, the shop's ontology, let anyone find the logs by what they mean rather than by column names."
+      "sonnetsThemeView": {
+        "title": "A theme, stored",
+        "description": "Each theme view stores one fixed search, joined back to the lines it found, with each line's score. This one holds the twenty lines nearest to \"the ravages of time\"; four more hold beauty, mortality, jealousy and verse that outlives death."
+      },
+      "sonnetsEchoes": {
+        "title": "Lines that echo each other",
+        "description": "The echo table. The command <strong>link_echoes</strong> asks the vector store for each line's three nearest lines in other sonnets and writes them here, each with its similarity."
+      },
+      "sonnetsGraph": {
+        "title": "A graph of the sonnets",
+        "description": "Three relationships make the tables a graph: a line is IN its sonnet, EVOKES a theme and ECHOES a line of another sonnet, with its score. Cypher walks them like any graph."
+      },
+      "sonnetsEchoNetwork": {
+        "title": "The echo network",
+        "description": "The echo network, drawn by Cypher: the lines that closely echo a line of another sonnet, and the sonnets they are in. Look for the sonnets joined by more than one echo."
+      },
+      "sonnetsThemesBySequence": {
+        "title": "Themes in the two sequences",
+        "description": "For each theme, how many of the lines it found are in the Fair Youth sonnets and how many in the Dark Lady sonnets. Look for a theme that belongs to one sequence."
+      },
+      "sonnetsDone": {
+        "title": "From rows to a graph",
+        "description": "One model took Shakespeare's lines from Postgres rows to vectors in Qdrant, to searches stored as views, to a graph where a line ECHOES other lines and EVOKES its themes. Every step was a statement or a command Provisa governs."
       }
     },
     "status": {
@@ -350,7 +374,11 @@
     "demos": {
       "weblogs": {
         "title": "The web shop's logs",
-        "summary": "The shop's web and database logs, joined: the slowest pages and the SQL behind them, the requests that failed in the database, and what an analyst may see."
+        "summary": "A web shop's question, which pages are slow and which SQL makes them slow: its sources, the tables they become, the join of its two logs, and Polly's answer."
+      },
+      "sonnets": {
+        "title": "Shakespeare's sonnets",
+        "summary": "The 154 sonnets embedded, searched by meaning and grown into a graph: the themes they share and the lines where Shakespeare echoes himself."
       }
     }
   }

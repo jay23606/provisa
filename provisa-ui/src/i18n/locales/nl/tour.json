@@ -293,48 +293,72 @@
         "description": "🤖 Het model en zijn relaties zijn beschikbaar voor AI-agents — Polly en agents die via MCP verbinden — en bepalen de query's die deze agents schrijven.<p>Een agent draait onder een rol, dus voor hem geldt dezelfde regel als voor een persoon: een query die buiten de geregistreerde relaties joint, <strong>mislukt</strong>. Dit wordt afgedwongen, niet alleen aanbevolen.</p><p>Het is ook uw keuze. Om een agent relaties te laten ontdekken, geeft u zijn rol het recht <code>ignore_relationships</code>; om hem binnen vangrails te houden, laat u de rol het recht niet hebben. Het is dezelfde bewuste toekenning als voor een vertrouwde identiteit (in de modus voor hoge beveiliging nooit van kracht).</p>"
       },
       "weblogsSources": {
-        "title": "De twee logs van een webwinkel",
-        "description": "Deze demo leest de logs van een kleine webwinkel als tabellen. <strong>shop_access</strong> is het toegangslog van nginx: één rij per verzoek, met pad, status en tijd."
+        "title": "Waar deze demo over gaat",
+        "description": "Een kleine webwinkel wil weten welke pagina's traag zijn, en welke SQL ze traag maakt. Het antwoord is verdeeld over het toegangslog van nginx, het opdrachtenlog van de database en de eigen database van de winkel. De rondleiding laat zien hoe Provisa logbestanden als tabellen leest, ze over bronnen heen koppelt en per rol beheert, en legt de vraag daarna aan Polly voor."
       },
-      "weblogsDbLog": {
-        "title": "Het log van de database",
-        "description": "<strong>shop_db_log</strong> is het opdrachtenlog van de database van de winkel: één rij per uitgevoerde opdracht, met de duur ervan. Geen van beide logs wordt eerst gekopieerd of geladen; beide worden gelezen waar ze staan."
+      "weblogsLogFiles": {
+        "title": "Drie bronnen",
+        "description": "De winkel heeft drie bronnen: <strong>shop-db</strong>, zijn PostgreSQL-database, en twee logbronnen, <strong>shop_access</strong> en <strong>shop_db_log</strong>. Provisa leest elk logbestand waar het staat, één regel per rij, en elke 30 seconden opnieuw; niets wordt eerst geladen of gekopieerd."
+      },
+      "weblogsTables": {
+        "title": "Bronnen worden tabellen",
+        "description": "De gegevens van elke bron zijn als tabellen geregistreerd: de klanten, producten en bestellingen van de winkel, en één tabel per log, met de regels opgesplitst in kolommen zoals pad, status en tijd. Views, opgeslagen query's daarop, voegen de traagste pagina's en de SQL van elke aanvraag toe."
       },
       "weblogsJoin": {
         "title": "Eén verzoek, twee logs",
-        "description": "nginx geeft elk verzoek een id, en de winkel noemt elke databaseverbinding daarnaar. De relatie <strong>LOGGED_FOR</strong> koppelt via dat id elke opdracht aan het verzoek dat ze bediende."
+        "description": "nginx geeft elk verzoek een id, en de winkel noemt elke databaseverbinding daarnaar. De relatie <strong>LOGGED_FOR</strong> laat Provisa een statement op dat id aan zijn verzoek koppelen, zodat geen enkele query de join hoeft uit te schrijven."
       },
-      "weblogsSlowestPages": {
-        "title": "De traagste pagina's",
-        "description": "Een van de voorbeeldquery's van de demo, uitgevoerd: elk pad met het aantal verzoeken en de gemiddelde en langste tijd, de tien traagste eerst. Eén GraphQL-query groepeert en rangschikt ze."
+      "weblogsRest": {
+        "title": "Dezelfde vraag via REST",
+        "description": "Nog eens de traagste pagina's, als REST-aanroep: elk pad met zijn aantal aanvragen en zijn gemiddelde en langste tijd. Elk oppervlak dat Provisa bedient leest hetzelfde beheerde model, dus REST geeft het antwoord dat SQL of GraphQL zou geven, met dezelfde rechten."
       },
-      "weblogsStatements": {
-        "title": "De SQL achter een trage pagina",
-        "description": "Dezelfde verzoeken gekoppeld aan hun opdrachten: voor de traagste pagina's elke uitgevoerde opdracht en hoe lang die duurde. Hier ging de tijd heen."
+      "weblogsAsk": {
+        "title": "Vraag het Polly",
+        "description": "Polly, de assistent, krijgt de vraag van de demo in gewone woorden: welke pagina's zijn het traagst, en welke SQL maakt ze traag? Let op de pagina's die ze noemt en de opdrachten die ze aanwijst; ze vond ze door de tabellen en views te bevragen die u net zag."
       },
-      "weblogsDbErrors": {
-        "title": "Verzoeken die in de database mislukten",
-        "description": "Verzoeken waarvan de opdracht mislukte, gegroepeerd per pagina en per foutcode van de database. Het weblog toont een 500; het databaselog zegt waarom."
+      "weblogsDone": {
+        "title": "Wat u net zag",
+        "description": "Drie bronnen werden tabellen, een relatie koppelde de twee logs op een aanvraag-id, en de vraag van de winkel werd daarmee beantwoord via REST en door Polly. Klaar opent het menu met de andere rondleidingen."
       },
-      "weblogsCustomers": {
-        "title": "Klanten, als beheerder",
-        "description": "De klanten van de winkel, gelezen als beheerder. Elke kolom is er, ook het e-mailadres."
+      "sonnetsIntro": {
+        "title": "De sonnetten van Shakespeare, op betekenis",
+        "description": "De 154 sonnetten van Shakespeare in Postgres, ingebed in Qdrant, op betekenis doorzocht, uitgegroeid tot een graaf. De vraag: welke thema's lopen door de sonnetten, en waar echoot Shakespeare zichzelf? <strong>sonnets</strong> is de Postgres-bron, een rij voor elk sonnet en voor elk van de 2.155 regels."
       },
-      "weblogsAnalyst": {
-        "title": "Overschakelen naar de analist",
-        "description": "De rol analyst mag geen e-mailadressen zien. Volgende schakelt ernaar over."
+      "sonnetsVectors": {
+        "title": "De vectoropslag",
+        "description": "<strong>vectors</strong> is Qdrant. Het houdt een punt voor elke regel, met als vector de inbedding van de woorden van de regel, en Provisa leest en schrijft het zoals elke andere bron."
       },
-      "weblogsCustomersMasked": {
-        "title": "Klanten, als analist",
-        "description": "Dezelfde query als analist. De kolom email is weg: de rechten van de rol bepalen wat elke query teruggeeft, in welke taal hij ook geschreven is."
+      "sonnetsLines": {
+        "title": "Elke regel, ingebed",
+        "description": "De tabel line heeft een rij voor elk van de 2.155 regels. Het commando <strong>embed_lines</strong> is één beheerde SQL-instructie: zijn embed() maakt van de woorden van elke regel een vector, en de rijen worden via de schrijfroute van de collectie naar Qdrant geschreven."
       },
-      "weblogsRoleBack": {
-        "title": "Terug naar alle rollen",
-        "description": "Volgende schakelt terug naar alle rollen. Daarna volgen de producttour en de Deep Dives."
+      "sonnetsSearch": {
+        "title": "Zoeken op betekenis",
+        "description": "<strong>lines_like</strong> is een zoektabel: Provisa leest hem live in Qdrant met de argumenten die de instructie hem geeft, hier een zin en hoeveel regels te vinden. Let op de score van elke regel: hoe dicht hij bij de zin ligt."
       },
-      "weblogsGlossary": {
-        "title": "De eigen woorden van de winkel",
-        "description": "De woordenlijst van de demo zegt wat de logs betekenen: <strong>slow page</strong> is een soort webverzoek, afgeleid van de paginalatentie. De termen en de verbanden ertussen, de ontologie van de winkel, laten iedereen de logs vinden op betekenis in plaats van op kolomnamen."
+      "sonnetsThemeView": {
+        "title": "Een thema, bewaard",
+        "description": "Elke themaweergave bewaart één vaste zoekopdracht, teruggekoppeld aan de regels die ze vond, met de score van elke regel. Deze houdt de twintig regels die het dichtst bij \"the ravages of time\" liggen; vier andere houden schoonheid, sterfelijkheid, jaloezie en het vers dat de dood overleeft."
+      },
+      "sonnetsEchoes": {
+        "title": "Regels die elkaar echoën",
+        "description": "De tabel echo. Het commando <strong>link_echoes</strong> vraagt de vectoropslag naar de drie dichtstbijzijnde regels van elke regel in andere sonnetten en schrijft ze hier, elk met zijn gelijkenis."
+      },
+      "sonnetsGraph": {
+        "title": "Een graaf van de sonnetten",
+        "description": "Drie relaties maken van de tabellen een graaf: een regel is IN zijn sonnet, EVOKES een thema en ECHOES een regel van een ander sonnet, met zijn score. Cypher doorloopt ze als elke graaf."
+      },
+      "sonnetsEchoNetwork": {
+        "title": "Het netwerk van echo's",
+        "description": "Het netwerk van echo's, getekend door Cypher: de regels die een regel van een ander sonnet sterk echoën, en de sonnetten waarin ze staan. Zoek de sonnetten die door meer dan één echo verbonden zijn."
+      },
+      "sonnetsThemesBySequence": {
+        "title": "Thema's in de twee reeksen",
+        "description": "Voor elk thema: hoeveel van de gevonden regels in de Fair Youth-sonnetten staan en hoeveel in de Dark Lady-sonnetten. Zoek een thema dat bij één reeks hoort."
+      },
+      "sonnetsDone": {
+        "title": "Van rijen naar een graaf",
+        "description": "Eén model bracht Shakespeares regels van Postgres-rijen naar vectoren in Qdrant, naar zoekopdrachten bewaard als weergaven, naar een graaf waarin een regel andere regels ECHOES en zijn thema's EVOKES. Elke stap was een instructie of een commando dat Provisa beheert."
       }
     },
     "status": {
@@ -350,7 +374,11 @@
     "demos": {
       "weblogs": {
         "title": "De logs van de webwinkel",
-        "summary": "Het web- en databaselog van de winkel, gekoppeld: de traagste pagina's en de SQL erachter, de verzoeken die in de database mislukten en wat een analist mag zien."
+        "summary": "De vraag van een webwinkel, welke pagina's traag zijn en welke SQL ze traag maakt: zijn bronnen, de tabellen die ze worden, de koppeling van zijn twee logs en het antwoord van Polly."
+      },
+      "sonnets": {
+        "title": "De sonnetten van Shakespeare",
+        "summary": "De 154 sonnetten ingebed, op betekenis doorzocht en uitgegroeid tot een graaf: de thema's die ze delen en de regels waarin Shakespeare zichzelf echoot."
       }
     }
   }

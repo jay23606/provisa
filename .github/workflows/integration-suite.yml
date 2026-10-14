@@ -42,7 +42,7 @@ on:
         required: false
         default: ""
       lanes:
-        description: "Lanes: all, or comma-separated (core, app, hive_s3, kafka, neo4j, datastores, isolated, e2e, cluster)"
+        description: "Lanes: all, or comma-separated (core, app, hive_s3, kafka, neo4j, datastores, isolated, e2e, vector, cluster)"
         required: false
         default: "all"
       tests:

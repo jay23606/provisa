@@ -757,6 +757,12 @@
           "cache_write": "Écriture du cache"
         }
       }
+    },
+    "demo": {
+      "setup_completed": {
+        "label": "Démos déjà configurées",
+        "help": "Les démos nommées dont la configuration a été exécutée sur ce déploiement. Une démo listée ici n'est pas reconfigurée à son démarrage ; retirez-la pour la reconfigurer au prochain démarrage."
+      }
     }
   }
 }

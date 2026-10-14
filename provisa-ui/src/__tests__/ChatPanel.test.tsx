@@ -809,3 +809,36 @@ describe("ChatPanel — tool call log (REQ-1821)", () => {
     expect(screen.getByTestId("chat-panel-tool-error-icon")).toBeInTheDocument();
   });
 });
+
+describe("ChatPanel — a tour step's stored exchange (REQ-2012)", () => {
+  it("opens on the question and its stored answer, sending nothing, and shows them once", async () => {
+    const { usePolly } = await import("../context/pollyState");
+    // An earlier test's spy on fetch may still be in place; only this test's calls count.
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    fetchSpy.mockClear();
+    const exchange = { question: "Which pages are slowest?", answer: "The **checkout** page." };
+    function TourStep() {
+      const { showExchange } = usePolly();
+      return (
+        <button type="button" onClick={() => showExchange(exchange)}>
+          show
+        </button>
+      );
+    }
+    render(
+      <>
+        <TourStep />
+        <ChatPanel />
+      </>,
+    );
+    fireEvent.click(screen.getByText("show"));
+    await waitFor(() => expect(screen.getByTestId("chat-panel")).toBeInTheDocument());
+    expect(await screen.findByText("Which pages are slowest?")).toBeInTheDocument();
+    expect(screen.getByText("checkout").tagName).toBe("STRONG"); // the answer's markdown, rendered
+    // Back to the step: the exchange is already the conversation's last, and is not added again.
+    fireEvent.click(screen.getByText("show"));
+    await waitFor(() => expect(screen.getAllByText("Which pages are slowest?")).toHaveLength(1));
+    expect(fetchMcpChatStatus).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});

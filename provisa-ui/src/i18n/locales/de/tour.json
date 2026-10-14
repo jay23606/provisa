@@ -293,48 +293,72 @@
         "description": "🤖 Das Modell und seine Beziehungen stehen KI-Agenten zur Verfügung — Polly und Agenten, die sich über MCP verbinden — und bestimmen die Abfragen, die diese Agenten schreiben.<p>Ein Agent läuft unter einer Rolle, daher gilt für ihn dieselbe Regel wie für Menschen: Eine Abfrage, die außerhalb der registrierten Beziehungen joint, <strong>schlägt fehl</strong>. Das wird durchgesetzt, nicht nur empfohlen.</p><p>Es ist auch Ihre Entscheidung. Damit ein Agent Beziehungen entdecken kann, geben Sie seiner Rolle das Recht <code>ignore_relationships</code>; für Leitplanken lassen Sie der Rolle dieses Recht weg. Es ist dieselbe bewusste Vergabe wie bei einer vertrauenswürdigen Identität (im Hochsicherheitsmodus nie wirksam).</p>"
       },
       "weblogsSources": {
-        "title": "Die zwei Logs eines Webshops",
-        "description": "Diese Demo liest die Logs eines kleinen Webshops als Tabellen. <strong>shop_access</strong> ist das Access-Log von nginx: eine Zeile je Anfrage, mit Pfad, Status und Dauer."
+        "title": "Worum es in dieser Demo geht",
+        "description": "Ein kleiner Webshop will wissen, welche Seiten langsam sind und welches SQL sie langsam macht. Die Antwort verteilt sich auf das Access-Log von nginx, das Anweisungs-Log der Datenbank und die eigene Datenbank des Shops. Die Tour zeigt, wie Provisa Logdateien als Tabellen liest, sie über Quellen hinweg verbindet und nach Rolle regelt, und stellt die Frage dann Polly."
       },
-      "weblogsDbLog": {
-        "title": "Das Log der Datenbank",
-        "description": "<strong>shop_db_log</strong> ist das Anweisungs-Log der Shop-Datenbank: eine Zeile je ausgeführter Anweisung, mit ihrer Dauer. Keines der Logs wird vorher kopiert oder geladen; beide werden dort gelesen, wo sie liegen."
+      "weblogsLogFiles": {
+        "title": "Drei Quellen",
+        "description": "Der Shop hat drei Quellen: <strong>shop-db</strong>, seine PostgreSQL-Datenbank, und zwei Log-Quellen, <strong>shop_access</strong> und <strong>shop_db_log</strong>. Provisa liest jede Logdatei dort, wo sie liegt, eine Zeile je Datensatz, und alle 30 Sekunden erneut; nichts wird vorher geladen oder kopiert."
+      },
+      "weblogsTables": {
+        "title": "Aus Quellen werden Tabellen",
+        "description": "Die Daten jeder Quelle sind als Tabellen registriert: Kunden, Produkte und Bestellungen des Shops sowie je eine Tabelle pro Log, deren Zeilen in Spalten wie Pfad, Status und Zeit zerlegt sind. Views, gespeicherte Abfragen darüber, ergänzen die langsamsten Seiten und das SQL jeder Anfrage."
       },
       "weblogsJoin": {
         "title": "Eine Anfrage, zwei Logs",
-        "description": "nginx gibt jeder Anfrage eine ID, und der Shop benennt jede Datenbankverbindung danach. Die Beziehung <strong>LOGGED_FOR</strong> verbindet über diese ID jede Anweisung mit der Anfrage, der sie diente."
+        "description": "nginx gibt jeder Anfrage eine ID, und der Shop benennt jede Datenbankverbindung danach. Die Beziehung <strong>LOGGED_FOR</strong> sagt Provisa, eine Anweisung über diese ID mit ihrer Anfrage zu verknüpfen, sodass keine Abfrage den Join ausschreiben muss."
       },
-      "weblogsSlowestPages": {
-        "title": "Die langsamsten Seiten",
-        "description": "Eine der Beispielabfragen der Demo, ausgeführt: jeder Pfad mit der Zahl seiner Anfragen und seiner mittleren und längsten Dauer, die zehn langsamsten zuerst. Eine GraphQL-Abfrage gruppiert und ordnet sie."
+      "weblogsRest": {
+        "title": "Dieselbe Frage über REST",
+        "description": "Noch einmal die langsamsten Seiten, als REST-Aufruf: jeder Pfad mit seiner Anzahl Anfragen und seiner durchschnittlichen und längsten Dauer. Jede Schnittstelle, die Provisa bedient, liest dasselbe geregelte Modell, also gibt REST die Antwort, die SQL oder GraphQL gäbe, mit denselben Rechten."
       },
-      "weblogsStatements": {
-        "title": "Das SQL hinter einer langsamen Seite",
-        "description": "Dieselben Anfragen, verbunden mit ihren Anweisungen: für die langsamsten Seiten jede ausgeführte Anweisung und ihre Dauer. Hier ist die Zeit geblieben."
+      "weblogsAsk": {
+        "title": "Polly fragen",
+        "description": "Polly, die Assistentin, bekommt die Frage der Demo in einfachen Worten: Welche Seiten sind am langsamsten, und welches SQL macht sie langsam? Achten Sie auf die Seiten, die sie nennt, und die Anweisungen, die sie verantwortlich macht; gefunden hat sie sie mit Abfragen der Tabellen und Views, die Sie gerade gesehen haben."
       },
-      "weblogsDbErrors": {
-        "title": "Anfragen, die in der Datenbank scheiterten",
-        "description": "Anfragen, deren Anweisung scheiterte, gruppiert nach Seite und Fehlercode der Datenbank. Das Web-Log zeigt einen 500er; das Datenbank-Log sagt, warum."
+      "weblogsDone": {
+        "title": "Was Sie gerade gesehen haben",
+        "description": "Drei Quellen wurden zu Tabellen, eine Beziehung verband die beiden Logs über eine Anfrage-ID, und die Frage des Shops wurde daraus über REST und von Polly beantwortet. „Fertig“ öffnet das Menü der weiteren Touren."
       },
-      "weblogsCustomers": {
-        "title": "Kunden, als Administrator",
-        "description": "Die Kunden des Shops, gelesen als Administrator. Jede Spalte ist da, auch die E-Mail-Adresse."
+      "sonnetsIntro": {
+        "title": "Shakespeares Sonette, nach Bedeutung",
+        "description": "Shakespeares 154 Sonette in Postgres, in Qdrant eingebettet, nach Bedeutung durchsucht, zu einem Graphen ausgebaut. Die Frage: Welche Themen ziehen sich durch die Sonette, und wo wiederholt sich Shakespeare selbst? <strong>sonnets</strong> ist die Postgres-Quelle, eine Zeile für jedes Sonett und für jeden seiner 2.155 Verse."
       },
-      "weblogsAnalyst": {
-        "title": "Zum Analysten wechseln",
-        "description": "Die Rolle analyst darf keine E-Mail-Adressen sehen. Weiter wechselt zu ihr."
+      "sonnetsVectors": {
+        "title": "Der Vektorspeicher",
+        "description": "<strong>vectors</strong> ist Qdrant. Es hält einen Punkt für jeden Vers, dessen Vektor die Einbettung der Worte des Verses ist, und Provisa liest und schreibt es wie jede andere Quelle."
       },
-      "weblogsCustomersMasked": {
-        "title": "Kunden, als Analyst",
-        "description": "Dieselbe Abfrage als Analyst. Die Spalte email fehlt: Die Rechte der Rolle bestimmen, was jede Abfrage liefert, in welcher Sprache sie auch geschrieben ist."
+      "sonnetsLines": {
+        "title": "Jeder Vers, eingebettet",
+        "description": "Die Tabelle line hält eine Zeile für jeden der 2.155 Verse. Der Befehl <strong>embed_lines</strong> ist eine einzige gesteuerte SQL-Anweisung: Ihr embed() macht aus den Worten jedes Verses einen Vektor, und die Zeilen werden über den Schreibweg der Sammlung in Qdrant geschrieben."
       },
-      "weblogsRoleBack": {
-        "title": "Zurück zu allen Rollen",
-        "description": "Weiter wechselt zurück zu allen Rollen. Als Nächstes kommen die Produkttour und ihre Deep Dives."
+      "sonnetsSearch": {
+        "title": "Eine Suche nach Bedeutung",
+        "description": "<strong>lines_like</strong> ist eine Suchtabelle: Provisa liest sie live in Qdrant mit den Argumenten, die die Anweisung ihr gibt, hier ein Satz und wie viele Verse zu finden sind. Achten Sie auf die Punktzahl jedes Verses: wie nah er dem Satz ist."
       },
-      "weblogsGlossary": {
-        "title": "Die eigenen Begriffe des Shops",
-        "description": "Das Glossar der Demo sagt, was die Logs bedeuten: <strong>slow page</strong> ist eine Art Webanfrage, abgeleitet aus der Seitenlatenz. Seine Begriffe und ihre Verknüpfungen, die Ontologie des Shops, lassen jeden die Logs nach ihrer Bedeutung finden statt nach Spaltennamen."
+      "sonnetsThemeView": {
+        "title": "Ein Thema, gespeichert",
+        "description": "Jede Themensicht speichert eine feste Suche, zurückverbunden mit den gefundenen Versen, mit der Punktzahl jedes Verses. Diese hält die zwanzig Verse, die \"the ravages of time\" am nächsten sind; vier weitere halten Schönheit, Sterblichkeit, Eifersucht und den Vers, der den Tod überdauert."
+      },
+      "sonnetsEchoes": {
+        "title": "Verse, die einander widerhallen",
+        "description": "Die Tabelle echo. Der Befehl <strong>link_echoes</strong> fragt den Vektorspeicher nach den drei nächsten Versen jedes Verses in anderen Sonetten und schreibt sie hierher, jeden mit seiner Ähnlichkeit."
+      },
+      "sonnetsGraph": {
+        "title": "Ein Graph der Sonette",
+        "description": "Drei Beziehungen machen die Tabellen zu einem Graphen: Ein Vers ist IN seinem Sonett, EVOKES ein Thema und ECHOES einen Vers eines anderen Sonetts, mit seiner Punktzahl. Cypher durchläuft sie wie jeden Graphen."
+      },
+      "sonnetsEchoNetwork": {
+        "title": "Das Netz der Widerhalle",
+        "description": "Das Netz der Widerhalle, von Cypher gezeichnet: die Verse, die einen Vers eines anderen Sonetts eng widerhallen, und die Sonette, in denen sie stehen. Achten Sie auf Sonette, die durch mehr als einen Widerhall verbunden sind."
+      },
+      "sonnetsThemesBySequence": {
+        "title": "Themen in den zwei Folgen",
+        "description": "Für jedes Thema, wie viele der gefundenen Verse in den Fair-Youth-Sonetten stehen und wie viele in den Dark-Lady-Sonetten. Achten Sie auf ein Thema, das zu einer Folge gehört."
+      },
+      "sonnetsDone": {
+        "title": "Von Zeilen zu einem Graphen",
+        "description": "Ein Modell brachte Shakespeares Verse von Postgres-Zeilen zu Vektoren in Qdrant, zu als Sichten gespeicherten Suchen, zu einem Graphen, in dem ein Vers andere Verse ECHOES und seine Themen EVOKES. Jeder Schritt war eine Anweisung oder ein Befehl, den Provisa steuert."
       }
     },
     "status": {
@@ -350,7 +374,11 @@
     "demos": {
       "weblogs": {
         "title": "Die Logs des Webshops",
-        "summary": "Web- und Datenbank-Log des Shops, verbunden: die langsamsten Seiten und das SQL dahinter, die in der Datenbank gescheiterten Anfragen und was ein Analyst sehen darf."
+        "summary": "Die Frage eines Webshops, welche Seiten langsam sind und welches SQL sie langsam macht: seine Quellen, die Tabellen daraus, die Verbindung seiner zwei Logs und Pollys Antwort."
+      },
+      "sonnets": {
+        "title": "Shakespeares Sonette",
+        "summary": "Die 154 Sonette eingebettet, nach Bedeutung durchsucht und zu einem Graphen ausgebaut: die Themen, die sie teilen, und die Verse, in denen Shakespeare sich selbst wiederholt."
       }
     }
   }

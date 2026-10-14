@@ -1,0 +1,60 @@
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+#
+# The sonnets demo's own tour (REQ-2010, REQ-2016): what the demo is and the question it asks, how
+# its pieces fit -- the sources, the command that embeds the lines, the search, a theme view, the
+# echoes, the relationships -- each step on a real row, then the answer: the echo network and a
+# theme view. Step kinds and checks are as tour.yaml of the weblogs demo describes them.
+steps:
+- key: sonnetsIntro
+  route: /sources
+  capability: source_registration
+  source: sonnets
+- key: sonnetsVectors
+  source: vectors
+- key: sonnetsLines
+  route: /tables
+  capability: table_registration
+  table: sonnets.line
+- key: sonnetsSearch
+  route: /sql
+  capability: query_development
+  sql: >-
+    SELECT l.sonnet_number, l.line_no, l.text, s.score
+    FROM "sonnets"."lines_like" AS s JOIN "sonnets"."line" AS l ON l.id = s.id
+    WHERE s._nf_query = 'the ravages of time' AND s._nf_k = 5
+    ORDER BY s.score DESC
+- key: sonnetsThemeView
+  route: /sql
+  capability: query_development
+  sql: >-
+    SELECT sonnet_number, line_no, text, score FROM "sonnets"."view_theme_time"
+    ORDER BY score DESC LIMIT 10
+- key: sonnetsEchoes
+  route: /tables
+  capability: table_registration
+  table: sonnets.echo
+- key: sonnetsGraph
+  route: /relationships
+  capability: create_relationship
+  relationship: ECHOES
+- key: sonnetsEchoNetwork
+  route: /graph
+  capability: query_development
+  cypher: >-
+    MATCH (s:S__Sonnet)<-[i:IN]-(a:S__Line)-[e:ECHOES]->(b:S__Line)-[j:IN]->(t:S__Sonnet)
+    WHERE e.score > 0.75 RETURN s, i, a, e, b, j, t
+- key: sonnetsThemesBySequence
+  route: /query
+  capability: query_development
+  example: 4-themes-by-sequence
+- key: sonnetsDone
+  route: /relationships
+  capability: create_relationship
+  relationship: EVOKES

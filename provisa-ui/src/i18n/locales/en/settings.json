@@ -757,6 +757,12 @@
           "cache_write": "Cache write"
         }
       }
+    },
+    "demo": {
+      "setup_completed": {
+        "label": "Demos already set up",
+        "help": "The named demos whose setup has run against this deployment. A demo listed here is not set up again when it starts; remove it to set it up again on its next start."
+      }
     }
   }
 }

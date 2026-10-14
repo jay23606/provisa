@@ -1,0 +1,24 @@
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+#
+# What the sonnets demo runs once, in order, after the server is up (REQ-2016;
+# scripts/run_demo_setup.py, which start-ui-install.sh and the demo's template build both call):
+#
+#   command  a command of config.yaml, called as org_admin with no arguments
+#   refresh  a view of config.yaml with materialize: true, whose stored rows are built
+#
+# The first step that fails stops the run, naming the step.
+steps:
+- command: embed_lines
+- command: link_echoes
+- refresh: theme_time
+- refresh: theme_beauty
+- refresh: theme_mortality
+- refresh: theme_jealousy
+- refresh: theme_verse

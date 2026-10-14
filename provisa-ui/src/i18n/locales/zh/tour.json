@@ -293,48 +293,72 @@
         "description": "🤖 模型及其关系对 AI 智能体开放——包括 Polly 和通过 MCP 连接的智能体——并决定这些智能体编写的查询。<p>智能体在某个角色下运行，因此适用与人相同的规则：在已注册关系之外做连接的查询会<strong>失败</strong>。这是强制执行的，而不只是建议。</p><p>这也由你决定。想让智能体发现关系，就把 <code>ignore_relationships</code> 权限授予它的角色；想把它限制在护栏之内，就不要授予。这与授予可信身份的有意授权相同（高安全模式下永不生效）。</p>"
       },
       "weblogsSources": {
-        "title": "一家网店的两份日志",
-        "description": "本演示把一家小型网店自己的日志当作表来读。<strong>shop_access</strong> 是 nginx 的访问日志：每个请求一行，包含路径、状态和耗时。"
+        "title": "这个演示是什么",
+        "description": "一家小型网店想知道哪些页面慢，是哪些 SQL 让它们变慢。答案分散在 nginx 的访问日志、数据库的语句日志和网店自己的数据库中。本导览展示 Provisa 如何把日志文件当作表读取、跨数据源关联并按角色管控，然后把这个问题交给 Polly。"
       },
-      "weblogsDbLog": {
-        "title": "数据库的日志",
-        "description": "<strong>shop_db_log</strong> 是网店数据库的语句日志：每条执行过的语句一行，包含其耗时。两份日志都不会事先复制或加载，而是在原处读取。"
+      "weblogsLogFiles": {
+        "title": "三个数据源",
+        "description": "网店有三个数据源：<strong>shop-db</strong>，即它的 PostgreSQL 数据库，以及两个日志数据源 <strong>shop_access</strong> 和 <strong>shop_db_log</strong>。Provisa 在原处读取每个日志文件，一行即一条记录，并每 30 秒再读一次；事先不加载也不复制任何内容。"
+      },
+      "weblogsTables": {
+        "title": "数据源变成表",
+        "description": "每个数据源的数据都注册为表：网店的客户、产品和订单，以及每份日志各一张表，其行被拆分为路径、状态和耗时等列。视图是基于这些表保存的查询，补充了最慢的页面以及每个请求执行的 SQL。"
       },
       "weblogsJoin": {
         "title": "一个请求，两份日志",
-        "description": "nginx 为每个请求分配一个 id，网店用它命名每个数据库连接。关系 <strong>LOGGED_FOR</strong> 按这个 id 把每条语句连接到它所服务的请求。"
+        "description": "nginx 为每个请求分配一个 id，网店用它为每个数据库连接命名。<strong>LOGGED_FOR</strong> 关系告诉 Provisa 按这个 id 把语句关联到它的请求，因此任何查询都无需写出关联。"
       },
-      "weblogsSlowestPages": {
-        "title": "最慢的页面",
-        "description": "运行了本演示的一个示例查询：每个路径的请求数以及平均和最长耗时，最慢的十个排在前面。一个 GraphQL 查询完成分组和排序。"
+      "weblogsRest": {
+        "title": "通过 REST 问同一个问题",
+        "description": "再次查看最慢的页面，这次是一次 REST 调用：每个路径及其请求数、平均耗时和最长耗时。Provisa 提供的每个接口都读取同一个受管控的模型，因此在相同权限下，REST 给出的答案与 SQL 或 GraphQL 相同。"
       },
-      "weblogsStatements": {
-        "title": "慢页面背后的 SQL",
-        "description": "把同样的请求与其语句连接：对最慢的页面，列出它们执行的每条语句及耗时。时间就花在这里。"
+      "weblogsAsk": {
+        "title": "问 Polly",
+        "description": "助手 Polly 以平实的语言接收演示的问题：哪些页面最慢，是哪些 SQL 让它们变慢？请留意它指出的页面和它归咎的语句；它是通过查询您刚才看到的表和视图找到的。"
       },
-      "weblogsDbErrors": {
-        "title": "在数据库中失败的请求",
-        "description": "语句失败的请求，按页面和数据库错误代码分组。Web 日志显示 500；数据库日志说明原因。"
+      "weblogsDone": {
+        "title": "您刚才看到的",
+        "description": "三个数据源变成了表，一个关系按请求 id 关联了两份日志，网店的问题据此由 REST 和 Polly 作答。“完成”会打开其他导览的菜单。"
       },
-      "weblogsCustomers": {
-        "title": "客户，以管理员身份",
-        "description": "以管理员身份读取网店的客户。所有列都在，包括电子邮件地址。"
+      "sonnetsIntro": {
+        "title": "按意义读莎士比亚十四行诗",
+        "description": "莎士比亚的154首十四行诗存于 Postgres，在 Qdrant 中转成向量，按意义搜索，长成一张图。问题是：哪些主题贯穿这些十四行诗，莎士比亚又在哪里呼应自己？<strong>sonnets</strong> 是 Postgres 源，每首诗一行，2,155 个诗行各一行。"
       },
-      "weblogsAnalyst": {
-        "title": "切换到分析员",
-        "description": "analyst 角色不能查看电子邮件地址。点击“下一步”切换到该角色。"
+      "sonnetsVectors": {
+        "title": "向量存储",
+        "description": "<strong>vectors</strong> 是 Qdrant。它为每个诗行保存一个点，其向量是该行文字的嵌入；Provisa 像读写其他源一样读写它。"
       },
-      "weblogsCustomersMasked": {
-        "title": "客户，以分析员身份",
-        "description": "以分析员身份运行同一查询。email 列不见了：无论用哪种语言编写查询，返回什么都由角色的权限决定。"
+      "sonnetsLines": {
+        "title": "每一行，都成向量",
+        "description": "line 表为 2,155 个诗行各保存一条记录。命令 <strong>embed_lines</strong> 是一条受治理的 SQL 语句：它的 embed() 把每行文字变成向量，记录经由集合的写入路径写入 Qdrant。"
       },
-      "weblogsRoleBack": {
-        "title": "回到所有角色",
-        "description": "点击“下一步”回到所有角色。接下来是产品导览及其 Deep Dives。"
+      "sonnetsSearch": {
+        "title": "按意义搜索",
+        "description": "<strong>lines_like</strong> 是一张搜索表：Provisa 按语句给出的参数在 Qdrant 中实时读取它，这里是一个短语和要找的行数。请看每行的得分：它与短语有多接近。"
       },
-      "weblogsGlossary": {
-        "title": "网店自己的术语",
-        "description": "本演示的术语表说明日志的含义：<strong>slow page</strong> 是一种 Web 请求，由页面延迟推导而来。这些术语及其之间的联系，也就是网店的本体，让任何人都能按含义而不是按列名找到日志。"
+      "sonnetsThemeView": {
+        "title": "保存下来的主题",
+        "description": "每个主题视图保存一次固定的搜索，并连回它找到的诗行，附上每行的得分。这个视图保存最接近 \"the ravages of time\" 的二十行；另外四个保存美、死亡、嫉妒和超越死亡的诗。"
+      },
+      "sonnetsEchoes": {
+        "title": "彼此呼应的诗行",
+        "description": "echo 表。命令 <strong>link_echoes</strong> 向向量存储询问每行在其他诗中最接近的三行，并把它们连同相似度写在这里。"
+      },
+      "sonnetsGraph": {
+        "title": "十四行诗的图",
+        "description": "三个关系把这些表变成一张图：诗行 IN 它的诗，EVOKES 一个主题，并 ECHOES 另一首诗的诗行（带得分）。Cypher 像遍历任何图一样遍历它们。"
+      },
+      "sonnetsEchoNetwork": {
+        "title": "呼应网络",
+        "description": "由 Cypher 画出的呼应网络：紧密呼应另一首诗中某一行的诗行，以及它们所在的诗。请找出由不止一处呼应连在一起的诗。"
+      },
+      "sonnetsThemesBySequence": {
+        "title": "两个组诗中的主题",
+        "description": "对每个主题，它找到的诗行有多少在 Fair Youth 组诗中、多少在 Dark Lady 组诗中。请找出只属于一个组诗的主题。"
+      },
+      "sonnetsDone": {
+        "title": "从记录到图",
+        "description": "一个模型把莎士比亚的诗行从 Postgres 记录带到 Qdrant 中的向量，再到保存为视图的搜索，最后到一张图：诗行 ECHOES 其他诗行，并 EVOKES 它的主题。每一步都是 Provisa 治理的语句或命令。"
       }
     },
     "status": {
@@ -350,7 +374,11 @@
     "demos": {
       "weblogs": {
         "title": "网店的日志",
-        "summary": "网店的 Web 日志与数据库日志连接在一起：最慢的页面及其背后的 SQL、在数据库中失败的请求，以及分析员能看到的内容。"
+        "summary": "一家网店的问题：哪些页面慢，是哪些 SQL 让它们变慢。它的数据源、由此而来的表、两份日志的关联，以及 Polly 的回答。"
+      },
+      "sonnets": {
+        "title": "莎士比亚十四行诗",
+        "summary": "154首十四行诗被转成向量、按意义搜索并长成一张图：它们共有的主题，以及莎士比亚自我呼应的诗行。"
       }
     }
   }

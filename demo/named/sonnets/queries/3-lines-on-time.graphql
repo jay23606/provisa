@@ -1,0 +1,10 @@
+# The lines nearest in meaning to "the ravages of time", as the stored theme view holds them,
+# nearest first.
+query LinesOnTime {
+  s__viewThemeTime(order_by: [{ score: desc }], limit: 10) {
+    score
+    sonnetNumber
+    lineNo
+    text
+  }
+}

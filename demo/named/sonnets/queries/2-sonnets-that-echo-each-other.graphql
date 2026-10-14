@@ -1,0 +1,17 @@
+# The pairs of sonnets whose lines echo each other most: how many echoes run between them and how
+# near they are on average, the most echoes first.
+query SonnetsThatEchoEachOther {
+  s__viewEchoLinesGroupBy(
+    by: [sonnet, echoSonnet]
+    order_by: [{ aggregate: { count: desc } }, { aggregate: { avg: { score: desc } } }]
+    limit: 10
+  ) {
+    groupKey
+    aggregate {
+      count
+      avg {
+        score
+      }
+    }
+  }
+}

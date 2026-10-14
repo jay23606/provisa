@@ -32,7 +32,10 @@ REPO = Path(__file__).resolve().parents[2]
 
 # The selectors scripts/test-all uses, by name. The base exclusions are folded in because a CLI -m
 # replaces the ini addopts -m.
-_BASE = "not packaging and not cluster and not isolated and not requires_warehouse"
+_BASE = (
+    "not packaging and not cluster and not isolated and not requires_warehouse "
+    "and not requires_vector"
+)
 _KAFKA = "requires_kafka or requires_debezium"
 _DATASTORE = "requires_elasticsearch or requires_sparql or requires_mongodb or requires_prometheus"
 _HIVE_S3 = "requires_hive_s3"
@@ -64,6 +67,14 @@ LANES: dict[str, Lane] = {
     # deselected by unit-tests.yml's addopts and run only here.
     "isolated": Lane(("tests",), "isolated", clear_addopts=True, ignore=("tests/e2e",)),
     "e2e": Lane(("tests/e2e",), "e2e and not cluster", clear_addopts=True),
+    # REQ-2016: the tests that embed with a local sentence-transformers model (the vector extra,
+    # with CPU-only torch): their own job installs it (scripts/ci/lanes/suite-prepare.sh vector), so no
+    # other lane pays for torch.
+    "vector": Lane(
+        _SUITE,
+        "requires_vector and not packaging and not cluster and not isolated "
+        "and not requires_warehouse",
+    ),
     "cluster": Lane(("tests/e2e/test_helm_minikube.py",), "cluster", clear_addopts=True),
     # Live cloud services: nightly and on demand, with the credentials from repo secrets. A live
     # test runs in CI only in a lane whose job declares its secrets and checks they are present
@@ -115,6 +126,7 @@ SUITE: dict[str, tuple[int, int]] = {
     "datastores": (1, 90),
     "isolated": (1, 90),
     "e2e": (1, 120),
+    "vector": (1, 90),
 }
 
 

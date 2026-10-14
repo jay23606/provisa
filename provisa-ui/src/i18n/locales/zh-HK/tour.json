@@ -293,48 +293,72 @@
         "description": "🤖 模型及其關係對 AI 智能體開放——包括 Polly 和透過 MCP 連接的智能體——並決定這些智能體撰寫的查詢。<p>智能體在某個角色下運行，因此適用與人相同的規則：在已註冊關係之外做連接的查詢會<strong>失敗</strong>。這是強制執行的，而不只是建議。</p><p>這也由你決定。想讓智能體發現關係，就把 <code>ignore_relationships</code> 權限授予它的角色；想把它限制在防護欄之內，就不要授予。這與授予可信身份的有意授權相同（高安全模式下永不生效）。</p>"
       },
       "weblogsSources": {
-        "title": "一間網店的兩份日誌",
-        "description": "本示範把一間小型網店自己的日誌當作表來讀。<strong>shop_access</strong> 是 nginx 的存取日誌：每個請求一行，包含路徑、狀態和耗時。"
+        "title": "這個示範是甚麼",
+        "description": "一家小型網店想知道哪些頁面慢，是哪些 SQL 令它們變慢。答案分散在 nginx 的存取日誌、資料庫的語句日誌和網店自己的資料庫中。本導覽展示 Provisa 如何把日誌檔案當作表讀取、跨資料來源關聯並按角色管控，然後把這個問題交給 Polly。"
       },
-      "weblogsDbLog": {
-        "title": "資料庫的日誌",
-        "description": "<strong>shop_db_log</strong> 是網店資料庫的語句日誌：每條執行過的語句一行，包含其耗時。兩份日誌都不會預先複製或載入，而是在原處讀取。"
+      "weblogsLogFiles": {
+        "title": "三個資料來源",
+        "description": "網店有三個資料來源：<strong>shop-db</strong>，即它的 PostgreSQL 資料庫，以及兩個日誌資料來源 <strong>shop_access</strong> 和 <strong>shop_db_log</strong>。Provisa 在原處讀取每個日誌檔案，一行即一條記錄，並每 30 秒再讀一次；事先不載入也不複製任何內容。"
+      },
+      "weblogsTables": {
+        "title": "資料來源變成表",
+        "description": "每個資料來源的數據都登記為表：網店的客戶、產品和訂單，以及每份日誌各一張表，其行被拆分為路徑、狀態和耗時等欄。檢視是基於這些表儲存的查詢，補充了最慢的頁面以及每個請求執行的 SQL。"
       },
       "weblogsJoin": {
         "title": "一個請求，兩份日誌",
-        "description": "nginx 為每個請求分配一個 id，網店用它命名每個資料庫連線。關係 <strong>LOGGED_FOR</strong> 按這個 id 把每條語句連接到它所服務的請求。"
+        "description": "nginx 為每個請求分配一個 id，網店用它為每個資料庫連線命名。<strong>LOGGED_FOR</strong> 關係告訴 Provisa 按這個 id 把語句關聯到它的請求，因此任何查詢都無需寫出關聯。"
       },
-      "weblogsSlowestPages": {
-        "title": "最慢的頁面",
-        "description": "執行了本示範的一個範例查詢：每個路徑的請求數以及平均和最長耗時，最慢的十個排在前面。一個 GraphQL 查詢完成分組和排序。"
+      "weblogsRest": {
+        "title": "透過 REST 問同一個問題",
+        "description": "再次查看最慢的頁面，這次是一次 REST 呼叫：每個路徑及其請求數、平均耗時和最長耗時。Provisa 提供的每個介面都讀取同一個受管控的模型，因此在相同權限下，REST 給出的答案與 SQL 或 GraphQL 相同。"
       },
-      "weblogsStatements": {
-        "title": "慢頁面背後的 SQL",
-        "description": "把同樣的請求與其語句連接：對最慢的頁面，列出它們執行的每條語句及耗時。時間就花在這裏。"
+      "weblogsAsk": {
+        "title": "問 Polly",
+        "description": "助手 Polly 以淺白的語言接收示範的問題：哪些頁面最慢，是哪些 SQL 令它們變慢？請留意它指出的頁面和它歸咎的語句；它是透過查詢你剛才看到的表和檢視找到的。"
       },
-      "weblogsDbErrors": {
-        "title": "在資料庫中失敗的請求",
-        "description": "語句失敗的請求，按頁面和資料庫錯誤代碼分組。Web 日誌顯示 500；資料庫日誌說明原因。"
+      "weblogsDone": {
+        "title": "你剛才看到的",
+        "description": "三個資料來源變成了表，一個關係按請求 id 關聯了兩份日誌，網店的問題據此由 REST 和 Polly 作答。「完成」會開啟其他導覽的選單。"
       },
-      "weblogsCustomers": {
-        "title": "客戶，以管理員身份",
-        "description": "以管理員身份讀取網店的客戶。所有欄都在，包括電郵地址。"
+      "sonnetsIntro": {
+        "title": "按意義讀莎士比亞十四行詩",
+        "description": "莎士比亞的154首十四行詩存於 Postgres，在 Qdrant 中轉成向量，按意義搜尋，長成一張圖。問題是：哪些主題貫穿這些十四行詩，莎士比亞又在哪裏呼應自己？<strong>sonnets</strong> 是 Postgres 來源，每首詩一行，2,155 個詩行各一行。"
       },
-      "weblogsAnalyst": {
-        "title": "切換到分析員",
-        "description": "analyst 角色不能查看電郵地址。按「下一步」切換到該角色。"
+      "sonnetsVectors": {
+        "title": "向量儲存",
+        "description": "<strong>vectors</strong> 是 Qdrant。它為每個詩行保存一個點，其向量是該行文字的嵌入；Provisa 像讀寫其他來源一樣讀寫它。"
       },
-      "weblogsCustomersMasked": {
-        "title": "客戶，以分析員身份",
-        "description": "以分析員身份執行同一查詢。email 欄不見了：無論用哪種語言編寫查詢，傳回甚麼都由角色的權限決定。"
+      "sonnetsLines": {
+        "title": "每一行，都成向量",
+        "description": "line 表為 2,155 個詩行各保存一條記錄。指令 <strong>embed_lines</strong> 是一條受治理的 SQL 語句：它的 embed() 把每行文字變成向量，記錄經由集合的寫入路徑寫入 Qdrant。"
       },
-      "weblogsRoleBack": {
-        "title": "回到所有角色",
-        "description": "按「下一步」回到所有角色。接着是產品導覽及其 Deep Dives。"
+      "sonnetsSearch": {
+        "title": "按意義搜尋",
+        "description": "<strong>lines_like</strong> 是一張搜尋表：Provisa 按語句給出的參數在 Qdrant 中即時讀取它，這裏是一個短語和要找的行數。請看每行的分數：它與短語有多接近。"
       },
-      "weblogsGlossary": {
-        "title": "網店自己的術語",
-        "description": "本示範的術語表說明日誌的含義：<strong>slow page</strong> 是一種 Web 請求，由頁面延遲推導而來。這些術語及其之間的聯繫，也就是網店的本體，讓任何人都能按含義而不是按欄名找到日誌。"
+      "sonnetsThemeView": {
+        "title": "保存下來的主題",
+        "description": "每個主題檢視保存一次固定的搜尋，並連回它找到的詩行，附上每行的分數。這個檢視保存最接近 \"the ravages of time\" 的二十行；另外四個保存美、死亡、嫉妒和超越死亡的詩。"
+      },
+      "sonnetsEchoes": {
+        "title": "彼此呼應的詩行",
+        "description": "echo 表。指令 <strong>link_echoes</strong> 向向量儲存詢問每行在其他詩中最接近的三行，並把它們連同相似度寫在這裏。"
+      },
+      "sonnetsGraph": {
+        "title": "十四行詩的圖",
+        "description": "三個關係把這些表變成一張圖：詩行 IN 它的詩，EVOKES 一個主題，並 ECHOES 另一首詩的詩行（附分數）。Cypher 像走訪任何圖一樣走訪它們。"
+      },
+      "sonnetsEchoNetwork": {
+        "title": "呼應網絡",
+        "description": "由 Cypher 畫出的呼應網絡：緊密呼應另一首詩中某一行的詩行，以及它們所在的詩。請找出由不止一處呼應連在一起的詩。"
+      },
+      "sonnetsThemesBySequence": {
+        "title": "兩個組詩中的主題",
+        "description": "對每個主題，它找到的詩行有多少在 Fair Youth 組詩中、多少在 Dark Lady 組詩中。請找出只屬於一個組詩的主題。"
+      },
+      "sonnetsDone": {
+        "title": "從記錄到圖",
+        "description": "一個模型把莎士比亞的詩行從 Postgres 記錄帶到 Qdrant 中的向量，再到保存為檢視的搜尋，最後到一張圖：詩行 ECHOES 其他詩行，並 EVOKES 它的主題。每一步都是 Provisa 治理的語句或指令。"
       }
     },
     "status": {
@@ -350,7 +374,11 @@
     "demos": {
       "weblogs": {
         "title": "網店的日誌",
-        "summary": "網店的 Web 日誌與資料庫日誌連接在一起：最慢的頁面及其背後的 SQL、在資料庫中失敗的請求，以及分析員能看到的內容。"
+        "summary": "一家網店的問題：哪些頁面慢，是哪些 SQL 令它們變慢。它的資料來源、由此而來的表、兩份日誌的關聯，以及 Polly 的回答。"
+      },
+      "sonnets": {
+        "title": "莎士比亞十四行詩",
+        "summary": "154首十四行詩被轉成向量、按意義搜尋並長成一張圖：它們共有的主題，以及莎士比亞自我呼應的詩行。"
       }
     }
   }

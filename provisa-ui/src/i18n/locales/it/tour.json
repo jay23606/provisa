@@ -293,48 +293,72 @@
         "description": "🤖 Il modello e le sue relazioni sono disponibili agli agenti IA — Polly e gli agenti che si connettono via MCP — e determinano le query che questi agenti scrivono.<p>Un agente opera sotto un ruolo, quindi vale la stessa regola che per una persona: una query che fa join fuori dalle relazioni registrate <strong>fallisce</strong>. È applicata, non solo consigliata.</p><p>È anche una tua scelta. Per far scoprire relazioni a un agente, concedi al suo ruolo il diritto <code>ignore_relationships</code>; per tenerlo entro i guardrail, lascia il ruolo senza. È la stessa concessione deliberata prevista per un'identità fidata (mai valida in modalità ad alta sicurezza).</p>"
       },
       "weblogsSources": {
-        "title": "I due log di un negozio online",
-        "description": "Questa demo legge come tabelle i log di un piccolo negozio online. <strong>shop_access</strong> è il log degli accessi di nginx: una riga per ogni richiesta, con percorso, stato e tempo."
+        "title": "Di cosa tratta questa demo",
+        "description": "Un piccolo negozio online vuole sapere quali pagine sono lente e quale SQL le rende lente. La risposta è divisa tra il log di accesso di nginx, il log delle istruzioni del database e il database del negozio stesso. Il tour mostra come Provisa legge i file di log come tabelle, li unisce tra fonti diverse e li governa per ruolo, poi pone la domanda a Polly."
       },
-      "weblogsDbLog": {
-        "title": "Il log del database",
-        "description": "<strong>shop_db_log</strong> è il log delle istruzioni del database del negozio: una riga per ogni istruzione eseguita, con la sua durata. Nessuno dei due log viene copiato o caricato prima; entrambi sono letti dove si trovano."
+      "weblogsLogFiles": {
+        "title": "Tre fonti",
+        "description": "Il negozio ha tre fonti: <strong>shop-db</strong>, il suo database PostgreSQL, e due fonti di log, <strong>shop_access</strong> e <strong>shop_db_log</strong>. Provisa legge ogni file di log dove si trova, una riga per record, e di nuovo ogni 30 secondi; nulla viene caricato o copiato prima."
+      },
+      "weblogsTables": {
+        "title": "Le fonti diventano tabelle",
+        "description": "I dati di ogni fonte sono registrati come tabelle: clienti, prodotti e ordini del negozio, e una tabella per ogni log, con le righe divise in colonne come percorso, stato e tempo. Le viste, query salvate su di esse, aggiungono le pagine più lente e l'SQL eseguito da ogni richiesta."
       },
       "weblogsJoin": {
         "title": "Una richiesta, due log",
-        "description": "nginx assegna un id a ogni richiesta e il negozio dà quel nome a ogni connessione al database. La relazione <strong>LOGGED_FOR</strong> collega con quell'id ogni istruzione alla richiesta che ha servito."
+        "description": "nginx assegna un id a ogni richiesta, e il negozio dà quel nome a ogni connessione al database. La relazione <strong>LOGGED_FOR</strong> dice a Provisa di unire un'istruzione alla sua richiesta su quell'id, così nessuna query deve scrivere il join."
       },
-      "weblogsSlowestPages": {
-        "title": "Le pagine più lente",
-        "description": "Una delle query di esempio della demo, eseguita: ogni percorso con il numero di richieste e il tempo medio e massimo, prima le dieci più lente. Un'unica query GraphQL le raggruppa e le ordina."
+      "weblogsRest": {
+        "title": "La stessa domanda via REST",
+        "description": "Di nuovo le pagine più lente, come chiamata REST: ogni percorso con il suo numero di richieste e il suo tempo medio e più lungo. Ogni superficie servita da Provisa legge lo stesso modello governato, quindi REST dà la risposta che darebbero SQL o GraphQL, con gli stessi diritti."
       },
-      "weblogsStatements": {
-        "title": "L'SQL dietro una pagina lenta",
-        "description": "Le stesse richieste collegate alle loro istruzioni: per le pagine più lente, ogni istruzione eseguita e quanto è durata. Ecco dove è andato il tempo."
+      "weblogsAsk": {
+        "title": "Chiedere a Polly",
+        "description": "Polly, l'assistente, riceve la domanda della demo in parole semplici: quali pagine sono le più lente e quale SQL le rende lente? Osservi le pagine che nomina e le istruzioni che indica; le ha trovate interrogando le tabelle e le viste appena viste."
       },
-      "weblogsDbErrors": {
-        "title": "Richieste fallite nel database",
-        "description": "Le richieste la cui istruzione è fallita, raggruppate per pagina e per codice di errore del database. Il log web mostra un 500; quello del database dice perché."
+      "weblogsDone": {
+        "title": "Cosa ha appena visto",
+        "description": "Tre fonti sono diventate tabelle, una relazione ha unito i due log su un id di richiesta, e la domanda del negozio ha avuto risposta da esse via REST e da Polly. Fine apre il menu degli altri tour."
       },
-      "weblogsCustomers": {
-        "title": "Clienti, come amministratore",
-        "description": "I clienti del negozio, letti come amministratore. Ci sono tutte le colonne, compreso l'indirizzo email."
+      "sonnetsIntro": {
+        "title": "I sonetti di Shakespeare, per significato",
+        "description": "I 154 sonetti di Shakespeare in Postgres, trasformati in vettori in Qdrant, cercati per significato, cresciuti in un grafo. La domanda: quali temi attraversano i sonetti, e dove Shakespeare fa eco a se stesso? <strong>sonnets</strong> è la sorgente Postgres, una riga per ogni sonetto e per ciascuno dei suoi 2.155 versi."
       },
-      "weblogsAnalyst": {
-        "title": "Passa all'analista",
-        "description": "Il ruolo analyst non può vedere gli indirizzi email. Avanti passa a quel ruolo."
+      "sonnetsVectors": {
+        "title": "L'archivio di vettori",
+        "description": "<strong>vectors</strong> è Qdrant. Tiene un punto per ogni verso, il cui vettore è l'embedding delle parole del verso, e Provisa lo legge e lo scrive come qualsiasi altra sorgente."
       },
-      "weblogsCustomersMasked": {
-        "title": "Clienti, come analista",
-        "description": "La stessa query come analista. La colonna email è sparita: i diritti del ruolo decidono cosa restituisce ogni query, in qualunque linguaggio sia scritta."
+      "sonnetsLines": {
+        "title": "Ogni verso, in un vettore",
+        "description": "La tabella line ha una riga per ciascuno dei 2.155 versi. Il comando <strong>embed_lines</strong> è un'unica istruzione SQL governata: il suo embed() trasforma le parole di ogni verso in un vettore, e le righe sono scritte in Qdrant tramite il percorso di scrittura della collezione."
       },
-      "weblogsRoleBack": {
-        "title": "Torna a tutti i ruoli",
-        "description": "Avanti torna a tutti i ruoli. Seguono il tour del prodotto e i suoi Deep Dives."
+      "sonnetsSearch": {
+        "title": "Una ricerca per significato",
+        "description": "<strong>lines_like</strong> è una tabella di ricerca: Provisa la legge dal vivo in Qdrant con gli argomenti che l'istruzione le dà, qui una frase e quanti versi trovare. Guardate il punteggio di ogni verso: quanto è vicino alla frase."
       },
-      "weblogsGlossary": {
-        "title": "Le parole del negozio",
-        "description": "Il glossario della demo dice cosa significano i log: <strong>slow page</strong> è un tipo di richiesta web, derivato dalla latenza della pagina. I suoi termini e i legami tra loro, l'ontologia del negozio, permettono a chiunque di trovare i log per significato invece che per nomi di colonna."
+      "sonnetsThemeView": {
+        "title": "Un tema, conservato",
+        "description": "Ogni vista di tema conserva una ricerca fissa, ricollegata ai versi che ha trovato, con il punteggio di ogni verso. Questa tiene i venti versi più vicini a \"the ravages of time\"; altre quattro tengono la bellezza, la mortalità, la gelosia e il verso che sopravvive alla morte."
+      },
+      "sonnetsEchoes": {
+        "title": "Versi che si fanno eco",
+        "description": "La tabella echo. Il comando <strong>link_echoes</strong> chiede all'archivio di vettori i tre versi più vicini di ogni verso in altri sonetti e li scrive qui, ciascuno con la sua somiglianza."
+      },
+      "sonnetsGraph": {
+        "title": "Un grafo dei sonetti",
+        "description": "Tre relazioni fanno delle tabelle un grafo: un verso è IN il suo sonetto, EVOKES un tema ed ECHOES un verso di un altro sonetto, con il suo punteggio. Cypher le percorre come qualsiasi grafo."
+      },
+      "sonnetsEchoNetwork": {
+        "title": "La rete degli echi",
+        "description": "La rete degli echi, disegnata da Cypher: i versi che fanno da vicino eco a un verso di un altro sonetto, e i sonetti in cui si trovano. Cercate i sonetti uniti da più di un eco."
+      },
+      "sonnetsThemesBySequence": {
+        "title": "I temi nelle due sequenze",
+        "description": "Per ogni tema, quanti dei versi trovati sono nei sonetti del Fair Youth e quanti in quelli della Dark Lady. Cercate un tema che appartiene a una sola sequenza."
+      },
+      "sonnetsDone": {
+        "title": "Dalle righe a un grafo",
+        "description": "Un solo modello ha portato i versi di Shakespeare dalle righe di Postgres ai vettori in Qdrant, a ricerche conservate come viste, a un grafo in cui un verso ECHOES altri versi ed EVOKES i suoi temi. Ogni passo è stato un'istruzione o un comando che Provisa governa."
       }
     },
     "status": {
@@ -350,7 +374,11 @@
     "demos": {
       "weblogs": {
         "title": "I log del negozio online",
-        "summary": "I log web e del database del negozio, collegati: le pagine più lente e l'SQL che le spiega, le richieste fallite nel database e cosa può vedere un analista."
+        "summary": "La domanda di un negozio online, quali pagine sono lente e quale SQL le rende lente: le sue fonti, le tabelle che diventano, l'unione dei suoi due log e la risposta di Polly."
+      },
+      "sonnets": {
+        "title": "I sonetti di Shakespeare",
+        "summary": "I 154 sonetti trasformati in vettori, cercati per significato e cresciuti in un grafo: i temi che condividono e i versi in cui Shakespeare fa eco a se stesso."
       }
     }
   }
