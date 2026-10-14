@@ -78,6 +78,15 @@ def _as_aware(value: datetime.datetime) -> datetime.datetime:
     return value
 
 
+class TokenNameTaken(ValueError):
+    """A name one of the owner's live tokens in the org already has: a token is told apart, and
+    revoked, by its name."""
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        super().__init__(f"A token named {name!r} already exists")
+
+
 class PersonalAccessTokenStore:  # REQ-1263
     """Issues, validates and revokes PATs against the platform control plane."""
 
@@ -99,6 +108,20 @@ class PersonalAccessTokenStore:  # REQ-1263
             raise ValueError("A token name is required")
         if expires_at is not None and _as_aware(expires_at) <= _utcnow():
             raise ValueError("Token expiry must be in the future")
+
+        async with self._pool.acquire() as conn:
+            held = (
+                await conn.execute_core(
+                    select(personal_access_tokens.c.token_hash).where(
+                        personal_access_tokens.c.user_id == user_id,
+                        personal_access_tokens.c.org_id == org_id,
+                        personal_access_tokens.c.name == name.strip(),
+                        personal_access_tokens.c.revoked_at.is_(None),
+                    )
+                )
+            ).fetchone()
+        if held is not None:
+            raise TokenNameTaken(name.strip())
 
         secret, token_hash, prefix = mint_token()
         row = {

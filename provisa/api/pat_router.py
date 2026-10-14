@@ -24,6 +24,7 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
 from provisa.api.errors import ApiError
+from provisa.auth.pat import TokenNameTaken
 
 # Requirements: REQ-1263
 
@@ -95,6 +96,8 @@ async def issue_token(body: IssueTokenBody, request: Request):
             scopes=body.scopes,
             expires_at=expires_at,
         )
+    except TokenNameTaken as exc:
+        raise ApiError(409, "auth.token_name_taken", str(exc), name=exc.name) from exc
     except ValueError as exc:
         raise ApiError(400, "auth.invalid_token_request", str(exc))
     return {**row, "token": secret}

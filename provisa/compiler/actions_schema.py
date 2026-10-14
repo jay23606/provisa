@@ -105,6 +105,20 @@ def _json_schema_to_gql_type(schema: dict, type_name: str):
     return obj
 
 
+class CommandFieldTaken(ValueError):
+    """A command or webhook named for a GraphQL root field another command, or a table, already
+    is: refused, naming both, rather than one replacing the other in the schema."""
+
+    def __init__(self, root: str, field: str, command: str, holder: str) -> None:
+        self.root = root
+        self.field = field
+        self.command = command
+        self.holder = holder
+        super().__init__(
+            f"command {command!r} would be {root} field {field!r}, which {holder} already is"
+        )
+
+
 def _build_action_fields(  # REQ-205, REQ-206, REQ-207, REQ-208, REQ-209, REQ-210, REQ-304, REQ-305, REQ-360, REQ-361, REQ-362
     si: SchemaInput,
     obj_types: dict[int, GraphQLObjectType],
@@ -124,6 +138,8 @@ def _build_action_fields(  # REQ-205, REQ-206, REQ-207, REQ-208, REQ-209, REQ-21
 
     extra_query: dict[str, GraphQLField] = {}
     extra_mutation: dict[str, GraphQLField] = {}
+    # field -> the command holding it, for each of the two root types: no two share one.
+    held_by: dict[tuple[str, str], str] = {}
 
     role_id = si.role["id"]
     from provisa.security.rights import reaches_all_domains
@@ -179,7 +195,13 @@ def _build_action_fields(  # REQ-205, REQ-206, REQ-207, REQ-208, REQ-209, REQ-21
                 args["where"] = GraphQLArgument(cast(GraphQLScalarType, JSONScalar))
                 args["order_by"] = GraphQLArgument(GraphQLList(GraphQLNonNull(GraphQLString)))
 
-            gql_field = GraphQLField(gql_return, args=args, description=item.get("description"))
+            gql_field = GraphQLField(
+                gql_return,
+                args=args,
+                description=item.get("description"),
+                # The command the field is, named where a field it collides with is refused.
+                extensions={"provisa_command": item["name"]},
+            )
             # Apply the active GraphQL naming convention to the command name, exactly like table
             # fields (apollo_graphql -> camelCase). The reverse lookup in app_loaders applies the
             # SAME transform, so the emitted field name still routes back to the command (REQ-1156).
@@ -188,7 +210,13 @@ def _build_action_fields(  # REQ-205, REQ-206, REQ-207, REQ-208, REQ-209, REQ-21
                 alias = (domain_alias_map or {}).get(domain_id) or domain_to_sql_name(domain_id)
                 field_key = f"{alias}__{field_key}"
 
-            if item.get("kind", "mutation") == "query":
+            root = "Query" if item.get("kind", "mutation") == "query" else "Mutation"
+            holder = held_by.get((root, field_key))
+            if holder is not None:
+                # Two commands named for one field: one would replace the other in the schema.
+                raise CommandFieldTaken(root, field_key, item["name"], f"command {holder!r}")
+            held_by[(root, field_key)] = item["name"]
+            if root == "Query":
                 extra_query[field_key] = gql_field
             else:
                 extra_mutation[field_key] = gql_field

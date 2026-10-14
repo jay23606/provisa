@@ -30,7 +30,12 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import delete, func, select, update
 
-from provisa.core.environments import PROD, EnvironmentNameError, validate_env_name
+from provisa.core.environments import (
+    PROD,
+    EnvironmentNameError,
+    EnvironmentNameTaken,
+    validate_env_name,
+)
 from provisa.core.schema_admin import environments
 
 if TYPE_CHECKING:
@@ -140,7 +145,7 @@ async def reserve_env(
 
     validate_env_name(org_id, name)  # raises EnvironmentNameError; refuses prod
     if await get_env(db, org_id, name) is not None:
-        raise EnvironmentNameError(f"organization {org_id!r} already has an environment {name!r}")
+        raise EnvironmentNameTaken(f"organization {org_id!r} already has an environment {name!r}")
     limit = await environment_limit_for_org(state, org_id)
     if limit is not None:
         max_envs, plan = limit

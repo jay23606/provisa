@@ -65,7 +65,11 @@ from provisa.security.rights import (
     reaches_all_domains,
     served_across_domains,
 )
-from provisa.compiler.actions_schema import _build_action_fields, _mutation_name
+from provisa.compiler.actions_schema import (
+    CommandFieldTaken,
+    _build_action_fields,
+    _mutation_name,
+)
 
 from provisa.compiler.schema_directives import (
     GraphQLInt,
@@ -1064,8 +1068,15 @@ def generate_schema(
         mutation_fields.update(_build_mutation_fields_for_table(t, si.enum_types))
 
     extra_query, extra_mutation = _build_action_fields(si, gql_types, tables, domain_alias_map)
-    query_fields.update(extra_query)
-    mutation_fields.update(extra_mutation)
+    for root, fields, extra in (
+        ("Query", query_fields, extra_query),
+        ("Mutation", mutation_fields, extra_mutation),
+    ):
+        for field in extra.keys() & fields.keys():
+            # A command named for a table's own field would replace it in the schema.
+            command = extra[field].extensions["provisa_command"]
+            raise CommandFieldTaken(root, field, command, "a table's field")
+        fields.update(extra)
 
     mutation_type: GraphQLObjectType | None = None
     if mutation_fields:
