@@ -111,8 +111,6 @@ def definition_version_of(mv: MVDefinition) -> str:  # REQ-862
         sql=mv.sql,
         join_pattern=mv.join_pattern,
         source_tables=mv.source_tables,
-        serves_aggregates=mv.serves_aggregates,
-        aggregate_columns=mv.aggregate_columns,
     )
 
 
