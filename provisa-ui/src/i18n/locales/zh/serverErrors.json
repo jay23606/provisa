@@ -392,6 +392,8 @@
       "registry_field_required": "数据源“{{source}}”：模式注册表认证“{{method}}”需要 {{field}}",
       "registry_path_not_absolute": "数据源“{{source}}”：{{field}} 必须是绝对路径，实际为“{{path}}”",
       "column_scope_invalid": "列 '{{column}}' 的范围为 '{{scope}}'；列的范围必须是 {{scopes}} 之一",
+      "column_alias_taken": "表 '{{table}}' 的列 {{columns}} 都使用了别名 '{{alias}}'；列别名在其表内必须唯一",
+      "column_field_name_taken": "表 '{{table}}' 的列 {{columns}} 都会成为 GraphQL 字段 '{{field}}'；请为其中一列指定独立的别名",
       "microsoft_365_invalid": "Microsoft 365 数据源 {{source}}：{{error}}",
       "parameter_set_by_source": "'{{table}}' 的参数保留其源对它的描述：传给源的方式以及源是否要求它都不能更改。数据管理员通过参数的必填开关将其设为必填。",
       "logs_invalid": "Logs 源 {{source}}：{{error}}",

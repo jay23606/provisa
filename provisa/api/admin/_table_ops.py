@@ -405,6 +405,66 @@ def take_omitted_fields(source_id: str, table_name: str) -> list[dict]:
     return _OMITTED_FIELDS.pop((source_id, table_name), [])
 
 
+async def column_field_refusal(pool, input, columns: list) -> "MutationResult | None":
+    """A table whose columns would share a GraphQL field is refused by name, before anything is
+    written: two columns given one alias, or two whose field names -- the alias, else the column's
+    name as ``naming.apply_gql_name`` makes it under the table's convention (its own, else its
+    source's, else the deployment's) -- come out the same. The schema keys a type's fields by that name, so the second would silently
+    take the first one's place."""
+    from provisa.api.admin.types import MutationResult
+    from provisa.compiler.naming import apply_gql_name
+
+    async with pool.acquire() as conn:
+        table_conv = (
+            await conn.execute_core(
+                select(registered_tables.c.gql_naming_convention).where(
+                    (registered_tables.c.source_id == input.source_id)
+                    & (registered_tables.c.schema_name == input.schema_name)
+                    & (registered_tables.c.table_name == input.table_name)
+                )
+            )
+        ).scalar()
+        source_conv = (
+            await conn.execute_core(
+                select(sources.c.gql_naming_convention).where(sources.c.id == input.source_id)
+            )
+        ).scalar()
+    convention = table_conv or source_conv or None  # None: the deployment's (naming.configure)
+    by_alias: dict[str, list[str]] = {}
+    by_field: dict[str, list[str]] = {}
+    for column in columns:
+        if column.native_filter_type:
+            continue  # an API parameter, an argument rather than a field
+        if column.alias:
+            by_alias.setdefault(column.alias, []).append(column.name)
+        field = column.alias or apply_gql_name(column.name, convention)
+        by_field.setdefault(field, []).append(column.name)
+    table = input.alias or input.table_name
+    for alias, named in by_alias.items():
+        if len(named) > 1:
+            return MutationResult(
+                success=False,
+                message=(
+                    f"Columns {', '.join(map(repr, named))} of table {table!r} are all given the "
+                    f"alias {alias!r}; a column alias is unique within its table"
+                ),
+                code="schema.column_alias_taken",
+                params={"alias": alias, "table": table, "columns": ", ".join(named)},
+            )
+    for field, named in by_field.items():
+        if len(named) > 1:
+            return MutationResult(
+                success=False,
+                message=(
+                    f"Columns {', '.join(map(repr, named))} of table {table!r} would all be the "
+                    f"GraphQL field {field!r}; give one of them an alias of its own"
+                ),
+                code="schema.column_field_name_taken",
+                params={"field": field, "table": table, "columns": ", ".join(named)},
+            )
+    return None
+
+
 async def _build_columns_for_input(pool, input) -> "tuple[list, MutationResult | None]":
     """Resolve the effective column list for a table registration or update.
 

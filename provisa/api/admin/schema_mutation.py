@@ -83,7 +83,7 @@ from provisa.api.admin._landing_ttl import (  # REQ-1907, REQ-826
     landing_ttl_refusal,
     replicate_contradiction_refusal,
 )
-from provisa.api.admin._table_ops import _build_columns_for_input
+from provisa.api.admin._table_ops import _build_columns_for_input, column_field_refusal
 from provisa.api.admin._fake_guard import FakeRefusedSave as _FakeRefusedSave
 from provisa.api.admin import schema_mutation_ops as _ops
 
@@ -3118,6 +3118,9 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
         columns, _col_err = await _build_columns_for_input(pool, input)
         if _col_err is not None:
             return _col_err
+        _field_refusal = await column_field_refusal(pool, input, columns)
+        if _field_refusal is not None:
+            return _field_refusal
         from provisa.core.models import ColumnPreset as ColumnPresetModel
 
         presets = [

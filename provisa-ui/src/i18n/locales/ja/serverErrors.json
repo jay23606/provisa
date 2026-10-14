@@ -392,6 +392,8 @@
       "registry_field_required": "ソース '{{source}}': スキーマレジストリ認証 '{{method}}' には {{field}} が必要です",
       "registry_path_not_absolute": "ソース '{{source}}': {{field}} は絶対パスである必要があります（指定値: '{{path}}'）",
       "column_scope_invalid": "列「{{column}}」のスコープは「{{scope}}」です。列のスコープは {{scopes}} のいずれかです",
+      "column_alias_taken": "テーブル '{{table}}' の列 {{columns}} はすべて別名 '{{alias}}' を持っています。列の別名はテーブル内で一意です",
+      "column_field_name_taken": "テーブル '{{table}}' の列 {{columns}} はすべて GraphQL フィールド '{{field}}' になります。いずれかに固有の別名を付けてください",
       "microsoft_365_invalid": "Microsoft 365 ソース {{source}}: {{error}}",
       "parameter_set_by_source": "'{{table}}' のパラメーターは、ソースが示すとおりに保たれます。ソースへの渡し方と、ソースが必須としているかどうかは変更できません。スチュワードは「必須」スイッチでパラメーターを必須にします。",
       "logs_invalid": "Logs ソース {{source}}: {{error}}",

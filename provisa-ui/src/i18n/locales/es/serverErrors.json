@@ -392,6 +392,8 @@
       "registry_field_required": "Origen '{{source}}': la autenticación del registro de esquemas '{{method}}' requiere {{field}}",
       "registry_path_not_absolute": "Origen '{{source}}': {{field}} debe ser una ruta absoluta, se recibió '{{path}}'",
       "column_scope_invalid": "La columna '{{column}}' tiene el ámbito '{{scope}}'; el ámbito de una columna es uno de {{scopes}}",
+      "column_alias_taken": "Las columnas {{columns}} de la tabla '{{table}}' tienen todas el alias '{{alias}}'; un alias de columna es único dentro de su tabla",
+      "column_field_name_taken": "Las columnas {{columns}} de la tabla '{{table}}' serían todas el campo GraphQL '{{field}}'; asigne a una de ellas un alias propio",
       "microsoft_365_invalid": "Origen de Microsoft 365 {{source}}: {{error}}",
       "parameter_set_by_source": "Un parámetro de '{{table}}' conserva lo que su origen dice de él: no se puede cambiar cómo llega al origen ni si el origen lo exige. Un administrador de datos hace obligatorio un parámetro con su interruptor de obligatorio.",
       "logs_invalid": "Origen Logs {{source}}: {{error}}",

@@ -392,6 +392,8 @@
       "registry_field_required": "Source '{{source}}' : l'authentification du registre de schémas '{{method}}' exige {{field}}",
       "registry_path_not_absolute": "Source '{{source}}' : {{field}} doit être un chemin absolu, reçu '{{path}}'",
       "column_scope_invalid": "La colonne '{{column}}' a la portée '{{scope}}' ; la portée d'une colonne est l'une de {{scopes}}",
+      "column_alias_taken": "Les colonnes {{columns}} de la table '{{table}}' ont toutes l'alias '{{alias}}' ; un alias de colonne est unique dans sa table",
+      "column_field_name_taken": "Les colonnes {{columns}} de la table '{{table}}' seraient toutes le champ GraphQL '{{field}}' ; donnez à l'une d'elles son propre alias",
       "microsoft_365_invalid": "Source Microsoft 365 {{source}} : {{error}}",
       "parameter_set_by_source": "Un paramètre de '{{table}}' garde ce que sa source dit de lui : la façon dont il atteint la source et le fait que la source l'exige ne peuvent pas être modifiés. Un responsable rend un paramètre obligatoire avec son interrupteur « Obligatoire ».",
       "logs_invalid": "Source Logs {{source}} : {{error}}",

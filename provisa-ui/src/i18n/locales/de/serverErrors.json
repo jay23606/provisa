@@ -392,6 +392,8 @@
       "registry_field_required": "Quelle '{{source}}': Die Schema-Registry-Authentifizierung '{{method}}' erfordert {{field}}",
       "registry_path_not_absolute": "Quelle '{{source}}': {{field}} muss ein absoluter Pfad sein, erhalten: '{{path}}'",
       "column_scope_invalid": "Spalte '{{column}}' hat den Geltungsbereich '{{scope}}'; zulässig ist einer von {{scopes}}",
+      "column_alias_taken": "Die Spalten {{columns}} der Tabelle '{{table}}' haben alle den Alias '{{alias}}'; ein Spaltenalias ist innerhalb seiner Tabelle eindeutig",
+      "column_field_name_taken": "Die Spalten {{columns}} der Tabelle '{{table}}' wären alle das GraphQL-Feld '{{field}}'; geben Sie einer von ihnen einen eigenen Alias",
       "microsoft_365_invalid": "Microsoft-365-Quelle {{source}}: {{error}}",
       "parameter_set_by_source": "Ein Parameter von '{{table}}' behält, was seine Quelle über ihn sagt: wie er die Quelle erreicht und ob die Quelle ihn verlangt, lässt sich nicht ändern. Ein Steward macht einen Parameter mit seinem Schalter „Erforderlich“ verpflichtend.",
       "logs_invalid": "Logs-Quelle {{source}}: {{error}}",
