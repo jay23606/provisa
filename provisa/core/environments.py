@@ -78,6 +78,10 @@ class EnvironmentNameError(ValueError):
     """A name that cannot be an environment, with the reason it cannot."""
 
 
+class EnvironmentNameTaken(EnvironmentNameError):
+    """A name the organization already has an environment by."""
+
+
 class EnvironmentPlaneError(RuntimeError):
     """The control plane cannot hold an environment at all.
 

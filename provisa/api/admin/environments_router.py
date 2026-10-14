@@ -70,7 +70,7 @@ from provisa.core.env_store import (
     set_expiry,
     set_protected,
 )
-from provisa.core.environments import PROD, EnvironmentNameError
+from provisa.core.environments import PROD, EnvironmentNameError, EnvironmentNameTaken
 from provisa.core.schema_admin import user_org_memberships, user_profiles
 from provisa.api.admin._platform_guard import require_platform_settings
 
@@ -560,6 +560,9 @@ async def create_environment(request: Request, org_id: str, body: CreateEnvBody)
             mutation_handling=body.mutation_handling,
             note=f"created from {body.from_env}",
         )
+    except EnvironmentNameTaken as exc:
+        # A name the organization has an environment by: refused as taken, not as invalid.
+        raise ApiError(409, "environments.name_taken", str(exc), org=org_id, env=body.name) from exc
     except EnvironmentNameError as exc:
         raise ApiError(
             400, "environments.invalid_name", str(exc), org=org_id, env=body.name
