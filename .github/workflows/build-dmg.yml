@@ -6,7 +6,7 @@
 #
 #   prebuilt ─┬─ macos ───┐
 #             ├─ windows ─┤
-#             └─ linux ───┼─ publish
+#             └─ linux ───┼─ publish-pypi, publish-provisa-pypi ── publish
 #   packages ─────────────┘
 #
 # On a tag (v*) the release is built and published as it always was. Run by hand (Actions ->
@@ -98,15 +98,67 @@ jobs:
       version: ${{ inputs.version || github.ref_name }}
       publish: ${{ github.event_name == 'push' || (inputs.publish == true && github.ref_type == 'tag' && github.ref_name == inputs.version) }}
 
-  # Only after every leg has succeeded, and every publication is in this leg -- PyPI (server and
-  # client), the release's attachments and undraft, the image pushes. Nothing that cannot be
-  # taken back happens until every artifact exists; a failed or partial run publishes nothing.
+  # PyPI, server and client: the orchestrator's own jobs, never a reusable workflow's -- PyPI
+  # trusted publishing does not accept a token issued to a reusable workflow
+  # (pypa/gh-action-pypi-publish#166). Only after every leg has succeeded; nothing that cannot
+  # be taken back happens until every artifact exists. Not run on a dry run.
+  publish-pypi:
+    name: Publish Python client to PyPI
+    # Publishes and does nothing else: not run on a dry run.
+    if: ${{ github.event_name == 'push' || (inputs.publish == true && github.ref_type == 'tag' && github.ref_name == inputs.version) }}
+    needs: [prebuilt, packages, macos, windows, linux]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - name: Download dist
+        uses: actions/download-artifact@v4
+        with:
+          name: python-client-dist
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+          skip-existing: true
+          attestations: true
+
+  publish-provisa-pypi:
+    name: Publish provisa server to PyPI
+    # Publishes and does nothing else: not run on a dry run.
+    if: ${{ github.event_name == 'push' || (inputs.publish == true && github.ref_type == 'tag' && github.ref_name == inputs.version) }}
+    needs: [prebuilt, packages, macos, windows, linux]
+    runs-on: ubuntu-latest
+    # id-token: write is what lets gh-action-pypi-publish request a Sigstore-signed PEP 740
+    # attestation for each uploaded file — PyPI removed GPG signature uploads in 2023, so this
+    # (not a detached .asc) is the only signing PyPI currently accepts.
+    permissions:
+      id-token: write
+    steps:
+      - name: Download dist
+        uses: actions/download-artifact@v4
+        with:
+          name: provisa-wheel-dist
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+          skip-existing: true
+          attestations: true
+
+  # After both PyPI publications: the release's attachments and undraft, the image pushes. A
+  # failed or partial run publishes nothing. On a dry run the PyPI jobs are skipped, and a job is
+  # skipped with the jobs it needs unless it says otherwise: this one still runs (its dry run
+  # proves the asset set is whole), and never after a publication that failed or was cancelled.
   publish:
     name: Attach and publish
-    needs: [prebuilt, packages, macos, windows, linux]
+    needs: [prebuilt, packages, macos, windows, linux, publish-pypi, publish-provisa-pypi]
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
     # The union of what the leg's jobs ask for: attach to and undraft the release (contents),
-    # PyPI trusted publishing with its Sigstore attestation (id-token), the image pushes
-    # (packages).
+    # Sigstore attestations (id-token), the image pushes (packages).
     permissions:
       contents: write
       id-token: write
