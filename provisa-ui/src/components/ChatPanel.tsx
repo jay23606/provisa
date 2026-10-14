@@ -109,8 +109,15 @@ export function ChatPanel() {
   const roleId = selectedRoles.map((r) => r.id).join(",") || (role?.id ?? "");
   const navigate = useNavigate();
   const location = useLocation();
-  const { open, checkingConfig, unconfiguredReason, setUnconfiguredReason, openPolly, closePolly } =
-    usePolly();
+  const {
+    open,
+    checkingConfig,
+    unconfiguredReason,
+    setUnconfiguredReason,
+    openPolly,
+    closePolly,
+    shownExchange,
+  } = usePolly();
   const [draft, setDraft] = useState("");
 
   // Resizable width (REQ-1795), persisted per browser so it survives closing/reopening the
@@ -258,6 +265,23 @@ export function ChatPanel() {
     location.pathname,
     onServerToolResult,
   );
+
+  // REQ-2012: a tour step's question and its stored answer join the conversation as an exchange,
+  // once for each showing; an exchange already last in the conversation (Back to the step) is not
+  // added twice.
+  const chatRef = useRef({ messages, pushMessage });
+  useEffect(() => {
+    chatRef.current = { messages, pushMessage };
+  });
+  useEffect(() => {
+    if (shownExchange === null) return;
+    const { messages: shown, pushMessage: push } = chatRef.current;
+    const { question, answer } = shownExchange.exchange;
+    const [asked, answered] = shown.slice(-2);
+    if (asked?.text === question && answered?.text === answer) return;
+    push({ role: "user", text: question });
+    push({ role: "assistant", text: answer });
+  }, [shownExchange]);
 
   const onSend = () => {
     // REQ-1806: while the suggestions are showing, typing just the number of one ("1", "2", …)

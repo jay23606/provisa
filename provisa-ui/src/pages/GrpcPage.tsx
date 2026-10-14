@@ -760,7 +760,8 @@ export function GrpcPage() {
         </div>
 
         {/* Right: Response */}
-        <div className="grpc-panel grpc-panel-right">
+        {/* REQ-2010: marked once a response is in, which a demo tour step waits for. */}
+        <div className="grpc-panel grpc-panel-right" data-answered={response ? "" : undefined}>
           <Tabs className="grpc-tabs" value="response">
             <Tabs.List>
               <Tabs.Tab value="response">{t("grpcPage.response")}</Tabs.Tab>

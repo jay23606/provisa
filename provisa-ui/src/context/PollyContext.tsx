@@ -10,7 +10,7 @@
 
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { fetchMcpChatStatus } from "../api/mcpChat";
-import { PollyContext } from "./pollyState";
+import { PollyContext, type PollyExchange } from "./pollyState";
 
 export function PollyProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -37,9 +37,26 @@ export function PollyProvider({ children }: { children: ReactNode }) {
     }
   }, []);
   const closePolly = useCallback(() => setOpen(false), []);
+  const [shownExchange, setShownExchange] = useState<{
+    id: number;
+    exchange: PollyExchange;
+  } | null>(null);
+  const showExchange = useCallback((exchange: PollyExchange) => {
+    setShownExchange((prev) => ({ id: (prev?.id ?? 0) + 1, exchange }));
+    setOpen(true);
+  }, []);
   const value = useMemo(
-    () => ({ open, checkingConfig, unconfiguredReason, setUnconfiguredReason, openPolly, closePolly }),
-    [open, checkingConfig, unconfiguredReason, openPolly, closePolly],
+    () => ({
+      open,
+      checkingConfig,
+      unconfiguredReason,
+      setUnconfiguredReason,
+      openPolly,
+      closePolly,
+      showExchange,
+      shownExchange,
+    }),
+    [open, checkingConfig, unconfiguredReason, openPolly, closePolly, showExchange, shownExchange],
   );
   return <PollyContext.Provider value={value}>{children}</PollyContext.Provider>;
 }

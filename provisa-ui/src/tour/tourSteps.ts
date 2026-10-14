@@ -66,12 +66,16 @@ export interface TourStep {
    */
   openBranch?: "sql" | "graphql" | "cypher" | "grpc" | "jsonapi" | "openapi";
   /**
-   * REQ-2010: a statement of a named demo's own tour, opened in a new tab of the step's explorer and
-   * run — the explorers' navigation hand-off, under the state key the explorer reads (`sql` for the
-   * SQL explorer, `query` for GraphiQL). Handed over on every entry, even when the explorer is
-   * already the page, since each such step opens its own statement.
+   * REQ-2010: a statement of a named demo's own tour, opened on the step's explorer and run — the
+   * explorers' navigation hand-off, under the state key the explorer reads (`sql` for the SQL
+   * explorer, `query` for GraphiQL and the Graph page, `openApiUrl`, `jsonapiUrl`, `grpcMethod`).
+   * Handed over on every entry, even when the explorer is already the page, since each such step
+   * opens its own statement.
    */
-  openQuery?: { stateKey: "sql" | "query"; text: string };
+  openQuery?: {
+    stateKey: "sql" | "query" | "openApiUrl" | "jsonapiUrl" | "grpcMethod";
+    text: string;
+  };
   /**
    * REQ-2010: on Next only, open the picker `open` and choose its option `option`, then advance —
    * a choice the step shows (the picker is highlighted) and makes when the visitor moves on. Back
@@ -92,6 +96,11 @@ export interface TourStep {
    * handler) before anchoring, and the tour closes it on moving to a step without this flag.
    */
   pollyOpen?: boolean;
+  /**
+   * REQ-2012: a question and the answer stored for it, shown in the open Polly panel as an
+   * exchange; nothing is sent.
+   */
+  pollyExchange?: { question: string; answer: string };
   /** Key into the `tour.steps` i18n namespace for this step's title/description. */
   key: string;
   /**

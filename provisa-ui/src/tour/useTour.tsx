@@ -37,7 +37,7 @@ import {
   type TopicId,
   type TourStep,
 } from "./tourSteps";
-import { demoTourPrerequisites, demoTourSteps } from "./demoTour";
+import { demoStepShown, demoTourPrerequisites, demoTourSteps, demoTrackStamp } from "./demoTour";
 import { prerequisitesMet, type OrgHas } from "./tourPrerequisites";
 import { useNamedDemo } from "../context/NamedDemoContext";
 import { TourMenu } from "./TourMenu";
@@ -61,11 +61,12 @@ import {
 import { getStored, removeStored, setStored } from "../lib/browserStorage";
 
 /** REQ-2010: the named demo's own track was walked to its end in this browser. Saved per control
- * plane and org (REQ-2008), so each demo, and each fresh start of one, offers its track first. */
+ * plane and org (REQ-2008), so each demo, and each fresh start of one, offers its track first. It
+ * holds the track's stamp (demoTrackStamp): a revised track is not done until walked again. */
 const DEMO_TRACK_DONE_KEY = "provisa_tour_demo_track_done";
 
-function demoTrackDone(): boolean {
-  return getStored(DEMO_TRACK_DONE_KEY) === "true";
+function demoTrackDone(stamp: string): boolean {
+  return getStored(DEMO_TRACK_DONE_KEY) === stamp;
 }
 
 /** Two frames: long enough for React to commit what a navigation hand-off changed. */
@@ -280,6 +281,7 @@ export function resetTourStateForDemoSession(): void {
   // The previous visitor's "never again" is not this visitor's.
   removeStored(TOUR_DECLINED_KEY, { global: true });
   removeStored(TOUR_TOPICS_DONE_KEY, { global: true });
+  removeStored(DEMO_TRACK_DONE_KEY);
 }
 
 /** True once the guided tour has been completed or dismissed on this browser. */
@@ -474,10 +476,17 @@ export function TourProvider({ children }: { children: ReactNode }) {
   // REQ-2010: the named demo's own steps follow TOUR_STEPS in the list the runner walks; its track
   // is those steps (scope "demo").
   const namedDemo = useNamedDemo();
+  // REQ-2012: a step asking Polly is in the track only with its stored answer.
   const allSteps = useMemo(
-    () => [...TOUR_STEPS, ...demoTourSteps(namedDemo.tour, namedDemo.exampleQueries)],
+    () => [
+      ...TOUR_STEPS,
+      ...demoTourSteps(namedDemo.tour.filter(demoStepShown), namedDemo.exampleQueries),
+    ],
     [namedDemo],
   );
+  const trackStamp =
+    namedDemo.name === null ? null : demoTrackStamp(namedDemo.name, namedDemo.tour);
+  const trackDone = trackStamp !== null && demoTrackDone(trackStamp);
   const allStepsRef = useRef(allSteps);
   useEffect(() => {
     allStepsRef.current = allSteps;
@@ -568,7 +577,8 @@ export function TourProvider({ children }: { children: ReactNode }) {
       } else if (scope === "core" && activeStepRef.current != null) {
         setStored(TOUR_PROGRESS_KEY, String(activeStepRef.current), { global: true });
       }
-      if (how === "completed" && scope === "demo") setStored(DEMO_TRACK_DONE_KEY, "true");
+      if (how === "completed" && scope === "demo" && trackStamp !== null)
+        setStored(DEMO_TRACK_DONE_KEY, trackStamp);
       else if (how === "completed" && scope && scope !== "core" && scope !== "demo")
         markTopicCompleted(scope);
       if (how !== "dismissed" || scope !== "core") openMenu();
@@ -581,7 +591,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
       setActiveStep(null);
       setActiveScope(null);
     },
-    [closeTourPolly, openMenu],
+    [closeTourPolly, openMenu, trackStamp],
   );
 
   const clickIfPresent = (selector?: string) => {
@@ -673,7 +683,11 @@ export function TourProvider({ children }: { children: ReactNode }) {
         // on the first step that does not. A panel that fails to open leaves the anchor missing, so
         // the step fails loudly through the stuck status below -- no fallback anchor.
         if (step.pollyOpen) {
-          if (!pollyRef.current.open) {
+          if (step.pollyExchange) {
+            // REQ-2012: the question and its stored answer, shown; nothing is sent.
+            if (!pollyRef.current.open) tourOpenedPollyRef.current = true;
+            pollyRef.current.showExchange(step.pollyExchange);
+          } else if (!pollyRef.current.open) {
             tourOpenedPollyRef.current = true;
             await pollyRef.current.openPolly();
             if (cancelled) return;
@@ -971,12 +985,12 @@ export function TourProvider({ children }: { children: ReactNode }) {
         }
         if (tourResumeStep() !== null && ok("core")) return { scope: "core", fresh: false };
         // REQ-2010: a named demo tells its own story first, until it has been walked to its end.
-        if (ok("demo") && !demoTrackDone()) return { scope: "demo", fresh: true };
+        if (ok("demo") && !trackDone) return { scope: "demo", fresh: true };
         if (hasSeenTour() || !ok("core")) return "menu";
         return { scope: "core", fresh: true };
       }, !!opts?.restart);
     },
-    [launch, offered],
+    [launch, offered, trackDone],
   );
 
   const menuTopics = TOPIC_IDS.filter((id) => orgHas !== null && offered(id, orgHas)).map((id) => ({
@@ -1005,7 +1019,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
         completed={completedTopics()}
         demo={
           namedDemo.name !== null && orgHas !== null && offered("demo", orgHas)
-            ? { name: namedDemo.name, steps: itineraries.demo.length, done: demoTrackDone() }
+            ? { name: namedDemo.name, steps: itineraries.demo.length, done: trackDone }
             : null
         }
         onDemo={() => launch("demo", true)}

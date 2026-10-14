@@ -12,57 +12,51 @@
 # its gate needs) and one object of the demo it shows:
 #
 #   source        a source of config.yaml, by id: its row on the Sources page
+#   table         a table of config.yaml, as <source id>.<table>: its row on the Tables page
 #   relationship  a relationship of config.yaml, by alias: its row on the Relationships page
 #   example       an example query (queries/<name>.graphql): opened in a new tab and run
 #   sql           a statement over the demo's tables and views: opened in a new tab and run
+#   api           a REST call, "GET /data/rest/<domain>/<table>[?<params>]": run on /openapi
+#   jsonapi       a JSON:API request, "/data/jsonapi/<domain>/<table>[?<query>]": run on /jsonapi
+#   grpc          a gRPC call, "<Method>(by=[...], funcs=[...])": sent on /grpc
+#   cypher        a Cypher query over the demo's node labels and relationships: run on /graph
 #   term          a glossary term of config.yaml, by name: opened on the Glossary page
 #   role          a role of config.yaml (or "all"): picked in the SQL explorer's run-as picker on
 #                 Next, so a step with it is on the SQL explorer
+#   polly         a question for Polly (REQ-2012): answered once when the demo's template is
+#                 built, and shown with that stored answer in the Polly panel; nothing is asked
+#                 live. A demo with no stored answer leaves the step out. The question is one of
+#                 the Polly bake-off's graded questions (tests/integration/polly_bakeoff_questions.py)
 #
 # A step with no route stays on the page of the step before it. The words of each step are
 # tour.steps.<key> in the UI's tour.json, in every language. Every name here is checked against
 # the demo by tests/unit/test_named_demo_tour.py.
+#
+# The track: the scenario, then how the demo fits together (its sources, the tables they become,
+# the relationship that joins the two logs), then the shop's question answered over REST and by
+# Polly, then a recap.
 steps:
 - key: weblogsSources
   route: /sources
   capability: source_registration
   source: shop_access
-- key: weblogsDbLog
+- key: weblogsLogFiles
   source: shop_db_log
+- key: weblogsTables
+  route: /tables
+  capability: table_registration
+  table: shop_access.shop_access
 - key: weblogsJoin
   route: /relationships
   capability: create_relationship
   relationship: LOGGED_FOR
-- key: weblogsSlowestPages
-  route: /query
+- key: weblogsRest
+  route: /openapi
   capability: query_development
-  example: 1-slowest-pages-by-path
-- key: weblogsStatements
-  route: /sql
-  capability: query_development
-  sql: >-
-    SELECT p.path, p.page_ms, r.duration_ms, r.statement
-    FROM "shop"."view_slowest_pages" AS p
-    JOIN "shop"."view_request_sql" AS r ON r.request_id = p.request_id
-    ORDER BY p.page_ms DESC, r.duration_ms DESC
-    LIMIT 20
-- key: weblogsDbErrors
-  route: /query
-  capability: query_development
-  example: 4-database-errors-by-page
-- key: weblogsGlossary
-  route: /admin/glossary
-  capability: glossary_read
-  term: slow page
-- key: weblogsCustomers
-  route: /sql
-  capability: query_development
-  sql: SELECT * FROM "shop"."customers" ORDER BY id LIMIT 10
-- key: weblogsAnalyst
-  role: analyst
-- key: weblogsCustomersMasked
-  route: /sql
-  capability: query_development
-  sql: SELECT * FROM "shop"."customers" ORDER BY id LIMIT 10
-- key: weblogsRoleBack
-  role: all
+  api: GET /data/rest/shop/view_slowest_pages?groupBy=path&aggregate=count,avg,max
+- key: weblogsAsk
+  polly: Which pages are slowest, and which SQL makes them slow?
+- key: weblogsDone
+  route: /relationships
+  capability: create_relationship
+  relationship: LOGGED_FOR

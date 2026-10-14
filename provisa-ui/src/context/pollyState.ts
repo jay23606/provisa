@@ -22,6 +22,18 @@ export interface PollyState {
   /** The launcher's handler: checks configuration, then opens the panel. */
   openPolly: () => Promise<void>;
   closePolly: () => void;
+  /**
+   * REQ-2012: open the panel on a question and its stored answer, shown as an exchange. Nothing is
+   * sent, so no configured model is needed. A tour step's question.
+   */
+  showExchange: (exchange: PollyExchange) => void;
+  /** The exchange last handed to showExchange, numbered so a second showing of it is its own. */
+  shownExchange: { id: number; exchange: PollyExchange } | null;
+}
+
+export interface PollyExchange {
+  question: string;
+  answer: string;
 }
 
 export const PollyContext = createContext<PollyState | null>(null);

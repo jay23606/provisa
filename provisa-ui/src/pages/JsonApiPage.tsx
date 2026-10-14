@@ -75,10 +75,13 @@ export function JsonApiPage() {
   // A JSON:API URL handed to the page (NL "Open in JSON:API", Polly), whether the page was just
   // opened or already open. Each hand-off has its own sequence number: its pickers are seeded once
   // and it is run once.
+  const [parsedDoc, setParsedDoc] = useState<JsonApiDocument | null>(null);
   const [nav, setNav] = useState<{ url: string; autoRun: boolean; seq: number } | null>(null);
   useNavPayload<{ jsonapiUrl?: string; autoRun?: boolean }>((payload) => {
     if (!payload.jsonapiUrl) return;
     const handed = payload.jsonapiUrl;
+    // The answer on screen is the last request's; this one's replaces it once it is in.
+    setParsedDoc(null);
     setNav((prev) => ({
       url: handed,
       autoRun: payload.autoRun === true,
@@ -149,7 +152,6 @@ export function JsonApiPage() {
   const [includeNodes, setIncludeNodes] = useState(false);
   const [fetchedGroupByColumns, setFetchedGroupByColumns] = useState<string[]>([]);
   const [pageSize, setPageSize] = useState<string>(savedSettings.pageSize ?? "20");
-  const [parsedDoc, setParsedDoc] = useState<JsonApiDocument | null>(null);
   const [activeUrl, setActiveUrl] = useState<string>("");
   const [viewTab, setViewTab] = useState<"summary" | "raw">("summary");
   const [running, setRunning] = useState(false);

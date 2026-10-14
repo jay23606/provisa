@@ -89,6 +89,9 @@ describe("GraphPage — a hand-off while the page is open", () => {
     await waitFor(() =>
       expect(cypherCalls.some((b) => b.includes("MATCH (n) RETURN n LIMIT 1"))).toBe(true),
     );
+    // REQ-2010: the handed query's own frame is done, which a demo tour step waits on.
+    const stream = document.querySelector(".graph-stream")!;
+    await waitFor(() => expect(stream.getAttribute("data-handoff-status")).toBe("done"));
     const after = cypherCalls.length;
 
     act(() => screen.getByText("polly").click());

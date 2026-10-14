@@ -293,48 +293,32 @@
         "description": "🤖 O modelo e seus relacionamentos estão disponíveis para agentes de IA — o Polly e agentes que se conectam por MCP — e moldam as consultas que esses agentes escrevem.<p>Um agente roda sob um papel, então a mesma regra vale para ele e para uma pessoa: uma consulta que faz join fora dos relacionamentos registrados <strong>falha</strong>. Isso é imposto, não apenas recomendado.</p><p>Também é uma escolha sua. Para deixar um agente descobrir relacionamentos, conceda ao papel dele o direito <code>ignore_relationships</code>; para mantê-lo dentro de barreiras, deixe o papel sem ele. É a mesma concessão deliberada feita a uma identidade de confiança (nunca vale no modo de alta segurança).</p>"
       },
       "weblogsSources": {
-        "title": "Os dois logs de uma loja virtual",
-        "description": "Esta demo lê como tabelas os logs de uma pequena loja virtual. <strong>shop_access</strong> é o log de acesso do nginx: uma linha por requisição, com caminho, status e tempo."
+        "title": "O que é esta demo",
+        "description": "Uma pequena loja online quer saber quais páginas são lentas e qual SQL as torna lentas. A resposta está dividida entre o log de acesso do nginx, o log de instruções do banco de dados e o próprio banco de dados da loja. O tour mostra como o Provisa lê arquivos de log como tabelas, os junta entre fontes e os governa por papel, e depois faz a pergunta à Polly."
       },
-      "weblogsDbLog": {
-        "title": "O log do banco de dados",
-        "description": "<strong>shop_db_log</strong> é o log de comandos do banco da loja: uma linha por comando executado, com sua duração. Nenhum dos logs é copiado ou carregado antes; os dois são lidos onde estão."
+      "weblogsLogFiles": {
+        "title": "Três fontes",
+        "description": "A loja tem três fontes: <strong>shop-db</strong>, seu banco PostgreSQL, e duas fontes de log, <strong>shop_access</strong> e <strong>shop_db_log</strong>. O Provisa lê cada arquivo de log onde ele está, uma linha por registro, e de novo a cada 30 segundos; nada é carregado ou copiado antes."
+      },
+      "weblogsTables": {
+        "title": "Fontes viram tabelas",
+        "description": "Os dados de cada fonte estão registrados como tabelas: os clientes, produtos e pedidos da loja, e uma tabela para cada log, com as linhas divididas em colunas como caminho, status e tempo. As views, consultas salvas sobre elas, acrescentam as páginas mais lentas e o SQL que cada requisição executou."
       },
       "weblogsJoin": {
-        "title": "Uma requisição, dois logs",
-        "description": "O nginx dá um id a cada requisição, e a loja nomeia cada conexão ao banco com ele. O relacionamento <strong>LOGGED_FOR</strong> liga por esse id cada comando à requisição que ele atendeu."
+        "title": "Um pedido, dois logs",
+        "description": "O nginx dá um id a cada pedido, e a loja dá esse nome a cada ligação à base de dados. A relação <strong>LOGGED_FOR</strong> diz ao Provisa para unir cada instrução ao seu pedido por esse id, por isso nenhuma consulta tem de escrever a junção."
       },
-      "weblogsSlowestPages": {
-        "title": "As páginas mais lentas",
-        "description": "Uma das consultas de exemplo da demo, executada: cada caminho com o número de requisições e o tempo médio e máximo, as dez mais lentas primeiro. Uma única consulta GraphQL agrupa e ordena."
+      "weblogsRest": {
+        "title": "A mesma pergunta por REST",
+        "description": "De novo as páginas mais lentas, como chamada REST: cada caminho com seu número de requisições e seu tempo médio e mais longo. Toda superfície que o Provisa serve lê o mesmo modelo governado, então o REST dá a resposta que SQL ou GraphQL dariam, com os mesmos direitos."
       },
-      "weblogsStatements": {
-        "title": "O SQL por trás de uma página lenta",
-        "description": "As mesmas requisições ligadas a seus comandos: para as páginas mais lentas, cada comando executado e quanto tempo levou. Foi aqui que o tempo foi gasto."
+      "weblogsAsk": {
+        "title": "Pergunte à Polly",
+        "description": "A Polly, a assistente, recebe a pergunta da demo em palavras simples: quais páginas são as mais lentas e qual SQL as torna lentas? Repare nas páginas que ela cita e nas instruções que ela aponta; ela as encontrou consultando as tabelas e views que você acabou de ver."
       },
-      "weblogsDbErrors": {
-        "title": "Requisições que falharam no banco",
-        "description": "Requisições cujo comando falhou, agrupadas por página e pelo código de erro do banco. O log web mostra um 500; o do banco diz por quê."
-      },
-      "weblogsCustomers": {
-        "title": "Clientes, como administrador",
-        "description": "Os clientes da loja, lidos como administrador. Todas as colunas estão lá, inclusive o e-mail."
-      },
-      "weblogsAnalyst": {
-        "title": "Mudar para o analista",
-        "description": "O papel analyst não pode ver endereços de e-mail. Próximo muda para ele."
-      },
-      "weblogsCustomersMasked": {
-        "title": "Clientes, como analista",
-        "description": "A mesma consulta como analista. A coluna email sumiu: os direitos do papel decidem o que cada consulta devolve, seja qual for a linguagem em que foi escrita."
-      },
-      "weblogsRoleBack": {
-        "title": "De volta a todos os papéis",
-        "description": "Próximo volta a todos os papéis. Em seguida vêm o tour do produto e seus Deep Dives."
-      },
-      "weblogsGlossary": {
-        "title": "As palavras da própria loja",
-        "description": "O glossário da demo diz o que os logs significam: <strong>slow page</strong> é um tipo de requisição web, derivado da latência da página. Seus termos e os vínculos entre eles, a ontologia da loja, deixam qualquer pessoa encontrar os logs pelo significado em vez de pelo nome das colunas."
+      "weblogsDone": {
+        "title": "O que você acabou de ver",
+        "description": "Três fontes viraram tabelas, um relacionamento juntou os dois logs por um id de requisição, e a pergunta da loja foi respondida a partir delas por REST e pela Polly. Concluído abre o menu dos outros tours."
       }
     },
     "status": {
@@ -350,7 +334,7 @@
     "demos": {
       "weblogs": {
         "title": "Os logs da loja virtual",
-        "summary": "Os logs web e do banco da loja, ligados: as páginas mais lentas e o SQL por trás delas, as requisições que falharam no banco e o que um analista pode ver."
+        "summary": "A pergunta de uma loja online, quais páginas são lentas e qual SQL as torna lentas: suas fontes, as tabelas que elas viram, a junção dos seus dois logs e a resposta da Polly."
       }
     }
   }

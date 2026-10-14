@@ -293,48 +293,32 @@
         "description": "🤖 Le modèle et ses relations sont accessibles aux agents IA — Polly et les agents qui se connectent via MCP — et orientent les requêtes que ces agents écrivent.<p>Un agent s'exécute sous un rôle, la même règle s'applique donc à lui comme à une personne : une requête qui joint en dehors des relations enregistrées <strong>échoue</strong>. C'est appliqué, pas seulement conseillé.</p><p>C'est aussi votre choix. Pour qu'un agent découvre des relations, accordez à son rôle le droit <code>ignore_relationships</code> ; pour le garder dans des garde-fous, laissez le rôle sans ce droit. C'est la même attribution délibérée que pour une identité de confiance (jamais prise en compte en mode haute sécurité).</p>"
       },
       "weblogsSources": {
-        "title": "Les deux journaux d'une boutique en ligne",
-        "description": "Cette démo lit comme des tables les journaux d'une petite boutique en ligne. <strong>shop_access</strong> est le journal d'accès de nginx : une ligne par requête, avec son chemin, son statut et sa durée."
+        "title": "Ce qu'est cette démo",
+        "description": "Une petite boutique en ligne veut savoir quelles pages sont lentes, et quel SQL les rend lentes. La réponse est répartie entre le journal d'accès de nginx, le journal des instructions de la base de données et la base de données de la boutique. La visite montre comment Provisa lit des fichiers journaux comme des tables, les joint d'une source à l'autre et les régit par rôle, puis pose la question à Polly."
       },
-      "weblogsDbLog": {
-        "title": "Le journal de la base de données",
-        "description": "<strong>shop_db_log</strong> est le journal des instructions de la base de la boutique : une ligne par instruction exécutée, avec sa durée. Aucun journal n'est copié ni chargé au préalable ; les deux sont lus là où ils sont."
+      "weblogsLogFiles": {
+        "title": "Trois sources",
+        "description": "La boutique a trois sources : <strong>shop-db</strong>, sa base PostgreSQL, et deux sources de journaux, <strong>shop_access</strong> et <strong>shop_db_log</strong>. Provisa lit chaque fichier journal là où il se trouve, une ligne par rangée, et de nouveau toutes les 30 secondes ; rien n'est chargé ni copié au préalable."
+      },
+      "weblogsTables": {
+        "title": "Les sources deviennent des tables",
+        "description": "Les données de chaque source sont enregistrées comme tables : les clients, produits et commandes de la boutique, et une table par journal, ses lignes découpées en colonnes comme le chemin, le statut et la durée. Des vues, requêtes enregistrées sur ces tables, ajoutent les pages les plus lentes et le SQL exécuté par chaque requête."
       },
       "weblogsJoin": {
         "title": "Une requête, deux journaux",
-        "description": "nginx donne un identifiant à chaque requête, et la boutique nomme chaque connexion à la base d'après lui. La relation <strong>LOGGED_FOR</strong> relie par cet identifiant chaque instruction à la requête qu'elle a servie."
+        "description": "nginx donne un identifiant à chaque requête, et la boutique nomme chaque connexion à la base de données d'après lui. La relation <strong>LOGGED_FOR</strong> indique à Provisa de joindre une instruction à sa requête sur cet identifiant, si bien qu'aucune requête n'a à écrire la jointure."
       },
-      "weblogsSlowestPages": {
-        "title": "Les pages les plus lentes",
-        "description": "L'une des requêtes d'exemple de la démo, exécutée : chaque chemin avec son nombre de requêtes et sa durée moyenne et maximale, les dix plus lentes d'abord. Une seule requête GraphQL les regroupe et les classe."
+      "weblogsRest": {
+        "title": "La même question en REST",
+        "description": "De nouveau les pages les plus lentes, en appel REST : chaque chemin avec son nombre de requêtes et sa durée moyenne et la plus longue. Chaque surface que sert Provisa lit le même modèle gouverné, donc REST donne la réponse que donneraient SQL ou GraphQL, avec les mêmes droits."
       },
-      "weblogsStatements": {
-        "title": "Le SQL derrière une page lente",
-        "description": "Les mêmes requêtes reliées à leurs instructions : pour les pages les plus lentes, chaque instruction exécutée et sa durée. C'est là que le temps est passé."
+      "weblogsAsk": {
+        "title": "Demander à Polly",
+        "description": "Polly, l'assistante, reçoit la question de la démo en mots simples : quelles pages sont les plus lentes, et quel SQL les rend lentes ? Regardez les pages qu'elle nomme et les instructions qu'elle met en cause ; elle les a trouvées en interrogeant les tables et les vues que vous venez de voir."
       },
-      "weblogsDbErrors": {
-        "title": "Les requêtes échouées dans la base",
-        "description": "Les requêtes dont l'instruction a échoué, regroupées par page et par code d'erreur de la base. Le journal web montre un 500 ; celui de la base dit pourquoi."
-      },
-      "weblogsCustomers": {
-        "title": "Les clients, en administrateur",
-        "description": "Les clients de la boutique, lus en administrateur. Toutes les colonnes sont là, l'adresse e-mail comprise."
-      },
-      "weblogsAnalyst": {
-        "title": "Passer à l'analyste",
-        "description": "Le rôle analyst ne peut pas voir les adresses e-mail. Suivant passe à ce rôle."
-      },
-      "weblogsCustomersMasked": {
-        "title": "Les clients, en analyste",
-        "description": "La même requête en analyste. La colonne email a disparu : les droits du rôle décident de ce que renvoie chaque requête, quel que soit le langage dans lequel elle est écrite."
-      },
-      "weblogsRoleBack": {
-        "title": "Retour à tous les rôles",
-        "description": "Suivant revient à tous les rôles. Viennent ensuite la visite du produit et ses Deep Dives."
-      },
-      "weblogsGlossary": {
-        "title": "Les mots de la boutique",
-        "description": "Le glossaire de la démo dit ce que signifient les journaux : <strong>slow page</strong> est un type de requête web, dérivé de la latence de page. Ses termes et leurs liens, l'ontologie de la boutique, permettent à chacun de trouver les journaux par leur sens plutôt que par des noms de colonnes."
+      "weblogsDone": {
+        "title": "Ce que vous venez de voir",
+        "description": "Trois sources sont devenues des tables, une relation a joint les deux journaux sur un identifiant de requête, et la question de la boutique a reçu sa réponse à partir d'elles, en REST et par Polly. Terminé ouvre le menu des autres visites."
       }
     },
     "status": {
@@ -350,7 +334,7 @@
     "demos": {
       "weblogs": {
         "title": "Les journaux de la boutique en ligne",
-        "summary": "Les journaux web et base de données de la boutique, reliés : les pages les plus lentes et le SQL qui les explique, les requêtes échouées dans la base et ce qu'un analyste peut voir."
+        "summary": "La question d'une boutique en ligne, quelles pages sont lentes et quel SQL les rend lentes : ses sources, les tables qu'elles deviennent, la jointure de ses deux journaux et la réponse de Polly."
       }
     }
   }
