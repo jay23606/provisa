@@ -265,8 +265,14 @@ def normalize_table_refs(sql: str, ctx: CompilationContext) -> str:  # REQ-641
         alias_q = alias if alias else name
         quoted_aliases.add(alias_q)
         # REQ-1942: a TRUNCATE's target takes no alias -- its grammar has no place for one, and
-        # it has no column qualifiers to keep bound.
-        truncated = isinstance(node.parent, exp.TruncateTable)
+        # it has no column qualifiers to keep bound. Nor does an INSERT's (REQ-670): its column
+        # list follows the target, and read back `INSERT INTO t AS t (a, b)` is an alias that
+        # names columns, so the INSERT ran with no column list ("table users has 5 columns but 3
+        # values were supplied").
+        target = node.parent.parent if isinstance(node.parent, exp.Schema) else node.parent
+        truncated = isinstance(node.parent, exp.TruncateTable) or (
+            isinstance(target, exp.Insert) and target.this in (node, node.parent)
+        )
         new_tbl = exp.Table(
             this=exp.Identifier(this=table_q, quoted=True),
             db=exp.Identifier(this=schema_q, quoted=True),

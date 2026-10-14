@@ -133,3 +133,16 @@ def test_a_truncate_target_is_qualified_with_no_alias():
     lowered = normalize_table_refs("TRUNCATE TABLE sales.events", _ctx())
     assert " AS " not in lowered.upper()
     assert isinstance(sqlglot.parse_one(lowered, read="postgres"), sqlglot.exp.TruncateTable)
+
+
+@pytest.mark.parametrize("dialect", ["postgres", "sqlite", "duckdb"])
+def test_an_insert_target_keeps_its_column_list(dialect):
+    """REQ-670: an INSERT's column list follows its target, and `INSERT INTO t AS t (a, b)` read
+    back is an alias naming columns -- a Cypher CREATE on a SQLite table then ran with no column
+    list ("table users has 5 columns but 3 values were supplied")."""
+    lowered = normalize_table_refs("INSERT INTO sales.events (id, user_id) VALUES (1, 2)", _ctx())
+    assert " AS " not in lowered.upper()
+    reread = sqlglot.parse_one(lowered, read="postgres")
+    assert isinstance(reread, sqlglot.exp.Insert)
+    assert [c.name for c in reread.this.expressions] == ["id", "user_id"]
+    assert "(id, user_id)" in reread.sql(dialect).replace('"', "")
