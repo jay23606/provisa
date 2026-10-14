@@ -42,7 +42,7 @@ services:
       timeout: 5s
       retries: 60
   qdrant:
-    image: qdrant/qdrant:v1.12.4
+    image: qdrant/qdrant:v1.19.1
     restart: unless-stopped
     labels:
       <<: *demo-labels

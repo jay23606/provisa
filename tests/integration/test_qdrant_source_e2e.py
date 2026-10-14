@@ -42,7 +42,7 @@ import yaml
 pytestmark = [pytest.mark.integration]
 
 _ROLE = "org_admin"
-_IMAGE = "qdrant/qdrant:v1.12.4"
+_IMAGE = "qdrant/qdrant:v1.19.1"
 # A point per document: (id, title, lang, its "text" vector).
 _DOCS = [
     (1, "Dogs at the beach", "en", [1.0, 0.0, 0.0, 0.0]),
