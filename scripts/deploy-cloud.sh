@@ -383,6 +383,17 @@ services:
       - ${OVERLAY_DIR}/static:/app/static
       - ${OVERLAY_DIR}/provisa:/app/provisa
       - ${OVERLAY_DIR}/config:/app/config
+  # REQ-2006: the sandbox tier runs the same app; without the tree it ran the image's own code
+  # beside an API on the deployed one.
+  provisa-sandbox:
+    volumes:
+      - ${OVERLAY_DIR}/static:/app/static
+      - ${OVERLAY_DIR}/provisa:/app/provisa
+      - ${OVERLAY_DIR}/config:/app/config
+    environment:
+      # The demos cloud.provisa.dev offers (first-launch.sh's default since alpha.486; a node set
+      # up by an earlier release offers its own list until it is set up again).
+      PROVISA_DEMO_BUNDLES: "weblogs,files"
 YAML
   local want have
   want="$(shasum -a 256 "$STAGE/docker-compose.overlay.yml" | cut -d' ' -f1)"
