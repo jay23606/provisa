@@ -12,6 +12,7 @@ import { ApolloClient, InMemoryCache, HttpLink, ApolloLink } from "@apollo/clien
 import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval";
 import { map } from "rxjs/operators";
 import { currentBearer, ENV_HEADER, ORG_HEADER, selectedEnv } from "./lib/authFetch";
+import { currentActingRoles, ROLE_HEADER } from "./lib/actingRole";
 import { getStored, removeStored, setStored, storageKey, storageScope } from "./lib/browserStorage";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "";
@@ -39,6 +40,9 @@ const authLink = new ApolloLink((operation, forward) => {
   const headers: Record<string, string> = {};
   if (orgId) headers[ORG_HEADER] = orgId;
   if (env !== null) headers[ENV_HEADER] = env;
+  // The roles the request acts as (rights follow them): the role picker's selection.
+  const roles = currentActingRoles();
+  if (roles !== null) headers[ROLE_HEADER] = roles;
   if (Object.keys(headers).length > 0) operation.setContext({ headers });
   return forward(operation);
 });

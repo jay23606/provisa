@@ -33,7 +33,7 @@ _ROLES = {
 
 
 def _request(user_id: str, *roles: str):
-    identity = types.SimpleNamespace(user_id=user_id, roles=list(roles))
+    identity = types.SimpleNamespace(user_id=user_id, roles=list(roles), acting_roles=list(roles))
     return types.SimpleNamespace(state=types.SimpleNamespace(identity=identity))
 
 

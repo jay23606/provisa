@@ -206,7 +206,9 @@ async def test_a_column_of_a_table_being_registered_is_checked_against_the_defau
         domain_id="sales",
         columns=[column],
     )
-    identity = types.SimpleNamespace(user_id="u1", roles=["scope_editor"])
+    identity = types.SimpleNamespace(
+        user_id="u1", roles=["scope_editor"], acting_roles=["scope_editor"]
+    )
     async with callers.db.acquire() as conn:
         answer = await hiding_refusal(
             conn, model, identity=identity, state=appmod.state, editor=True

@@ -194,11 +194,13 @@ def test_an_admin_change_is_judged_by_the_callers_grant(node, monkeypatch):
         raising=False,
     )
     monkeypatch.setattr(capabilities, "_identity_from_info", lambda info: info.identity)
-    steward = SimpleNamespace(identity=SimpleNamespace(user_id="u1", roles=["eu_steward"]))
+    steward = SimpleNamespace(
+        identity=SimpleNamespace(user_id="u1", roles=["eu_steward"], acting_roles=["eu_steward"])
+    )
     capabilities.require_residency_change(steward, "table orders", CREATED, "eu")
     with pytest.raises(ResidencyRefused, match="region 'us'"):
         capabilities.require_residency_change(steward, "table orders", "eu", "us")
-    nobody = SimpleNamespace(identity=SimpleNamespace(user_id="u2", roles=[]))
+    nobody = SimpleNamespace(identity=SimpleNamespace(user_id="u2", roles=[], acting_roles=[]))
     with pytest.raises(ResidencyRefused, match="no grant of the caller's cover region 'eu'"):
         capabilities.require_residency_change(nobody, "table orders", CREATED, "eu")
 
@@ -208,7 +210,7 @@ def test_with_no_platform_regions_nothing_is_judged(node, monkeypatch):
 
     node(None)
     monkeypatch.setattr(capabilities, "_identity_from_info", lambda info: info.identity)
-    nobody = SimpleNamespace(identity=SimpleNamespace(user_id="u2", roles=[]))
+    nobody = SimpleNamespace(identity=SimpleNamespace(user_id="u2", roles=[], acting_roles=[]))
     capabilities.require_residency_change(nobody, "table orders", CREATED, None)
 
 
@@ -271,7 +273,9 @@ async def test_set_table_region_refuses_a_change_the_grant_does_not_cover(
         raising=False,
     )
     monkeypatch.setattr(capabilities, "_identity_from_info", lambda info: info.identity)
-    info = SimpleNamespace(identity=SimpleNamespace(user_id="u1", roles=["eu_steward"]))
+    info = SimpleNamespace(
+        identity=SimpleNamespace(user_id="u1", roles=["eu_steward"], acting_roles=["eu_steward"])
+    )
     async with _db(control_plane) as db:
         async with db.acquire() as conn:
             await conn.execute_core(update(registered_tables).values(region="eu"))
@@ -339,12 +343,18 @@ async def test_set_table_region_runs_the_real_capability_gate(node, monkeypatch,
             new=AsyncMock(return_value=_Pool(db)),
         ):
             # data_residency alone: refused at the capability gate, before the residency check.
-            info_only = SimpleNamespace(identity=SimpleNamespace(user_id="u1", roles=["res_only"]))
+            info_only = SimpleNamespace(
+                identity=SimpleNamespace(
+                    user_id="u1", roles=["res_only"], acting_roles=["res_only"]
+                )
+            )
             with pytest.raises(PermissionError, match="table_registration"):
                 await Mutation().set_table_region(info_only, table_id=table_id, region="us")
             # owns the object too: carried through to the residency refusal naming the region.
             info_owner = SimpleNamespace(
-                identity=SimpleNamespace(user_id="u2", roles=["res_owner"])
+                identity=SimpleNamespace(
+                    user_id="u2", roles=["res_owner"], acting_roles=["res_owner"]
+                )
             )
             result = await Mutation().set_table_region(info_owner, table_id=table_id, region="us")
             assert result.success is False

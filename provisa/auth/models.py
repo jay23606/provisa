@@ -42,6 +42,11 @@ class AuthIdentity:  # REQ-120
     # on each request. Set, it is the environment the request is served by, and a request naming
     # another is refused.
     credential_env: str | None = None
+    # The claims of the roles this request acts as -- the roles it NAMES (X-Provisa-Role), each
+    # held, or the default role when it names none. Rights are read from these, never from every
+    # role the identity holds (``roles``): a user exercises a right only acting as a role that
+    # carries it. Bound by the auth middleware for each request; None until then.
+    acting_roles: list[str] | None = None
 
 
 @dataclass

@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from enum import Enum
-from typing import cast
+from typing import Any, cast
 
 # Requirements: REQ-001, REQ-002, REQ-003, REQ-038, REQ-042, REQ-125, REQ-263
 
@@ -187,6 +187,19 @@ def role_ids_from_claims(claims: Iterable[str]) -> set[str]:  # REQ-1297
     (``capabilities_for_claims``) and test a RIGHT (REQ-1337).
     """
     return {c.split(":")[0].strip() for c in claims}
+
+
+def acting_claims(identity: Any) -> list[str]:
+    """The role claims ``identity`` acts as in this request: what rights are read from. Raises
+    when nothing bound them -- an identity the auth middleware has not resolved has no acting
+    roles, and reading every role it holds instead would hand it rights it did not ask to use."""
+    acting = getattr(identity, "acting_roles", None)
+    if acting is None:
+        raise RuntimeError(
+            f"identity {getattr(identity, 'user_id', '?')!r} has no acting roles: rights are read "
+            "from the roles a request acts as, which the auth middleware binds"
+        )
+    return list(acting)
 
 
 def capabilities_for_claims(  # REQ-1337

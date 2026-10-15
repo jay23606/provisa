@@ -157,7 +157,7 @@ def test_federation_requires_the_governance_right() -> None:
     from provisa.api.admin.lineage_router import federation_graph
     from provisa.api.errors import ApiError
 
-    identity = SimpleNamespace(user_id="analyst-1", roles=["analyst"])
+    identity = SimpleNamespace(user_id="analyst-1", roles=["analyst"], acting_roles=["analyst"])
     request = SimpleNamespace(state=SimpleNamespace(identity=identity))
     original = app_module.state.roles
     try:

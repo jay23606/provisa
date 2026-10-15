@@ -154,7 +154,7 @@ class TestHasCapability:
         from provisa.api.admin.capabilities import has_capability
 
         self._setup_roles(monkeypatch, {})
-        anon = types.SimpleNamespace(user_id="anonymous", roles=[])
+        anon = types.SimpleNamespace(user_id="anonymous", roles=[], acting_roles=[])
         assert has_capability(_info(anon), "create_relationship") is True
 
     async def test_nothing_stands_in_for_the_right(self, monkeypatch):
@@ -170,14 +170,14 @@ class TestHasCapability:
             },
         )
         for role_id in ("admin", "platform_admin"):
-            ident = types.SimpleNamespace(user_id="u1", roles=[role_id])
+            ident = types.SimpleNamespace(user_id="u1", roles=[role_id], acting_roles=[role_id])
             assert has_capability(_info(ident), "create_view") is False
 
     async def test_holder_true_nonholder_false(self, monkeypatch):
         from provisa.api.admin.capabilities import has_capability
 
         self._setup_roles(monkeypatch, {"steward": {"capabilities": ["create_relationship"]}})
-        ident = types.SimpleNamespace(user_id="u1", roles=["steward"])
+        ident = types.SimpleNamespace(user_id="u1", roles=["steward"], acting_roles=["steward"])
         assert has_capability(_info(ident), "create_relationship") is True
         assert has_capability(_info(ident), "create_view") is False
 

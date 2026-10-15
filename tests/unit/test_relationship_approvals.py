@@ -43,7 +43,7 @@ def _state():
 
 
 def _identity(user: str, *roles: str):
-    return types.SimpleNamespace(user_id=user, roles=list(roles))
+    return types.SimpleNamespace(user_id=user, roles=list(roles), acting_roles=list(roles))
 
 
 @pytest.fixture(autouse=True)

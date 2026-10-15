@@ -85,7 +85,9 @@ def _client(*held: str) -> TestClient:
 
     @app.middleware("http")
     async def _identity(request: Request, call_next):
-        request.state.identity = types.SimpleNamespace(user_id="u1", roles=list(held))
+        request.state.identity = types.SimpleNamespace(
+            user_id="u1", roles=list(held), acting_roles=list(held)
+        )
         request.state.assignments = [RoleAssignment(role_id=r, domain_id="*") for r in held]
         return await call_next(request)
 

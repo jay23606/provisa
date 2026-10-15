@@ -86,7 +86,7 @@ class TestEnvGateCapabilities:
     def _identity(self, user_id, roles):
         from types import SimpleNamespace
 
-        return SimpleNamespace(user_id=user_id, roles=roles)
+        return SimpleNamespace(user_id=user_id, roles=roles, acting_roles=roles)
 
     def test_dev_no_auth_is_exempt(self):
         from provisa.api.admin.capabilities import env_gate_capabilities
