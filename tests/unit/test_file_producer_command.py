@@ -32,6 +32,8 @@ class _Engine:
     def __init__(self, result):
         self._result = result
         self.sql: str | None = None
+        # The bound FederationEngine: one whose SQL names a catalog (#269).
+        self.engine = SimpleNamespace(catalog_qualified=True)
 
     def address_replicas(self, sql):
         return sql  # this stand-in's tables are all read where the statement names them

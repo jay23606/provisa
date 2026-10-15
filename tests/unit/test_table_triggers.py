@@ -191,12 +191,8 @@ async def test_a_change_to_a_table_read_live_fires_now_and_a_replicated_ones_wai
 
     fired: list = []
     monkeypatch.setattr(table_triggers, "table_changed", lambda state, key: fired.append(key))
-    table = SimpleNamespace(id=7, schema_name="public", table_name="bronze")
-
-    async def _tables(_state):
-        return [table]
-
-    monkeypatch.setattr("provisa.federation.registry_view.registered_tables", _tables)
+    table = SimpleNamespace(id=7, schema_name="public", table_name="bronze", change_signal=None)
+    _registry(monkeypatch, table, SimpleNamespace(id="pg", change_signal="ttl"))
     for replicated in (True, False):
         monkeypatch.setattr(
             "provisa.federation.replica_builds.request_if_replicated",
@@ -204,6 +200,34 @@ async def test_a_change_to_a_table_read_live_fires_now_and_a_replicated_ones_wai
         )
         await table_triggers.source_changed(object(), 7, "pg", "write")
     assert fired == [("pg", "public", "bronze")]  # only the live one; the other on its landing
+
+
+def _registry(monkeypatch, table, source) -> None:
+    async def _tables(_state):
+        return [table]
+
+    async def _sources(_state):
+        return [source]
+
+    monkeypatch.setattr("provisa.federation.registry_view.registered_tables", _tables)
+    monkeypatch.setattr("provisa.federation.registry_view.registered_sources", _sources)
+
+
+@pytest.mark.asyncio
+async def test_a_write_to_a_table_its_native_feed_follows_fires_from_the_feed_alone(monkeypatch):
+    from provisa.scheduler import table_triggers
+
+    fired: list = []
+    monkeypatch.setattr(table_triggers, "table_changed", lambda state, key: fired.append(key))
+    monkeypatch.setattr(
+        "provisa.federation.replica_builds.request_if_replicated", AsyncMock(return_value=False)
+    )
+    table = SimpleNamespace(id=7, schema_name="public", table_name="bronze", change_signal=None)
+    _registry(monkeypatch, table, SimpleNamespace(id="pg", change_signal="native"))
+    await table_triggers.source_changed(object(), 7, "pg", "write")
+    assert fired == []  # the write: its feed reports it
+    await table_triggers.source_changed(object(), 7, "pg", "refresh")
+    assert fired == [("pg", "public", "bronze")]  # the feed's burst
 
 
 @pytest.mark.asyncio
