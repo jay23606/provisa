@@ -803,6 +803,16 @@
         "label": "Righe per tabella temporanea",
         "help": "Il numero massimo di righe che una tabella temporanea può contenere. Una tabella temporanea è una tabella reale nello store del motore che anche un ruolo senza diritto di scrittura può riempire, perciò è limitata. Una tabella che supererebbe il limite viene rifiutata; nulla viene troncato."
       }
+    },
+    "sla": {
+      "p99_limit_ms": {
+        "label": "Limite di latenza (99° percentile)",
+        "help": "La latenza delle query al 99° percentile che l'ultima ora di un'organizzazione può raggiungere. Oltre, viene aperta una violazione di latenza, conservata nel registro delle violazioni del livello di servizio finché la latenza non rientra nel limite."
+      },
+      "availability_min_pct": {
+        "label": "Soglia minima di disponibilità",
+        "help": "La quota di query di un'organizzazione nell'ultima ora che deve riuscire. Al di sotto, viene aperta una violazione di disponibilità, conservata nel registro delle violazioni del livello di servizio finché la disponibilità non si ripristina."
+      }
     }
   }
 }

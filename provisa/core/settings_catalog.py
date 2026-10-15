@@ -889,6 +889,32 @@ DECLARED: list[Setting] = [
         min=1,
         unit="milliseconds",
     ),
+    # --- Service level (REQ-506): the limits each org's last hour is evaluated against ----------
+    Setting(
+        key="sla.p99_limit_ms",
+        card="telemetry",
+        type="int",
+        effect="live",  # read at every evaluation
+        req="REQ-506",
+        env="PROVISA_SLA_P99_LIMIT_MS",
+        config_path=("sla", "p99_limit_ms"),
+        default=5000,
+        min=1,
+        unit="milliseconds",
+    ),
+    Setting(
+        key="sla.availability_min_pct",
+        card="telemetry",
+        type="float",
+        effect="live",
+        req="REQ-506",
+        env="PROVISA_SLA_AVAILABILITY_MIN_PCT",
+        config_path=("sla", "availability_min_pct"),
+        default=99.9,
+        min=0,
+        max=100,
+        unit="percent",
+    ),
     # --- Bootstrap: what the launch itself decides -----------------------------------------------
     # Shown, not editable (REQ-1913): each is consumed before, or decides how, the control plane
     # the stored settings live in is reached.

@@ -803,6 +803,16 @@
         "label": "Zeilen pro temporärer Tabelle",
         "help": "Die Höchstzahl an Zeilen, die eine temporäre Tabelle halten darf. Eine temporäre Tabelle ist eine echte Tabelle im Store der Engine, die auch eine Rolle ohne Schreibrecht füllen kann; deshalb ist sie begrenzt. Eine Tabelle, die das Limit überschreiten würde, wird abgelehnt; es wird nichts gekürzt."
       }
+    },
+    "sla": {
+      "p99_limit_ms": {
+        "label": "Latenzgrenze (99. Perzentil)",
+        "help": "Die Abfragelatenz im 99. Perzentil, die die letzte Stunde einer Organisation erreichen darf. Darüber wird eine Latenzverletzung eröffnet und im Protokoll der Service-Level-Verletzungen geführt, bis die Latenz wieder darunter liegt."
+      },
+      "availability_min_pct": {
+        "label": "Verfügbarkeitsuntergrenze",
+        "help": "Der Anteil der Abfragen einer Organisation in der letzten Stunde, der erfolgreich sein muss. Darunter wird eine Verfügbarkeitsverletzung eröffnet und im Protokoll der Service-Level-Verletzungen geführt, bis sich die Verfügbarkeit erholt."
+      }
     }
   }
 }

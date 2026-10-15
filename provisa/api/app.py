@@ -508,7 +508,7 @@ class AppState:
 
     @property
     def record_db(self) -> Database | None:
-        """The acting org's RECORD in this region (query_audit_log, query_sla_log) — REQ-1922."""
+        """The acting org's RECORD in this region (query_audit_log, sla_breach_log) — REQ-1922."""
         return self._active_runtime().record_db
 
     @record_db.setter

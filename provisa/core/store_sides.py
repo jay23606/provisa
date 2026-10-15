@@ -58,7 +58,7 @@ HANDLE = {
 
 #: Per (org, region): the request record (REQ-1922: the state store and the record are per org
 #: and region; a region names the store its record is kept in, which may be its state store).
-RECORD: frozenset[str] = frozenset({"query_audit_log", "query_sla_log"})
+RECORD: frozenset[str] = frozenset({"query_audit_log", "sla_breach_log"})
 
 #: Per (org, region): what one region does.
 STATE: frozenset[str] = frozenset(

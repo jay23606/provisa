@@ -803,6 +803,16 @@
         "label": "Linhas por tabela temporária",
         "help": "O máximo de linhas que uma tabela temporária pode conter. Uma tabela temporária é uma tabela real no armazenamento do mecanismo que uma função sem direito de gravação pode preencher, por isso é limitada. Uma tabela que ultrapassaria o limite é recusada; nada é cortado."
       }
+    },
+    "sla": {
+      "p99_limit_ms": {
+        "label": "Limite de latência (percentil 99)",
+        "help": "A latência de consulta no percentil 99 que a última hora de uma organização pode atingir. Acima disso, uma violação de latência é aberta e mantida no registro de violações do nível de serviço até a latência voltar ao limite."
+      },
+      "availability_min_pct": {
+        "label": "Piso de disponibilidade",
+        "help": "A parcela das consultas de uma organização na última hora que deve ter sucesso. Abaixo disso, uma violação de disponibilidade é aberta e mantida no registro de violações do nível de serviço até a disponibilidade se recuperar."
+      }
     }
   }
 }

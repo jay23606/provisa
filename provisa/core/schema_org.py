@@ -1403,16 +1403,25 @@ query_audit_log = Table(
     Column("logged_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
 )
 
-# SLA telemetry (REQ-074, REQ-506) — DDL in provisa/audit/sla_monitor.py.
-query_sla_log = Table(
-    "query_sla_log",
+# Service-level breaches (REQ-506). A row is opened when a measure goes past its limit and closed
+# when it comes back; the per-query record the measures are computed from is query_audit_log.
+sla_breach_log = Table(
+    "sla_breach_log",
     metadata,
     Column("id", BigInteger(), primary_key=True, autoincrement=True),
-    Column("tenant_id", Uuid),
-    Column("duration_ms", Integer, nullable=False),
-    Column("status_code", Integer, nullable=False),
+    Column("tenant_id", Text),
+    # "latency" (the p99 past sla.p99_limit_ms) or "availability" (below sla.availability_min_pct).
+    Column("kind", Text, nullable=False),
+    # The measure when the breach opened, and the latest while it lasts.
+    Column("observed", Float, nullable=False),
+    Column("last_observed", Float, nullable=False),
+    # The limit in force when the breach opened.
+    Column("limit_value", Float, nullable=False),
     Column("window_start", DateTime(timezone=True), nullable=False),
-    Column("recorded_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("window_end", DateTime(timezone=True), nullable=False),
+    Column("started_at", DateTime(timezone=True), nullable=False),
+    Column("last_seen_at", DateTime(timezone=True), nullable=False),
+    Column("resolved_at", DateTime(timezone=True)),
 )
 
 # Source catalog cache (REQ-464) — DDL in provisa/discovery/catalog_cache.py.

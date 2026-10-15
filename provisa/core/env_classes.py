@@ -124,7 +124,7 @@ NEVER_RUNTIME: frozenset[str] = frozenset(
         "node_ids",
         "rel_ids",
         "query_audit_log",
-        "query_sla_log",
+        "sla_breach_log",
         "source_catalog_cache",
         "events",
         "event_status",

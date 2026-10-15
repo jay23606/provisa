@@ -1052,6 +1052,10 @@ async def register_org_triggers(  # REQ-1003, REQ-1266
         from provisa.dq.scan import register_org_checkers
 
         await register_org_checkers(scheduler, org_id)
+        # REQ-506: and its service level, evaluated against the operator's limits.
+        from provisa.audit.sla_monitor import register_org_sla
+
+        register_org_sla(scheduler, org_id)
     finally:
         reset_current_env(env_token)
         reset_current_org(org_token)

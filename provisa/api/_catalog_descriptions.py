@@ -100,6 +100,11 @@ _OPS: dict[str, str] = {
     "started and finished, how it copied, its rows or its error; the last builds of each replica",
     "replica_build_health": "Replica builds and their failures per source and day, from the "
     "replica build log",
+    "sla_breach_log": "One row per service-level breach — the latency or availability of the "
+    "org's last hour past the operator's limit: when it opened, the worst and latest measure, "
+    "the limit, and when it recovered",
+    "service_level": "The service level of the org's last hour, from the audit log — how many "
+    "queries, their latency percentiles and the share that succeeded",
 }
 
 # A model reading the catalog took ops.query_audit_log -- its route, status_code and duration_ms
@@ -637,6 +642,29 @@ COLUMN_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "rows_copied": "Rows a completed build copied",
         "error_code": "A failed build's code, when its cause is a named one",
         "error_message": "A failed build's error, in English",
+    },
+    "sla_breach_log": {
+        "id": "Surrogate key, in the order the breaches opened",
+        "kind": "latency (the 99th percentile past its limit) or availability (below its floor)",
+        "observed": "The measure when the breach opened: milliseconds, or percent available",
+        "last_observed": "The measure at the latest evaluation while the breach lasted",
+        "limit_value": "The limit in force when the breach opened",
+        "window_start": "Start of the hour the opening evaluation measured",
+        "window_end": "End of that hour",
+        "started_at": "When the breach opened",
+        "last_seen_at": "The latest evaluation that found it still in breach",
+        "resolved_at": "When the measure came back within its limit; empty: still open",
+    },
+    "service_level": {
+        "id": "last_hour",
+        "window_start": "Start of the hour measured",
+        "window_end": "End of the hour measured: now",
+        "query_count": "Statements Provisa executed in the hour",
+        "avg_ms": "Their mean duration, in milliseconds",
+        "p50_ms": "Their median duration, in milliseconds",
+        "p95_ms": "Their 95th-percentile duration, in milliseconds",
+        "p99_ms": "Their 99th-percentile duration, in milliseconds",
+        "availability_pct": "Percent of them answered without a server error",
     },
     "replica_build_health": {
         "id": "Composite key of the source and the day",
