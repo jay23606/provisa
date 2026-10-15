@@ -64,6 +64,8 @@ _API_TYPE_TO_IR: dict[str, str] = {
     "number": "DOUBLE",
     "boolean": "BOOLEAN",
     "jsonb": "VARCHAR",
+    "date": "DATE",
+    "timestamp": "TIMESTAMP",
 }
 
 
@@ -367,6 +369,8 @@ _IR_TO_SQLALCHEMY: dict[str, Any] = {
     "BIGINT": "BigInteger",
     "DOUBLE": "Float",
     "BOOLEAN": "Boolean",
+    "DATE": "Date",
+    "TIMESTAMP": "DateTime",
 }
 
 
@@ -386,7 +390,7 @@ def _create_and_insert_directly_against_store(
             "to a materialize store that does not own it"
         )
     from sqlalchemy import Boolean, Column, MetaData, String, Table, insert, make_url
-    from sqlalchemy import BigInteger, Float
+    from sqlalchemy import BigInteger, Date, DateTime, Float
 
     from provisa.api.app import state
     from provisa.core.database import sync_engine_from_url
@@ -400,7 +404,14 @@ def _create_and_insert_directly_against_store(
             f"{sorted(_DIRECT_WRITE_SAFE_STORE_BACKENDS)} do) — table {table_name!r} must be "
             "created through the engine's own connection instead"
         )
-    sa_types = {"String": String, "BigInteger": BigInteger, "Float": Float, "Boolean": Boolean}
+    sa_types = {
+        "String": String,
+        "BigInteger": BigInteger,
+        "Float": Float,
+        "Boolean": Boolean,
+        "Date": Date,
+        "DateTime": DateTime,
+    }
 
     def _column_type(col):
         raw = col.type.value if hasattr(col.type, "value") else str(col.type)

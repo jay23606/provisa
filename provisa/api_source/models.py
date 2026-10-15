@@ -43,6 +43,9 @@ class ApiColumnType(str, Enum):  # REQ-119, REQ-299
     number = "number"
     boolean = "boolean"
     jsonb = "jsonb"
+    # A date or a timestamp, given as its ISO 8601 text (a Cypher date, an API's date field).
+    date = "date"
+    timestamp = "timestamp"
 
 
 class ApiSource(BaseModel):  # REQ-295, REQ-297, REQ-298

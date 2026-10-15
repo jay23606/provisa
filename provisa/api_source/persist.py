@@ -48,6 +48,8 @@ _DATA_TYPE_TO_API: dict[str, ApiColumnType] = {
     "bool": ApiColumnType.boolean,
     "json": ApiColumnType.jsonb,
     "jsonb": ApiColumnType.jsonb,
+    "date": ApiColumnType.date,
+    "timestamp": ApiColumnType.timestamp,
 }
 
 
@@ -84,6 +86,8 @@ _API_TO_DATA_TYPE: dict[ApiColumnType, str] = {
     ApiColumnType.number: "double",
     ApiColumnType.boolean: "boolean",
     ApiColumnType.jsonb: "json",
+    ApiColumnType.date: "date",
+    ApiColumnType.timestamp: "timestamp",
 }
 
 

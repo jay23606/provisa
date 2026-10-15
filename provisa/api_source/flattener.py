@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import json
+from datetime import date, datetime, timezone
 
 from provisa.api_source.models import ApiColumn, ApiColumnType
 from provisa.api_source.normalizers import get_normalizer
@@ -60,6 +61,15 @@ def _extract_value(row: dict, col: ApiColumn) -> object:
         return float(value)
     if col.type == ApiColumnType.boolean:
         return bool(value)
+    if col.type == ApiColumnType.date:
+        return value if isinstance(value, date) else date.fromisoformat(str(value))
+    if col.type == ApiColumnType.timestamp:
+        # A timestamp has no zone: one given with an offset is that instant in UTC, as a
+        # timestamp column lands one (ir_arrow.arrow_value).
+        stamp = value if isinstance(value, datetime) else datetime.fromisoformat(str(value))
+        if stamp.tzinfo is not None:
+            stamp = stamp.astimezone(timezone.utc).replace(tzinfo=None)
+        return stamp
     return str(value)
 
 
