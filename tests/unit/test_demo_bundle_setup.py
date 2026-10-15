@@ -140,11 +140,13 @@ def test_the_bundle_action_installs_a_demo_s_extras_before_it_builds():
     assert "https://download.pytorch.org/whl/cpu torch" in install
 
 
-def test_a_bundled_demo_is_not_set_up_again_where_it_runs():
+def test_a_bundled_demo_runs_only_its_environment_steps_where_it_runs():
+    """Its commands and view builds ran at the bundle build, their work in the dumps; its
+    environments (REQ-2053) are branches of the model in the control plane every start builds."""
     launcher = (_REPO / "start-ui-install.sh").read_text()
-    guard = launcher[: launcher.index("scripts/run_demo_setup.py")].rsplit("\nif ", 1)[1]
-    assert '"$_DEMO_BUNDLED" = false' in guard
-    assert '"$_NAMED_DIR/setup.yaml"' in guard
+    block = launcher[: launcher.index("scripts/run_demo_setup.py")].rsplit("\nif ", 1)[1]
+    assert '"$_NAMED_DIR/setup.yaml"' in block
+    assert '"$_DEMO_BUNDLED" = true ]; then _SETUP_SCOPE="--environments-only"' in block
 
 
 def test_the_sonnets_run_time_compose_loads_what_its_build_saves():

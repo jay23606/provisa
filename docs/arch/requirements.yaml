@@ -83843,7 +83843,7 @@
   - REQ-2049
   notes: 'Maintainer 2026-10-14, via the lead: data profiling is its own feature demo, separate from data quality.'
 - id: REQ-2053
-  status: proposed
+  status: in-progress
   since: 2026-10
   group: 10. UI & Admin Surfaces
   category: UI
@@ -83870,7 +83870,20 @@
   - REQ-2010
   - REQ-2049
   notes: 'Maintainer 2026-10-14, via the lead: test data as a feature demo, perhaps inside the existing environments;
-    the lead placed it with the environments (git branches) demo.'
+    the lead placed it with the environments (git branches) demo. Built 2026-10-15: the demo testdata, a shop''s production database (weblogs'' shop tables, its own generated data) with a fake declared on every column (keys as hash, so joins match). Its setup.yaml makes two Test (fake) environments, dev and test, through a new setup step kind (environment: {name, data_mode}); a bundled demo runs its environment steps where it runs, since environments live in the control plane, not the dumps. Its tour switches environment through a new tour step property, env, which picks the environment in the header''s switcher.'
+  code:
+  - demo/named/testdata/config.yaml
+  - demo/named/testdata/setup.yaml
+  - demo/named/testdata/tour.yaml
+  - demo/named/testdata/generate.py
+  - scripts/run_demo_setup.py
+  - start-ui-install.sh
+  - provisa-ui/src/tour/demoTour.ts
+  tests:
+  - tests/integration/test_testdata_demo.py
+  - tests/unit/test_demo_setup.py
+  - tests/unit/test_named_demo_tour.py
+  - provisa-ui/src/__tests__/tourDemoTrack.test.tsx
 - id: REQ-2054
   status: complete
   since: 2026-10

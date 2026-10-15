@@ -301,3 +301,24 @@ def test_a_definition_change_moves_a_columns_values(con):
     stable = _gov({"email": "hash()"}, stable={"email"}, stable_version=1)
     pinned = dict(_run(con, "SELECT id, email FROM sales.customers", stable))
     assert all(hashed[i] != pinned[i] for i in hashed)
+
+
+@pytest.mark.parametrize("dtype", ["INTEGER", "SMALLINT"])
+def test_a_hash_of_a_narrower_integer_column_fits_its_type(monkeypatch, dtype):
+    """#272: the hash's 64-bit seed is taken within a narrower integer's range, so the read is
+    answered, and one value still gives one hash."""
+    monkeypatch.setattr(digest_mod, "_key", _KEY)
+    con = duckdb.connect()
+    register(con)
+    con.execute("CREATE SCHEMA sales")
+    con.execute(f"CREATE TABLE sales.customers (id {dtype}, ref {dtype})")
+    con.execute("INSERT INTO sales.customers SELECT i, i FROM range(1, 200) AS t(i)")
+    gov = GovernanceContext(role_id="analyst")
+    gov.table_map = {"sales.customers": 1, "customers": 1}
+    gov.all_columns = {1: [("id", dtype.lower()), ("ref", dtype.lower())]}
+    gov.visible_columns = {1: None}
+    for name in ("id", "ref"):
+        gov.masking_rules[(1, name)] = (MaskingRule(MaskType.fake, fake="hash()"), dtype.lower())
+    stage2._bind_fakes(gov)
+    rows = con.execute(apply_governance("SELECT id, ref FROM sales.customers", gov)).fetchall()
+    assert len(rows) == 199 and all(a == b for a, b in rows)

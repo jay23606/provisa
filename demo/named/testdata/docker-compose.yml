@@ -1,0 +1,45 @@
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+#
+# The named demo "testdata" (start-ui-install.sh --demo testdata; REQ-1858). This file is its one
+# start point: `docker compose up -d` brings up its database, loaded with the shop's production
+# data (db/init.sql, from the files generate.py writes).
+#
+#   postgres  the demo's database, with the role Provisa reads it as.
+#
+# Port: 28332 the database; it can be moved by its variable.
+x-demo-labels: &demo-labels
+  com.provisa.demo: testdata
+name: provisa-demo-testdata
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    labels:
+      <<: *demo-labels
+      com.provisa.demo.role: rdb
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: testdata
+    ports:
+      - "127.0.0.1:${TESTDATA_PG_PORT:-28332}:5432"
+    volumes:
+      - testdata_pg:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
+      - ./db:/docker-entrypoint-initdb.d/data:ro
+      - ./db/reader.sql:/docker-entrypoint-initdb.d/20-reader.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d testdata"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+
+volumes:
+  testdata_pg:

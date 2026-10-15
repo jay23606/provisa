@@ -1,0 +1,9 @@
+# What each region spends, by product category: the same view in every environment.
+query SalesByRegion {
+  s__viewSalesByRegion(order_by: [{ revenue: desc }]) {
+    region
+    category
+    orders
+    revenue
+  }
+}

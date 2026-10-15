@@ -98,6 +98,17 @@ def definition_of(col: Column) -> int:
     return definition_hash(kind_name(k), dataclasses.asdict(k), version, col.data_type)
 
 
+#: The largest value of each integer type narrower than BIGINT: a remainder by it fits the type.
+_INTEGER_BOUND = {
+    "tinyint": 127,
+    "smallint": 32767,
+    "int2": 32767,
+    "integer": 2147483647,
+    "int": 2147483647,
+    "int4": 2147483647,
+}
+
+
 def seed_sql(digest: str, def_hash: int) -> str:
     """SQL for a value's seed: its digest mixed with the definition hash (digest.seed)."""
     return f"provisa_seed({digest}, {_bigint(def_hash)})"
@@ -306,7 +317,14 @@ def expression(
         # The keyed digest mixed with the definition, as every fake is seeded (REQ-1494): one
         # value still gives one hash, and joined columns of one definition still match.
         hashed = seed_sql(digest, definition_of(col))
-        out = _tag(hashed) if col.family == "text" else f"CAST({hashed} AS {col.data_type})"
+        if col.family == "text":
+            out = _tag(hashed)
+        else:
+            # The seed is 64-bit; a narrower integer takes it within its own range (#272), the
+            # same on every engine, so one value still gives one hash in either column of a join.
+            bound = _INTEGER_BOUND.get(col.data_type.lower().split("(")[0].strip())
+            narrowed = hashed if bound is None else f"({hashed} % {bound})"
+            out = f"CAST({narrowed} AS {col.data_type})"
     elif isinstance(k, Ordered):
         named = faked(k.column)
         if k.distance is None:

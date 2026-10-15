@@ -635,6 +635,58 @@
       "vulnerabilitiesRecap": {
         "title": "What you saw",
         "description": "The company's own code data, read live, and public vulnerability data, landed once and only as much of it as the alerts need, joined by CVE in one governed model: one view answers which exploited vulnerabilities sit in the code and how overdue each is, in SQL, GraphQL, Cypher and REST."
+      },
+      "testdataScenario": {
+        "title": "Can I test against realistic data without touching production?",
+        "description": "<strong>shop-db</strong> is a shop's production database: its customers, products and orders. Developers and testers need data of the same shape to work against, but the customers' names, emails and cities are personal data, and copies of production drift. The data here is itself generated, to stand in for a real shop."
+      },
+      "testdataTables": {
+        "title": "Each column declares its fake",
+        "description": "Every column of <strong>customers</strong> names the kind of value it holds, its fake: a person's name, an email address, a city, one of four regions, a date in a range. The model carries it with the column, so the fake is defined once, where the column is."
+      },
+      "testdataJoin": {
+        "title": "Keys faked alike still join",
+        "description": "An order's <strong>customer_id</strong> and the customer's <strong>id</strong> are both faked as a hash. One real value always gives the same fake, so an order still finds its customer when both are fake."
+      },
+      "testdataProd": {
+        "title": "Production: the real rows",
+        "description": "In prod, the environment a request naming none is served, the customers read as they are."
+      },
+      "testdataToDev": {
+        "title": "Switch to dev",
+        "description": "dev and test are environments of the model: branches of it, as in git. Both are Test (fake) environments. Next, the header's switcher moves to dev; every read after it is served from there."
+      },
+      "testdataDev": {
+        "title": "The same query in dev",
+        "description": "The same statement, read in dev: every column is its fake, computed by the engine as it reads. Names, emails, cities and dates look real and are not. Nothing was copied out of production."
+      },
+      "testdataDevAnswer": {
+        "title": "Views and joins work on the fakes",
+        "description": "A view joining orders, their lines, customers and products answers in dev too. Grouping, joining and adding up all run on the fakes, so a test exercises the same queries production runs."
+      },
+      "testdataDevGraphql": {
+        "title": "Over GraphQL as well",
+        "description": "Each order with the customer who placed it, through the relationship. Every API reads the environment it is served from, so a test suite against GraphQL, REST or SQL sees the same generated data."
+      },
+      "testdataToTest": {
+        "title": "Switch to test",
+        "description": "Next, the switcher moves to test, the second Test (fake) environment."
+      },
+      "testdataTest": {
+        "title": "The same fakes in test",
+        "description": "A real value shows the same fake wherever it is read, so dev and test agree: a test written in dev finds the same rows in test."
+      },
+      "testdataToProd": {
+        "title": "Back to production",
+        "description": "Next, the switcher returns to prod."
+      },
+      "testdataProdAnswer": {
+        "title": "The real answer, in production only",
+        "description": "The same view, read in prod: the real revenue by region and category. Only prod is served real rows; dev and test never see them."
+      },
+      "testdataDone": {
+        "title": "What this is",
+        "description": "Environments are branches of one model, and a fake is declared once per column. A Test (fake) environment answers every query with realistic generated values, keeps keys joinable, and is refused while a personal-data column has no fake. Production data never leaves production."
       }
     },
     "status": {
@@ -679,6 +731,10 @@
       "vulnerabilities": {
         "title": "Exploited vulnerabilities in our code",
         "summary": "A software company's Dependabot alerts joined by CVE to the NVD and CISA's catalog of Known Exploited Vulnerabilities: which exploited vulnerabilities sit in our code, and how far past CISA's due date are they?"
+      },
+      "testdata": {
+        "title": "Test data",
+        "summary": "A shop's production database, read in prod as it is and in two test environments as realistic generated data, the same queries and joins answering in all three."
       }
     }
   }

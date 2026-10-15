@@ -14,14 +14,20 @@ A demo's setup.yaml lists, in order, what it needs run after the server is up: `
 calls a command of its config.yaml as org_admin with no arguments; ``refresh: <view>`` builds the
 stored rows of a view of its config.yaml with ``materialize: true``; ``profile: <profiler>`` runs a
 Data Profiler source of its config.yaml at once for every member table (REQ-2052): a sandbox
-cloned from the demo's template carries those runs (env_copy.clone_model). start-ui-install.sh and the
-demo's template build both call this, so the two set a demo up alike.
+cloned from the demo's template carries those runs (env_copy.clone_model); ``environment: {name,
+data_mode}`` creates an environment of the model (REQ-2053), as the Environments page does.
+start-ui-install.sh and the demo's template build both call this, so the two set a demo up alike.
+
+A bundled demo runs only its environment steps where it runs (``--environments-only``): the other
+steps ran when its bundle was built and what they wrote is in its stores' dumps, but an
+environment is a branch of the model in the control plane, which every start of the demo builds
+anew.
 
 Once per control plane: the demo's name is added to the operator setting ``demo.setup_completed``
 when every step has succeeded, and a demo already listed there is not set up again. The first step
 that fails stops the run: the exit status is 1 and the step is named. Nothing is retried.
 
-Usage: run_demo_setup.py <demo dir> --url <server base url>
+Usage: run_demo_setup.py <demo dir> --url <server base url> [--environments-only]
 """
 
 from __future__ import annotations
@@ -45,8 +51,8 @@ class StepFailed(RuntimeError):
 
 
 def steps(demo_dir: Path) -> list[dict]:
-    """The demo's steps, each one ``command``, ``refresh`` or ``profile``; none when it has no
-    setup.yaml."""
+    """The demo's steps, each one ``command``, ``refresh``, ``profile`` or ``environment``; none
+    when it has no setup.yaml."""
     path = demo_dir / "setup.yaml"
     if not path.exists():
         return []
@@ -60,12 +66,19 @@ def steps(demo_dir: Path) -> list[dict]:
                 "command",
                 "refresh",
                 "profile",
+                "environment",
             )
         ):
             raise SystemExit(
-                f"{path}: a step is one 'command: <name>', 'refresh: <view>' or "
-                f"'profile: <profiler>': {step}"
+                f"{path}: a step is one 'command: <name>', 'refresh: <view>', "
+                f"'profile: <profiler>' or 'environment: {{name: <name>, data_mode: <mode>}}': "
+                f"{step}"
             )
+        if "environment" in step and (
+            not isinstance(step["environment"], dict)
+            or set(step["environment"]) != {"name", "data_mode"}
+        ):
+            raise SystemExit(f"{path}: an environment step names its name and data_mode: {step}")
     return listed
 
 
@@ -144,6 +157,15 @@ def run_step(client: httpx.Client, step: dict) -> str:
                 step, "; ".join(failed) or f"profiler {profiler!r} has no member tables"
             )
         return f"profile {profiler}: {', '.join(o['table'] for o in outcomes)}"
+    if "environment" in step:
+        me = client.get("/auth/me")
+        me.raise_for_status()
+        org = me.json()["active_org_id"]
+        created = client.post(f"/admin/orgs/{org}/environments", json=step["environment"])
+        if created.status_code != 200:
+            raise StepFailed(step, f"HTTP {created.status_code}: {created.text}")
+        made = created.json()["environment"]
+        return f"environment {made['name']}: created ({made['data_mode']})"
     view = step["refresh"]
     data = _ok(
         client.post(
@@ -159,8 +181,10 @@ def run_step(client: httpx.Client, step: dict) -> str:
     return f"refresh {view}: {data['refreshMv']['message']}"
 
 
-def run(demo_dir: Path, url: str) -> int:
+def run(demo_dir: Path, url: str, *, environments_only: bool = False) -> int:
     listed = steps(demo_dir)
+    if environments_only:
+        listed = [step for step in listed if "environment" in step]
     if not listed:
         return 0
     name = demo_dir.resolve().name
@@ -187,5 +211,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
     parser.add_argument("demo_dir", type=Path)
     parser.add_argument("--url", required=True)
+    parser.add_argument(
+        "--environments-only",
+        action="store_true",
+        help="run only the environment steps (a bundled demo, where it runs)",
+    )
     args = parser.parse_args()
-    sys.exit(run(args.demo_dir, args.url))
+    sys.exit(run(args.demo_dir, args.url, environments_only=args.environments_only))

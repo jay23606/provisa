@@ -82,6 +82,9 @@ export interface DemoTourStepDef {
   term?: string;
   /** A role (or "all"): shown in the SQL explorer's run-as picker, picked on Next. */
   role?: string;
+  /** An environment of the model (REQ-2053): shown in the header's environment switcher, picked
+   *  on Next, so the steps after it read that environment. */
+  env?: string;
   /** A question for Polly: the panel opens on it and its stored `answer`, as an exchange. */
   polly?: string;
   /** REQ-2012: Polly's answer to `polly`, stored when the demo's template was built. */
@@ -93,6 +96,8 @@ const RESULT_WAIT_MS = 60000;
 // The SQL explorer's own run-as picker (REQ-1013), not the app-wide role: it is what the explorer's
 // statements run as.
 const RUN_AS = '[data-testid="sql-role"]';
+// The header's environment switcher: what every request after it is served from.
+const ENV_SWITCHER = '[data-testid="env-switcher-trigger"]';
 const SQL_RESULT_ROW = '.sql-results-table tbody tr:not([data-testid="results-grid-empty"])';
 
 export function demoTourSteps(
@@ -187,6 +192,13 @@ export function demoTourSteps(
         ...page,
         element: RUN_AS,
         chooseOnNext: { open: RUN_AS, option: `[data-sql-role-option="${def.role}"]` },
+      };
+    }
+    if (def.env !== undefined) {
+      return {
+        ...page,
+        element: ENV_SWITCHER,
+        chooseOnNext: { open: ENV_SWITCHER, option: `[data-env-option="${def.env}"]` },
       };
     }
     if (def.polly !== undefined) {

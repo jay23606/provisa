@@ -111,6 +111,16 @@ describe("a demo's steps, as the runner walks them", () => {
     });
   });
 
+  it("shows the environment switcher and picks the environment on Next", () => {
+    // REQ-2053: the steps after it read that environment.
+    const [env] = demoTourSteps([{ key: "e", env: "dev" }], EXAMPLES);
+    expect(env.element).toBe('[data-testid="env-switcher-trigger"]');
+    expect(env.chooseOnNext).toEqual({
+      open: '[data-testid="env-switcher-trigger"]',
+      option: '[data-env-option="dev"]',
+    });
+  });
+
   it("runs a call on each API surface's page and waits for its answer there", () => {
     const [api, jsonapi, grpc, cypher] = demoTourSteps(
       [

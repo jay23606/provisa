@@ -34,6 +34,7 @@ _TARGETS = (
     "cypher",
     "term",
     "role",
+    "env",
     "polly",
 )
 # The query parameters a table's REST endpoint declares (provisa/api/rest/openapi_spec.py).
@@ -161,6 +162,10 @@ def _check_steps(home: Path, steps: list[dict]) -> None:
     aliases = {r["alias"] for r in config["relationships"] if r.get("alias")}
     examples = {q.stem for q in (home / "queries").glob("*.graphql")}
     roles = {r["id"] for r in config["roles"]} | {"all"}
+    # prod, and each environment the demo's setup makes (REQ-2053).
+    setup = home / "setup.yaml"
+    made = (yaml.safe_load(setup.read_text()) or {}).get("steps") or [] if setup.exists() else []
+    envs = {"prod"} | {s["environment"]["name"] for s in made if "environment" in s}
     terms = {t["name"] for t in config.get("glossary_terms", [])}
     tables = {f"{t['source_id']}.{t['table']}" for t in config["tables"]}
     relations = _relations(config)
@@ -220,6 +225,9 @@ def _check_steps(home: Path, steps: list[dict]) -> None:
             assert step["role"] in roles, step
             # Picked in the SQL explorer's run-as picker, which is on that page alone.
             assert page == "/sql", f"{step['key']}: a role is picked on /sql, not {page}"
+        if "env" in step:
+            # Picked in the header's environment switcher, on any page.
+            assert step["env"] in envs, f"{step['key']}: no environment {step['env']!r}"
         if "sql" in step:
             read = {
                 f"{t.db}.{t.name}"
