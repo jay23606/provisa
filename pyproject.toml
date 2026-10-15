@@ -29,7 +29,9 @@ dependencies = [
     "strawberry-graphql[fastapi]",
     "pyyaml",
     "graphql-core>=3.2",
-    "sqlglot",
+    # Bounded to the release the suite runs on: an unbounded pin installed 30.23 into alpha.485's
+    # image while every test ran 30.9, and a renamed scope attribute failed every query there.
+    "sqlglot>=30.23,<30.24",
     # REQ-1494: the fake methods a column may name, checked when declared and, in the embedded
     # engine, computed seeded by the keyed digest of the value.
     "faker",

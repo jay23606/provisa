@@ -117,7 +117,7 @@ def _bodies(scope: Scope) -> list[Scope]:
     """``scope`` and every branch of it, at any depth: a UNION of more than two branches is a
     tree of two-branch unions."""
     found = [scope]
-    for branch in scope.union_scopes:
+    for branch in scope.set_operation_scopes:
         found += _bodies(branch)
     return found
 
@@ -142,8 +142,8 @@ class _Resolver:
         from provisa.compiler.view_expand import marked_view
 
         for scope in scopes:
-            if scope.union_scopes:
-                first = scope.union_scopes[0]
+            if scope.set_operation_scopes:
+                first = scope.set_operation_scopes[0]
                 self._unions[id(first.expression)] = (first, scope)
             for name, (_node, source) in scope.selected_sources.items():
                 view = marked_view(name)
@@ -192,8 +192,10 @@ class _Resolver:
         if key in self._instances:
             return self._instances[key]
         self._instances[key] = [frozenset()]  # a recursive CTE reads itself: nothing more
-        if scope.union_scopes:
-            found = [alt for branch in scope.union_scopes for alt in self.alternatives(branch)]
+        if scope.set_operation_scopes:
+            found = [
+                alt for branch in scope.set_operation_scopes for alt in self.alternatives(branch)
+            ]
         else:
             per_source: list[list[frozenset[int]]] = []
             for _name, (_node, source) in scope.selected_sources.items():
@@ -220,7 +222,7 @@ class _Resolver:
             table_id = self._table_id(source)
             return table_id is not None and name in self._columns_of(table_id)
         if isinstance(source, Scope):
-            branches = source.union_scopes or [source]
+            branches = source.set_operation_scopes or [source]
             return any(
                 any(s.alias_or_name == name or s.is_star for s in _selects(b)) for b in branches
             )
@@ -256,7 +258,7 @@ class _Resolver:
                 if base is not None:
                     out.add(_Base(base.instance, base.table_id, column.name))
             elif isinstance(source, Scope):
-                for branch in source.union_scopes or [source]:
+                for branch in source.set_operation_scopes or [source]:
                     out |= self._projection(branch, column.name, seen)
         return out
 
@@ -285,7 +287,7 @@ class _Resolver:
         for source in sources:
             if not isinstance(source, Scope):
                 continue
-            for branch in source.union_scopes or [source]:
+            for branch in source.set_operation_scopes or [source]:
                 for select in _selects(branch):
                     if select.alias_or_name != column.name:
                         continue
@@ -294,8 +296,10 @@ class _Resolver:
         return out
 
     def _projection(self, scope: Scope, name: str, seen: frozenset) -> set[_Base]:
-        if scope.union_scopes:
-            return set().union(*(self._projection(b, name, seen) for b in scope.union_scopes))
+        if scope.set_operation_scopes:
+            return set().union(
+                *(self._projection(b, name, seen) for b in scope.set_operation_scopes)
+            )
         out: set[_Base] = set()
         for select in _selects(scope):
             inner = select.unalias()
@@ -553,7 +557,7 @@ def _unrelated_in(
                     left = tested.this.unnest()
                     given: set[_Base] = set()
                     drawn: set[int] = set()
-                    for branch in inner.union_scopes or [inner]:
+                    for branch in inner.set_operation_scopes or [inner]:
                         selects = _selects(branch)
                         only = selects[0].unalias() if len(selects) == 1 else None
                         if isinstance(only, exp.Column):
@@ -678,9 +682,9 @@ def self_columns(resolver: _Resolver, source: Any) -> set[str]:
         table_id = resolver._table_id(source)
         return set(resolver._columns_of(table_id)) if table_id is not None else set()
     if isinstance(source, Scope):
-        return {s.alias_or_name for b in (source.union_scopes or [source]) for s in _selects(b)} - {
-            "*"
-        }
+        return {
+            s.alias_or_name for b in (source.set_operation_scopes or [source]) for s in _selects(b)
+        } - {"*"}
     return set()
 
 

@@ -60,7 +60,7 @@ def test_a_decimal_array_is_read_with_its_elements_as_strings():
 def test_a_null_test_keeps_the_bare_column():
     sql = 'SELECT "o"."id" FROM "shop"."orders" AS "o" WHERE "o"."tags" IS NOT NULL'
     assert _on("postgres", sql) == (
-        'SELECT "o"."id" FROM "shop"."orders" AS "o" WHERE NOT "o"."tags" IS NULL'
+        'SELECT "o"."id" FROM "shop"."orders" AS "o" WHERE "o"."tags" IS NOT NULL'
     )
 
 

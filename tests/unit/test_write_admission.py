@@ -209,11 +209,21 @@ def test_an_update_the_filter_cannot_be_decided_for_is_refused():
 # --- never admitted on doubt ----------------------------------------------------------------------
 
 
+def test_a_case_insensitive_match_is_decided_before_the_write():
+    """sqlglot's in-process evaluator decides ILIKE (since 30.23): the supplied row is admitted when
+    it matches and refused as outside the role when it does not -- never refused on doubt."""
+    admitted = _gov(rls={1: "region ILIKE 'EAST'"})
+    apply_governance("INSERT INTO sales.orders (id, region) VALUES (1, 'east')", admitted)
+    refused = _gov(rls={1: "region ILIKE 'WEST'"})
+    with pytest.raises(WriteNotAdmitted, match="outside role"):
+        apply_governance("INSERT INTO sales.orders (id, region) VALUES (1, 'east')", refused)
+
+
 @pytest.mark.parametrize(
     "row_filter",
     [
         "soundex(region) = 'E230'",  # a function the in-process evaluator does not have
-        "region ILIKE 'EAST'",  # an operator it does not have
+        "region SIMILAR TO 'e%'",  # an operator it does not have
         "region ~ '^e'",
         "region = ANY(ARRAY['east', 'west'])",
         "CAST(region AS INTEGER) = 1",  # a cast that fails for the supplied value

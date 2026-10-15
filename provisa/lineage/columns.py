@@ -57,7 +57,7 @@ def resolve_column_lineage(sql: str, dialect: str | None = None) -> list[ColumnD
         # upstream source column (sqlglot's lineage would otherwise leaf on the alias).
         if output and output != "*" and projection.find(exp.Column) is not None:
             try:
-                node = lineage(output, sql, dialect=dialect)
+                node = lineage(output, sql, schema={}, dialect=dialect)
                 sources = tuple(
                     sorted({n.name for n in node.walk() if not n.downstream and n.name})
                 )

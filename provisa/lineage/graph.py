@@ -252,7 +252,7 @@ def build_column_graph(
     graph = LineageGraph()
     for out in _output_columns(tree):
         try:
-            root = lineage(out, sql, dialect=dialect)
+            root = lineage(out, sql, schema={}, dialect=dialect)
         except (SqlglotError, KeyError, ValueError):
             graph.add_node(Node(id=out, column=out, relation=None, kind="derived"))
             graph.outputs.append(out)
