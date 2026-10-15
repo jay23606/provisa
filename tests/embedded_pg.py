@@ -33,6 +33,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -135,12 +136,25 @@ def _running(pid: int) -> bool:
     return True
 
 
+#: A directory with no recorded starter is an orphan once it is this old: a starter records itself
+#: the moment it has made its directory, so only one made before starters recorded themselves (or
+#: whose starter died between the two) has none, and it is never claimed again.
+OWNERLESS_AFTER_SECONDS = 24 * 60 * 60
+
+
+def _orphaned(root: Path) -> bool:
+    owner = root / _OWNER
+    if owner.is_file():
+        return not _running(int(owner.read_text()))
+    return time.time() - root.stat().st_mtime > OWNERLESS_AFTER_SECONDS
+
+
 def _stop_orphans() -> None:
-    """Stop every embedded server whose starter is gone, and remove its directory. One without a
-    recorded starter, or whose starter runs, is left alone."""
+    """Stop every embedded server whose starter is gone, and remove its directory: one whose
+    recorded starter is not running, and one with no recorded starter older than
+    ``OWNERLESS_AFTER_SECONDS``. One whose starter runs is left alone."""
     for root in Path(tempfile.gettempdir()).glob(f"{_PREFIX}*"):
-        owner = root / _OWNER
-        if not owner.is_file() or _running(int(owner.read_text())):
+        if not _orphaned(root):
             continue
         if (root / "data" / "postmaster.pid").exists():
             subprocess.run(
