@@ -154,15 +154,30 @@ def guard_statement(stmt: Any) -> Any:
     if not isinstance(stmt, (Insert, Update)):
         return stmt
     _check_secret_references(stmt)
-    table = getattr(stmt, "table", None)
+    table = stmt.table
     name = getattr(table, "name", None)
     if name is None or name not in CARRIED:
         return stmt
-    parameters = getattr(stmt, "_values", None) or {}
-    for column, value in parameters.items():
-        column_name = getattr(column, "name", column)
-        literal = getattr(value, "value", None)
-        reason = find_credential(literal)
-        if reason is not None:
-            raise CredentialLiteralError(name, str(column_name), reason)
+    # A single-row write holds its values on ``_values``; a multi-row INSERT
+    # (``insert().values([...])``) holds one mapping per row on ``_multi_values`` (REQ-1525).
+    rows: list[Any] = [stmt._values or {}]
+    for batch in stmt._multi_values:
+        for row in batch:
+            # A row is a mapping by column, or a sequence in the table's own column order.
+            rows.append(row if isinstance(row, dict) else dict(zip(table.columns, row)))
+    for parameters in rows:
+        for column, value in parameters.items():
+            column_name = getattr(column, "name", column)
+            literal = getattr(value, "value", value)
+            reason = find_credential(literal)
+            if reason is not None:
+                raise CredentialLiteralError(name, str(column_name), reason)
     return stmt
+
+
+def guard_rows(target: Any, rows: list[dict[str, Any]]) -> None:
+    """The seam for values that travel BESIDE the statement: an executemany's parameter sets and a
+    bulk load's rows (REQ-1525). ``target`` is the statement or the table being written."""
+    table = getattr(target, "table", target)
+    for row in rows:
+        check_row(table.name, row)

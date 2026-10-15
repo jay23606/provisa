@@ -107,3 +107,38 @@ class TestTheSeam:
     def test_a_select_is_never_scanned(self):
         stmt = select(tracked_webhooks)
         assert guard_statement(stmt) is stmt
+
+
+class TestEveryRowOfABatchIsScanned:
+    """REQ-1525: the seam covers a write however many rows it carries. A multi-row INSERT holds
+    its values per row, and an executemany holds them beside the statement, so both are read."""
+
+    def test_a_multi_row_insert_is_refused_for_any_row(self):
+        stmt = tracked_webhooks.insert().values(
+            [{"url": "https://hooks.example/a"}, {"url": f"https://x/?t={GITHUB}"}]
+        )
+        with pytest.raises(CredentialLiteralError) as excinfo:
+            guard_statement(stmt)
+        assert excinfo.value.column == "url"
+
+    def test_a_clean_multi_row_insert_passes(self):
+        stmt = tracked_webhooks.insert().values([{"url": "https://hooks.example/a"}])
+        assert guard_statement(stmt) is stmt
+
+    def test_the_rows_of_an_executemany_are_refused_for_any_row(self):
+        from provisa.core.env_secrets import guard_rows
+
+        rows = [{"url": "https://hooks.example/a"}, {"url": f"https://x/?t={GITHUB}"}]
+        with pytest.raises(CredentialLiteralError):
+            guard_rows(tracked_webhooks.insert(), rows)
+
+    def test_the_rows_of_a_bulk_load_are_scanned_by_table(self):
+        from provisa.core.env_secrets import guard_rows
+
+        with pytest.raises(CredentialLiteralError):
+            guard_rows(tracked_webhooks, [{"url": f"https://x/?t={GITHUB}"}])
+
+    def test_a_batch_into_a_binding_table_passes(self):
+        from provisa.core.env_secrets import guard_rows
+
+        guard_rows(sources.insert(), [{"id": "s", "password": "hunter2"}])

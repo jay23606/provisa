@@ -1051,9 +1051,10 @@ class Connection:
         :meth:`execute_core`. Autocommits outside a transaction; a no-op for an empty batch."""
         if not rows:
             return
-        from provisa.core.env_secrets import guard_statement
+        from provisa.core.env_secrets import guard_rows, guard_statement
         from provisa.core.meta_rls import apply_meta_tenant_guard
 
+        guard_rows(stmt, rows)  # REQ-1525: the values travel beside the statement
         self._exec(apply_meta_tenant_guard(guard_statement(stmt)), rows)
         self._commit_if_autocommit()
 
@@ -1072,6 +1073,9 @@ class Connection:
         Returns the number of rows ingested. A no-op for an empty batch."""
         if not rows:
             return 0
+        from provisa.core.env_secrets import guard_rows
+
+        guard_rows(table, rows)  # REQ-1525: a bulk load is a write like any other
         colnames = [c.name for c in table.columns]
         if self.capabilities.dialect == "postgresql":
             dialect = self._sc.dialect
