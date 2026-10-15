@@ -73,6 +73,7 @@ _PROTO_TYPE_MAP: dict[str, str] = {
     "float4": "float",
     "float": "float",  # the canonical IR name (provisa.core.ir_types) for 4-byte floats
     "float8": "double",
+    "double precision": "double",  # PostgreSQL's information_schema spelling (sla_breach_log)
 }
 
 

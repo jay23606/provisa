@@ -394,3 +394,11 @@ class TestRelationships:
         )
         proto = generate_proto(si)
         assert "repeated Orders orders = 3;" in proto
+
+
+def test_a_postgres_double_precision_column_is_a_proto_double():
+    # A Float column of an ops table on a PostgreSQL control plane (sla_breach_log.observed) is
+    # registered as information_schema spells it; the server would not start without it.
+    from provisa.grpc.proto_gen import _physical_to_proto
+
+    assert _physical_to_proto("double precision") == "double"
