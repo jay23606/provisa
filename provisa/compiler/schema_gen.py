@@ -247,6 +247,7 @@ def _build_visible_tables(si: SchemaInput) -> list[_TableInfo]:  # REQ-008, REQ-
                 modeling_history=table.get("modeling_history"),  # REQ-1320
                 metrics=metrics_by_table.get(table["table_name"], []),  # REQ-1319
                 deprecation_reason=table.get("deprecation_reason"),  # REQ-1375
+                tags=list(table.get("tags") or ()),  # REQ-1415
             )
         )
 
@@ -315,10 +316,11 @@ def _type_description(t: _TableInfo) -> str | None:
 
     Appends a " [fact]" / " [dimension, scd2]"-style suffix to the table description
     when a modeling role is set, so GraphQL introspection carries the star-schema shape.
+    REQ-1415: the table's tag ids follow the role in the same suffix.
     """
-    if not t.modeling_role:
+    if not t.modeling_role and not t.tags:
         return t.description
-    return append_modeling_tag(t.description, t.modeling_role, t.modeling_history)
+    return append_modeling_tag(t.description, t.modeling_role, t.modeling_history, t.tags)
 
 
 def _can_see_relationship(rel: dict, table_lookup: dict[int, _TableInfo]) -> bool:

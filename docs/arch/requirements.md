@@ -6568,9 +6568,9 @@ Table configuration persists `enable_aggregates` and `enable_group_by` boolean c
 
 **Status:** ✅ complete · **Priority:** MUST · **Type:** behavioral
 
-Masking SELECT expressions only; predicates that remain in the query (JOIN ON, RLS-injected filters) use physical unmasked columns unchanged — user-written WHERE/HAVING references to masked columns never reach this stage, rejected at validation time by V005 ([REQ-531](#REQ-531)). ORDER BY, LIMIT, GROUP BY, and all other clauses likewise remain unchanged, and masking returns a new immutable CompiledQuery, never mutating the input (absorbs [REQ-744](#REQ-744)). Masking injection operates on the SELECT projection list exclusively, preserving query filtering and join semantics.
+A masked column is its mask wherever the statement references it -- the select list, expressions, JOIN ON, GROUP BY, ORDER BY and window clauses -- and a hidden column is NULL; a user-written WHERE or HAVING reference to a masked column is refused at validation by V005 ([REQ-531](#REQ-531)). So a join on a masked key does not use the real value, and a role that may not see a key cannot recover it by joining on it. A demo or model that needs the join for a masked role exposes a non-sensitive surrogate key. RLS-injected filters read the physical columns. Masking returns a new immutable CompiledQuery, never mutating the input (absorbs [REQ-744](#REQ-744)).
 
-**Use case:** Separating masked SELECT projections from unmasked predicates ensures query filters remain executable while users see masked values.
+**Use case:** A role sees masked values everywhere it reads them, and cannot use a masked key in a join to reach the rows or values the mask withholds.
 
 **Code:** `provisa/compiler/mask_inject.py`, `provisa/compiler/stage2.py`
 
@@ -14602,15 +14602,15 @@ Tag assignments are readable as a queryable relation, not only through the admin
 
 ### REQ-1415 · Tag Registry {#REQ-1415}
 
-**Status:** ✓ accepted · **Priority:** MAY · **Type:** behavioral
+**Status:** ✅ complete · **Priority:** MAY · **Type:** behavioral
 
 Tag IDs are emitted into the bracketed comment suffix alongside the modeling role, so a catalog surface shows `[dimension, entity, natural_language]` where it shows `[fact, scd2]` today (append_modeling_tag, provisa/core/modeling_tags.py, [REQ-1320](#REQ-1320)) — reaching pg_description, GraphQL introspection and the Flight/MCP catalog description through the one shared formatter. The comment channel is a HUMAN-FACING MIRROR and is explicitly not the machine contract: the [REQ-1414](#REQ-1414) view is authoritative, and nothing derives behavior by parsing the comment. To keep the mirror unambiguous the constraint is enforced upstream at tag creation rather than at render time — user tag IDs are restricted to a slug charset ([a-z0-9_-]), so a tag can never contain a comma or bracket and no surface needs escaping rules that would drift between the three.
 
 **Use case:** Someone reading a column in DBeaver or a GraphQL schema sees its governance and semantic tags inline, without a second lookup against the admin API.
 
-**Code:** `provisa/core/modeling_tags.py`, `provisa/pgwire/catalog_populate.py`, `provisa/compiler/schema_gen.py`, `provisa/api/flight/catalog.py`, `provisa/api/admin/schema_mutation.py`
+**Code:** `provisa/core/modeling_tags.py`, `provisa/pgwire/catalog_populate.py`, `provisa/compiler/schema_gen.py`, `provisa/api/flight/catalog.py`, `provisa/api/admin/schema_mutation.py`, `provisa/compiler/schema_inputs.py`, `provisa/api/app.py`
 
-**Tests:** —
+**Tests:** `tests/unit/test_tag_comment_suffix.py`
 
 ## 13. Multi-Tenancy & Organizations
 
@@ -23734,15 +23734,15 @@ A table read where it lies (not replicated) that declares a probing change signa
 
 ### REQ-2056 · UI {#REQ-2056}
 
-**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+**Status:** ⚙ in-progress · **Priority:** SHOULD · **Type:** behavioral
 
 A capability demo, insider review at an investment bank: Is anyone sending deal-sensitive or customer data out of the bank? Generated private data only: the control room's watch list (each deal: entity legal name, aliases, ticker, project code name, deal type -- merger, acquisition, loan or underwriting -- a short description, the deal team and when each member was brought over the wall, and the public announcement date if any), employees, and an employee mailbox (messages with sender, recipients, sent time and body) whose tables would sit equally over a real mail source. Every outbound message is scored against every watch-list deal: entity match (legal name and aliases fuzzily, ticker, project code name) and semantic similarity of the message to the deal's description through the demo's own local embedding model, so a paraphrase that avoids every name still scores; the score is weighted by context -- a sender not on that deal's team, a recipient outside the bank's domains or a personal address, and a message sent before the deal's announcement each raise it; a deal-team member writing to the deal's own counterparties lowers it. The same messages are checked for customer PII by SQL pattern checks, joined to the bank's customer-data access log (who read customer data, and when) so a sender who read customer data that week and then mailed it out ranks high. One materialized view is the review queue: per message and deal, the score and which signals fired. Governance is half the demo: the watch list is the most restricted table, so a first-level reviewer's role sees only the flagged entity of their own cases through row rules and masking, never the list; the control room sees all; a deal team sees only its own deal; every read of the watch list and every review is in the audit record and queryable. Polly assists the human post-review (why a message was flagged, what the sender accessed, whether they were over the wall), answered at template build and served stored ([REQ-2012](#REQ-2012)). The tour names its limits: it is post-review analytics after real-time controls, not a data-loss-prevention replacement; attachments, images, encoded text and personal channels are outside it; employee monitoring needs disclosure and, in places, works-council agreement. Its tour follows the settled demo tour shape. Its business question: "Is anyone sending deal-sensitive or customer data out of the bank?" The bank's own customer-data access log (employee, customer table, read at) is a generated table of the demo, since the employees are not Provisa users; the tour shows ops.pii_access live as the record of the visitor's own reads. Its Polly questions are its own question set, graded against its own tables in the Polly bake-off.
 
 **Use case:** A compliance buyer opens the insider review demo and sees watch-list deals matched against outbound mail, ranked for review, with the watch list itself never exposed to the reviewer.
 
-**Code:** —
+**Code:** `demo/named/insider/config.yaml`, `demo/named/insider/matching.py`, `demo/named/insider/generate.py`, `demo/named/insider/db/init.sql`, `demo/named/insider/tour.yaml`
 
-**Tests:** —
+**Tests:** `tests/integration/test_insider_demo.py`, `tests/unit/test_named_demo_tour.py`, `tests/unit/test_polly_bakeoff_questions.py`
 
 ## 1. Access Governance & Security
 

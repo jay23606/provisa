@@ -103,3 +103,5 @@ class _TableInfo:
     # REQ-1375: 'deprecated' tag text (reason + removal date) emitted as the standard
     # @deprecated(reason:) directive on this table's root query fields.
     deprecation_reason: str | None = None
+    # REQ-1415: the tag ids assigned to the table, listed in its description suffix.
+    tags: list[str] = field(default_factory=list)

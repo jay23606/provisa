@@ -61,6 +61,8 @@ class _Conn:
                 }
                 for table_id, (domain, name, _) in _TABLES.items()
             ]
+        if "FROM tag_assignments" in sql:
+            return []  # no tag assigned (REQ-1415)
         if "FROM relationships" in sql:
             return []
         return [

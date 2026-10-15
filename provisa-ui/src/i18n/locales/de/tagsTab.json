@@ -10,7 +10,7 @@
     "scope_relationship": "Beziehung",
     "scope_command": "Befehl",
     "idLabel": "Tag-ID",
-    "idDesc": "Eindeutige Kennung des Tags",
+    "idDesc": "Eindeutige Kennung des Tags. Nur Kleinbuchstaben, Ziffern, _ und -.",
     "idPlaceholder": "z. B. pii",
     "descriptionLabel": "Beschreibung",
     "descriptionPlaceholder": "Was dieses Tag markiert",

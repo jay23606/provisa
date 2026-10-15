@@ -26,7 +26,8 @@ def _state_with_table(**table_info_kwargs):
         domain_id="sales", description="Order records", columns=[], **table_info_kwargs
     )
     ctx = SimpleNamespace(table_map={"orders": tinfo})
-    return RoleState(contexts={"analyst": ctx})
+    # A model with no tag assigned (REQ-1415).
+    return RoleState(contexts={"analyst": ctx}, config=SimpleNamespace(tag_assignments=[]))
 
 
 def test_fact_role_appended_to_description():

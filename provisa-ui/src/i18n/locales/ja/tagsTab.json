@@ -10,7 +10,7 @@
     "scope_relationship": "リレーションシップ",
     "scope_command": "コマンド",
     "idLabel": "タグID",
-    "idDesc": "タグの一意な識別子",
+    "idDesc": "タグの一意の識別子。小文字、数字、_ と - のみ使用できます。",
     "idPlaceholder": "例: pii",
     "descriptionLabel": "説明",
     "descriptionPlaceholder": "このタグが示すもの",

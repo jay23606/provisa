@@ -2575,6 +2575,17 @@ async def _rebuild_schemas_impl(raw_config: dict | None = None, *, announce: boo
         for _rel in relationships:
             if _rel.get("id") in _dep_rels:
                 _rel["deprecation_reason"] = _dep_rels[_rel["id"]]
+        # REQ-1415: each table and column row carries its tag ids, which the catalog surfaces
+        # list in the description suffix.
+        from provisa.core.modeling_tags import attach_tags
+
+        attach_tags(
+            tables,
+            (
+                (r["tag_id"], r["object_type"], r["table_id"], r["column_name"])
+                for r in _assignment_rows
+            ),
+        )
         sources = {
             r._mapping["id"]: dict(r._mapping)
             for r in (await conn.execute_core(select(_sources_t))).fetchall()

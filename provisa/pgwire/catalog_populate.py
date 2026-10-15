@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 import time
 
-from provisa.core.modeling_tags import append_modeling_tag
+from provisa.core.modeling_tags import append_modeling_tag, column_comment
 from provisa.pgwire.function_catalog import populate_functions
 from provisa.pgwire.catalog_columns_data import _SYSTEM_TABLE_COLUMNS
 from provisa.pgwire.catalog_data import (
@@ -510,8 +510,10 @@ def _populate_pg_description(
             if isinstance(rt, dict)
             else getattr(rt, "modeling_history", None)
         )
-        if _role:
-            _tdesc = append_modeling_tag(_tdesc, _role, _hist)
+        # REQ-1415: the table's tag ids follow the role in the same suffix.
+        _tags = (rt.get("tags") if isinstance(rt, dict) else getattr(rt, "tags", None)) or ()
+        if _role or _tags:
+            _tdesc = append_modeling_tag(_tdesc, _role, _hist, _tags)
         if _tdesc:
             tid_desc[_tid] = _tdesc
         cdesc: dict[str, str] = {}
@@ -522,6 +524,10 @@ def _populate_pg_description(
                 if isinstance(col, dict)
                 else getattr(col, "description", None)
             )
+            _ctags = (
+                col.get("tags") if isinstance(col, dict) else getattr(col, "tags", None)
+            ) or ()
+            _cdesc = column_comment(_cdesc, _role, _ctags)  # REQ-1415
             if _cdesc:
                 cdesc[_cname] = _cdesc
         if cdesc:

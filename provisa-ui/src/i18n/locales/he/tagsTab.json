@@ -10,7 +10,7 @@
     "scope_relationship": "קשר",
     "scope_command": "פקודה",
     "idLabel": "מזהה תגית",
-    "idDesc": "מזהה ייחודי של התגית",
+    "idDesc": "מזהה ייחודי של התג. אותיות לטיניות קטנות, ספרות, _ ו־- בלבד.",
     "idPlaceholder": "למשל pii",
     "descriptionLabel": "תיאור",
     "descriptionPlaceholder": "מה התגית מסמנת",

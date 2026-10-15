@@ -557,6 +557,17 @@ async def _save_tag(
             code="schema.tag_id_has_separator",
             params={"tag": input.id},
         )
+    # REQ-1415: the id is listed in the catalog description suffix, so it is a slug: it can
+    # never hold a comma or bracket, and no surface needs an escaping rule.
+    from provisa.core.modeling_tags import TAG_SLUG_CHARSET, is_tag_slug
+
+    if not is_tag_slug(input.id):
+        return MutationResult(
+            success=False,
+            message=f"Tag id {input.id!r} may only contain {TAG_SLUG_CHARSET}",
+            code="schema.tag_id_not_slug",
+            params={"tag": input.id},
+        )
     # REQ-1443: a derived tag is code-defined like a system tag, so it is reserved the same way.
     if input.id in SYSTEM_TAG_IDS + DERIVED_TAG_IDS:
         return MutationResult(
@@ -2922,6 +2933,16 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                     f"{TAG_PARAM_SEPARATOR!r}"
                 ),
                 code="schema.tag_param_value_invalid",
+                params={"tag": input.tag_id, "value": input.value},
+            )
+        # REQ-1415: the value rides in the catalog description suffix with the tag id.
+        from provisa.core.modeling_tags import TAG_SLUG_CHARSET, is_tag_slug
+
+        if not is_tag_slug(value):
+            return MutationResult(
+                success=False,
+                message=f"Parameter value {input.value!r} may only contain {TAG_SLUG_CHARSET}",
+                code="schema.tag_param_value_not_slug",
                 params={"tag": input.tag_id, "value": input.value},
             )
         pool = await _get_pool()
