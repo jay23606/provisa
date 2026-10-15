@@ -241,3 +241,65 @@ def test_each_tour_statement_answers_rows(set_up, step):
     resp = _post(set_up, "/data/cypher", {"query": step["cypher"]})
     assert resp.status_code == 200, resp.text
     assert resp.json()["rows"], step["key"]
+
+
+@pytest.fixture(scope="module")
+def sandbox_tier(set_up, stack, tmp_path_factory):
+    """A sandbox tier offering the demo, on the same stores and the collection the setup filled
+    (REQ-2006): a visitor's sandbox has the demo's own embedding model."""
+    from tests.integration.isolated_server import IsolatedServer
+    from tests.integration.test_demo_sandboxes_e2e import _JWT_SECRET, _deployment_config
+
+    work = tmp_path_factory.mktemp("sonnets_sandbox")
+    demos = work / "named"
+    demos.mkdir()
+    (demos / "sonnets").symlink_to(_DEMO, target_is_directory=True)
+    config = work / "config.yaml"
+    _deployment_config(config)
+    srv = IsolatedServer(
+        "sonnets_sandbox",
+        engine="duckdb",
+        config=str(config),
+        auth={"provider": "basic", "jwt_secret": _JWT_SECRET, "assignments_source": "provisa"},
+        env={
+            **stack.env,
+            "PROVISA_SANDBOX_TIER": "true",
+            "PROVISA_NAMED_DEMOS_DIR": str(demos),
+            "PROVISA_DATA_DIR": str(work / "data"),
+        },
+    )
+    srv.start(timeout=400)
+    try:
+        yield srv
+    finally:
+        srv.stop_process()
+
+
+def test_a_visitors_sandbox_searches_lines_by_meaning(sandbox_tier):
+    """The demo declares its embedding model; a sandbox of it is not refused by the model
+    allowlist, and its search answers as the demo's own does."""
+    import time
+
+    deadline = time.monotonic() + 300
+    while True:
+        opened = httpx.post(f"{sandbox_tier.base_url}/public/demos/sonnets", timeout=300)
+        if opened.status_code != 503 or opened.json().get("code") != "sandbox.demo_not_ready":
+            break
+        assert time.monotonic() < deadline, sandbox_tier.dump_stderr_debug()[-6000:]
+        time.sleep(2)
+    assert opened.status_code == 200, opened.text
+    sandbox = opened.json()
+    resp = httpx.post(
+        f"{sandbox_tier.base_url}/data/sql",
+        json={
+            "sql": 'SELECT l.sonnet_number, l.line_no FROM "sonnets"."lines_like" AS s '
+            'JOIN "sonnets"."line" AS l ON l.id = s.id '
+            "WHERE s._nf_query = 'But do not so, I love thee in such sort,' AND s._nf_k = 2 "
+            "ORDER BY s.score DESC"
+        },
+        headers={"Authorization": f"Bearer {sandbox['token']}", "x-org-provisa": sandbox["org_id"]},
+        timeout=300,
+    )
+    assert resp.status_code == 200, resp.text
+    rows = resp.json()["data"]["sql"]
+    assert [(r["sonnet_number"], r["line_no"]) for r in rows] == [(36, 13), (96, 13)]
