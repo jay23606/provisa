@@ -33,7 +33,7 @@ import os
 
 import pytest
 
-from tests.conftest import as_deployment_org
+from tests.conftest import as_deployment_org, deployment_org_on_this_node
 
 pytestmark = [
     pytest.mark.integration,
@@ -68,8 +68,8 @@ def endpoint():
     served_tables.serve_tables(_SOURCE_ID, ["incident"])
     try:
         # A module fixture runs before the per-test org binding: the endpoint is the
-        # deployment org's, as its runtime's boot starts it (REQ-1266).
-        with as_deployment_org():
+        # deployment org's, its folder ready, as its runtime's boot starts it (REQ-1266, REQ-1992).
+        with deployment_org_on_this_node():
             served = pr.ensure_endpoint(_source())
         yield served
     finally:
@@ -105,7 +105,7 @@ async def test_a_selected_tables_columns_are_read_for_it_alone(endpoint):
 async def test_a_registered_table_is_read_through_a_filter_and_a_limit(endpoint):
     from provisa.federation import pgwire_replica as pr
 
-    conn = await pr._pg_connect(endpoint.calcite_child_host, endpoint.pgwire_port)
+    conn = await pr._pg_connect(endpoint.pgwire_host, endpoint.pgwire_port)
     try:
         rows = await conn.fetch(
             f'SELECT "sys_id", "number", "active" FROM "{_SCHEMA}"."incident" '

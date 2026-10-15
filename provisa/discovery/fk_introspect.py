@@ -150,7 +150,7 @@ async def _constraint_driver(source_pools, source_type_lower: str, source_id: st
     ports = await asyncio.to_thread(ensure_endpoint_for_discovery, source)
     driver = PgwireServerDriver()
     # What the bundled server accepts: it checks no credentials and serves one database.
-    await driver.connect(ports.calcite_child_host, ports.pgwire_port, "provisa", "provisa", "")
+    await driver.connect(ports.pgwire_host, ports.pgwire_port, "provisa", "provisa", "")
     return driver, driver.close
 
 

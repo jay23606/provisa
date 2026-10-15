@@ -41,7 +41,7 @@ import os
 
 import pytest
 
-from tests.conftest import as_deployment_org
+from tests.conftest import as_deployment_org, deployment_org_on_this_node
 
 pytestmark = [pytest.mark.integration, pytest.mark.requires_warehouse]
 
@@ -78,8 +78,8 @@ def _serving(source, data_dir):
     os.environ["PROVISA_DATA_DIR"] = str(data_dir)
     try:
         # A module fixture runs before the per-test org binding: the endpoint is the
-        # deployment org's, as its runtime's boot starts it (REQ-1266).
-        with as_deployment_org():
+        # deployment org's, its folder ready, as its runtime's boot starts it (REQ-1266, REQ-1992).
+        with deployment_org_on_this_node():
             served = pr.ensure_endpoint(source, timeout=_COLD_START_SECONDS)
         yield served
     finally:
@@ -198,7 +198,7 @@ async def test_a_replica_is_landed_from_the_tables_own_schema(endpoint):
     through the server, selected from the schema the table names."""
     from provisa.federation import pgwire_replica as pr
 
-    conn = await pr._pg_connect(endpoint.calcite_child_host, endpoint.pgwire_port)
+    conn = await pr._pg_connect(endpoint.pgwire_host, endpoint.pgwire_port)
     try:
         schema = pr.remote_schema(_source(), _SCHEMA)
         rows = await conn.fetch(f'SELECT * FROM "{schema}"."candidates" LIMIT 5')

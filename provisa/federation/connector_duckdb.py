@@ -455,9 +455,7 @@ class _DuckDBPgwireConnector(_DuckDBExtensionConnector):  # REQ-1690
         )
 
         ports = ensure_endpoint(source)
-        dsn = (
-            f"host={ports.calcite_child_host} port={ports.pgwire_port} user=provisa dbname=provisa"
-        )
+        dsn = f"host={ports.pgwire_host} port={ports.pgwire_port} user=provisa dbname=provisa"
         alias = f"_src_{source.id}"
         attached = {
             "attach": f"ATTACH '{dsn}' AS \"{alias}\" (TYPE postgres, READ_ONLY)",
@@ -1150,7 +1148,7 @@ class _PgPgwireConnector(Connector):  # REQ-1730
         server_ddl = [
             "CREATE EXTENSION IF NOT EXISTS postgres_fdw",
             f'CREATE SERVER IF NOT EXISTS "{server}" FOREIGN DATA WRAPPER postgres_fdw '
-            f"OPTIONS (host '{ports.calcite_child_host}', port '{ports.pgwire_port}', "
+            f"OPTIONS (host '{ports.pgwire_host}', port '{ports.pgwire_port}', "
             f"dbname 'provisa')",
             f'CREATE USER MAPPING IF NOT EXISTS FOR CURRENT_USER SERVER "{server}" '
             f"OPTIONS (user 'provisa')",

@@ -118,7 +118,7 @@ class _ClickHousePgwireConnector(Connector):  # REQ-1730
         return {
             "attach_ddl": [
                 f'CREATE DATABASE IF NOT EXISTS "{local_schema}" ENGINE = PostgreSQL('
-                f"'{ports.calcite_child_host}:{ports.pgwire_port}', 'provisa', 'provisa', '', "
+                f"'{ports.pgwire_host}:{ports.pgwire_port}', 'provisa', 'provisa', '', "
                 f"'{schema}')"
             ],
             "local_schema": local_schema,

@@ -80,7 +80,7 @@ def engine_visible_host(ports: "PortPair") -> str:
     """The host an engine that is not on this host's loopback (Trino in a container) reaches
     the server by: the deployment's ``PROVISA_PGWIRE_ENGINE_HOST``, else the host the server
     listens on."""
-    return os.environ.get(ENGINE_HOST_ENV) or ports.calcite_child_host
+    return os.environ.get(ENGINE_HOST_ENV) or ports.pgwire_host
 
 
 # Default ports (REQ-955): the pgwire endpoint (--port) and the Calcite child JVM (--calcite-child).
@@ -532,6 +532,13 @@ class PortPair:
     calcite_child_host: str
     calcite_child_port: int
 
+    @property
+    def pgwire_host(self) -> str:
+        """Where this host reaches the server's pgwire endpoint: the address it listens on -- the
+        deployment's ``PROVISA_PGWIRE_BIND_HOST``, else loopback beside its Calcite child. A
+        server bound to the bind host alone is not on loopback."""
+        return bind_host() or self.calcite_child_host
+
 
 def _port_is_free(port: int) -> bool:
     """Whether ``port`` can be bound on loopback right now — the real free-port probe."""
@@ -831,7 +838,7 @@ class PgwireServer:  # REQ-955
         """Whether the started server's pgwire endpoint is accepting connections."""
         if self._proc is None:
             raise ServerLifecycleError("pgwire server health checked before start")
-        return self._health(self._ports.calcite_child_host, self._ports.pgwire_port)
+        return self._health(self._ports.pgwire_host, self._ports.pgwire_port)
 
     def exit_code(self) -> int | None:
         """The started server's exit code once its process has ended, else None."""
@@ -878,7 +885,7 @@ def _prepare_catalog(ports: PortPair) -> None:
     import asyncio
 
     async def _ask() -> None:
-        conn = await _pg_connect(ports.calcite_child_host, ports.pgwire_port)
+        conn = await _pg_connect(ports.pgwire_host, ports.pgwire_port)
         try:
             await conn.fetch("SELECT count(*) FROM pg_catalog.pg_class")
         finally:
@@ -909,7 +916,7 @@ async def land_via_select(
     (REQ-954). Returns the rows as dicts keyed by column name; the caller lands them into the store.
     ``where`` is the table's landing filter (REQ-2062), `` WHERE ...`` in PostgreSQL, or ``""``."""
     do_connect = connect if connect is not None else _pg_connect
-    conn = await do_connect(ports.calcite_child_host, ports.pgwire_port)
+    conn = await do_connect(ports.pgwire_host, ports.pgwire_port)
     try:
         rows = await conn.fetch(
             f'SELECT * FROM "{schema}"."{table}"{where}', timeout=_fetch_timeout()
@@ -958,7 +965,7 @@ async def _read_information_schema(source: Any, statement: str) -> list[Any]:
     if "pg_catalog" in statement.lower():
         raise ValueError("discovery reads the server's information_schema, never pg_catalog")
     ports = await asyncio.to_thread(listening_endpoint, source)
-    conn = await _pg_connect(ports.calcite_child_host, ports.pgwire_port)
+    conn = await _pg_connect(ports.pgwire_host, ports.pgwire_port)
     try:
         return list(await conn.fetch(statement, timeout=_fetch_timeout()))
     finally:
@@ -1075,7 +1082,7 @@ async def land_via_select_keys(
     if not keys:
         return []
     do_connect = connect if connect is not None else _pg_connect
-    conn = await do_connect(ports.calcite_child_host, ports.pgwire_port)
+    conn = await do_connect(ports.pgwire_host, ports.pgwire_port)
     try:
         col = pk_columns[0]
         values = [k[0] for k in keys]
