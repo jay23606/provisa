@@ -98,7 +98,7 @@ Data Vault 也以同样的方式契合，只是提前了一层。它的 hub 是�
 - **pgwire** —— 任何 PostgreSQL 客户端（psql、DBeaver、DataGrip、asyncpg、SQLAlchemy、pandas `read_sql`）都可以连接到 5439 端口，就好像它是一个 Postgres 服务器一样。仅接受 SQL。完整的治理流水线适用。`pg_catalog` 和 `information_schema` 由内存中的目录回答，因此 schema 浏览器无需一次联邦往返即可工作。TLS 可选。
 - **Bolt（Neo4j）** —— 任何 Neo4j 客户端（Neo4j Browser、Bloom、官方驱动）都可以通过 Bolt 协议连接，并对联邦图运行 Cypher。用户所持有的每个角色都会呈现为一个 `provisa_<role>` 数据库。治理方式与其他每种传输方式相同。TLS 可选。
 - **Arrow Flight** —— 基于 gRPC 的高吞吐列式流式传输；接受 GraphQL 或 SQL 作为查询输入。无界结果集，无需服务端物化，无需额外的独立基础设施。
-- **JDBC** —— 以 `approved` 或 `catalog` 模式集成 BI 工具（Tableau、Power BI、DBeaver）。
+- **JDBC** —— 集成 BI 工具（Tableau、Power BI、DBeaver）。
 - **WebSocket / SSE** —— 订阅：近实时变更事件；后端：PG 原生、MongoDB 原生、CDC、轮询。同时也通过 Kafka 暴露。
 
 ### 数据源
@@ -264,8 +264,6 @@ jdbc:provisa://localhost:8815
 ```
 
 使用你的 Provisa 用户名和密码进行认证 —— 服务器会分配你的角色。
-
-- **`catalog` 模式** —— 完整 schema 可见；配合目录工具使用（Collibra、Atlan、DBeaver）
 
 Tableau 和 Power BI 的设置步骤参见 [docs/integrations.md](docs/integrations.md)。
 

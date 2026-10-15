@@ -98,7 +98,7 @@ Estes são os protocolos de conexão. SQL, GraphQL e Cypher trafegam sobre eles 
 - **pgwire** — Qualquer cliente PostgreSQL (psql, DBeaver, DataGrip, asyncpg, SQLAlchemy, `read_sql` do pandas) conecta na porta 5439 como se fosse um servidor Postgres. Aceita apenas SQL. O pipeline completo de governança se aplica. `pg_catalog` e `information_schema` são respondidos a partir de um catálogo em memória, então navegadores de esquema funcionam sem uma ida e volta de federação. TLS opcional.
 - **Bolt (Neo4j)** — Qualquer cliente Neo4j (Neo4j Browser, Bloom, drivers oficiais) conecta via protocolo Bolt e executa Cypher contra o grafo federado. Cada função que o usuário possui aparece como um banco de dados `provisa_<role>`. Mesma governança que qualquer outro transporte. TLS opcional.
 - **Arrow Flight** — Streaming colunar de alta vazão sobre gRPC; aceita GraphQL ou SQL como entrada de consulta. Conjuntos de resultados ilimitados, sem materialização no servidor, sem infraestrutura separada necessária.
-- **JDBC** — Integração com ferramentas de BI (Tableau, Power BI, DBeaver) em modo `approved` ou `catalog`.
+- **JDBC** — Integração com ferramentas de BI (Tableau, Power BI, DBeaver).
 - **WebSocket / SSE** — Subscriptions: eventos de mudança quase em tempo real; backends: PG nativo, MongoDB nativo, CDC, polling. Também exposto via Kafka.
 
 ### Fontes de dados
@@ -264,8 +264,6 @@ jdbc:provisa://localhost:8815
 ```
 
 Autentique-se com seu usuário e senha do Provisa — o servidor atribui sua função.
-
-- **modo `catalog`** — esquema completo visível; use com ferramentas de catálogo (Collibra, Atlan, DBeaver)
 
 Veja [docs/integrations.md](docs/integrations.md) para os passos de configuração do Tableau e Power BI.
 

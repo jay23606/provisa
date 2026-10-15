@@ -98,7 +98,7 @@ Data Vault 以同樣方式合身，只是早一層。它的樞紐是去重後的
 - **pgwire**——任何 PostgreSQL 用戶端（psql、DBeaver、DataGrip、asyncpg、SQLAlchemy、pandas `read_sql`）都在連接埠 5439 上連線，就如同它是一台 Postgres 伺服器。只接受 SQL。完整治理管線照樣套用。`pg_catalog` 與 `information_schema` 自記憶體內目錄作答，因此結構描述瀏覽器毋須聯邦來回即可運作。TLS 可選。
 - **Bolt（Neo4j）**——任何 Neo4j 用戶端（Neo4j Browser、Bloom、官方驅動程式）經 Bolt 協定連線，並針對聯邦圖形執行 Cypher。使用者持有的每個角色都呈現為一個 `provisa_<role>` 資料庫。與其他每一種傳輸同樣的治理。TLS 可選。
 - **Arrow Flight**——經 gRPC 的高吞吐量資料行式串流；接受 GraphQL 或 SQL 作為查詢輸入。結果集無上限，無伺服器端具體化，毋須另建基礎設施。
-- **JDBC**——以 `approved` 或 `catalog` 模式整合 BI 工具（Tableau、Power BI、DBeaver）。
+- **JDBC**——整合 BI 工具（Tableau、Power BI、DBeaver）。
 - **WebSocket / SSE**——訂閱：近即時變更事件；後端：PG 原生、MongoDB 原生、CDC、輪詢。同樣經 Kafka 呈現。
 
 ### 數據來源
@@ -263,8 +263,6 @@ jdbc:provisa://localhost:8815
 ```
 
 以你的 Provisa 使用者名稱與密碼驗證——伺服器指派你的角色。
-
-- **`catalog` 模式**——完整結構描述可見；搭配目錄工具使用（Collibra、Atlan、DBeaver）
 
 Tableau 與 Power BI 的設定步驟見 [docs/integrations.md](docs/integrations.md)。
 

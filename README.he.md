@@ -98,7 +98,7 @@ Data Vault מתאים באותו אופן, שכבה אחת קודם. ה-hubs ש�
 - **pgwire** — כל לקוח PostgreSQL (psql, DBeaver, DataGrip, asyncpg, SQLAlchemy, `read_sql` של pandas) מתחבר בפורט 5439 כאילו היה שרת Postgres. מקבל SQL בלבד. ה-pipeline המלא של הממשל חל. `pg_catalog` ו-`information_schema` נענים מקטלוג בזיכרון כך שדפדפני סכמה עובדים ללא סבב פדרציה. TLS אופציונלי.
 - **Bolt (Neo4j)** — כל לקוח Neo4j (Neo4j Browser, Bloom, דרייברים רשמיים) מתחבר מעל פרוטוקול Bolt ומריץ Cypher כנגד הגרף המפודרר. כל תפקיד שהמשתמש מחזיק חשוף כמסד נתונים `provisa_<role>`. אותו ממשל כמו כל תעבורה אחרת. TLS אופציונלי.
 - **Arrow Flight** — הזרמה עמודתית בעלת תפוקה גבוהה מעל gRPC; מקבל GraphQL או SQL כקלט שאילתה. קבוצות תוצאה בלתי חסומות, ללא מטריאליזציה בצד השרת, ללא תשתית נפרדת נדרשת.
-- **JDBC** — אינטגרציית כלי BI (Tableau, Power BI, DBeaver) במצב `approved` או `catalog`.
+- **JDBC** — אינטגרציית כלי BI (Tableau, Power BI, DBeaver).
 - **WebSocket / SSE** — מנויים (Subscriptions): אירועי שינוי כמעט-בזמן-אמת; backends: PG native, MongoDB native, CDC, polling. חשוף גם מעל Kafka.
 
 ### מקורות נתונים
@@ -264,8 +264,6 @@ jdbc:provisa://localhost:8815
 ```
 
 התאמתו עם שם המשתמש והסיסמה של Provisa — השרת מקצה את התפקיד שלכם.
-
-- **מצב `catalog`** — כל הסכמה נראית; להשתמש עם כלי קטלוג (Collibra, Atlan, DBeaver)
 
 ראו [docs/integrations.md](docs/integrations.md) לצעדי הגדרה עבור Tableau ו-Power BI.
 
