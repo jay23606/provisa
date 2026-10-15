@@ -548,7 +548,7 @@ env_merge_requests = Table(
     Column("removals", Boolean, nullable=False, server_default=false()),
     # REQ-1506: the objects a SCOPED merge carries, by path; null for a merge of the whole model.
     # On the row for the reason ``removals`` is: it changes what applying does.
-    Column("selection", JSON),
+    Column("selection", JSON(none_as_null=True)),
     # REQ-1542: whether applying this merge also RETIRES the environment it came from -- its
     # schemas, its row and its branch. Carried on the row for the same reason ``removals`` is: an
     # approver approves a specific operation, and "merge this" and "merge this and end the feature

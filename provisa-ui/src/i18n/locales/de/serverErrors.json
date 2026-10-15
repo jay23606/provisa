@@ -122,7 +122,10 @@
       "viewer_column_unknown": "'{{column}}' ist keine Spalte der Tabelle '{{table}}'",
       "viewer_filter_unknown": "'{{operator}}' ist kein Filter der Spalte '{{column}}'",
       "viewer_value_invalid": "Der Filter auf '{{column}}' kann den Wert '{{value}}' nicht verwenden",
-      "replica_building": "Die Kopie von {{replica}} wird noch erstellt. Der Aufbau läuft weiter; öffnen Sie die Vorschau erneut, sobald er abgeschlossen ist."
+      "replica_building": "Die Kopie von {{replica}} wird noch erstellt. Der Aufbau läuft weiter; öffnen Sie die Vorschau erneut, sobald er abgeschlossen ist.",
+      "address_invalid": "Die Adresse kann nicht aufgelöst werden: {{reason}}",
+      "address_not_found": "Nichts aufzulösen: {{reason}}",
+      "mixed_resolve_and_other_fields": "resolve kann in einer Operation nicht mit anderen Wurzelfeldern kombiniert werden"
     },
     "discovery": {
       "adapter_missing_discover_schema": "Adapter für '{{source_type}}' implementiert discover_schema nicht",

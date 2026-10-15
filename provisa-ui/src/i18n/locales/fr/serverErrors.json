@@ -122,7 +122,10 @@
       "viewer_column_unknown": "'{{column}}' n'est pas une colonne de la table '{{table}}'",
       "viewer_filter_unknown": "'{{operator}}' n'est pas un filtre de la colonne '{{column}}'",
       "viewer_value_invalid": "Le filtre sur '{{column}}' ne peut pas utiliser la valeur '{{value}}'",
-      "replica_building": "La copie de {{replica}} est encore en cours de création. La création se poursuit ; rouvrez l'aperçu une fois qu'elle est terminée."
+      "replica_building": "La copie de {{replica}} est encore en cours de création. La création se poursuit ; rouvrez l'aperçu une fois qu'elle est terminée.",
+      "address_invalid": "L'adresse ne peut pas être résolue : {{reason}}",
+      "address_not_found": "Rien à résoudre : {{reason}}",
+      "mixed_resolve_and_other_fields": "resolve ne peut pas être combiné avec d'autres champs racine dans une même opération"
     },
     "discovery": {
       "adapter_missing_discover_schema": "L'adaptateur pour « {{source_type}} » n'implémente pas discover_schema",

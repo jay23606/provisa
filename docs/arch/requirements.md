@@ -14036,15 +14036,15 @@ Config exports carry JSON Pointer refs for internal cross-references plus compos
 
 ### REQ-1365 · URI Dereferencing API {#REQ-1365}
 
-**Status:** ✓ accepted · **Priority:** SHOULD · **Type:** behavioral
+**Status:** ✅ complete · **Priority:** SHOULD · **Type:** behavioral
 
 Governed dereference API for semantic data-location URIs: REST and MCP tool `resolve(uri, as_of?)` that takes a Provisa semantic-address URI and returns the governed value(s) it addresses, optionally at a point in time. For relational sources, the canonical address shape is `<table>/pk=<value>/<column>`, addressing a single value as table → primary-key predicate → column. Only semantic addresses (provisa://<org>/<domain_schema>/...) are dereferenceable; physical URIs are refused.
 
 **Use case:** Exported documents, lineage nodes, audit records, and agent citations carry resolvable links to live or historical governed values — dereferenceable provenance. Complements [REQ-1364](#REQ-1364) (export addressing).
 
-**Code:** `provisa/api/`
+**Code:** `provisa/api/data/resolve.py`, `provisa/api/data/endpoint.py`, `provisa/api/rest/generator.py`, `provisa/api/mcp/server.py`, `provisa/compiler/schema_gen.py`
 
-**Tests:** —
+**Tests:** `tests/unit/test_resolve_address.py`, `tests/integration/test_resolve_address_e2e.py`
 
 ## 6. Execution, Routing, Caching & Performance
 
@@ -23734,15 +23734,15 @@ A table read where it lies (not replicated) that declares a probing change signa
 
 ### REQ-2056 · UI {#REQ-2056}
 
-**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+**Status:** ⚙ in-progress · **Priority:** SHOULD · **Type:** behavioral
 
 A capability demo, insider review at an investment bank: Is anyone sending deal-sensitive or customer data out of the bank? Generated private data only: the control room's watch list (each deal: entity legal name, aliases, ticker, project code name, deal type -- merger, acquisition, loan or underwriting -- a short description, the deal team and when each member was brought over the wall, and the public announcement date if any), employees, and an employee mailbox (messages with sender, recipients, sent time and body) whose tables would sit equally over a real mail source. Every outbound message is scored against every watch-list deal: entity match (legal name and aliases fuzzily, ticker, project code name) and semantic similarity of the message to the deal's description through the demo's own local embedding model, so a paraphrase that avoids every name still scores; the score is weighted by context -- a sender not on that deal's team, a recipient outside the bank's domains or a personal address, and a message sent before the deal's announcement each raise it; a deal-team member writing to the deal's own counterparties lowers it. The same messages are checked for customer PII by SQL pattern checks, joined to the bank's customer-data access log (who read customer data, and when) so a sender who read customer data that week and then mailed it out ranks high. One materialized view is the review queue: per message and deal, the score and which signals fired. Governance is half the demo: the watch list is the most restricted table, so a first-level reviewer's role sees only the flagged entity of their own cases through row rules and masking, never the list; the control room sees all; a deal team sees only its own deal; every read of the watch list and every review is in the audit record and queryable. Polly assists the human post-review (why a message was flagged, what the sender accessed, whether they were over the wall), answered at template build and served stored ([REQ-2012](#REQ-2012)). The tour names its limits: it is post-review analytics after real-time controls, not a data-loss-prevention replacement; attachments, images, encoded text and personal channels are outside it; employee monitoring needs disclosure and, in places, works-council agreement. Its tour follows the settled demo tour shape. Its business question: "Is anyone sending deal-sensitive or customer data out of the bank?" The bank's own customer-data access log (employee, customer table, read at) is a generated table of the demo, since the employees are not Provisa users; the tour shows ops.pii_access live as the record of the visitor's own reads. Its Polly questions are its own question set, graded against its own tables in the Polly bake-off.
 
 **Use case:** A compliance buyer opens the insider review demo and sees watch-list deals matched against outbound mail, ranked for review, with the watch list itself never exposed to the reviewer.
 
-**Code:** —
+**Code:** `demo/named/insider/config.yaml`, `demo/named/insider/matching.py`, `demo/named/insider/generate.py`, `demo/named/insider/db/init.sql`, `demo/named/insider/tour.yaml`
 
-**Tests:** —
+**Tests:** `tests/integration/test_insider_demo.py`, `tests/unit/test_named_demo_tour.py`, `tests/unit/test_polly_bakeoff_questions.py`
 
 ## 1. Access Governance & Security
 

@@ -310,6 +310,33 @@ def _assign_names(  # REQ-154, REQ-155, REQ-194, REQ-195, REQ-411, REQ-412, REQ-
                 t.type_name = to_type_name(t.field_name)
 
 
+#: REQ-1365: the root Query field that dereferences a semantic address.
+RESOLVE_FIELD = "resolve"
+
+
+def _add_resolve_field(query_fields: dict) -> None:
+    """Add ``resolve(uri, as_of)`` to a role's Query type (REQ-1365). It is in every role's
+    schema, so REST and MCP offer it by the REQ-1929 rule. A table or command already named
+    ``resolve`` is refused by name rather than shadowed."""
+    if RESOLVE_FIELD in query_fields:
+        raise ValueError(
+            f"a table or command is exposed as the GraphQL field {RESOLVE_FIELD!r}, which is "
+            "the semantic-address resolver; give it an alias"
+        )
+    query_fields[RESOLVE_FIELD] = GraphQLField(
+        cast(GraphQLScalarType, JSONScalar),
+        args={
+            "uri": GraphQLArgument(GraphQLNonNull(GraphQLString)),
+            "as_of": GraphQLArgument(GraphQLString),
+        },
+        description=(
+            "The governed value a semantic address names: "
+            "provisa://<org>/<domain>/tables/<table>/pk=<value>[/<column>], optionally as of "
+            "a point in time."
+        ),
+    )
+
+
 def _type_description(t: _TableInfo) -> str | None:
     """REQ-1320: surface modeling role/SCD in introspection docs.
 
@@ -1077,6 +1104,7 @@ def generate_schema(
             command = extra[field].extensions["provisa_command"]
             raise CommandFieldTaken(root, field, command, "a table's field")
         fields.update(extra)
+    _add_resolve_field(query_fields)  # REQ-1365
 
     mutation_type: GraphQLObjectType | None = None
     if mutation_fields:

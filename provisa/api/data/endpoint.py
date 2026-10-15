@@ -741,6 +741,38 @@ async def _handle_query(
     if plan is not None:
         prepared = plan.prepared_copies()
     else:
+        # REQ-1365: resolve(uri, as_of) dereferences a semantic address through the one pipeline.
+        from provisa.api.data.resolve import (
+            AddressError,
+            AddressNotFound,
+            execute_resolve_fields,
+            resolve_selections,
+        )
+        from provisa.core.request_context import require_current_org
+
+        resolve_sels, other_names = resolve_selections(document)
+        if resolve_sels:
+            if other_names:
+                raise ApiError(
+                    400,
+                    "data.mixed_resolve_and_other_fields",
+                    "resolve cannot be combined with other root fields in one operation",
+                )
+            try:
+                resolved = await execute_resolve_fields(
+                    resolve_sels,
+                    state,
+                    role_id,
+                    variables,
+                    org_id=require_current_org(),
+                    as_of=as_of,
+                )
+            except AddressNotFound as exc:
+                raise ApiError(404, "data.address_not_found", str(exc), reason=str(exc)) from exc
+            except AddressError as exc:
+                raise ApiError(400, "data.address_invalid", str(exc), reason=str(exc)) from exc
+            return JSONResponse(content={"data": resolved}, headers=build_cache_headers(None))
+
         action_sels, regular_names = _split_action_fields(document, state)
 
         if action_sels and not regular_names:
