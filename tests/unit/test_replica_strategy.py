@@ -686,6 +686,36 @@ async def test_connector_replica_end_to_end(tmp_path):
 
 
 @_aio
+async def test_a_connector_table_lands_only_the_rows_its_landing_filter_passes(tmp_path):
+    """REQ-2062: the server reads the table's landing filter as PostgreSQL, in the SELECT."""
+    from types import SimpleNamespace
+
+    conn = _FakeConn([{"col": "v"}])
+
+    async def _connect(host, port):
+        return conn
+
+    replica = pr.ConnectorReplica(
+        _files_source(),
+        resolver=rd.BundleResolver(
+            cache_root=tmp_path, downloader=lambda spec, dest: _lay_down_bundle(spec, dest)
+        ),
+        allocator=pr.PortAllocator(is_free=lambda _: True),
+        spawn=_spawn_returning(_FakeProc()),
+        health_check=_health_from(lambda: True),
+        port_is_free=lambda _: True,
+        connect=_connect,
+    )
+    table = SimpleNamespace(
+        table_name="reports", schema_name=None, landing_filter="col IN ('v', 'w')"
+    )
+    await replica.load(table)
+    assert conn.queries == ["SELECT * FROM \"local_files\".\"reports\" WHERE col IN ('v', 'w')"]
+    assert pr.make_pgwire_loader().applies_landing_filter  # replica_source lets it through
+    replica.close()
+
+
+@_aio
 async def test_connector_replica_unhealthy_is_loud(tmp_path):
     def _dl(spec, dest):
         _lay_down_bundle(spec, dest)

@@ -903,13 +903,17 @@ async def land_via_select(
     table: str,
     *,
     connect: Callable[[str, int], Any] | None = None,
+    where: str = "",
 ) -> list[dict]:
     """Connect to the pgwire endpoint as generic PostgreSQL and SELECT the connector table's rows
-    (REQ-954). Returns the rows as dicts keyed by column name; the caller lands them into the store."""
+    (REQ-954). Returns the rows as dicts keyed by column name; the caller lands them into the store.
+    ``where`` is the table's landing filter (REQ-2062), `` WHERE ...`` in PostgreSQL, or ``""``."""
     do_connect = connect if connect is not None else _pg_connect
     conn = await do_connect(ports.calcite_child_host, ports.pgwire_port)
     try:
-        rows = await conn.fetch(f'SELECT * FROM "{schema}"."{table}"', timeout=_fetch_timeout())
+        rows = await conn.fetch(
+            f'SELECT * FROM "{schema}"."{table}"{where}', timeout=_fetch_timeout()
+        )
         return [dict(row) for row in rows]
     finally:
         await conn.close()
@@ -1234,10 +1238,15 @@ class ConnectorReplica:  # REQ-954/955/956
     async def load(self, table: Any) -> list[dict]:
         """Land the connector table's current rows: start the server if needed, then SELECT (REQ-954).
         ``table`` may be a registered Table (``.table_name``) or a bare table-name string."""
+        from provisa.core.landing_filter import where as landing_where
+
         ports = self.endpoint()
         table_name = getattr(table, "table_name", table)
+        # REQ-2062: a registered table's landing filter, read by the server as PostgreSQL; a bare
+        # name is no registered table and has none.
+        where = "" if isinstance(table, str) else landing_where(table, lambda: "postgres")
         return await land_via_select(
-            ports, self._schema_of(table), table_name, connect=self._connect
+            ports, self._schema_of(table), table_name, connect=self._connect, where=where
         )
 
     def _schema_of(self, table: Any) -> str:
@@ -1608,6 +1617,8 @@ def make_pgwire_loader(
             _replicas[key] = replica
         return await replica.load(table)
 
+    # REQ-2062: its SELECT applies a table's landing filter (ConnectorReplica.load).
+    _load.applies_landing_filter = True  # type: ignore[attr-defined]
     return _load
 
 
