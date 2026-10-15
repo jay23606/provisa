@@ -93,6 +93,13 @@ _OPS: dict[str, str] = {
     "joining the platform-plane org record to the tenant-plane role assignment",
     "queries": "One row per statement Provisa executed, from the audit log — who ran it, under "
     "which role, over which transport, against which table, how long it took and how it ended",
+    "replica_builds": "One row per replica of a source table Provisa keeps in its store — its "
+    "build as it stands: requested, building, built, failed or retired, with the last build's "
+    "rows, error and indexes",
+    "replica_build_log": "One row per replica build that ended, completed or failed — when it "
+    "started and finished, how it copied, its rows or its error; the last builds of each replica",
+    "replica_build_health": "Replica builds and their failures per source and day, from the "
+    "replica build log",
 }
 
 # A model reading the catalog took ops.query_audit_log -- its route, status_code and duration_ms
@@ -592,6 +599,52 @@ COLUMN_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "table_name": "Name of that table",
         "domain_id": "Domain of that table",
         "table_count": "Number of registered tables the statement read",
+    },
+    "replica_builds": {
+        "id": "The replica's source, schema and table, dot-joined",
+        "source_id": "The registered source the replicated table is read from",
+        "schema_name": "Schema of the table at the source",
+        "table_name": "The table at the source",
+        "status": "requested, building, idle (built, nothing pending), failed, or retired (no "
+        "longer declared; dropped after a grace period)",
+        "requested_reason": "Why the last build was asked for: model, definition, hot, refresh, "
+        "operator or read",
+        "method": "How the running or last build copies: engine_statement or stream_batches",
+        "load_kind": "bulk_stream or row_copy, of the running or last build",
+        "started_at": "When the running or last build started",
+        "finished_at": "When the standing replica's build completed; empty: there is no replica",
+        "rows_copied": "Rows the running build has copied, or the last build's total",
+        "completed_rows": "Rows of the last build that copied the whole table",
+        "next_refresh_at": "When the replica is built again; empty: only on request",
+        "failed_at": "When the last build failed",
+        "failed_attempts": "Builds failed in a row since the last one that completed",
+        "error_code": "The last failure's code, when its cause is a named one",
+        "error_message": "The last failure, in English",
+        "indexes_wanted": "Indexes the standing replica's landing asked for",
+        "indexes_built": "Of those, the ones built",
+        "indexes_failed": "Of those, the ones that could not be built",
+    },
+    "replica_build_log": {
+        "id": "Surrogate key, in the order the builds ended",
+        "source_id": "The registered source the replicated table is read from",
+        "schema_name": "Schema of the table at the source",
+        "table_name": "The table at the source",
+        "started_at": "When the build started; empty when its start was not recorded",
+        "finished_at": "When the build completed or failed",
+        "outcome": "completed or failed",
+        "method": "How a completed build copied: engine_statement, stream_batches or delta",
+        "rows_copied": "Rows a completed build copied",
+        "error_code": "A failed build's code, when its cause is a named one",
+        "error_message": "A failed build's error, in English",
+    },
+    "replica_build_health": {
+        "id": "Composite key of the source and the day",
+        "source_id": "The registered source whose replicas were built",
+        "day": "Calendar day the builds ended",
+        "build_count": "Replica builds of the source that ended that day",
+        "failure_count": "How many of them failed",
+        "failed_replicas": "Distinct replicas of the source with a failed build that day",
+        "last_failed_at": "When the last of those failures was",
     },
     "org_registry": {
         "org_id": "Org the row is about",

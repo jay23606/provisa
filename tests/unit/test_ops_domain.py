@@ -258,6 +258,8 @@ _REPORT_VIEW_NAMES = {
     "join_hotspots",
     "tag_usage",
     "queries",
+    "replica_builds",
+    "replica_build_health",
 }
 
 

@@ -271,6 +271,7 @@ _META_TABLE_VIEWS: dict[str, str] = {
 # plaintext is only reachable via the authorised admin decrypt path (REQ-689).
 _OPS_LOG_TABLE_ALIAS: dict[str, str] = {
     "query_audit_log": "query_audit_log_ops",
+    "replica_build_log": "replica_build_log_ops",
 }
 
 _OPS_LOG_TABLE_VIEWS: dict[str, str] = {
@@ -282,6 +283,14 @@ _OPS_LOG_TABLE_VIEWS: dict[str, str] = {
                q.model_stamp, q.model_commit, q.enforced
         FROM query_audit_log q
         LEFT JOIN user_directory ud ON ud.user_id = q.user_id
+    """,
+    # Every replica build that ended, completed or failed: its last builds a replica
+    # (federation/replica_state.REPLICA_BUILD_LOG_KEEP).
+    "replica_build_log": """
+        CREATE OR REPLACE VIEW replica_build_log_ops AS
+        SELECT l.id, l.source_id, l.schema_name, l.table_name, l.started_at, l.finished_at,
+               l.outcome, l.method, l.rows_copied, l.error_code, l.error_message
+        FROM replica_build_log l
     """,
 }
 
@@ -486,5 +495,42 @@ _OPS_REPORT_VIEWS: dict[str, str] = {
             JOIN ops_table_usage u ON u.table_id = tt.table_id
             GROUP BY tt.tag_id
         ) q ON q.tag_id = t.id
+    """,
+    # REQ-1915: every replica and its build as it stands -- the record the build runner keeps,
+    # one row a replica: requested, building, idle (built), failed, or retired. ``failed_attempts``
+    # counts the failures in a row since the last build that completed. The indexes built after
+    # it landed (REQ-2015) are counted from its index state.
+    "replica_builds": """
+        CREATE OR REPLACE VIEW replica_builds AS
+        SELECT r.source_id || '.' || r.schema_name || '.' || r.table_name AS id,
+               r.source_id, r.schema_name, r.table_name,
+               CASE WHEN r.retired_at IS NOT NULL THEN 'retired' ELSE r.build_state END
+                   AS status,
+               r.requested_reason, r.build_method AS method, r.load_kind,
+               r.build_started_at AS started_at, r.completed_at AS finished_at,
+               r.rows_copied, r.completed_rows, r.next_refresh_at,
+               r.failed_at, r.failed_attempts,
+               r.last_error_code AS error_code, r.last_error AS error_message,
+               jsonb_array_length(CAST(r.index_state AS JSONB) -> 'wanted') AS indexes_wanted,
+               jsonb_array_length(CAST(r.index_state AS JSONB) -> 'built') AS indexes_built,
+               CASE WHEN r.index_state IS NULL THEN NULL
+                    ELSE (SELECT COUNT(*)
+                          FROM jsonb_object_keys(CAST(r.index_state AS JSONB) -> 'failed'))
+               END AS indexes_failed
+        FROM replica_state r
+    """,
+    # Replica builds and their failures per source and day, from the build log.
+    "replica_build_health": """
+        CREATE OR REPLACE VIEW replica_build_health AS
+        SELECT l.source_id || ':' || SUBSTR(CAST(l.finished_at AS TEXT), 1, 10) AS id,
+               l.source_id, SUBSTR(CAST(l.finished_at AS TEXT), 1, 10) AS day,
+               COUNT(*) AS build_count,
+               SUM(CASE WHEN l.outcome = 'failed' THEN 1 ELSE 0 END) AS failure_count,
+               COUNT(DISTINCT CASE WHEN l.outcome = 'failed'
+                                   THEN l.schema_name || '.' || l.table_name END)
+                   AS failed_replicas,
+               MAX(CASE WHEN l.outcome = 'failed' THEN l.finished_at END) AS last_failed_at
+        FROM replica_build_log l
+        GROUP BY l.source_id, SUBSTR(CAST(l.finished_at AS TEXT), 1, 10)
     """,
 }

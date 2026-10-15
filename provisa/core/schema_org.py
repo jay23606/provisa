@@ -1560,6 +1560,26 @@ replica_state = Table(
     ),
 )
 
+# The replica builds that ended: one row a build that completed or failed, appended as its
+# replica_state record is written. Bounded per replica: its last REPLICA_BUILD_LOG_KEEP builds
+# (federation/replica_state.py), pruned as each is written. V1: schema-defined, no migration.
+replica_build_log = Table(
+    "replica_build_log",
+    metadata,
+    Column("id", BigInteger(), primary_key=True, autoincrement=True),
+    Column("source_id", Text, nullable=False),
+    Column("schema_name", Text, nullable=False),
+    Column("table_name", Text, nullable=False),
+    Column("started_at", DateTime(timezone=True)),  # NULL: the build's start was not recorded
+    Column("finished_at", DateTime(timezone=True), nullable=False),
+    Column("outcome", Text, nullable=False),
+    Column("method", Text),  # engine_statement | stream_batches | delta
+    Column("rows_copied", BigInteger()),  # a completed build's rows
+    Column("error_code", Text),  # a failed build's cause, when it is a named one
+    Column("error_message", Text),  # a failed build's error, in English
+    CheckConstraint("outcome IN ('completed','failed')", name="replica_build_log_outcome_check"),
+)
+
 # REQ-983 preserved snapshots: a point-in-time dataset MATERIALIZED-AND-SEALED because it is NOT
 # reconstructible from current state + retained event history — the one PIT form that genuinely
 # departs from the NRT ideal (contrast the reconstructible PIT of REQ-958/965/967). DECLARED (never
