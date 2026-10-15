@@ -399,6 +399,54 @@
       "filesDone": {
         "title": "Een map werd een catalogus",
         "description": "Een map met bestanden werd een beheerde catalogus: tabellen, relaties, een woordenlijstterm en een opgeslagen view, zonder dat er iets geladen is. Een nieuw maandbestand met klachten heeft geen nieuwe tabel nodig: het patroon omvat het al."
+      },
+      "reviewsCatalog": {
+        "title": "Wat deze demo is",
+        "description": "Een elektronicawinkel wil weten welke producten teleurstellen en wat hun kopers daaraan doen. Het antwoord ligt verspreid over drie NoSQL-opslagen. Deze, <strong>catalog</strong>, is MongoDB: een document per product, met geneste specificaties en de sterrenbeoordelingen van klanten."
+      },
+      "reviewsSearchStore": {
+        "title": "De reviews, in Elasticsearch",
+        "description": "<strong>reviews</strong> is Elasticsearch: de 5.000 reviews die klanten schreven, elk met zijn product, zijn sterren en zijn tekst. Provisa leest het live; er wordt niets eerst gekopieerd."
+      },
+      "reviewsGraphStore": {
+        "title": "Wie wat kocht, in Neo4j",
+        "description": "<strong>purchases</strong> is Neo4j: 2.000 klanten, elk via een BOUGHT-relatie gekoppeld aan de producten die ze kochten. Alle drie de opslagen noemen een product met dezelfde id."
+      },
+      "reviewsPipeline": {
+        "title": "Een MongoDB-pipeline als tabel",
+        "description": "<strong>ratings_by_product</strong> is een MongoDB-aggregatiepipeline, geregistreerd als tabel: ze groepeert de sterrenbeoordelingen per product en geeft van elk product het aantal, het gemiddelde en de beoordelingen met één ster. Een query leest haar als elke andere tabel."
+      },
+      "reviewsSearchTable": {
+        "title": "Een Elasticsearch-zoekopdracht als tabel",
+        "description": "<strong>reviews_matching</strong> is een Elasticsearch-zoekopdracht, geregistreerd als tabel. De zinsnede is een parameter: een query stelt die in, en elke rij is een review waarvan de tekst de zinsnede bevat, met de zinsnede gemarkeerd."
+      },
+      "reviewsCypherTable": {
+        "title": "Een Cypher-query als tabel",
+        "description": "<strong>bought_together</strong> is een Cypher-query op Neo4j, geregistreerd als tabel: per product elk ander product dat zijn kopers kochten, en hoeveel van hen dat deden."
+      },
+      "reviewsJoin": {
+        "title": "Gekoppeld op het product",
+        "description": "Relaties koppelen de tabellen op de product-id over alle drie de opslagen. <strong>COMPLAINS_ABOUT</strong> koppelt een passende review aan zijn product in de catalogus, zodat een query van Elasticsearch naar MongoDB reikt zonder de join uit te schrijven."
+      },
+      "reviewsBatteryDies": {
+        "title": "Waar de batterij het begeeft",
+        "description": "De eerste vraag van de winkel, in SQL: de reviews die „battery dies” zeggen, geteld per product, met de beoordelingen van elk product. Eén statement leest een Elasticsearch-zoekopdracht en twee MongoDB-tabellen, en een handvol producten springt eruit."
+      },
+      "reviewsBoughtWith": {
+        "title": "Wat hun kopers kochten",
+        "description": "De tweede vraag, in Cypher: de producten met minder dan drie sterren en wat hun kopers daarnaast kochten. De graaf loopt over de MongoDB-beoordelingen en de Neo4j-aankopen, en powerbanks duiken steeds op."
+      },
+      "reviewsRest": {
+        "title": "De zoekopdracht via REST",
+        "description": "Dezelfde zoekopdracht als REST-aanroep, met de zinsnede als parameter. Elk oppervlak dat Provisa bedient leest dezelfde beheerde tabellen, dus REST antwoordt zoals SQL en GraphQL, met dezelfde rechten."
+      },
+      "reviewsExample": {
+        "title": "De zoekopdracht in GraphQL",
+        "description": "Een voorbeeldquery: de batterijklachten in GraphQL, met de gemarkeerde tekst van elke review en het bijbehorende product daaronder genest via de relatie."
+      },
+      "reviewsDone": {
+        "title": "Wat zojuist te zien was",
+        "description": "Drie NoSQL-opslagen, een MongoDB-pipeline, een Elasticsearch-zoekopdracht en een Cypher-query, gekoppeld op het product en bevraagd met de vraag van de winkel in SQL, Cypher, REST en GraphQL."
       }
     },
     "status": {
@@ -423,6 +471,10 @@
       "files": {
         "title": "Direct data lake",
         "summary": "De opendatabestanden van een stad, ter plekke gelezen als één catalogus: welke wijken hebben de meeste klachten bij actieve bouwplaatsen?"
+      },
+      "reviews": {
+        "title": "Productreviews",
+        "summary": "De catalogus, reviews en aankopen van een elektronicawinkel in MongoDB, Elasticsearch en Neo4j, gekoppeld op het product: bij welke producten zeggen reviews dat de batterij het begeeft, en wat kochten hun kopers verder?"
       }
     }
   }

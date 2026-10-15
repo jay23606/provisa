@@ -1,0 +1,12 @@
+# What the buyers of the Voltra Fit 2 smartwatch (product 6) also bought, most bought first: a
+# Cypher query over who bought what in Neo4j, each product named from the MongoDB catalog.
+query BoughtWithTheVoltraFit2 {
+  boughtTogether(where: { productId: { eq: 6 } }, order_by: [{ customers: desc }], limit: 10) {
+    customers
+    alsoBought {
+      name
+      category
+      price
+    }
+  }
+}

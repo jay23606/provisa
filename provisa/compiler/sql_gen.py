@@ -476,13 +476,28 @@ def _compile_root_field(  # REQ-009, REQ-011, REQ-032, REQ-033, REQ-034, REQ-035
             inner_sql = f"SELECT *, {rn_expr} FROM ({sql}) AS {_q(inner_alias)}"
             sql = f"SELECT * FROM ({inner_sql}) AS {_q('__distinct_dedup')} WHERE __rn = 1"
 
+    # Native filter args (any arg not handled by SQL compilation): each a _nf_-prefixed condition
+    # of the root's WHERE, so the SQL/CQL preview shows the filter. nf_extractor strips them before
+    # the engine runs the statement; endpoint.py uses api_args for the REST call.
+    api_args = native_args(args, _STANDARD_ARGS, ctx.native_filter_columns.get(table.table_id, {}))
+
     # WHERE
+    where_parts: list[str] = []
     if "where" in args:
         _vvals = ctx.virtual_columns.get(table.table_id)
-        where_sql = _compile_where(
-            args["where"], collector, root_alias, _vvals, table.table_id, ctx.exposed_to_physical
+        where_parts.append(
+            _compile_where(
+                args["where"],
+                collector,
+                root_alias,
+                _vvals,
+                table.table_id,
+                ctx.exposed_to_physical,
+            )
         )
-        sql += f" WHERE {where_sql}"
+    where_parts += native_arg_conditions(api_args)
+    if where_parts:
+        sql += f" WHERE {' AND '.join(where_parts)}"
 
     # ORDER BY -- a similar search first: the rows most like the query lead (REQ-430).
     order_parts = [f"{similar_sql} DESC"] if similar_sql is not None else []
@@ -517,18 +532,6 @@ def _compile_root_field(  # REQ-009, REQ-011, REQ-032, REQ-033, REQ-034, REQ-035
             sql += f" LIMIT {collector.add(int(args['limit']))}"
         if "offset" in args:
             sql += f" OFFSET {collector.add(int(args['offset']))}"
-
-    # Collect native filter args (any arg not handled by SQL compilation above)
-    api_args = native_args(args, _STANDARD_ARGS, ctx.native_filter_columns.get(table.table_id, {}))
-
-    # Inject _nf_-prefixed WHERE conditions so the SQL/CQL preview shows the filter.
-    # nf_extractor strips these before the engine execution; endpoint.py uses api_args for the REST call.
-    if api_args:
-        nf_where = " AND ".join(native_arg_conditions(api_args))
-        if " WHERE " in sql:
-            sql += f" AND {nf_where}"
-        else:
-            sql += f" WHERE {nf_where}"
 
     return CompiledQuery(
         sql=sql,

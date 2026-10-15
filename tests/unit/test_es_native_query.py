@@ -256,3 +256,45 @@ def test_a_native_search_is_read_natively_whatever_the_engine():
     types = {"es": "elasticsearch"}
     assert _is_native_read({"source_id": "es", "query_template": "{}", "columns": []}, types)
     assert not _is_native_read({"source_id": "es", "query_template": None, "columns": []}, types)
+
+
+def test_a_search_s_pages_keep_each_hit_s_score():
+    """The pages are sorted (search_after), and a sorted search's hits carry no _score unless
+    track_scores asks for it: the reviews demo's score column read null."""
+    from contextlib import contextmanager
+
+    from provisa.elasticsearch.fetch import search_hits
+
+    sent: list[dict] = []
+
+    class _Resp:
+        def __init__(self, body):
+            self._body = body
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self._body
+
+    class _Client:
+        def post(self, path, json=None, params=None):
+            if path.endswith("/_pit"):
+                return _Resp({"id": "pit-1"})
+            sent.append(json)
+            hits = [] if len(sent) > 1 else [{"_id": "a", "_score": 1.5, "sort": [1.5, 0]}]
+            return _Resp({"pit_id": "pit-1", "hits": {"hits": hits}})
+
+        def request(self, method, path, json=None):
+            return _Resp({})
+
+    class _Conn:
+        @contextmanager
+        def _client(self):
+            yield _Client()
+
+    body = {"query": {"match_phrase": {"text": "battery dies"}}, "size": 10}
+    pages = list(search_hits(_Conn(), "reviews", body, 100))  # type: ignore[arg-type]
+    assert pages == [[{"_id": "a", "_score": 1.5, "sort": [1.5, 0]}]]
+    assert all(page["track_scores"] is True for page in sent)
+    assert sent[0]["sort"] == ["_score"]

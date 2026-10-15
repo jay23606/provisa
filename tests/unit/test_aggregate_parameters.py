@@ -116,6 +116,20 @@ def test_a_group_by_sends_its_parameters_and_its_rows_read_them_too():
     assert compiled.api_args == {"region": "EU"}
 
 
+def test_a_read_s_parameters_are_in_its_where_before_its_order_and_limit():
+    """They were appended after ORDER BY and LIMIT, a statement no parser reads (the reviews
+    demo's example query)."""
+    import sqlglot
+
+    compiled = _compiled('{ orders(region: "EU", order_by: [{total: asc}], limit: 5) { id } }')
+    assert 'WHERE "_nf_region" = \'EU\' ORDER BY "total" ASC LIMIT $1' in compiled.sql
+    sqlglot.parse_one(compiled.sql, read="postgres")
+    compiled = _compiled(
+        '{ orders(region: "EU", where: {total: {gt: 5}}, order_by: [{total: asc}]) { id } }'
+    )
+    assert 'WHERE "total" > $1 AND "_nf_region" = \'EU\' ORDER BY "total" ASC' in compiled.sql
+
+
 def test_a_renamed_argument_fills_its_parameter():
     """#247: the argument is _status because status is a column; the parameter is still status."""
     compiled = _compiled('{ orders(region: "EU", _status: "open") { id } }')

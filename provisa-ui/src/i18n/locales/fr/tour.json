@@ -399,6 +399,54 @@
       "filesDone": {
         "title": "Un dossier devenu catalogue",
         "description": "Un dossier de fichiers est devenu un catalogue gouverné : des tables, des relations, un terme du glossaire et une vue stockée, sans rien charger. Un nouveau fichier mensuel de plaintes n'a pas besoin d'une nouvelle table : le motif l'inclut déjà."
+      },
+      "reviewsCatalog": {
+        "title": "Ce qu'est cette démo",
+        "description": "Une boutique d'électronique veut savoir quels produits déçoivent et ce que font leurs acheteurs. La réponse est répartie sur trois magasins NoSQL. Celui-ci, <strong>catalog</strong>, est MongoDB : un document par produit, avec ses caractéristiques imbriquées et les notes en étoiles données par les clients."
+      },
+      "reviewsSearchStore": {
+        "title": "Les avis, dans Elasticsearch",
+        "description": "<strong>reviews</strong> est Elasticsearch : les 5 000 avis écrits par les clients, chacun avec son produit, ses étoiles et son texte. Provisa le lit en direct ; rien n'est copié au préalable."
+      },
+      "reviewsGraphStore": {
+        "title": "Qui a acheté quoi, dans Neo4j",
+        "description": "<strong>purchases</strong> est Neo4j : 2 000 clients, chacun relié par une relation BOUGHT aux produits qu'il a achetés. Les trois magasins désignent un produit par le même id."
+      },
+      "reviewsPipeline": {
+        "title": "Un pipeline MongoDB comme table",
+        "description": "<strong>ratings_by_product</strong> est un pipeline d'agrégation MongoDB, enregistré comme table : il regroupe les notes en étoiles par produit et donne, pour chacun, le nombre, la moyenne et les notes d'une étoile. Une requête le lit comme n'importe quelle autre table."
+      },
+      "reviewsSearchTable": {
+        "title": "Une recherche Elasticsearch comme table",
+        "description": "<strong>reviews_matching</strong> est une recherche Elasticsearch, enregistrée comme table. Sa phrase est un paramètre : une requête la fixe, et chaque ligne est un avis dont le texte contient la phrase, avec la phrase mise en évidence."
+      },
+      "reviewsCypherTable": {
+        "title": "Une requête Cypher comme table",
+        "description": "<strong>bought_together</strong> est une requête Cypher sur Neo4j, enregistrée comme table : pour chaque produit, tous les autres produits achetés par ses acheteurs, et combien d'entre eux les ont achetés."
+      },
+      "reviewsJoin": {
+        "title": "Jointure sur le produit",
+        "description": "Les relations joignent les tables sur l'id du produit dans les trois magasins. <strong>COMPLAINS_ABOUT</strong> joint un avis correspondant à son produit dans le catalogue, si bien qu'une requête va d'Elasticsearch à MongoDB sans écrire la jointure."
+      },
+      "reviewsBatteryDies": {
+        "title": "Où la batterie lâche",
+        "description": "La première question de la boutique, en SQL : les avis qui disent « battery dies », comptés par produit, avec les notes de chaque produit. Une seule instruction lit une recherche Elasticsearch et deux tables MongoDB, et quelques produits se détachent."
+      },
+      "reviewsBoughtWith": {
+        "title": "Ce qu'ont acheté leurs acheteurs",
+        "description": "La deuxième question, en Cypher : les produits notés en dessous de trois étoiles, et ce que leurs acheteurs ont aussi acheté. Le graphe traverse les notes MongoDB et les achats Neo4j, et les batteries externes reviennent sans cesse."
+      },
+      "reviewsRest": {
+        "title": "La recherche en REST",
+        "description": "La même recherche en appel REST, sa phrase passée en paramètre. Chaque surface que sert Provisa lit les mêmes tables gouvernées, donc REST répond comme SQL et GraphQL, avec les mêmes droits."
+      },
+      "reviewsExample": {
+        "title": "La recherche en GraphQL",
+        "description": "Un exemple de requête : les plaintes sur la batterie en GraphQL, avec le texte mis en évidence de chaque avis et son produit imbriqué en dessous grâce à la relation."
+      },
+      "reviewsDone": {
+        "title": "Ce que vous venez de voir",
+        "description": "Trois magasins NoSQL, un pipeline MongoDB, une recherche Elasticsearch et une requête Cypher, joints sur le produit et interrogés avec la question de la boutique en SQL, Cypher, REST et GraphQL."
       }
     },
     "status": {
@@ -423,6 +471,10 @@
       "files": {
         "title": "Data lake instantané",
         "summary": "Les fichiers de données ouvertes d'une ville, lus sur place comme un seul catalogue : quels quartiers ont le plus de plaintes près des chantiers actifs ?"
+      },
+      "reviews": {
+        "title": "Avis sur les produits",
+        "summary": "Le catalogue, les avis et les achats d'une boutique d'électronique dans MongoDB, Elasticsearch et Neo4j, joints sur le produit : sur quels produits les avis disent-ils que la batterie lâche, et qu'ont acheté d'autre leurs acheteurs ?"
       }
     }
   }

@@ -143,3 +143,48 @@ describe("OpenApiPage — a handed call's response (REQ-2010)", () => {
     await waitFor(() => expect(page.hasAttribute("data-answered")).toBe(true));
   });
 });
+
+describe("OpenApiPage — a handed call with a table's parameters", () => {
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = () => undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("<html><body></body></html>", { status: 200 })),
+    );
+  });
+
+  it("types the parameters' JSON into their textarea and runs the call", async () => {
+    const { container } = render(
+      <MantineProvider>
+        <MemoryRouter initialEntries={["/openapi"]}>
+          <Polly path='/store/reviews_matching?params={"phrase":"battery%20dies"}&limit=5' />
+          <OpenApiPage />
+        </MemoryRouter>
+      </MantineProvider>,
+    );
+    const frame = await waitFor(() => {
+      const f = container.querySelector("iframe");
+      expect(f).not.toBeNull();
+      return f as HTMLIFrameElement;
+    });
+    (
+      frame.contentWindow as unknown as { Element: typeof Element }
+    ).Element.prototype.scrollIntoView = () => undefined;
+    const doc = frame.contentDocument!;
+    doc.body.innerHTML = `<div class="opblock"><span class="opblock-summary-method">GET</span>
+      <span data-path="/store/reviews_matching"></span><button class="opblock-summary-control"></button>
+      <table><tr data-param-name="params"><td><textarea></textarea></td></tr>
+      <tr data-param-name="limit"><td><input /></td></tr></table>
+      <button class="btn execute opblock-control__btn"></button></div>`;
+    let executed = false;
+    doc.querySelector(".execute")!.addEventListener("click", () => {
+      executed = true;
+    });
+    fireEvent.load(frame);
+
+    act(() => screen.getByRole("button", { name: /reviews_matching/ }).click());
+    await waitFor(() => expect(executed).toBe(true), { timeout: 5000 });
+    expect(doc.querySelector("textarea")!.value).toBe('{"phrase":"battery dies"}');
+    expect(doc.querySelector("input")!.value).toBe("5");
+  });
+});

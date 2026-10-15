@@ -66,10 +66,13 @@ def _weblogs_views_schema():
     return _views_schema(_WEBLOGS, role)
 
 
+_PARAMETER_KEYS = ("native_filter_type", "native_filter_required", "required_by_steward")
+
+
 def _views_schema(home: Path, role: dict, *, include_tables: bool = False):
     """The GraphQL schema ``role`` is served for a demo's views (and, with ``include_tables``, its tables
     too), built from the demo's own config as the server builds it (the declared columns and
-    types)."""
+    types, the tables' parameters, and the relationships between what it holds)."""
     from provisa.compiler import naming
     from provisa.compiler.introspect import ColumnMetadata
     from provisa.compiler.schema_gen import SchemaInput, generate_schema
@@ -97,8 +100,13 @@ def _views_schema(home: Path, role: dict, *, include_tables: bool = False):
                 "alias": view.get("alias"),
                 **({"view_sql": view["view_sql"]} if "view_sql" in view else {}),
                 **{name: view.get(name, default) for name, default in fields.items()},
+                # A parameter column keeps what makes it a field argument (REQ-1986).
                 "columns": [
-                    {"column_name": c["name"], "visible_to": c["visible_to"]}
+                    {
+                        "column_name": c["name"],
+                        "visible_to": c["visible_to"],
+                        **{k: c[k] for k in _PARAMETER_KEYS if k in c},
+                    }
                     for c in view["columns"]
                 ],
                 "write_ops": [],
@@ -110,11 +118,28 @@ def _views_schema(home: Path, role: dict, *, include_tables: bool = False):
             ColumnMetadata(column_name=c["name"], data_type=c["data_type"], is_nullable=True)
             for c in view["columns"]
         ]
+    # The relationships between what the schema holds, by table id: a relationship names its
+    # tables by their alias or table name.
+    ids = {t.get("alias") or t["table_name"]: t["id"] for t in tables} | {
+        t["table_name"]: t["id"] for t in tables
+    }
+    relationships = [
+        {
+            **rel,
+            "source_table_id": ids[rel["source_table_id"]],
+            "target_table_id": ids[rel["target_table_id"]],
+            **({"via_table_id": ids[rel["via_table"]]} if rel.get("via_table") else {}),
+        }
+        for rel in raw.get("relationships", [])
+        if rel["source_table_id"] in ids
+        and rel["target_table_id"] in ids
+        and rel.get("via_table", rel["source_table_id"]) in ids
+    ]
     naming.configure(gql="apollo_graphql")
     return generate_schema(
         SchemaInput(
             tables=tables,
-            relationships=[],
+            relationships=relationships,
             column_types=column_types,
             naming_rules=[],
             role=role,

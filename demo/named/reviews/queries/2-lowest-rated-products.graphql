@@ -1,0 +1,14 @@
+# The ten lowest-rated products: the star ratings summed up by a MongoDB aggregation pipeline,
+# each with its product from the catalog.
+query LowestRatedProducts {
+  ratingsByProduct(order_by: [{ avgStars: asc }], limit: 10) {
+    avgStars
+    ratings
+    oneStar
+    product {
+      name
+      category
+      brand
+    }
+  }
+}

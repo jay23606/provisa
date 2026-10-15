@@ -1,0 +1,73 @@
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+#
+# The reviews demo's own tour (REQ-2030; step kinds as demo/named/weblogs/tour.yaml lists them):
+# the story of the demo, told with its own data, offered before the product tour when the demo is
+# open. The words of each step are tour.steps.<key> in the UI's tour.json, in every language.
+# Every name here is checked against the demo by tests/unit/test_named_demo_tour.py, and every
+# statement and call is run against the demo by tests/integration/test_reviews_demo.py.
+#
+# The track: the scenario and its three stores; the tables each gives -- a MongoDB pipeline, an
+# Elasticsearch search and a Cypher query; the relationships that join them on the product id;
+# then the shop's question answered: which products do reviews say the battery dies on (SQL), what
+# else their buyers bought (Cypher), the search itself over REST and as a GraphQL example; a recap.
+# Where the tour's "Look around on my own" leaves the visitor: the SQL page, with the example queries.
+landing:
+  route: /sql
+  capability: query_development
+steps:
+- key: reviewsCatalog
+  route: /sources
+  capability: source_registration
+  source: catalog
+- key: reviewsSearchStore
+  source: reviews
+- key: reviewsGraphStore
+  source: purchases
+- key: reviewsPipeline
+  route: /tables
+  capability: table_registration
+  table: catalog.ratings_by_product
+- key: reviewsSearchTable
+  table: reviews.reviews_matching
+- key: reviewsCypherTable
+  table: purchases.bought_together
+- key: reviewsJoin
+  route: /relationships
+  capability: create_relationship
+  relationship: COMPLAINS_ABOUT
+- key: reviewsBatteryDies
+  route: /sql
+  capability: query_development
+  sql: >-
+    SELECT p.name, p.category, COUNT(*) AS complaints, r.avg_stars, r.ratings
+    FROM "store"."reviews_matching" AS m
+    JOIN "store"."products" AS p ON p.product_id = m.product_id
+    JOIN "store"."ratings_by_product" AS r ON r.product_id = p.product_id
+    WHERE m._nf_phrase = 'battery dies'
+    GROUP BY p.name, p.category, r.avg_stars, r.ratings
+    ORDER BY complaints DESC
+- key: reviewsBoughtWith
+  route: /graph
+  capability: query_development
+  cypher: >-
+    MATCH (r:RatingsByProduct)-[g:RATINGS_OF]->(p:Products)<-[w:BOUGHT_WITH]-(t:BoughtTogether)-[a:ALSO_BOUGHT]->(o:Products)
+    WHERE r.avgStars < 3 AND t.customers >= 5 RETURN r, g, p, w, t, a, o
+- key: reviewsRest
+  route: /openapi
+  capability: query_development
+  api: GET /data/rest/store/reviews_matching?params={"phrase":"battery%20dies"}&limit=5
+- key: reviewsExample
+  route: /query
+  capability: query_development
+  example: 1-battery-complaints
+- key: reviewsDone
+  route: /relationships
+  capability: create_relationship
+  relationship: ALSO_BOUGHT
