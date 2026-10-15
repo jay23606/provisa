@@ -71,11 +71,14 @@ def _route_capabilities() -> dict[str, str]:
 
 
 def _relations(config: dict) -> set[str]:
-    """The ``"domain"."name"`` each table and view of the demo is read by in SQL."""
+    """The ``"domain"."name"`` each table and view of the demo is read by in SQL, and the ops
+    record every organisation has (its audit log and reports), which a tour may show."""
+    from provisa.api._meta_views import _OPS_LOG_TABLE_VIEWS, _OPS_REPORT_VIEWS
     from provisa.core.config_loader import views_as_tables
 
     tables = views_as_tables(json.loads(json.dumps(config)))["tables"]
-    return {f"{t['domain_id']}.{t.get('alias') or t['table']}" for t in tables}
+    ops = {f"ops.{name}" for name in (*_OPS_LOG_TABLE_VIEWS, *_OPS_REPORT_VIEWS)}
+    return {f"{t['domain_id']}.{t.get('alias') or t['table']}" for t in tables} | ops
 
 
 def _surface(config: dict) -> tuple[set[tuple[str, str]], set[str], set[str]]:
