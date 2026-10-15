@@ -214,14 +214,14 @@ relationships:
 - {id: cve-weakness, alias: INSTANCE_OF, graphql_alias: weaknesses, cardinality: one-to-many, source_table_id: cves, source_column: cve_id, target_table_id: cve_weaknesses, target_column: cve_id}
 - {id: weakness-of-catalog, alias: WEAKNESS, graphql_alias: weakness, cardinality: many-to-one, source_table_id: cve_weaknesses, source_column: cwe_id, target_table_id: weaknesses, target_column: cwe_id}
 # The vocabulary of vulnerability management: abstract terms, grounded through their edges in the
-# terms the tables' columns derive (cve id, cwe id, cvss v31 score, due date, severity).
+# terms the tables' columns derive (cve, cwe, cvss v31 score, due date, severity).
 glossary_terms:
 - name: common vulnerabilities and exposures
   definition: 'CVE: the public catalog of known vulnerabilities, one identifier (CVE-YYYY-NNNN) for each. The NVD records each one''s description and score.'
   domains:
   - security
   edges:
-  - to: cve id
+  - to: cve
     rel_type: RELATED_TO
 - name: known exploited vulnerability
   definition: 'KEV: a CVE that attackers are known to exploit in the wild. CISA keeps the catalog, with a date by which federal agencies must remediate each one.'
@@ -237,7 +237,7 @@ glossary_terms:
   domains:
   - security
   edges:
-  - to: cwe id
+  - to: cwe
     rel_type: RELATED_TO
 - name: common vulnerability scoring system
   definition: 'CVSS: a score from 0 to 10 of how severe a vulnerability is, from how it is exploited and what it reaches. It does not say whether anyone exploits it.'
