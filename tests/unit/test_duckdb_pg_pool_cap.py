@@ -191,6 +191,7 @@ def _walk_attaches(monkeypatch, row_cap: int | None) -> list[dict]:
                 connector_for_source=lambda _src: SimpleNamespace(reads_in_place=True),
             )
             self._attached = set()
+            self._attached_fields = {}
             self._detached = set()
             self._refused = set()
 
