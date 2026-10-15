@@ -17,8 +17,13 @@ Every named demo lives at `demo/named/<name>/` and contains these files:
 
 ```
 demo/named/<name>/
+  demo.yaml             # required for published demos — bundle metadata and page card
   config.yaml           # required — the demo's whole config, used in place of the standard demo's
-  docker-compose.yml    # the one start point for the demo's own data stores (none: omit it)
+  docker-compose.yml    # the demo's own data stores at build and authoring time (omit if none)
+  docker-compose.run.yml  # the run-time stores, loaded from the bundle's dumps (omit if none)
+  setup.yaml            # optional — commands and MV refreshes to run once after the server is up
+  tour.yaml             # the demo tour, one step per object it shows
+  queries/              # named example queries the tour or Polly can reference
   Dockerfile.seeder     # if the demo self-seeds (recommended)
   seed.py               # entrypoint for the seeder service
   generate_*.py         # one per data store, optional but conventional
@@ -133,6 +138,12 @@ services:
 `docker ps --filter label=com.provisa.demo=<name>` lists exactly those containers without
 needing the compose file open. `com.provisa.demo.role` identifies each service's part.
 
+The role value determines what the bundle build does with each store: [tool-verified: `scripts/demo_bundle.py:145-149`]
+
+- `rdb` — a Postgres service: dumped to `dump/<service>.sql` at build.
+- `vector` — a Qdrant service: each collection saved as `dump/<service>/<collection>.snapshot` at build.
+- `seeder` — run once during the build (and during development starts); never in a bundle.
+
 ## config.yaml — the demo's whole config
 
 `config.yaml` is a static, checked-in config file in Provisa's standard YAML config format. Every
@@ -218,6 +229,340 @@ relationships:
 Relationship IDs must be unique within the file. Table IDs referenced here come from the
 `table:` field in the `tables:` block above, or from auto-discovered tables for native
 connectors (use the actual table name as the ID for those).
+
+## demo.yaml — bundle metadata and page card
+
+`demo.yaml` is required for any demo that will be published as a bundle. It holds three kinds of
+fields [tool-verified: `demo/named/weblogs/demo.yaml`, `demo/named/sonnets/demo.yaml`]:
+
+```yaml
+# demo/named/weblogs/demo.yaml
+title: Web shop logs
+description: >-
+  A web shop's nginx access log and its database's statement log, read as tables and joined to
+  the shop's own data...
+screenshot: card.png
+published: true
+requires_provisa: 0.1.0a483
+```
+
+| Field | Required | Meaning |
+|---|---|---|
+| `published` | yes | `true` publishes this demo as a bundle; `false` skips it in the workflow |
+| `requires_provisa` | yes | The oldest Provisa release the bundle runs on; the build refuses a missing value |
+| `title` | for published | The demo's name on the live demos page |
+| `description` | for published | The card text on the live demos page |
+| `screenshot` | for published | `card.png`, a PNG in the same directory |
+| `extras` | optional | Python extras to install before the bundle build (e.g. `[vector]` for sentence-transformers) |
+
+The `extras` field installs additional Provisa optional dependencies before the demo's setup
+runs. The `sonnets` demo uses `[vector]` to install the sentence-transformers package needed to
+embed its lines. [tool-verified: `demo/named/sonnets/demo.yaml`]
+
+## setup.yaml — run once, on first start and at bundle build
+
+`setup.yaml` names what the demo needs run after the server is up. The launcher runs it on a
+demo's first start (a new control plane). The bundle build runs it before dumping the stores, so
+the setup's effects are in the dumps from the start. [tool-verified: `start-ui-install.sh:875-878`,
+`scripts/demo_bundle.py:417-418`]
+
+The file is a list of steps, each one `command` or `refresh` [tool-verified: `scripts/run_demo_setup.py`]:
+
+```yaml
+# demo/named/sonnets/setup.yaml
+steps:
+- command: embed_lines      # calls the embed_lines command as org_admin
+- command: link_echoes      # calls the link_echoes command as org_admin
+- refresh: theme_time       # builds the stored rows of the view_theme_time materialized view
+- refresh: theme_beauty
+- refresh: theme_mortality
+- refresh: theme_jealousy
+- refresh: theme_verse
+```
+
+A `command:` step calls a GraphQL mutation of that name (as `org_admin`, no arguments). A
+`refresh:` step calls `refreshMv` on the named view. The first step that fails stops the run
+and names the step. Nothing is retried.
+
+The launcher marks a demo set up by adding its name to the operator setting
+`demo.setup_completed`. A demo already listed there is not set up again against the same control
+plane. [tool-verified: `scripts/run_demo_setup.py`, `SETTING = "demo.setup_completed"`]
+
+A bundled demo's setup does not run again where it runs. What setup wrote is already in the
+bundle's dumps.
+
+## docker-compose.run.yml — the run-time stores
+
+A bundle does not run `docker-compose.yml` (the authoring compose, with the seeder). It runs
+`docker-compose.run.yml`, which brings up only what reading the bundle needs: the stores loaded
+from the build's dumps. [tool-verified: `start-ui-install.sh:359-365`, comments in
+`demo/named/weblogs/docker-compose.run.yml`]
+
+Every service in `docker-compose.run.yml` carries the standard labels plus three that the
+node's sync script reads to build `stores.env` [tool-verified: `demo/named/weblogs/docker-compose.run.yml`,
+`demo/named/sonnets/docker-compose.run.yml`]:
+
+```yaml
+# demo/named/weblogs/docker-compose.run.yml (excerpt)
+services:
+  postgres:
+    labels:
+      com.provisa.demo: weblogs
+      com.provisa.demo.role: rdb
+      com.provisa.demo.host_env: WEBLOGS_PG_HOST    # the env var config.yaml reads for the host
+      com.provisa.demo.port_env: WEBLOGS_PG_PORT    # the env var config.yaml reads for the port
+      com.provisa.demo.port: "5432"                 # the container port (not the published port)
+    ports:
+      # On the loopback only. ${VAR-default}: unset → default port; set empty → Docker picks one.
+      - "127.0.0.1:${WEBLOGS_PG_PORT-28432}:5432"
+    volumes:
+      - weblogs_run_pg:/var/lib/postgresql/data
+      - ./dump/postgres.sql:/docker-entrypoint-initdb.d/10-shop.sql:ro
+```
+
+Four things to get right:
+
+- **Ports on the loopback.** Every port binding is `127.0.0.1:<var>:<container port>`. The node
+  runs several versions of the same demo at once; each gets its own port, picked by Docker when
+  `${VAR}` is set empty.
+- **`${VAR-default}` syntax.** The single dash (`-`, not `:-`) means "use the default when unset
+  or empty". The node sets the variable empty to let Docker pick a port; the default applies for
+  a developer's local start.
+- **The three `host_env`/`port_env`/`port` labels.** The node's `scripts/demo_stores_sync.sh`
+  reads them to build `stores.env`, the file that tells the tier where each store is. Without
+  them, the node cannot connect the running store to the config's env-var references.
+- **Read-only roles.** Give each store a reader credential and use it in `config.yaml`. The store
+  is shared by every sandbox of its version, so Provisa should never write to it. The sonnets
+  demo's Qdrant store grants Provisa only its read-only key
+  [tool-verified: `demo/named/sonnets/docker-compose.run.yml:QDRANT__SERVICE__READ_ONLY_API_KEY`].
+
+A Qdrant store's run-time compose file recovers its collections from the build's snapshots at
+start [tool-verified: `demo/named/sonnets/docker-compose.run.yml`]:
+
+```yaml
+# demo/named/sonnets/docker-compose.run.yml (excerpt)
+  qdrant:
+    image: qdrant/qdrant:v1.19.1
+    command: ["./qdrant", "--snapshot", "/snapshots/sonnet_lines.snapshot:sonnet_lines"]
+    volumes:
+      - sonnets_run_qdrant:/qdrant/storage
+      - ./dump/qdrant:/snapshots:ro
+```
+
+## Data rule — what the bundle serves live vs. from the dump
+
+A demo reads its **own** sources live wherever it runs: the Postgres database loaded from the
+dump, the Qdrant store recovered from the snapshot, the log files shipped in the bundle, the
+file sources in the bundle's directory. These are the sources in its `docker-compose.run.yml`,
+or files bundled with it. [tool-verified: `scripts/demo_bundle.py:381-394`, `_replicates()`]
+
+Only external SaaS-account sources — a Snowflake table, a Databricks dataset, anything the demo
+cannot ship in a container — are served from replicas: landed once at bundle build time (when
+the stores run and the data is current) and read from those replicas in the bundle.
+
+The build detects which tables need replicas and writes the seed only when there are any. A demo
+of only local or file sources has no seed to write and no replica to serve.
+
+## tour.yaml — the demo's guided tour
+
+Every published demo has a `tour.yaml`. It describes the demo step by step — what it is, how
+its pieces fit, and then the answer it shows. The UI renders it as an interactive tour, with each
+step's words in `tour.json` (per locale, in `provisa-ui/src/i18n/`). [tool-verified: comments in
+`demo/named/weblogs/tour.yaml`, `demo/named/sonnets/tour.yaml`]
+
+### Structure
+
+```yaml
+# demo/named/weblogs/tour.yaml (excerpt)
+landing:
+  route: /sql
+  capability: query_development
+steps:
+- key: weblogsSources
+  route: /sources
+  capability: source_registration
+  source: shop_access
+```
+
+`landing` is where "Look around on my own" leaves the visitor. Give it a `route` (a path in the
+UI) and the `capability` that gates it. Every published demo must have a `landing`. Provisa
+format 2 added this field; a bundle built without it is refused [tool-verified:
+`provisa/core/demo_bundles.py:91`, `DEMO_FORMAT = 2`].
+
+Each step has:
+
+| Field | Required | Meaning |
+|---|---|---|
+| `key` | yes | Unique identifier; the UI finds its text at `tour.steps.<key>` in `tour.json` |
+| `route` | if different from previous step | The page route to open (`/sources`, `/sql`, etc.) |
+| `capability` | if `route` is set | The UI capability that gates this page |
+| step type | yes | One of the types below |
+
+### Step types
+
+[tool-verified: `tests/unit/test_named_demo_tour.py:26-37`]
+
+| Type | Value | Page |
+|---|---|---|
+| `source` | source id from `config.yaml` | Sources |
+| `table` | `<source id>.<table name>` | Tables |
+| `relationship` | relationship alias from `config.yaml` | Relationships |
+| `example` | example name (without `.graphql`), from `queries/` | New query tab |
+| `sql` | a SQL statement | SQL explorer |
+| `api` | `GET /data/rest/<domain>/<table>[?<params>]` | REST explorer |
+| `jsonapi` | `/data/jsonapi/<domain>/<table>[?<query>]` | JSON:API explorer |
+| `grpc` | `<Method>(by=[...], funcs=[...])` | gRPC explorer |
+| `cypher` | a Cypher query | Graph explorer |
+| `term` | glossary term name | Glossary |
+| `role` | role name (or `all`) | SQL explorer's run-as picker |
+| `polly` | a natural-language question | Polly panel |
+
+A `polly` step is answered once when the demo's template is built; what the sandbox shows is
+that stored answer. Nothing is asked live. The question must be one of the Polly bake-off's
+graded questions (`tests/integration/polly_bakeoff_questions.py`). A demo with no stored answer
+leaves the step out.
+
+### Track
+
+The tour follows a settled track: the scenario and the features it shows, then how sources and
+tables and relationships fit — each step on its real object — then the solution as predesigned
+queries and views, then the `landing` page. The `weblogs` demo ends on `/sql`; the `sonnets`
+demo ends on `/graph`, the echo network. [tool-verified: `demo/named/weblogs/tour.yaml`,
+`demo/named/sonnets/tour.yaml`]
+
+`tests/unit/test_named_demo_tour.py` checks every step: the step type is valid, the named
+object exists in `config.yaml`, the route is a real UI route, and the capability is one the UI
+gates. Fix tour authoring errors there first.
+
+## Publishing a demo
+
+A demo marked `published: true` in its `demo.yaml` is built into a bundle and published.
+
+The bundle holds: the demo's `config.yaml` and `demo.yaml`, its tour and example queries, what
+its setup wrote (available in the stores' dumps), the log files the build's traffic generator
+wrote, and — for a demo with replicated external sources — the seed the sandbox tier's template
+is built from (`seeded/`). [tool-verified: `scripts/demo_bundle.py` module docstring,
+`provisa/core/demo_bundles.py` module docstring]
+
+The Demo bundles workflow (`.github/workflows/demo-bundles.yml`) builds a demo on a push to
+`main` that touches `demo/named/<name>/`, or on a dispatch naming it. It publishes the bundle
+to `ghcr.io/kenstott/provisa-demos` — one repository, every demo — under two tags: `<name>-<version>`
+and `<name>-latest`. The version is the build's UTC minute and commit, for example
+`202610141530-1a2b3c4d5`. A version is never published twice. [tool-verified:
+`provisa/core/demo_bundles.py:166-169`, `scripts/demo_bundle.py:409-410`, `.github/workflows/demo-bundles.yml`]
+
+### Pulling and running a published demo
+
+```bash
+# latest version (default)
+./start-ui-install.sh --demo weblogs
+
+# pinned version
+./start-ui-install.sh --demo weblogs@202610141530-1a2b3c4d5
+
+# build from the checkout instead of pulling
+./start-ui-install.sh --demo weblogs --from-source
+
+# pull programmatically (in a deployment's node)
+python -m provisa.core.demo_bundles pull weblogs --into ~/.provisa/demos
+```
+
+The launcher pulls the bundle into `$PROVISA_HOME/demos/<name>/<version>` (`~/.provisa` by
+default). A version already there is not fetched again. `PROVISA_DEMO_REGISTRY` names another
+registry; bundles come from `ghcr.io/kenstott` otherwise.
+[tool-verified: `provisa/core/demo_bundles.py:510-514`]
+
+`--from-source` runs `demo/named/<name>/` through the full build-everything path. Combining
+`--from-source` with `@<version>` is refused. Use it while authoring.
+
+### Stopping other demos' stores
+
+When `start-ui-install.sh --demo <name>` starts, it stops every other named demo's stores first
+— containers removed, volumes kept — so the ports they hold are free. The current demo's own
+stores are not touched. A bundle build's compose projects (`provisa-demo-bundle-*`) are left
+alone. [tool-verified: `start-ui-install.sh:312-356`, `stop_other_demo_stores()`]
+
+### The demo format version
+
+`DEMO_FORMAT = 2` [tool-verified: `provisa/core/demo_bundles.py:91`]. Format 2 added the tour's
+`landing` field. A bundle built in format 1 (no `landing`) is refused with:
+
+```
+demo weblogs <version> is in demo format 1; this Provisa reads format 2:
+pull its latest (start-ui-install.sh --demo weblogs)
+```
+
+A bundle whose `requires_provisa` is newer than the running Provisa is refused with:
+
+```
+demo weblogs <version> needs Provisa <required> or newer; this is Provisa <running>
+```
+
+Both refusals happen before the bundle's layer is fetched. [tool-verified:
+`provisa/core/demo_bundles.py:62-88`, `check_runs_here()`]
+
+### Updating a published demo
+
+Edit `demo/named/<name>/` and merge to `main`. The workflow publishes a new version. The next
+`--demo <name>` pull and the next sandbox on the demos page get it. No release, no redeploy.
+
+## Log files for Logs sources
+
+A demo whose containers write log files can read them into tables with Logs sources.
+Give the demo a `logs/` directory, one subdirectory per container, each holding a `.gitignore`
+that ignores everything but itself, so the directories are checked in empty. The containers bind
+mount their subdirectory and write there; Provisa runs on the host and reads the files where they
+land.
+
+For every named demo the launcher exports `PROVISA_NAMED_DEMO_DIR`, the demo's directory. When the
+demo has a `logs/` directory, the launcher also adds it to `PROVISA_LOGS_ALLOWED_ROOTS`, the
+directories a Logs source may read. A pristine start deletes the files under `logs/` and keeps the
+`.gitignore` files; `--keep-data` keeps the logs with the data. [tool-verified:
+`start-ui-install.sh`]
+
+A Logs source's glob is a full path. Name it under the demo's directory with the variable, which
+the source keeps as written and resolves each time it reads the files [tool-verified:
+`provisa/logs/settings.py` `parse`]:
+
+```yaml
+# demo/named/weblogs/config.yaml (excerpt)
+- id: shop_access
+  type: logs
+  cache_ttl: 30
+  mapping:
+    glob: ${env:PROVISA_NAMED_DEMO_DIR}/logs/nginx/access.json*
+    format: jsonl
+```
+
+Give a Logs source a `cache_ttl`: its table is a replica, re-read on that interval. In
+`docker-compose.yml`, mount the same directories through the same variable, so a test can point
+them elsewhere:
+
+```yaml
+# demo/named/weblogs/docker-compose.yml (excerpt)
+    volumes:
+      - ${PROVISA_NAMED_DEMO_DIR:-.}/logs/nginx:/var/log/shop
+```
+
+`demo/named/weblogs/` is the example. nginx in front of a small web shop writes a JSON access log,
+and the shop's Postgres logs every statement with its duration as jsonlog. nginx gives each
+request an id and passes it to the shop. The shop puts it in a SQLCommenter comment on every
+statement, and names each request's database connection by it (`application_name`). The demo's
+views join the two logs and the shop's tables: the slowest pages and their SQL, the requests that
+failed in the database, the customers served a server error, the products viewed but never
+bought, and the slow statements by table. The join between the two logs is on
+`application_name`, a column of the database log, because tables are joined only on their columns
+along a relationship. [tool-verified: `demo/named/weblogs/`; `tests/integration/test_weblogs_demo.py`]
+
+## Current published demos
+
+Three demos are published [tool-verified: `demo/named/*/demo.yaml`]:
+
+| Name | Title | Data stores |
+|---|---|---|
+| `weblogs` | Web shop logs | Postgres (shop database), bundled log files (nginx + Postgres statement log) |
+| `sonnets` | Shakespeare's sonnets | Postgres (sonnets), Qdrant (line embeddings) |
+| `files` | Instant data lake | File sources only (CSV, Parquet, Excel, JSON) — no containers at run time |
 
 ## Step-by-step: build a new named demo
 
@@ -358,7 +703,98 @@ Every source still needs explicit `tables:`, which the export supplies. For a sm
 pet store you can ship a `fragment.yaml` of list sections instead of a whole config; see
 [Running and building demos on your laptop](sales-engineer-demos.md#pro-tip-a-fragment-instead-of-a-whole-config).
 
-**7. Bring the stack up and test.**
+**7. Write `docker-compose.run.yml`.**
+
+For each store the bundle will carry, write a service that loads from the build's dump. Give
+every service the three `host_env`/`port_env`/`port` labels and publish on the loopback only.
+
+```yaml
+x-demo-labels: &demo-labels
+  com.provisa.demo: banking
+
+name: provisa-demo-banking-run
+
+services:
+  postgresql:
+    image: postgres:16
+    restart: unless-stopped
+    labels:
+      <<: *demo-labels
+      com.provisa.demo.role: rdb
+      com.provisa.demo.host_env: BANKING_PG_HOST
+      com.provisa.demo.port_env: BANKING_PG_PORT
+      com.provisa.demo.port: "5432"
+    ports:
+      - "127.0.0.1:${BANKING_PG_PORT-25700}:5432"
+    volumes:
+      - banking_run_pg:/var/lib/postgresql/data
+      - ./dump/postgresql.sql:/docker-entrypoint-initdb.d/10-banking.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U provisa -d banking"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+    environment:
+      POSTGRES_USER: provisa
+      POSTGRES_PASSWORD: provisa
+      POSTGRES_DB: banking
+
+volumes:
+  banking_run_pg:
+```
+
+The Snowflake source has no container here either; it is served from a replica the build landed.
+
+**8. Write `demo.yaml`.**
+
+```yaml
+title: Banking demo
+description: >-
+  Customer accounts, transaction history and branch data from two databases and Snowflake,
+  joined into one governed catalog.
+screenshot: card.png
+published: true
+requires_provisa: 0.1.0a487
+```
+
+Set `requires_provisa` to the current Provisa release, or the oldest one whose Provisa carries
+every feature the demo uses.
+
+**9. Write `tour.yaml`.**
+
+```yaml
+landing:
+  route: /sql
+  capability: query_development
+steps:
+- key: bankingIntro
+  route: /sources
+  capability: source_registration
+  source: banking-pg
+- key: bankingTables
+  route: /tables
+  capability: table_registration
+  table: banking-pg.accounts
+- key: bankingJoin
+  route: /relationships
+  capability: create_relationship
+  relationship: HOLDS
+- key: bankingAnswer
+  route: /sql
+  capability: query_development
+  sql: >-
+    SELECT region, COUNT(*) AS accounts, SUM(balance) AS total_balance
+    FROM banking.accounts GROUP BY region ORDER BY total_balance DESC
+- key: bankingDone
+  route: /sources
+  capability: source_registration
+  source: banking-pg
+```
+
+Add a line per key to `provisa-ui/src/i18n/en/tour.json` (and the other locales if you
+translate the tour).
+
+**10. Bring the stack up and test.**
 
 ```bash
 docker compose -f demo/named/banking/docker-compose.yml up -d
@@ -366,15 +802,20 @@ docker compose -f demo/named/banking/docker-compose.yml up -d
 
 Watch `docker compose logs seeder` to confirm generation finishes and the marker is written.
 
-**8. Start Provisa with the named demo.**
+**11. Start Provisa with the named demo.**
 
 ```bash
 ./start-ui-install.sh --demo banking
 ```
 
 The launcher brings the compose stack up and waits for the seeder, uses `config.yaml` in place of the
-standard demo config, and prints `Config for named demo 'banking': ...`. The stack in step 7 can be started first for
+standard demo config, and prints `Config for named demo 'banking': ...`. The stack in step 10 can be started first for
 testing, but unless you pass `--keep-data` the launcher removes it and seeds it again.
+
+**12. Mark it published and submit.**
+
+When the demo is ready, set `published: true` in `demo.yaml` and merge to `main`. The workflow
+builds and publishes the bundle automatically.
 
 ## Log files for Logs sources
 
@@ -413,57 +854,6 @@ them elsewhere:
     volumes:
       - ${PROVISA_NAMED_DEMO_DIR:-.}/logs/nginx:/var/log/shop
 ```
-
-`demo/named/weblogs/` is the example. nginx in front of a small web shop writes a JSON access log,
-and the shop's Postgres logs every statement with its duration as jsonlog. nginx gives each
-request an id and passes it to the shop. The shop puts it in a SQLCommenter comment on every
-statement, and names each request's database connection by it (`application_name`). The demo's
-views join the two logs and the shop's tables: the slowest pages and their SQL, the requests that
-failed in the database, the customers served a server error, the products viewed but never
-bought, and the slow statements by table. The join between the two logs is on
-`application_name`, a column of the database log, because tables are joined only on their columns
-along a relationship. [tool-verified: `demo/named/weblogs/`; `tests/integration/test_weblogs_demo.py`]
-
-## Publishing a demo
-
-A demo marked `published: true` in its `demo.yaml` is built into a bundle and published. A bundle holds the demo's `config.yaml`, its data landed once at build, its tour and example queries, and a dump of each Postgres data store (a service labelled `com.provisa.demo.role: rdb`). The data stores' builders (seeder, traffic generator) run in the build, never where the demo runs.
-
-The Demo bundles workflow (`.github/workflows/demo-bundles.yml`) builds a demo on a push to `main` that touches `demo/named/<name>/`, or on a dispatch naming it. It publishes the bundle to `ghcr.io/kenstott/provisa-demos` under two tags: `<name>-<version>` and `<name>-latest`. The version is the build's UTC minute and commit, for example `202610141530-1a2b3c4d5`, and a version is never published twice. Bundles are not part of a release or of the app image.
-
-Whoever runs the demo pulls its bundle:
-
-- `./start-ui-install.sh --demo weblogs` pulls `weblogs-latest` into `$PROVISA_HOME/demos/weblogs/<version>` (`~/.provisa` by default). `--demo weblogs@<version>` pins one version. `PROVISA_DEMO_REGISTRY` names another registry.
-- `./start-ui-install.sh --demo weblogs --from-source` runs `demo/named/weblogs/` from your checkout, the build-everything path above. Use it while authoring.
-- The live demos page's sandbox tier pulls `<name>-latest` each time a sandbox is opened. A sandbox already open keeps the copy it was cloned from.
-
-A bundled demo does not run `docker-compose.yml`. It runs `docker-compose.run.yml`, which brings up only what reading the bundle needs. For `weblogs`, that is the shop database, loaded from `dump/postgres.sql`:
-
-```yaml
-# demo/named/weblogs/docker-compose.run.yml (excerpt)
-    volumes:
-      - weblogs_run_pg:/var/lib/postgresql/data
-      - ./dump/postgres.sql:/docker-entrypoint-initdb.d/10-shop.sql:ro
-```
-
-### Updating a published demo
-
-Edit `demo/named/<name>/` and merge to `main`. The workflow publishes a new version. The next sandbox on the demos page and the next `--demo <name>` pull get it. No release, no redeploy.
-
-A demo with a `setup.yaml` is set up in the build. The extras its `demo.yaml` names are installed first (torch from PyTorch's CPU-only index when the extra needs it). After its stores come up, a Provisa server on the demo's own `config.yaml` runs `scripts/run_demo_setup.py` against them, so what its setup writes is in the stores the build saves. Its Qdrant stores (`com.provisa.demo.role: vector`) are saved as one snapshot a collection, `dump/<service>/<collection>.snapshot`, which its `docker-compose.run.yml` recovers at start. A bundled demo's setup does not run again where it runs. For `sonnets`, that is the embedded lines in Qdrant and the echoes in Postgres. [tool-verified: `scripts/demo_bundle.py`, `.github/actions/demo-bundle/action.yml`, `demo/named/sonnets/docker-compose.run.yml`]
-
-### requires_provisa
-
-A bundle also names its demo format: the version of a demo's own files (tour, queries, config), bumped when they gain something Provisa requires, such as a tour's `landing`. A bundle in an older format than the running Provisa reads is refused when it is pulled or loaded, by name, saying to pull the latest: `demo weblogs <version> is in demo format 1; this Provisa reads format 2: pull its latest (start-ui-install.sh --demo weblogs)`.
-
-`demo.yaml` must say the oldest Provisa the demo runs on. The build refuses a published demo without it.
-
-```yaml
-# demo/named/weblogs/demo.yaml (excerpt)
-published: true
-requires_provisa: 0.1.0a483
-```
-
-A bundle whose `requires_provisa` is newer than the Provisa pulling it is refused by name: `demo weblogs <version> needs Provisa <required> or newer; this is Provisa <running>`. Raise the value when a change to the demo needs something added to Provisa after the stated version. [tool-verified: `scripts/demo_bundle.py`, `provisa/core/demo_bundles.py`]
 
 ## The `--source` mechanism: what it is not
 
