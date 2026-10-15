@@ -98,6 +98,28 @@ async def create(
     )
 
 
+async def replace(
+    conn: "Connection",
+    trigger: ScheduledTrigger,
+    *,
+    webhook_name: str | None = None,
+) -> bool:
+    """Replace a trigger's definition in the org's model -- when it fires, what it runs and as
+    which role -- keeping whether it is enabled. False when the org holds no such trigger."""
+    model_change.name("update", "scheduled trigger", trigger.id)  # REQ-1524
+    values = {
+        k: v
+        for k, v in _values(trigger, webhook_name=webhook_name).items()
+        if k not in ("id", "enabled")
+    }
+    result = await conn.execute_core(
+        update(scheduled_triggers)
+        .where(scheduled_triggers.c.id == trigger.id)
+        .values(**values, updated_at=func.now())
+    )
+    return bool(result.rowcount)
+
+
 async def delete_one(conn: "Connection", trigger_id: str) -> bool:
     """Remove a trigger from the org's model. False when the org holds no such trigger."""
     model_change.name("delete", "scheduled trigger", trigger_id)  # REQ-1524

@@ -906,8 +906,11 @@ async def create_scheduled_task_op(  # REQ-1003, REQ-1004
     on_table: str | None = None,
     on_event: str | None = None,
     command: str | None = None,
+    replace: bool = False,
 ) -> MutationResult:
     """Create a scheduled trigger (webhook or SQL) in the CALLER's org and schedule it (REQ-1003).
+    With ``replace``, the org's trigger of that id is given this definition instead (REQ-2054: the
+    Triggers page edits what is declared), checked as a new one is; whether it is enabled stays.
 
     The trigger is stored in the org's model store (REQ-1919) -- never the shared config file --
     and runs bound to that org. url/sql are mutually exclusive — supplying both fails loudly.
@@ -1054,17 +1057,34 @@ async def create_scheduled_task_op(  # REQ-1003, REQ-1004
             code="schema.trigger_refused",
             params={"trigger": model.id, "reason": refused},
         )
+    webhook = trigger.get("webhook_name")
     async with pool.acquire() as conn:
-        if await trigger_repo.get(conn, model.id) is not None:
-            return MutationResult(
-                success=False,
-                message=f"Trigger {model.id!r} already exists",
-                code="schema.trigger_exists",
-                params={"trigger": model.id},
-            )
-        await trigger_repo.create(conn, model)
+        if replace:
+            if not await trigger_repo.replace(conn, model, webhook_name=webhook):
+                return MutationResult(
+                    success=False,
+                    message=f"Task {model.id!r} not found",
+                    code="schema.task_not_found",
+                    params={"task": model.id},
+                )
+        else:
+            if await trigger_repo.get(conn, model.id) is not None:
+                return MutationResult(
+                    success=False,
+                    message=f"Trigger {model.id!r} already exists",
+                    code="schema.trigger_exists",
+                    params={"trigger": model.id},
+                )
+            await trigger_repo.create(conn, model)
 
     await reschedule_org_triggers()
+    if replace:
+        return MutationResult(
+            success=True,
+            message=f"Scheduled task {trigger['id']!r} updated",
+            code="schema.scheduled_task_updated",
+            params={"task": trigger["id"]},
+        )
     return MutationResult(
         success=True,
         message=f"Scheduled task {trigger['id']!r} created",

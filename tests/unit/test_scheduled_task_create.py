@@ -179,3 +179,60 @@ async def test_a_create_is_refused_when_saved_naming_the_trigger(cfg_path, monke
     assert res.success is False and res.code == "schema.trigger_sql_refused"
     assert "trigger 'snap': creates an object" in res.message
     assert (await _read(cfg_path))["scheduled_triggers"] == []
+
+
+async def test_an_update_gives_the_trigger_its_new_definition_and_keeps_it_disabled(
+    cfg_path, monkeypatch
+):
+    """REQ-2054: the Triggers page edits what is declared -- the same checks as a new trigger,
+    the stored definition replaced, and whether it is enabled left as it was."""
+    m = Mutation()
+    await m.create_scheduled_task(
+        _info(monkeypatch), id="t", name="T", cron="0 2 * * *", kind="sql", sql=_WRITE, role="ops"
+    )
+    await m.toggle_scheduled_task(_info(monkeypatch), task_id="t", enabled=False)
+    res = await m.update_scheduled_task(
+        _info(monkeypatch),
+        id="t",
+        name="Renamed",
+        cron="30 4 * * 1",
+        kind="sql",
+        sql="INSERT INTO audit.w SELECT 1",
+        role="ops",
+    )
+    assert (res.success, res.code) == (True, "schema.scheduled_task_updated"), res.message
+    [t] = (await _read(cfg_path))["scheduled_triggers"]
+    assert (t["name"], t["cron"], t["sql"], t["enabled"]) == (
+        "Renamed",
+        "30 4 * * 1",
+        "INSERT INTO audit.w SELECT 1",
+        False,
+    )
+
+
+async def test_an_update_is_checked_as_a_new_trigger_and_names_a_missing_one(cfg_path, monkeypatch):
+    m = Mutation()
+    await m.create_scheduled_task(
+        _info(monkeypatch), id="t", name="T", cron="0 2 * * *", kind="sql", sql=_WRITE, role="ops"
+    )
+    refused = await m.update_scheduled_task(
+        _info(monkeypatch),
+        id="t",
+        name="T",
+        cron="0 2 * * *",
+        kind="sql",
+        sql=_WRITE,
+        role="nobody",
+    )
+    assert refused.success is False and refused.code == "schema.trigger_role_required"
+    assert (await _read(cfg_path))["scheduled_triggers"][0]["role"] == "ops"
+    missing = await m.update_scheduled_task(
+        _info(monkeypatch),
+        id="gone",
+        name="G",
+        cron="0 2 * * *",
+        kind="sql",
+        sql=_WRITE,
+        role="ops",
+    )
+    assert (missing.success, missing.code) == (False, "schema.task_not_found")

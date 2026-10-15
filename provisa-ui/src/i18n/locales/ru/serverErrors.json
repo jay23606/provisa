@@ -421,7 +421,8 @@
       "role_updated": "Роль '{{role}}' обновлена",
       "relationship_id_taken": "Связь '{{relationship}}' уже существует",
       "relationship_graphql_alias_taken": "Псевдоним GraphQL '{{alias}}' уже является псевдонимом связи '{{relationship}}' из '{{table}}'",
-      "trigger_refused": "{{reason}}"
+      "trigger_refused": "{{reason}}",
+      "scheduled_task_updated": "Запланированная задача '{{task}}' обновлена"
     },
     "secrets": {
       "name_refused": "{{name}} не является именем в пределах секретов этой организации в {{service}}: имя задаётся относительно организации и не может выходить за её пределы",

@@ -257,8 +257,8 @@
         "description": "🗄️ Estas camadas são separadas. O cache de respostas guarda resultados de consultas, e uma solicitação participa com @cached ou um comentário SQL. Pequenas tabelas de consulta são espelhadas para acelerar junções. Uma réplica de uma tabela de origem que não pode ser anexada fica no armazenamento durável, ao lado das visões materializadas."
       },
       "stepScheduled": {
-        "title": "Tarefas agendadas",
-        "description": "⏱️ Execute um webhook ou uma instrução SQL em um agendamento cron. Uma tarefa SQL roda como um papel de sua escolha, então a governança se aplica, e cada tarefa mostra sua última e sua próxima execução."
+        "title": "Gatilhos",
+        "description": "⏱️ Execute um webhook, uma instrução SQL ou um comando em um agendamento cron, quando uma tabela muda, ou em um erro ou quarentena de uma tabela. Um gatilho é executado como o papel que você escolher, então a governança se aplica, e cada um mostra como terminou sua última execução."
       },
       "step23": {
         "title": "Opere",

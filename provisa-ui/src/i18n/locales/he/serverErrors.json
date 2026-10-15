@@ -421,7 +421,8 @@
       "role_updated": "התפקיד '{{role}}' עודכן",
       "relationship_id_taken": "הקשר '{{relationship}}' כבר קיים",
       "relationship_graphql_alias_taken": "כינוי ה-GraphQL '{{alias}}' כבר משמש ככינוי של הקשר '{{relationship}}' מ-'{{table}}'",
-      "trigger_refused": "{{reason}}"
+      "trigger_refused": "{{reason}}",
+      "scheduled_task_updated": "המשימה המתוזמנת '{{task}}' עודכנה"
     },
     "secrets": {
       "name_refused": "{{name}} אינו שם בתוך הסודות של הארגון הזה ב-{{service}}: שם הוא יחסי לארגון ואינו יכול לצאת ממנו",

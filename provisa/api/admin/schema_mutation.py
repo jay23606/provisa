@@ -5098,6 +5098,41 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
         )
 
     @strawberry.mutation
+    async def update_scheduled_task(  # REQ-2054
+        self,
+        info: StrawberryInfo,
+        id: str,
+        name: str,
+        kind: str,
+        cron: Optional[str] = None,
+        webhook_name: Optional[str] = None,
+        args_json: Optional[str] = None,
+        sql: Optional[str] = None,
+        role: Optional[str] = None,
+        on_table: Optional[str] = None,
+        on_event: Optional[str] = None,
+        command: Optional[str] = None,
+    ) -> MutationResult:
+        """Give one of the org's triggers a new definition -- checked as a new one is -- and
+        register it live; whether it is enabled stays as it was."""
+        require_capability(info, "org_settings")
+        return await _ops.create_scheduled_task_op(
+            info.context["request"],
+            id,
+            name,
+            cron,
+            kind,
+            webhook_name,
+            args_json,
+            sql,
+            role,
+            on_table=on_table,
+            on_event=on_event,
+            command=command,
+            replace=True,
+        )
+
+    @strawberry.mutation
     async def delete_scheduled_task(
         self, info: StrawberryInfo, task_id: str
     ) -> MutationResult:  # REQ-1003

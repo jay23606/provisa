@@ -78,7 +78,7 @@ const ROUTE_TO_SECTION: Record<string, string> = {
   "/admin/domains": "Domains",
   "/admin/environments": "Environments",
   "/admin/cache": "Cache",
-  "/admin/scheduled-tasks": "Scheduler",
+  "/admin/scheduled-tasks": "Triggers", // REQ-2054: every automatic run in one place
   "/admin/federation-engine": "Federation",
   "/admin/org-engine": "Org Engine", // REQ-1412: this org's engine lane
   "/admin/email": "Email", // REQ-1576: the mail transport platform messages go out through
@@ -488,7 +488,7 @@ export function AdminPage() {
           </>
         )}
         {activeTab === "Cache" && <CacheManager />}
-        {activeTab === "Scheduler" && <ScheduledTasks />}
+        {activeTab === "Triggers" && <ScheduledTasks />}
         {activeTab === "Federation" && <FederationEngineTab />}
         {activeTab === "Org Engine" && <OrgEngineTab />}
         {activeTab === "Email" && <EmailTab />}

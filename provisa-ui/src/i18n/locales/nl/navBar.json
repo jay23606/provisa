@@ -30,7 +30,7 @@
     "itemDomains": "Domeinen",
     "itemEnvironments": "Omgevingen",
     "itemCache": "Cache",
-    "itemScheduler": "Planner",
+    "itemScheduler": "Triggers",
     "itemFederation": "Federatie",
     "itemEmail": "E-mail",
     "itemMaintenance": "Onderhoud",

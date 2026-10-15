@@ -421,7 +421,8 @@
       "role_updated": "Rolle '{{role}}' aktualisiert",
       "relationship_id_taken": "Die Beziehung '{{relationship}}' existiert bereits",
       "relationship_graphql_alias_taken": "Der GraphQL-Alias '{{alias}}' ist bereits der Alias der Beziehung '{{relationship}}' von '{{table}}'",
-      "trigger_refused": "{{reason}}"
+      "trigger_refused": "{{reason}}",
+      "scheduled_task_updated": "Geplante Aufgabe „{{task}}“ aktualisiert"
     },
     "secrets": {
       "name_refused": "{{name}} ist kein Name innerhalb der Secrets dieser Organisation in {{service}}: Ein Name ist relativ zur Organisation und kann sie nicht verlassen",

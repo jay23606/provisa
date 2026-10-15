@@ -30,7 +30,7 @@
     "itemDomains": "域",
     "itemEnvironments": "环境",
     "itemCache": "缓存",
-    "itemScheduler": "调度器",
+    "itemScheduler": "触发器",
     "itemFederation": "联邦",
     "itemEmail": "电子邮件",
     "itemMaintenance": "维护",

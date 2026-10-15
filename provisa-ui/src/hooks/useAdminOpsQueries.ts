@@ -39,6 +39,7 @@ import {
   ToggleMv,
   ToggleScheduledTask,
   CreateScheduledTask,
+  UpdateScheduledTask,
   DeleteScheduledTask,
   PurgeCacheByTable,
   UpdateTablePaging,
@@ -174,15 +175,36 @@ export function useToggleScheduledTask() {
   };
 }
 
+/** A trigger's definition, as it is created or updated: a cron schedule, or a table and the event
+ * of it that fires it; and a webhook, a SQL statement or a command to run. */
 export interface CreateScheduledTaskInput {
   id: string;
   name: string;
-  cron: string;
-  kind: "webhook" | "sql";
+  cron?: string;
+  onTable?: string;
+  onEvent?: string;
+  kind: "webhook" | "sql" | "command";
   webhookName?: string;
   argsJson?: string;
   sql?: string;
+  command?: string;
   role?: string;
+}
+
+function taskVariables(input: CreateScheduledTaskInput) {
+  return {
+    id: input.id,
+    name: input.name,
+    cron: input.cron ?? null,
+    onTable: input.onTable ?? null,
+    onEvent: input.onEvent ?? null,
+    kind: input.kind,
+    webhookName: input.webhookName ?? null,
+    argsJson: input.argsJson ?? null,
+    sql: input.sql ?? null,
+    command: input.command ?? null,
+    role: input.role ?? null,
+  };
 }
 
 export function useCreateScheduledTask() {
@@ -192,19 +214,26 @@ export function useCreateScheduledTask() {
   );
   return {
     createScheduledTask: async (input: CreateScheduledTaskInput) => {
-      const result = await createScheduledTask({
-        variables: {
-          id: input.id,
-          name: input.name,
-          cron: input.cron,
-          kind: input.kind,
-          webhookName: input.webhookName ?? null,
-          argsJson: input.argsJson ?? null,
-          sql: input.sql ?? null,
-          role: input.role ?? null,
-        },
-      });
+      const result = await createScheduledTask({ variables: taskVariables(input) });
       return (result.data?.createScheduledTask ?? {
+        success: false,
+        message: "",
+      }) as MutationResult;
+    },
+    loading,
+  };
+}
+
+/** REQ-2054: give a trigger that exists a new definition; whether it is enabled stays. */
+export function useUpdateScheduledTask() {
+  const [updateScheduledTask, { loading }] = useMutation<{ updateScheduledTask: MutationResult }>(
+    UpdateScheduledTask,
+    { refetchQueries: [{ query: SCHEDULED_TASKS_QUERY }] },
+  );
+  return {
+    updateScheduledTask: async (input: CreateScheduledTaskInput) => {
+      const result = await updateScheduledTask({ variables: taskVariables(input) });
+      return (result.data?.updateScheduledTask ?? {
         success: false,
         message: "",
       }) as MutationResult;

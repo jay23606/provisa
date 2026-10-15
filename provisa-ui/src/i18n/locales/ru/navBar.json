@@ -30,7 +30,7 @@
     "itemDomains": "Домены",
     "itemEnvironments": "Окружения",
     "itemCache": "Кеш",
-    "itemScheduler": "Планировщик",
+    "itemScheduler": "Триггеры",
     "itemFederation": "Федерация",
     "itemEmail": "Эл. почта",
     "itemMaintenance": "Обслуживание",
