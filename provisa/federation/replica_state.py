@@ -59,7 +59,7 @@ from sqlalchemy import and_, case, delete, func, insert, or_, select, update
 from sqlalchemy.exc import IntegrityError
 
 from provisa.core import config_stamp
-from provisa.core.schema_org import replica_state
+from provisa.core.schema_org import replica_build_log, replica_state
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -825,6 +825,52 @@ async def record_verified(conn: "Connection", key: ReplicaKey, *, now: datetime)
     return (result.rowcount or 0) > 0
 
 
+#: The builds of one replica the build log keeps: its last ones, pruned as each is written. A
+#: count, not an age, so a replica built every minute and one built monthly both keep a history
+#: of their own, and the log's size is bounded by the replicas there are.
+REPLICA_BUILD_LOG_KEEP = 200
+
+_log_t = replica_build_log.c
+
+
+async def _log_build(
+    conn: "Connection",
+    key: ReplicaKey,
+    *,
+    outcome: str,
+    now: datetime,
+    method: str | None = None,
+    rows_copied: int | None = None,
+    error_code: str | None = None,
+    error_message: str | None = None,
+) -> None:
+    """Append the build of ``key`` that ended at ``now`` to the build log, with when it started
+    (its record's ``build_started_at``, read before the record is written), and drop what is past
+    the replica's last REPLICA_BUILD_LOG_KEEP."""
+    started = (
+        await conn.execute_core(select(_t.build_started_at).where(_is(key)))
+    ).scalar_one_or_none()
+    await conn.execute_core(
+        insert(replica_build_log).values(
+            source_id=key[0],
+            schema_name=key[1],
+            table_name=key[2],
+            started_at=started,
+            finished_at=now,
+            outcome=outcome,
+            method=method,
+            rows_copied=rows_copied,
+            error_code=error_code,
+            error_message=error_message,
+        )
+    )
+    mine = and_(
+        _log_t.source_id == key[0], _log_t.schema_name == key[1], _log_t.table_name == key[2]
+    )
+    kept = select(_log_t.id).where(mine).order_by(_log_t.id.desc()).limit(REPLICA_BUILD_LOG_KEEP)
+    await conn.execute_core(delete(replica_build_log).where(mine, _log_t.id.not_in(kept)))
+
+
 async def record_completed(
     conn: "Connection",
     key: ReplicaKey,
@@ -850,6 +896,9 @@ async def record_completed(
     stamp are one transaction, so no process is told of a replica that was not recorded."""
     async with conn.transaction():
         await mark_first_completion(conn, key, store)
+        await _log_build(
+            conn, key, outcome="completed", now=now, method=method, rows_copied=rows_copied
+        )
         await conn.execute_core(
             update(replica_state)
             .where(_is(key))
@@ -917,20 +966,23 @@ async def record_failed(
     ).fetchone()
     earlier = int(before[1] or 0) if before is not None else 0
     repeat = earlier > 0 and before is not None and before[2] == error
-    await conn.execute_core(
-        update(replica_state)
-        .where(_is(key))
-        .values(
-            build_state=FAILED,
-            build_holder=None,
-            build_wait=None,
-            last_error=error,
-            last_error_code=code,
-            last_error_params=params,
-            failed_at=now,
-            failed_attempts=_t.failed_attempts + 1,
+    # The log row and the record are one write: the log says what the record says.
+    async with conn.transaction():
+        await _log_build(conn, key, outcome="failed", now=now, error_code=code, error_message=error)
+        await conn.execute_core(
+            update(replica_state)
+            .where(_is(key))
+            .values(
+                build_state=FAILED,
+                build_holder=None,
+                build_wait=None,
+                last_error=error,
+                last_error_code=code,
+                last_error_params=params,
+                failed_at=now,
+                failed_attempts=_t.failed_attempts + 1,
+            )
         )
-    )
     return Failure(attempts=earlier + 1, repeat=repeat)
 
 
@@ -970,7 +1022,16 @@ async def forget(conn: "Connection", key: ReplicaKey) -> bool:
     result = await conn.execute_core(
         replica_state.delete().where(_is(key), _t.retired_at.is_not(None))
     )
-    return (result.rowcount or 0) > 0
+    forgotten = (result.rowcount or 0) > 0
+    if forgotten:  # its builds go with it
+        await conn.execute_core(
+            delete(replica_build_log).where(
+                _log_t.source_id == key[0],
+                _log_t.schema_name == key[1],
+                _log_t.table_name == key[2],
+            )
+        )
+    return forgotten
 
 
 # -- REQ-2015: the indexes of the standing replica -----------------------------------------

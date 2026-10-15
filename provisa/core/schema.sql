@@ -1665,6 +1665,26 @@ CREATE TABLE IF NOT EXISTS replica_state (
     PRIMARY KEY (source_id, schema_name, table_name)
 );
 
+-- The replica builds that ended: one row a build that completed or failed, appended as its
+-- record above is written. Bounded per replica: only its last REPLICA_BUILD_LOG_KEEP builds
+-- are kept (federation/replica_state.py), pruned as each is written.
+CREATE TABLE IF NOT EXISTS replica_build_log (
+    id            BIGSERIAL PRIMARY KEY,
+    source_id     TEXT NOT NULL,
+    schema_name   TEXT NOT NULL,
+    table_name    TEXT NOT NULL,
+    started_at    TIMESTAMPTZ,     -- NULL: the build's start was not recorded
+    finished_at   TIMESTAMPTZ NOT NULL,
+    outcome       TEXT NOT NULL
+        CONSTRAINT replica_build_log_outcome_check CHECK (outcome IN ('completed','failed')),
+    method        TEXT,            -- engine_statement | stream_batches | delta
+    rows_copied   BIGINT,          -- a completed build's rows
+    error_code    TEXT,            -- a failed build's cause, when it is a named one
+    error_message TEXT             -- a failed build's error, in English
+);
+CREATE INDEX IF NOT EXISTS idx_replica_build_log_replica
+    ON replica_build_log(source_id, schema_name, table_name, id);
+
 -- Preserved snapshots (REQ-983): a point-in-time dataset MATERIALIZED-AND-SEALED because it is NOT
 -- reconstructible from current state + retained event history — the one PIT form that departs from
 -- the NRT ideal. DECLARED (never inferred) and MUST be why-tagged. The row is the immutability
