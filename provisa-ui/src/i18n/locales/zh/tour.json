@@ -447,6 +447,46 @@
       "reviewsDone": {
         "title": "你刚刚看到了什么",
         "description": "三个 NoSQL 存储、一个 MongoDB 管道、一个 Elasticsearch 搜索和一个 Cypher 查询，按产品关联，并用 SQL、Cypher、REST 和 GraphQL 提出了商店的问题。"
+      },
+      "insuranceScenario": {
+        "title": "这个演示讲什么",
+        "description": "一家财产保险公司想知道，相对于自然灾害风险，它的风险敞口集中在哪里。它自己的保单组合，连同每份保单的总保险价值（TIV），都在它的数据库中；美国每个县的灾害风险是公开的，来自 FEMA、美国林务局和 NOAA 的数据。本导览展示 Provisa 如何按县将两者关联，并用 SQL、REST 和 GraphQL 回答这个问题。"
+      },
+      "insuranceJoin": {
+        "title": "按县关联",
+        "description": "保单组合和公开风险表共享县的 FIPS 代码，这些关系将它们关联起来。所有跨越两者的查询都使用这一关联。"
+      },
+      "insuranceAnswer": {
+        "title": "用 SQL 给出的答案",
+        "description": "视图 exposure_by_county 在每个县将保单组合与风险关联，并持久保存。按风险百分位加权的保险价值排序后，风险敞口最大且风险最高的县排在最前面。"
+      },
+      "insuranceRecap": {
+        "title": "你看到了什么",
+        "description": "保险公司自己的数据实时读取，公开风险数据加载一次，在一个受治理的模型中按县关联：一个视图回答风险敞口在哪里与风险相遇，以 SQL、GraphQL 和 REST 提供，并遵循每个角色的访问权限。"
+      },
+      "insuranceGovdata": {
+        "title": "公开的风险数据",
+        "description": "政府数据来自 AskAmerica，一个真实账户。它的三张县级表在构建演示时加载一次，此后一直从该副本读取：它们永不过期，本演示也从不调用该账户。"
+      },
+      "insuranceBook": {
+        "title": "保险公司的保单组合",
+        "description": "每份有效保单，实时读取自保险公司自己的数据库：所在县、险种、总保险价值、保费和免赔额。"
+      },
+      "insuranceRisk": {
+        "title": "FEMA 的 National Risk Index",
+        "description": "美国每个县的综合灾害风险评分和等级、全国百分位、预期年损失以及全部建筑的价值。野火和风暴表就在旁边。"
+      },
+      "insuranceTerms": {
+        "title": "用保险公司的术语",
+        "description": "术语表定义了核保人关心的概念：总保险价值、累积风险、可能最大损失（PML）、预期年损失。这里是累积风险：集中在一次事件就能同时波及许多保单的地方的风险敞口。"
+      },
+      "insuranceByRating": {
+        "title": "按风险等级，用 GraphQL",
+        "description": "同一视图按 FEMA 风险等级分组：保单组合的保险价值中有多少位于等级为 Relatively High 或 Very High 的县。"
+      },
+      "insuranceRest": {
+        "title": "通过 REST 得到同样的答案",
+        "description": "该视图也是一个 REST 端点，在服务器端完成分组和求和。任何使用 HTTP 的客户端都无需编写 SQL 就能得到答案。"
       }
     },
     "status": {
@@ -475,6 +515,10 @@
       "reviews": {
         "title": "产品评论",
         "summary": "一家电子产品商店的目录、评论和购买记录分别存放在 MongoDB、Elasticsearch 和 Neo4j 中，按产品关联：评论说哪些产品“battery dies”，它们的买家还买了什么？"
+      },
+      "insurance": {
+        "title": "财产风险敞口与灾害风险",
+        "summary": "一家财产保险公司的问题：相对于风险，它的风险敞口集中在哪里。它自己的保单按县与 FEMA、野火和风暴数据关联，用 SQL、GraphQL 和 REST 回答。"
       }
     }
   }

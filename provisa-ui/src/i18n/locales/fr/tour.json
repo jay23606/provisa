@@ -447,6 +447,46 @@
       "reviewsDone": {
         "title": "Ce que vous venez de voir",
         "description": "Trois magasins NoSQL, un pipeline MongoDB, une recherche Elasticsearch et une requête Cypher, joints sur le produit et interrogés avec la question de la boutique en SQL, Cypher, REST et GraphQL."
+      },
+      "insuranceScenario": {
+        "title": "De quoi parle cette démo",
+        "description": "Un assureur dommages veut savoir où son exposition se concentre face au risque de catastrophe naturelle. Son propre portefeuille de polices, avec la valeur totale assurée (TIV) de chacune, est dans sa base de données ; le risque de chaque comté des États-Unis est public, dans les données de la FEMA, de l'US Forest Service et de la NOAA. La visite montre Provisa joindre les deux par comté et répondre à la question en SQL, par REST et en GraphQL."
+      },
+      "insuranceJoin": {
+        "title": "Joints par comté",
+        "description": "Le portefeuille et les tables publiques de risque partagent le code FIPS du comté, et ces relations les joignent. Toute requête qui les croise utilise cette jointure."
+      },
+      "insuranceAnswer": {
+        "title": "La réponse en SQL",
+        "description": "La vue exposure_by_county joint le portefeuille au risque dans chaque comté et reste stockée. Triée par la valeur assurée pondérée par le centile de risque, elle place en tête les comtés où la plus forte exposition rencontre le risque le plus élevé."
+      },
+      "insuranceRecap": {
+        "title": "Ce que vous avez vu",
+        "description": "Les données propres de l'assureur, lues en direct, et les données publiques de risque, chargées une fois, jointes par comté dans un modèle gouverné : une vue répond à la question de savoir où l'exposition rencontre le risque, en SQL, GraphQL et REST, selon l'accès de chaque rôle."
+      },
+      "insuranceGovdata": {
+        "title": "Les données publiques de risque",
+        "description": "Les données publiques viennent d'AskAmerica, un compte réel. Ses trois tables par comté sont chargées une fois, à la construction de la démo, puis lues pour de bon depuis cette copie : elles n'expirent jamais et cette démo n'appelle jamais le compte."
+      },
+      "insuranceBook": {
+        "title": "Le portefeuille de l'assureur",
+        "description": "Chaque police en vigueur, lue en direct dans la base de données de l'assureur : son comté, sa branche, sa valeur totale assurée, sa prime et sa franchise."
+      },
+      "insuranceRisk": {
+        "title": "Le National Risk Index de la FEMA",
+        "description": "Pour chaque comté des États-Unis, le score et la note de risque toutes catastrophes, son centile national, sa perte annuelle attendue et la valeur de tous ses bâtiments. Les tables des feux de forêt et des tempêtes sont à côté."
+      },
+      "insuranceTerms": {
+        "title": "Dans les termes de l'assureur",
+        "description": "Le glossaire nomme ce que demande un souscripteur : valeur totale assurée, cumul, sinistre maximum probable (PML), perte annuelle attendue. Ici le cumul : une exposition concentrée là où un seul événement atteint de nombreuses polices."
+      },
+      "insuranceByRating": {
+        "title": "Par note de risque, en GraphQL",
+        "description": "La même vue groupée par la note de risque de la FEMA : quelle part de la valeur assurée du portefeuille se trouve dans des comtés notés « Relatively High » ou « Very High »."
+      },
+      "insuranceRest": {
+        "title": "La même réponse par REST",
+        "description": "La vue est aussi un point de terminaison REST, groupé et sommé sur le serveur. Tout client qui parle HTTP obtient la réponse sans écrire de SQL."
       }
     },
     "status": {
@@ -475,6 +515,10 @@
       "reviews": {
         "title": "Avis sur les produits",
         "summary": "Le catalogue, les avis et les achats d'une boutique d'électronique dans MongoDB, Elasticsearch et Neo4j, joints sur le produit : sur quels produits les avis disent-ils que la batterie lâche, et qu'ont acheté d'autre leurs acheteurs ?"
+      },
+      "insurance": {
+        "title": "Exposition des biens et risque de catastrophe",
+        "summary": "La question d'un assureur dommages, où son exposition se concentre face au risque : ses propres polices jointes par comté aux données de la FEMA, des feux de forêt et des tempêtes, avec la réponse en SQL, GraphQL et REST."
       }
     }
   }

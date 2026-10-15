@@ -1,0 +1,17 @@
+# The counties holding the most insured value at a national all-hazard risk percentile of 90 or
+# more: where the insurer's accumulation meets the highest hazard risk.
+query MostExposedHighRiskCounties {
+  i__viewExposureByCounty(
+    where: { riskNationalPctl: { gte: 90 } }
+    order_by: [{ tiv: desc }]
+    limit: 10
+  ) {
+    countyName
+    stateAbbr
+    policies
+    tiv
+    riskRating
+    wildfireDirectExposure
+    stormDamage_5y
+  }
+}

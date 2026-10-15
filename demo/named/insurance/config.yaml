@@ -1,0 +1,246 @@
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+#
+# The WHOLE config of the named demo "insurance" (start-ui-install.sh --demo insurance): where a
+# property insurer's exposure is concentrated against natural-hazard risk. Its own book is read live
+# from its Postgres; three county tables of public data come from govdata.
+#
+#   book     the insurer's Postgres (db/init.sql): the counties it writes in and its policies, each
+#            with its total insured value. docker-compose.yml brings it up.
+#   govdata  AskAmerica's government data: FEMA's National Risk Index (the all-hazard risk score
+#            and expected annual loss of each county), the US Forest Service's wildfire risk to
+#            each county's buildings, and NOAA's storm damage by county and year. A real account,
+#            so each table is landed once, when the demo's bundle is built, and read from that
+#            replica for good (cache_ttl -1, replicate 0): a visitor's sandbox never reaches it.
+#
+# exposure_by_county, materialized, joins the book to the risk by county FIPS code: the answer.
+auth:
+  assignments_source: provisa
+  default_assignments:
+  - domain_id: '*'
+    role_id: org_admin
+  provider: none
+cache:
+  default_ttl: 300
+  enabled: true
+domains:
+- id: insurance
+  description: A property insurer's book of policies by county, and the natural-hazard risk of
+    each county from FEMA, the US Forest Service and NOAA
+federation_engine: duckdb
+naming:
+  domain_prefix: true
+  rules: []
+roles:
+- id: analyst
+  capabilities:
+  - query_development
+  domain_access:
+  - insurance
+server:
+  limits:
+    default_row_limit: 100
+    request_timeout: 60
+    trino_query_timeout: 120
+sources:
+- id: book
+  type: postgresql
+  host: ${env:INSURANCE_PG_HOST:-localhost}
+  port: ${env:INSURANCE_PG_PORT:-28132}
+  database: insurance
+  username: provisa_reader
+  password: provisa_reader
+  description: The insurer's own database -- the counties it writes in and its policies
+- id: govdata
+  type: govdata
+  # The AskAmerica key, needed only to land the tables: the bundle build has it. A sandbox reads
+  # the landed replicas and never this source, so it runs with none (REQ-2031).
+  username: ${env:ASKAMERICA_API_KEY:-}
+  database: disasters,ref,geo
+  cache_ttl: -1
+  replicate: 0
+  description: Government data from AskAmerica -- FEMA, US Forest Service and NOAA county tables,
+    landed once when the demo is built
+tables:
+- source_id: book
+  domain_id: insurance
+  schema: public
+  table: counties
+  description: The counties the insurer writes policies in
+  columns:
+  - {name: county_fips, data_type: varchar, is_primary_key: true, description: The county's 5-digit FIPS code, visible_to: [org_admin, analyst]}
+  - {name: county_name, data_type: varchar, description: The county's name, visible_to: [org_admin, analyst]}
+  - {name: state_abbr, data_type: varchar, description: The county's state, visible_to: [org_admin, analyst]}
+  - {name: weight, data_type: integer, description: How much of the book the county carries relative to the others, visible_to: [org_admin]}
+- source_id: book
+  domain_id: insurance
+  schema: public
+  table: policies
+  description: The insurer's policies in force, one row a policy
+  columns:
+  - {name: policy_id, data_type: integer, is_primary_key: true, description: The policy's number, visible_to: [org_admin, analyst]}
+  - {name: county_fips, data_type: varchar, description: The county the insured property is in, visible_to: [org_admin, analyst]}
+  - {name: line, data_type: varchar, description: 'The line of business: homeowners, commercial_property or farmowners', visible_to: [org_admin, analyst]}
+  - {name: insured_value, data_type: decimal, description: The total insured value (TIV) in USD, visible_to: [org_admin, analyst]}
+  - {name: premium, data_type: decimal, description: The annual premium in USD, visible_to: [org_admin]}
+  - {name: deductible, data_type: decimal, description: The per-occurrence deductible in USD, visible_to: [org_admin, analyst]}
+  - {name: inception, data_type: date, description: When the policy took effect, visible_to: [org_admin, analyst]}
+- source_id: govdata
+  domain_id: insurance
+  schema: disasters
+  table: fema_nri_earthquake_by_county
+  alias: hazard_risk
+  # GraphQL's Aggregate and GroupBy fields, which the example queries (queries/) use.
+  enable_aggregates: true
+  enable_group_by: true
+  description: FEMA's National Risk Index for each US county -- its all-hazard risk score and
+    expected annual loss, the value of its buildings, and its earthquake risk
+  columns:
+  - {name: county_fips, data_type: varchar, is_primary_key: true, description: The county's 5-digit FIPS code, visible_to: [org_admin, analyst]}
+  - {name: state_abbr, data_type: varchar, description: The county's state, visible_to: [org_admin, analyst]}
+  - {name: county_name, data_type: varchar, description: The county's name, visible_to: [org_admin, analyst]}
+  - {name: population, data_type: integer, description: The county's population, visible_to: [org_admin, analyst]}
+  - {name: building_value_usd, data_type: double, description: The value of all the county's buildings in USD, visible_to: [org_admin, analyst]}
+  - {name: risk_score, data_type: double, description: FEMA's all-hazard risk index score, visible_to: [org_admin, analyst]}
+  - {name: risk_rating, data_type: varchar, description: 'FEMA''s all-hazard risk rating, from Very Low to Very High', visible_to: [org_admin, analyst]}
+  - {name: risk_national_pctl, data_type: double, description: The county's national percentile of all-hazard risk, visible_to: [org_admin, analyst]}
+  - {name: eal_score, data_type: double, description: FEMA's expected annual loss score across every hazard, visible_to: [org_admin, analyst]}
+  - {name: eal_rating, data_type: varchar, description: FEMA's expected annual loss rating across every hazard, visible_to: [org_admin, analyst]}
+  - {name: earthquake_risk_score, data_type: double, description: FEMA's earthquake risk index score, visible_to: [org_admin, analyst]}
+  - {name: earthquake_risk_rating, data_type: varchar, description: FEMA's earthquake risk rating, visible_to: [org_admin, analyst]}
+- source_id: govdata
+  domain_id: insurance
+  schema: disasters
+  table: wildfire_risk_by_county
+  alias: wildfire_risk
+  description: The US Forest Service's wildfire risk to each county's buildings
+  columns:
+  - {name: county_fips, data_type: varchar, is_primary_key: true, description: The county's 5-digit FIPS code, visible_to: [org_admin, analyst]}
+  - {name: total_buildings, data_type: bigint, description: The county's buildings, visible_to: [org_admin, analyst]}
+  - {name: buildings_fraction_direct_exposure, data_type: double, description: The share of its buildings a wildfire could reach directly, visible_to: [org_admin, analyst]}
+  - {name: buildings_fraction_indirect_exposure, data_type: double, description: The share of its buildings exposed to embers and spread, visible_to: [org_admin, analyst]}
+  - {name: risk_national_rank, data_type: double, description: The county's national rank of wildfire risk to homes as a percentile, visible_to: [org_admin, analyst]}
+- source_id: govdata
+  domain_id: insurance
+  schema: disasters
+  table: disasters_storm_impact_by_county
+  alias: storm_damage
+  enable_aggregates: true
+  enable_group_by: true
+  description: NOAA's storm events by county and year -- how many and the property damage they did
+  columns:
+  - {name: county_fips, data_type: varchar, is_primary_key: true, description: The county's 5-digit FIPS code, visible_to: [org_admin, analyst]}
+  - {name: year, data_type: integer, is_primary_key: true, description: The year the storms happened, visible_to: [org_admin, analyst]}
+  - {name: event_count, data_type: bigint, description: Storm events recorded in the county that year, visible_to: [org_admin, analyst]}
+  - {name: total_property_damage, data_type: double, description: The property damage they did in USD, visible_to: [org_admin, analyst]}
+  - {name: total_deaths, data_type: bigint, description: Deaths they caused, visible_to: [org_admin, analyst]}
+views:
+# The answer: each county the insurer writes in, its exposure (policies and TIV) beside its hazard
+# risk. Stored, and built again when its inputs change.
+- id: exposure_by_county
+  domain_id: insurance
+  materialize: true
+  enable_aggregates: true
+  enable_group_by: true
+  description: Each county the insurer writes in -- its policies and total insured value beside FEMA's
+    all-hazard risk, the wildfire exposure of its buildings and five years of storm damage
+  sql: >-
+    SELECT c.county_fips, c.county_name, c.state_abbr,
+           COUNT(p.policy_id) AS policies,
+           SUM(p.insured_value) AS tiv,
+           SUM(p.insured_value) / MAX(r.building_value_usd) AS share_of_building_value,
+           MAX(r.risk_score) AS risk_score,
+           MAX(r.risk_rating) AS risk_rating,
+           MAX(r.risk_national_pctl) AS risk_national_pctl,
+           MAX(r.eal_rating) AS eal_rating,
+           MAX(w.buildings_fraction_direct_exposure) AS wildfire_direct_exposure,
+           MAX(s.storm_damage_5y) AS storm_damage_5y
+    FROM "insurance"."counties" AS c
+    JOIN "insurance"."policies" AS p ON p.county_fips = c.county_fips
+    LEFT JOIN "insurance"."hazard_risk" AS r ON r.county_fips = c.county_fips
+    LEFT JOIN "insurance"."wildfire_risk" AS w ON w.county_fips = c.county_fips
+    LEFT JOIN (
+      SELECT d.county_fips, SUM(d.total_property_damage) AS storm_damage_5y
+      FROM "insurance"."storm_damage" AS d
+      WHERE d.year >= 2020
+      GROUP BY d.county_fips
+    ) AS s ON s.county_fips = c.county_fips
+    GROUP BY c.county_fips, c.county_name, c.state_abbr
+  columns:
+  - {name: county_fips, data_type: varchar, description: The county's 5-digit FIPS code, visible_to: [org_admin, analyst]}
+  - {name: county_name, data_type: varchar, description: The county's name, visible_to: [org_admin, analyst]}
+  - {name: state_abbr, data_type: varchar, description: The county's state, visible_to: [org_admin, analyst]}
+  - {name: policies, data_type: bigint, description: The insurer's policies in the county, visible_to: [org_admin, analyst]}
+  - {name: tiv, data_type: decimal, description: Their total insured value (TIV) in USD, visible_to: [org_admin, analyst]}
+  - {name: share_of_building_value, data_type: double, description: TIV as a share of the value of all the county's buildings, visible_to: [org_admin, analyst]}
+  - {name: risk_score, data_type: double, description: FEMA's all-hazard risk index score, visible_to: [org_admin, analyst]}
+  - {name: risk_rating, data_type: varchar, description: FEMA's all-hazard risk rating, visible_to: [org_admin, analyst]}
+  - {name: risk_national_pctl, data_type: double, description: The county's national percentile of all-hazard risk, visible_to: [org_admin, analyst]}
+  - {name: eal_rating, data_type: varchar, description: FEMA's expected annual loss rating, visible_to: [org_admin, analyst]}
+  - {name: wildfire_direct_exposure, data_type: double, description: The share of its buildings a wildfire could reach directly, visible_to: [org_admin, analyst]}
+  - {name: storm_damage_5y, data_type: double, description: Storm property damage in the county since 2020 in USD, visible_to: [org_admin, analyst]}
+relationships:
+- {id: policy-to-county, alias: WRITTEN_IN, cardinality: many-to-one, source_table_id: policies, source_column: county_fips, target_table_id: counties, target_column: county_fips}
+- {id: county-to-hazard-risk, alias: RISK_OF, cardinality: one-to-one, source_table_id: counties, source_column: county_fips, target_table_id: hazard_risk, target_column: county_fips}
+- {id: county-to-wildfire-risk, alias: WILDFIRE_RISK_OF, cardinality: one-to-one, source_table_id: counties, source_column: county_fips, target_table_id: wildfire_risk, target_column: county_fips}
+- {id: county-to-storm-damage, alias: STORMS_IN, cardinality: one-to-many, source_table_id: counties, source_column: county_fips, target_table_id: storm_damage, target_column: county_fips}
+# The insurer's vocabulary: abstract terms, grounded through their edges in the terms the book's and
+# the risk tables' columns derive (insured value, eal rating, risk rating, line).
+glossary_terms:
+- name: total insured value
+  definition: 'TIV: the sum of the values a policy insures -- buildings, contents and business income -- the most the insurer can pay on it.'
+  domains:
+  - insurance
+  edges:
+  - to: insured value
+    rel_type: RELATED_TO
+- name: exposure
+  definition: 'What the insurer stands to pay if a hazard strikes: the total insured value it holds in a place.'
+  domains:
+  - insurance
+  edges:
+  - to: total insured value
+    rel_type: RELATED_TO
+- name: accumulation
+  definition: 'Exposure concentrated in one place, so that one event -- a hurricane, an earthquake, a wildfire -- reaches many policies at once.'
+  domains:
+  - insurance
+  edges:
+  - to: exposure
+    rel_type: KIND_OF
+- name: probable maximum loss
+  definition: 'PML: the largest loss the insurer expects from one event in a place, at a given return period; accumulation is what drives it.'
+  domains:
+  - insurance
+  edges:
+  - to: accumulation
+    rel_type: RELATED_TO
+- name: expected annual loss
+  definition: 'EAL: the loss a hazard is expected to cause in a place in an average year. FEMA''s National Risk Index rates it for every county.'
+  domains:
+  - insurance
+  edges:
+  - to: eal rating
+    rel_type: RELATED_TO
+- name: catastrophe peril
+  definition: 'A natural hazard that can strike many risks at once -- hurricane, earthquake, wildfire, severe convective storm, flood.'
+  domains:
+  - insurance
+  edges:
+  - to: risk rating
+    rel_type: RELATED_TO
+  - to: accumulation
+    rel_type: RELATED_TO
+- name: line of business
+  definition: 'The kind of policy: homeowners, commercial property or farmowners.'
+  domains:
+  - insurance
+  edges:
+  - to: line
+    rel_type: RELATED_TO

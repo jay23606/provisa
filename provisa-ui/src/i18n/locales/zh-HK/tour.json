@@ -447,6 +447,46 @@
       "reviewsDone": {
         "title": "你剛剛看到了甚麼",
         "description": "三個 NoSQL 儲存、一個 MongoDB 管線、一個 Elasticsearch 搜尋和一個 Cypher 查詢，按產品關聯，並用 SQL、Cypher、REST 和 GraphQL 提出了商店的問題。"
+      },
+      "insuranceScenario": {
+        "title": "這個示範講甚麼",
+        "description": "一家財產保險公司想知道，相對於自然災害風險，它的風險承擔集中在哪裏。它自己的保單組合，連同每份保單的總保險價值（TIV），都在它的資料庫中；美國每個縣的災害風險是公開的，來自 FEMA、美國林務局和 NOAA 的數據。本導覽展示 Provisa 如何按縣將兩者關聯，並以 SQL、REST 和 GraphQL 回答這個問題。"
+      },
+      "insuranceJoin": {
+        "title": "按縣關聯",
+        "description": "保單組合和公開風險表共用縣的 FIPS 代碼，這些關係將它們關聯起來。所有跨越兩者的查詢都使用這一關聯。"
+      },
+      "insuranceAnswer": {
+        "title": "以 SQL 給出的答案",
+        "description": "檢視 exposure_by_county 在每個縣將保單組合與風險關聯，並持續儲存。按風險百分位加權的保險價值排序後，風險承擔最大且風險最高的縣排在最前。"
+      },
+      "insuranceRecap": {
+        "title": "你看到了甚麼",
+        "description": "保險公司自己的數據即時讀取，公開風險數據載入一次，在一個受管治的模型中按縣關聯：一個檢視回答風險承擔在哪裏與風險相遇，以 SQL、GraphQL 和 REST 提供，並遵循每個角色的存取權限。"
+      },
+      "insuranceGovdata": {
+        "title": "公開的風險數據",
+        "description": "政府數據來自 AskAmerica，一個真實帳戶。它的三張縣級表在建立示範時載入一次，此後一直從該副本讀取：它們永不過期，本示範亦從不呼叫該帳戶。"
+      },
+      "insuranceBook": {
+        "title": "保險公司的保單組合",
+        "description": "每份有效保單，即時讀取自保險公司自己的資料庫：所在縣、險種、總保險價值、保費和自負額。"
+      },
+      "insuranceRisk": {
+        "title": "FEMA 的 National Risk Index",
+        "description": "美國每個縣的綜合災害風險評分和等級、全國百分位、預期年損失以及全部建築物的價值。山火和風暴表就在旁邊。"
+      },
+      "insuranceTerms": {
+        "title": "用保險公司的術語",
+        "description": "詞彙表定義了核保人關心的概念：總保險價值、累積風險、可能最大損失（PML）、預期年損失。這裏是累積風險：集中在一次事件就能同時波及許多保單的地方的風險承擔。"
+      },
+      "insuranceByRating": {
+        "title": "按風險等級，以 GraphQL",
+        "description": "同一檢視按 FEMA 風險等級分組：保單組合的保險價值中有多少位於等級為 Relatively High 或 Very High 的縣。"
+      },
+      "insuranceRest": {
+        "title": "透過 REST 得到同樣的答案",
+        "description": "該檢視亦是一個 REST 端點，在伺服器端完成分組和加總。任何使用 HTTP 的用戶端都無需編寫 SQL 就能得到答案。"
       }
     },
     "status": {
@@ -475,6 +515,10 @@
       "reviews": {
         "title": "產品評論",
         "summary": "一家電子產品商店的目錄、評論和購買記錄分別存放在 MongoDB、Elasticsearch 和 Neo4j 中，按產品關聯：評論說哪些產品「battery dies」，它們的買家還買了甚麼？"
+      },
+      "insurance": {
+        "title": "財產風險承擔與災害風險",
+        "summary": "一家財產保險公司的問題：相對於風險，它的風險承擔集中在哪裏。它自己的保單按縣與 FEMA、山火和風暴數據關聯，以 SQL、GraphQL 和 REST 回答。"
       }
     }
   }

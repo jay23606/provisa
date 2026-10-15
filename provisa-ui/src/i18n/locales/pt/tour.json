@@ -447,6 +447,46 @@
       "reviewsDone": {
         "title": "O que você acabou de ver",
         "description": "Três armazenamentos NoSQL, um pipeline do MongoDB, uma busca do Elasticsearch e uma consulta Cypher, unidos pelo produto e consultados com a pergunta da loja em SQL, Cypher, REST e GraphQL."
+      },
+      "insuranceScenario": {
+        "title": "Do que trata esta demo",
+        "description": "Uma seguradora de danos quer saber onde sua exposição se concentra diante do risco de catástrofes naturais. Sua própria carteira de apólices, com o valor total segurado (TIV) de cada uma, está em seu banco de dados; o risco de cada condado dos EUA é público, nos dados da FEMA, do US Forest Service e da NOAA. O tour mostra o Provisa unindo os dois por condado e respondendo à pergunta em SQL, via REST e em GraphQL."
+      },
+      "insuranceJoin": {
+        "title": "Unidos por condado",
+        "description": "A carteira e as tabelas públicas de risco compartilham o código FIPS do condado, e estes relacionamentos as unem. Toda consulta que as cruza usa essa união."
+      },
+      "insuranceAnswer": {
+        "title": "A resposta em SQL",
+        "description": "A view exposure_by_county une a carteira ao risco em cada condado e fica armazenada. Ordenada pelo valor segurado ponderado pelo percentil de risco, coloca primeiro os condados onde a maior exposição encontra o maior risco."
+      },
+      "insuranceRecap": {
+        "title": "O que você viu",
+        "description": "Os dados próprios da seguradora, lidos ao vivo, e os dados públicos de risco, carregados uma vez, unidos por condado em um modelo governado: uma view responde onde a exposição encontra o risco, em SQL, GraphQL e REST, conforme o acesso de cada papel."
+      },
+      "insuranceGovdata": {
+        "title": "Os dados públicos de risco",
+        "description": "Os dados governamentais vêm do AskAmerica, uma conta real. Suas três tabelas por condado são carregadas uma vez, quando a demo é construída, e lidas dessa cópia para sempre: nunca expiram, e esta demo nunca chama a conta."
+      },
+      "insuranceBook": {
+        "title": "A carteira da seguradora",
+        "description": "Cada apólice em vigor, lida ao vivo do banco de dados da própria seguradora: seu condado, ramo, valor total segurado, prêmio e franquia."
+      },
+      "insuranceRisk": {
+        "title": "O National Risk Index da FEMA",
+        "description": "Para cada condado dos EUA, a pontuação e a classificação de risco multirriscos, seu percentil nacional, sua perda anual esperada e o valor de todos os seus edifícios. As tabelas de incêndios florestais e tempestades ficam ao lado."
+      },
+      "insuranceTerms": {
+        "title": "Nos termos da seguradora",
+        "description": "O glossário nomeia o que um subscritor pergunta: valor total segurado, acúmulo, perda máxima provável (PML), perda anual esperada. Aqui o acúmulo: exposição concentrada onde um único evento atinge muitas apólices."
+      },
+      "insuranceByRating": {
+        "title": "Por classificação de risco, em GraphQL",
+        "description": "A mesma view agrupada pela classificação de risco da FEMA: quanto do valor segurado da carteira está em condados classificados como “Relatively High” ou “Very High”."
+      },
+      "insuranceRest": {
+        "title": "A mesma resposta via REST",
+        "description": "A view também é um endpoint REST, agrupado e somado no servidor. Qualquer cliente que fale HTTP obtém a resposta sem escrever SQL."
       }
     },
     "status": {
@@ -475,6 +515,10 @@
       "reviews": {
         "title": "Avaliações de produtos",
         "summary": "O catálogo, as avaliações e as compras de uma loja de eletrônicos no MongoDB, Elasticsearch e Neo4j, unidos pelo produto: em quais produtos as avaliações dizem que a bateria acaba, e o que mais seus compradores compraram?"
+      },
+      "insurance": {
+        "title": "Exposição patrimonial e risco de catástrofes",
+        "summary": "A pergunta de uma seguradora de danos, onde sua exposição se concentra diante do risco: suas próprias apólices unidas por condado a dados da FEMA, de incêndios florestais e de tempestades, respondida em SQL, GraphQL e REST."
       }
     }
   }

@@ -447,6 +447,46 @@
       "reviewsDone": {
         "title": "What you just saw",
         "description": "Three NoSQL stores, a MongoDB pipeline, an Elasticsearch search and a Cypher query, joined on the product and asked the shop's question in SQL, Cypher, REST and GraphQL."
+      },
+      "insuranceScenario": {
+        "title": "What this demo is",
+        "description": "A property insurer wants to know where its exposure is concentrated against natural-hazard risk. Its own book of policies, with the total insured value of each, is in its database; the hazard risk of every US county is public, in FEMA's, the US Forest Service's and NOAA's data. The tour shows Provisa joining the two, by county, and answering the question in SQL, over REST and in GraphQL."
+      },
+      "insuranceJoin": {
+        "title": "Joined by county",
+        "description": "The book and the public risk tables share the county's FIPS code, and these relationships join them. Every query that crosses them uses this join."
+      },
+      "insuranceAnswer": {
+        "title": "The answer in SQL",
+        "description": "The view exposure_by_county joins the book to the risk in each county, and is kept stored. Ordered by insured value weighted by risk percentile, it puts the counties where the most exposure meets the highest risk first."
+      },
+      "insuranceRecap": {
+        "title": "What you saw",
+        "description": "The insurer's own data, read live, and public risk data, landed once, joined by county in one governed model: one view answers where the exposure meets the risk, in SQL, GraphQL and REST, under each role's access."
+      },
+      "insuranceGovdata": {
+        "title": "The public risk data",
+        "description": "The government data comes from AskAmerica, a live account. Its three county tables are landed once, when the demo is built, and read from that copy for good: they never expire, and this demo never calls the account."
+      },
+      "insuranceBook": {
+        "title": "The insurer's book",
+        "description": "Each policy in force, read live from the insurer's own database: its county, line of business, total insured value, premium and deductible."
+      },
+      "insuranceRisk": {
+        "title": "FEMA's National Risk Index",
+        "description": "Every US county's all-hazard risk score and rating, its national percentile, its expected annual loss and the value of all its buildings. The wildfire and storm tables sit beside it."
+      },
+      "insuranceTerms": {
+        "title": "In the insurer's terms",
+        "description": "The glossary names what an underwriter asks about: total insured value, accumulation, probable maximum loss, expected annual loss. Here accumulation: exposure concentrated where one event reaches many policies."
+      },
+      "insuranceByRating": {
+        "title": "By risk rating, in GraphQL",
+        "description": "The same view grouped by FEMA's risk rating: how much of the book's insured value sits in counties rated Relatively High or Very High."
+      },
+      "insuranceRest": {
+        "title": "The same answer over REST",
+        "description": "The view is a REST endpoint too, grouped and summed on the server. Any client that speaks HTTP gets the answer without writing SQL."
       }
     },
     "status": {
@@ -475,6 +515,10 @@
       "reviews": {
         "title": "Product reviews",
         "summary": "An electronics shop's catalog, reviews and purchases in MongoDB, Elasticsearch and Neo4j, joined on the product: which products do reviews say the battery dies on, and what else did their buyers buy?"
+      },
+      "insurance": {
+        "title": "Property exposure and hazard risk",
+        "summary": "A property insurer's question, where its exposure is concentrated against hazard risk: its own policies joined by county to FEMA, wildfire and storm data, answered in SQL, GraphQL and REST."
       }
     }
   }

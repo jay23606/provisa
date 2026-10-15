@@ -447,6 +447,46 @@
       "reviewsDone": {
         "title": "Cosa si è appena visto",
         "description": "Tre archivi NoSQL, una pipeline MongoDB, una ricerca Elasticsearch e una query Cypher, uniti sul prodotto e interrogati con la domanda del negozio in SQL, Cypher, REST e GraphQL."
+      },
+      "insuranceScenario": {
+        "title": "Di cosa tratta questa demo",
+        "description": "Un assicuratore danni vuole sapere dove si concentra la sua esposizione rispetto al rischio di catastrofi naturali. Il suo portafoglio di polizze, con il valore totale assicurato (TIV) di ciascuna, è nel suo database; il rischio di ogni contea degli Stati Uniti è pubblico, nei dati di FEMA, US Forest Service e NOAA. Il tour mostra Provisa che unisce i due per contea e risponde alla domanda in SQL, via REST e in GraphQL."
+      },
+      "insuranceJoin": {
+        "title": "Uniti per contea",
+        "description": "Il portafoglio e le tabelle pubbliche di rischio condividono il codice FIPS della contea, e queste relazioni le uniscono. Ogni query che le incrocia usa questa unione."
+      },
+      "insuranceAnswer": {
+        "title": "La risposta in SQL",
+        "description": "La vista exposure_by_county unisce il portafoglio al rischio in ogni contea ed è mantenuta memorizzata. Ordinata per valore assicurato ponderato per il percentile di rischio, mette prima le contee dove la maggiore esposizione incontra il rischio più alto."
+      },
+      "insuranceRecap": {
+        "title": "Cosa hai visto",
+        "description": "I dati propri dell'assicuratore, letti in tempo reale, e i dati pubblici di rischio, caricati una volta, uniti per contea in un modello governato: una vista risponde dove l'esposizione incontra il rischio, in SQL, GraphQL e REST, secondo l'accesso di ogni ruolo."
+      },
+      "insuranceGovdata": {
+        "title": "I dati pubblici di rischio",
+        "description": "I dati governativi provengono da AskAmerica, un account reale. Le sue tre tabelle per contea vengono caricate una volta, quando la demo viene costruita, e poi lette per sempre da quella copia: non scadono mai e questa demo non chiama mai l'account."
+      },
+      "insuranceBook": {
+        "title": "Il portafoglio dell'assicuratore",
+        "description": "Ogni polizza in vigore, letta in tempo reale dal database dell'assicuratore: la contea, il ramo, il valore totale assicurato, il premio e la franchigia."
+      },
+      "insuranceRisk": {
+        "title": "Il National Risk Index della FEMA",
+        "description": "Per ogni contea degli Stati Uniti, il punteggio e la classe di rischio multi-pericolo, il percentile nazionale, la perdita annua attesa e il valore di tutti i suoi edifici. Le tabelle su incendi boschivi e tempeste sono accanto."
+      },
+      "insuranceTerms": {
+        "title": "Nei termini dell'assicuratore",
+        "description": "Il glossario nomina ciò che chiede un sottoscrittore: valore totale assicurato, cumulo, perdita massima probabile (PML), perdita annua attesa. Qui il cumulo: esposizione concentrata dove un solo evento raggiunge molte polizze."
+      },
+      "insuranceByRating": {
+        "title": "Per classe di rischio, in GraphQL",
+        "description": "La stessa vista raggruppata per classe di rischio della FEMA: quanta parte del valore assicurato del portafoglio si trova in contee classificate «Relatively High» o «Very High»."
+      },
+      "insuranceRest": {
+        "title": "La stessa risposta via REST",
+        "description": "La vista è anche un endpoint REST, raggruppato e sommato sul server. Qualsiasi client che parla HTTP ottiene la risposta senza scrivere SQL."
       }
     },
     "status": {
@@ -475,6 +515,10 @@
       "reviews": {
         "title": "Recensioni dei prodotti",
         "summary": "Il catalogo, le recensioni e gli acquisti di un negozio di elettronica in MongoDB, Elasticsearch e Neo4j, uniti sul prodotto: su quali prodotti le recensioni dicono che la batteria si scarica, e cos'altro hanno comprato i loro acquirenti?"
+      },
+      "insurance": {
+        "title": "Esposizione dei beni e rischio catastrofale",
+        "summary": "La domanda di un assicuratore danni, dove si concentra la sua esposizione rispetto al rischio: le sue polizze unite per contea ai dati di FEMA, incendi boschivi e tempeste, con la risposta in SQL, GraphQL e REST."
       }
     }
   }
