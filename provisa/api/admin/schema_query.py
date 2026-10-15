@@ -89,6 +89,7 @@ from provisa.api.admin.types import (
     MaterializeStoreInfoType,
     ReplicaBuildsType,
     ReplicaBuildType,
+    ReplicaIndexType,
     MetricType,
     MVType,
     RefreshPolicySummaryType,
@@ -1826,7 +1827,10 @@ class Query:  # REQ-021, REQ-042
         return ReplicaBuildsType(
             builds=[
                 ReplicaBuildType(
-                    **build_view(record, now),
+                    **{
+                        **(view := build_view(record, now)),
+                        "indexes": [ReplicaIndexType(**i) for i in view["indexes"]],
+                    },
                     region=by_key.get((record.key[0], record.key[1], record.key[2])),
                 )
                 for record in records

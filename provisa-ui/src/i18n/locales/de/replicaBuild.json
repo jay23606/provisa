@@ -57,6 +57,12 @@
     },
     "progressFiles": "{{done}} von {{total}} Dateien gelesen",
     "buildingPartialFiles": "Replikat wird erstellt und ist bereits lesbar. Unvollständig: {{done}} von {{total}} Dateien gelesen ({{how}}).",
-    "buildingPartsFiles": "Replikat wird aktualisiert: {{done}} von {{total}} Dateien geprüft ({{how}})."
+    "buildingPartsFiles": "Replikat wird aktualisiert: {{done}} von {{total}} Dateien geprüft ({{how}}).",
+    "index": {
+      "summary": "Indizes: {{built}} von {{total}} erstellt.",
+      "summaryPending": "Indizes: {{built}} von {{total}} erstellt; {{pending}} werden erstellt.",
+      "duplicateKey": "Der Schlüssel ({{columns}}) konnte nicht erstellt werden: Die Quelle wiederholt seine Werte.",
+      "failed": "Der Index auf ({{columns}}) konnte nicht erstellt werden: {{error}}"
+    }
   }
 }

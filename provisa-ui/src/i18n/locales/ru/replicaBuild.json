@@ -57,6 +57,12 @@
     },
     "progressFiles": "Прочитано файлов: {{done}} из {{total}}",
     "buildingPartialFiles": "Реплика создаётся и уже доступна для чтения. Частично: прочитано {{done}} из {{total}} файлов ({{how}}).",
-    "buildingPartsFiles": "Реплика обновляется: проверено {{done}} из {{total}} файлов ({{how}})."
+    "buildingPartsFiles": "Реплика обновляется: проверено {{done}} из {{total}} файлов ({{how}}).",
+    "index": {
+      "summary": "Индексы: построено {{built}} из {{total}}.",
+      "summaryPending": "Индексы: построено {{built}} из {{total}}; {{pending}} строится.",
+      "duplicateKey": "Ключ ({{columns}}) построить не удалось: источник повторяет его значения.",
+      "failed": "Индекс по ({{columns}}) построить не удалось: {{error}}"
+    }
   }
 }

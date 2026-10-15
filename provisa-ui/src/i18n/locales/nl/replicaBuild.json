@@ -57,6 +57,12 @@
     },
     "progressFiles": "{{done}} van {{total}} bestanden gelezen",
     "buildingPartialFiles": "Replica wordt opgebouwd en is al leesbaar. Gedeeltelijk: {{done}} van {{total}} bestanden gelezen ({{how}}).",
-    "buildingPartsFiles": "Replica wordt bijgewerkt: {{done}} van {{total}} bestanden gecontroleerd ({{how}})."
+    "buildingPartsFiles": "Replica wordt bijgewerkt: {{done}} van {{total}} bestanden gecontroleerd ({{how}}).",
+    "index": {
+      "summary": "Indexen: {{built}} van {{total}} gebouwd.",
+      "summaryPending": "Indexen: {{built}} van {{total}} gebouwd; {{pending}} worden gebouwd.",
+      "duplicateKey": "De sleutel ({{columns}}) kon niet worden gebouwd: de bron herhaalt de waarden.",
+      "failed": "De index op ({{columns}}) kon niet worden gebouwd: {{error}}"
+    }
   }
 }

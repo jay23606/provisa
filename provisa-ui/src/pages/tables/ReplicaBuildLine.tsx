@@ -20,6 +20,7 @@ import {
   replicaBuildLine,
   replicaDeltaLine,
   replicaFeedLine,
+  replicaIndexLines,
   replicaNoteLines,
   buildOf,
 } from "./replicaBuild";
@@ -46,6 +47,7 @@ export function ReplicaBuildLine({
   const feedLine = replicaFeedLine(build, t, formatWhen);
   const deltaLine = replicaDeltaLine(build, t);
   const noteLines = replicaNoteLines(build, t);
+  const indexLines = replicaIndexLines(build, t);
   return (
     <>
       <ReplicatingMark build={build} size="detail" />
@@ -59,6 +61,16 @@ export function ReplicaBuildLine({
       {noteLines.map((noteLine) => (
         <Text key={noteLine} size="xs" c="orange" data-testid="replica-build-note">
           {noteLine}
+        </Text>
+      ))}
+      {indexLines.summary && (
+        <Text size="xs" c="dimmed" data-testid="replica-index-line">
+          {indexLines.summary}
+        </Text>
+      )}
+      {indexLines.failed.map((failedLine) => (
+        <Text key={failedLine} size="xs" c="red" data-testid="replica-index-failed">
+          {failedLine}
         </Text>
       ))}
       {deltaLine && (

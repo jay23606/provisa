@@ -57,6 +57,12 @@
     },
     "progressFiles": "נקראו {{done}} מתוך {{total}} קבצים",
     "buildingPartialFiles": "העותק המשוכפל נבנה וכבר ניתן לקריאה. חלקי: נקראו {{done}} מתוך {{total}} קבצים ({{how}}).",
-    "buildingPartsFiles": "העותק המשוכפל מתעדכן: נבדקו {{done}} מתוך {{total}} קבצים ({{how}})."
+    "buildingPartsFiles": "העותק המשוכפל מתעדכן: נבדקו {{done}} מתוך {{total}} קבצים ({{how}}).",
+    "index": {
+      "summary": "אינדקסים: {{built}} מתוך {{total}} נבנו.",
+      "summaryPending": "אינדקסים: {{built}} מתוך {{total}} נבנו; {{pending}} בבנייה.",
+      "duplicateKey": "לא ניתן היה לבנות את המפתח ({{columns}}): המקור חוזר על ערכיו.",
+      "failed": "לא ניתן היה לבנות את האינדקס על ({{columns}}): {{error}}"
+    }
   }
 }

@@ -238,6 +238,37 @@ export function replicaFeedLine(
 /** What the last completed build had to say of the copy it made: a line for each note, none
  * when it had nothing to say. A note this build of the UI has no wording for is shown by its
  * code, never dropped. */
+/** REQ-2015: the replica's indexes -- how many of those its landing asked for are built, and a
+ * line for each that failed, its cause worded from its code. Empty when it asked for none. */
+export function replicaIndexLines(
+  build: ReplicaBuild | undefined,
+  t: Translate,
+): { summary: string | null; failed: string[] } {
+  const indexes = build ? build.indexes : [];
+  if (indexes.length === 0) return { summary: null, failed: [] };
+  const built = indexes.filter((i) => i.state === "built").length;
+  const pending = indexes.filter((i) => i.state === "pending").length;
+  const summary = t(
+    pending > 0 ? "replicaBuild.index.summaryPending" : "replicaBuild.index.summary",
+    {
+      built,
+      total: indexes.length,
+      pending,
+    },
+  );
+  const failed = indexes
+    .filter((i) => i.state === "failed")
+    .map((i) =>
+      i.errorCode === "replica.index_duplicate_key"
+        ? t("replicaBuild.index.duplicateKey", { columns: i.columns.join(", ") })
+        : t("replicaBuild.index.failed", {
+            columns: i.columns.join(", "),
+            error: i.error ?? "",
+          }),
+    );
+  return { summary, failed };
+}
+
 export function replicaNoteLines(build: ReplicaBuild | undefined, t: Translate): string[] {
   return (build?.buildNotes ?? []).map(({ code, params: given }) => {
     const params = given ?? {};
