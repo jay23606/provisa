@@ -122,7 +122,12 @@ class _Conn:
                 wanted = [s for s in wanted if s["id"] in params.values()]
             return _Rows(wanted)
         if "FROM domains" in sql:
-            return _Rows([{"id": "hr"}, {"id": "marketing"}, {"id": "sales"}])
+            return _Rows(
+                [
+                    {"id": d, "steward": None, "parent_domain_id": None}
+                    for d in ("hr", "marketing", "sales")
+                ]
+            )
         return _Rows(_TABLES)
 
 
@@ -181,7 +186,11 @@ def _model(monkeypatch):
     monkeypatch.setattr(
         schema_query, "_source_from_row", lambda row, connection: types.SimpleNamespace(**row)
     )
-    monkeypatch.setattr(schema_query, "_domain_from_row", lambda row: types.SimpleNamespace(**row))
+    monkeypatch.setattr(
+        schema_query,
+        "_domain_from_row",
+        lambda row, _effective_steward: types.SimpleNamespace(**row),
+    )
 
     async def _metrics(conn):  # noqa: ARG001
         return [

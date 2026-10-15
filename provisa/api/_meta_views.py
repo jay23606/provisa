@@ -430,7 +430,7 @@ _OPS_REPORT_VIEWS: dict[str, str] = {
                'missing_steward'
         FROM domains d
         WHERE d.id <> '' AND d.id NOT IN (
-            -- REQ-1363: a domain under a stewarded one answers to that steward.
+            -- a domain under a stewarded one answers to that steward
             WITH RECURSIVE stewarded(id) AS (
                 SELECT id FROM domains WHERE steward IS NOT NULL
                 UNION
