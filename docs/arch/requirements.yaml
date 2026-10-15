@@ -83138,7 +83138,7 @@
     REST, JSON:API, gRPC, Cypher, or an external client over pgwire or Arrow Flight), with a Polly question (answered
     at template build and served stored, REQ-2012) only where a conversational answer is the natural fit; then a
     recap. Data is landed at build as TTL -1 replicas (REQ-2031); the build fails, naming the table, when a govdata
-    table it needs is empty. A per-vertical glossary uses the industry''s own terms. Unlike the other verticals, its solution is told as an analyst resolving a request with Polly (maintainer 2026-10-15): a narrated series of questions the analyst poses in turn (which awards the client records, what the government reports paying it, where they differ, which differences are timing and which are missing awards, what goes in the readiness memo), each answered by Polly from answers generated at template build and served stored (REQ-2012), with the SQL behind each answer shown.'
+    table it needs is empty. A per-vertical glossary uses the industry''s own terms. Unlike the other verticals, its solution is told as an analyst resolving a request with Polly (maintainer 2026-10-15): a narrated series of questions the analyst poses in turn (which awards the client records, what the government reports paying it, where they differ, which differences are timing and which are missing awards, what goes in the readiness memo), each answered by Polly from answers generated at template build and served stored (REQ-2012), with the SQL behind each answer shown. Its clients are fictional organisations, their award records generated as well, so no generated financial record is attributed to a real organisation (maintainer 2026-10-15); the public data illustrates the matching pattern. Its awards side waits on award-level public data in govdata (Federal Audit Clearinghouse federal awards and USAspending prime awards by recipient and assistance listing), requested from the adapter. Its narrated Polly questions are its own question set, graded against its own tables in the Polly bake-off; stored answers are generated at bundle build with Haiku through OpenRouter (the OPENROUTER_API_KEY secret).'
   use_case: A audit firm buyer opens the audit firm demo and sees their own kind of question answered across company
     and public data.
   scenario: 'Given the audit firm demo started from its template
@@ -83901,8 +83901,8 @@
     the demo''s own local embedding model, so a paraphrase that avoids every name still scores; the score is weighted
     by context -- a sender not on that deal''s team, a recipient outside the bank''s domains or a personal address, and
     a message sent before the deal''s announcement each raise it; a deal-team member writing to the deal''s own counterparties
-    lowers it. The same messages are checked for customer PII by SQL pattern checks, joined to ops.pii_access (who
-    read pii-tagged tables, and when) so a sender who read customer data that week and then mailed it out ranks high.
+    lowers it. The same messages are checked for customer PII by SQL pattern checks, joined to the bank''s customer-data access log (who
+    read customer data, and when) so a sender who read customer data that week and then mailed it out ranks high.
     One materialized view is the review queue: per message and deal, the score and which signals fired. Governance
     is half the demo: the watch list is the most restricted table, so a first-level reviewer''s role sees only the
     flagged entity of their own cases through row rules and masking, never the list; the control room sees all; a
@@ -83912,7 +83912,7 @@
     analytics after real-time controls, not a data-loss-prevention replacement; attachments, images, encoded text
     and personal channels are outside it; employee monitoring needs disclosure and, in places, works-council agreement.
     Its tour follows the settled demo tour shape. Its business question: "Is anyone sending deal-sensitive or customer
-    data out of the bank?"'
+    data out of the bank?" The bank''s own customer-data access log (employee, customer table, read at) is a generated table of the demo, since the employees are not Provisa users; the tour shows ops.pii_access live as the record of the visitor''s own reads. Its Polly questions are its own question set, graded against its own tables in the Polly bake-off.'
   use_case: 'A compliance buyer opens the insider review demo and sees watch-list deals matched against outbound mail,
     ranked for review, with the watch list itself never exposed to the reviewer.'
   scenario: 'Given the insider review demo started from its bundle
