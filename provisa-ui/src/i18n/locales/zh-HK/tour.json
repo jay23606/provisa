@@ -587,6 +587,54 @@
       "insiderDone": {
         "title": "它是甚麼，不是甚麼",
         "description": "觀察名單中的交易按名稱和含義與外發電郵比對，排序供審查，而名單本身從未向審查員展示。這是實時控制之後的事後審查分析，不能取代數據防洩漏。附件、圖片、編碼文字和個人渠道不在其範圍內。監察員工需要事先告知，在某些地方還需要與員工代表達成協議。"
+      },
+      "vulnerabilitiesScenario": {
+        "title": "這個示範是甚麼",
+        "description": "一家軟件公司想知道其程式碼中的漏洞有哪些正被攻擊者實際利用，以及每個漏洞已經多久未修復。它的程式碼庫、這些程式碼庫的套件以及針對它們的 Dependabot 警示都在自己的資料庫中；CVE 記錄和 CISA 的 Known Exploited Vulnerabilities 目錄是公開的。本導覽展示 Provisa 如何按 CVE 將兩者關聯，並以 SQL、GraphQL、Cypher 和 REST 回答這個問題。"
+      },
+      "vulnerabilitiesGovdata": {
+        "title": "公開的漏洞資料",
+        "description": "政府資料來自 AskAmerica，一個真實帳戶：NVD 的 CVE 記錄、MITRE 的軟件弱點目錄以及 CISA 的 Known Exploited Vulnerabilities。這些表在建置示範時載入一次，之後一直從該複本讀取：本示範從不呼叫該帳戶。"
+      },
+      "vulnerabilitiesAlerts": {
+        "title": "Dependabot 警示",
+        "description": "每個有已發佈安全公告的固定套件版本對應一條警示：程式碼庫、套件、CVE、修復它的版本，以及警示是未處理、已修復還是已忽略。它從公司的資料庫即時讀取。"
+      },
+      "vulnerabilitiesNvd": {
+        "title": "經篩選條件載入的 CVE 記錄",
+        "description": "NVD 收錄了約二十五萬個 CVE，而公司的警示只涉及其中十九個。該表的落地篩選條件（針對其自身欄位的條件）在載入時只保留這些，因此複本只包含警示需要的記錄。"
+      },
+      "vulnerabilitiesKev": {
+        "title": "CISA 的已知被利用漏洞",
+        "description": "每個已知被攻擊者利用的 CVE，附有聯邦機構必須修復的限期，以及勒索軟件活動是否使用它。整體載入：它很小。"
+      },
+      "vulnerabilitiesJoin": {
+        "title": "按 CVE 判定被利用",
+        "description": "CVE 記錄與其在 CISA 目錄中的條目共用 CVE 識別碼，這個關係將它們關聯起來。警示已與其 CVE 關聯，因此一條警示兩步即可到達目錄。"
+      },
+      "vulnerabilitiesTerms": {
+        "title": "詞彙",
+        "description": "已知被利用漏洞、CVE、CWE 和 CVSS 都在公司的詞彙表中，各自連結到相關的欄位。CVSS 分數說明漏洞有多嚴重；只有目錄能說明是否有人在利用它。"
+      },
+      "vulnerabilitiesAnswer": {
+        "title": "SQL 中的答案",
+        "description": "檢視 exploited_in_our_code 保留每條 CVE 在 CISA 目錄中的未處理警示，並給出 CISA 限期已過去的天數，結果會被儲存。先看面向互聯網的程式碼庫，先看逾期最久的：從這裏開始。"
+      },
+      "vulnerabilitiesByTeam": {
+        "title": "GraphQL 中的答案",
+        "description": "同一個檢視，在伺服器上按團隊分組：每個團隊有多少未處理的被利用漏洞，以及最早的那個已逾期多久。"
+      },
+      "vulnerabilitiesGraph": {
+        "title": "以圖呈現的答案",
+        "description": "在 Cypher 中以圖呈現相同的關聯：程式碼庫、其中未處理的警示、警示的 CVE，以及將它們標記為被利用的目錄條目。"
+      },
+      "vulnerabilitiesRest": {
+        "title": "透過 REST 取得同樣的答案",
+        "description": "該檢視也是一個 REST 端點，在伺服器上分組並計數。工單系統或儀表板無需編寫 SQL 即可取得答案。"
+      },
+      "vulnerabilitiesRecap": {
+        "title": "你看到了甚麼",
+        "description": "公司自身的程式碼資料（即時讀取）和公開的漏洞資料（只載入一次，且只載入警示需要的部分）按 CVE 關聯到一個受管治的模型中：一個檢視以 SQL、GraphQL、Cypher 和 REST 回答程式碼中有哪些被利用的漏洞，以及各自逾期多久。"
       }
     },
     "status": {
@@ -627,6 +675,10 @@
       "insider": {
         "title": "內幕資料審查",
         "summary": "將一間銀行的外發電郵與其在洽交易的觀察名單比對，並檢查客戶數據，排入同一個審查隊列；一線審查員閱讀它，卻從未見過名單本身。"
+      },
+      "vulnerabilities": {
+        "title": "我們程式碼中被利用的漏洞",
+        "summary": "一家軟件公司的 Dependabot 警示按 CVE 關聯到 NVD 和 CISA 的 Known Exploited Vulnerabilities 目錄：我們的程式碼中有哪些被利用的漏洞，它們已超過 CISA 限期多久？"
       }
     }
   }
