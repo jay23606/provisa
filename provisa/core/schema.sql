@@ -1626,6 +1626,14 @@ CREATE TABLE IF NOT EXISTS trigger_runs (
     fired_by   TEXT            -- the table and event that fired it; NULL for a schedule
 );
 
+-- REQ-1926: state -- the store schema each session holds its temporary tables in, with the last
+-- time its worker said the session is alive (see schema_org.py). Never part of the model.
+CREATE TABLE IF NOT EXISTS session_temp_schemas (
+    store_schema TEXT NOT NULL PRIMARY KEY,
+    session_id   TEXT NOT NULL,
+    beat_at      TIMESTAMPTZ NOT NULL
+);
+
 -- Replica state (REQ-1912, REQ-826): one row per replica of a source table, shared by every
 -- worker and instance. ``promoted`` is the automatic-promotion decision (a Hot-N table past its
 -- threshold); the replica build's own state is added to this same row. Keyed by the table's
