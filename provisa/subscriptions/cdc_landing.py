@@ -152,8 +152,12 @@ async def consume_cdc_into_store(
     finally:
         pump_task.cancel()
         try:
+            # The stream ends when the provider's watch() ends: at a disconnect (the pump is
+            # cancelled) or because it failed, which is raised here -- the listener is said to
+            # have stopped, and why, never left quietly landing nothing.
             await pump_task
-        except (asyncio.CancelledError, Exception):
+        except asyncio.CancelledError:
             pass
-        await provider.close()
+        finally:
+            await provider.close()
     return totals
