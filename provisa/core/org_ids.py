@@ -57,3 +57,14 @@ def is_template_org(org_id: str) -> bool:
 def is_demo_sandbox(org_id: str) -> bool:
     """Whether ``org_id`` is a visitor's or a named demo sandbox (not a demo's template)."""
     return is_sandbox_tier_org(org_id) and not is_template_org(org_id)
+
+
+def serves_sandbox_tier() -> bool:  # REQ-2006
+    """Whether this process is the sandbox tier (``PROVISA_SANDBOX_TIER``), set by the deployment
+    (the control plane's provisa-sandbox service), never per request."""
+    import os
+
+    value = os.environ.get("PROVISA_SANDBOX_TIER", "false")
+    if value not in ("true", "false"):
+        raise ValueError(f"PROVISA_SANDBOX_TIER must be true or false, got {value!r}")
+    return value == "true"

@@ -212,7 +212,15 @@ def provisioning_available() -> bool:
 
     Distinct from ``PROVISA_ISOLATED_ENGINE_HOST_TEMPLATE``, which only resolves where one would
     live. A deployment can route to engines somebody else operates.
+
+    Never on the sandbox tier (REQ-2006): every org there runs on an embedded DuckDB engine of its
+    own, so it wakes, provisions and dials no engine -- though it shares the control plane's
+    environment, engine-cluster settings included.
     """
+    from provisa.core.org_ids import serves_sandbox_tier
+
+    if serves_sandbox_tier():
+        return False
     try:
         provisioner_settings()
     except K8sProvisioningError:

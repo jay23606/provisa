@@ -156,3 +156,16 @@ def test_a_bundles_stores_are_where_the_node_says(tmp_path):
             }
         ]
     }
+
+
+def test_the_sandbox_tier_never_provisions_an_engine(monkeypatch):
+    """REQ-2006: the tier shares the control plane's environment, engine-cluster settings included,
+    but every org on it runs an embedded DuckDB engine. cloud.provisa.dev's tier woke a GKE shard
+    and a demo template's build failed there (restore_shared_terminal with no org bound)."""
+    from provisa.federation import k8s_provisioner
+
+    monkeypatch.setattr(k8s_provisioner, "provisioner_settings", lambda: object())
+    monkeypatch.setenv("PROVISA_SANDBOX_TIER", "false")
+    assert k8s_provisioner.provisioning_available() is True
+    monkeypatch.setenv("PROVISA_SANDBOX_TIER", "true")
+    assert k8s_provisioner.provisioning_available() is False

@@ -27,7 +27,6 @@ reaches the other tier is refused by name rather than opening the file a second 
 
 from __future__ import annotations
 
-import os
 import secrets
 
 from provisa.api.errors import ApiError
@@ -66,10 +65,9 @@ def new_sandbox_org_id() -> str:
 def serves_sandboxes() -> bool:
     """Whether this process is the sandbox tier. Set by the deployment (the control plane's
     provisa-sandbox service, packaging/linux/first-launch.sh), never per request."""
-    value = os.environ.get("PROVISA_SANDBOX_TIER", "false")
-    if value not in ("true", "false"):
-        raise ValueError(f"PROVISA_SANDBOX_TIER must be true or false, got {value!r}")
-    return value == "true"
+    from provisa.core.org_ids import serves_sandbox_tier
+
+    return serves_sandbox_tier()
 
 
 def require_this_tier(org_id: str) -> None:
