@@ -82941,8 +82941,7 @@
   feature: product-tour-and-demos-named-demos
   priority: SHOULD
   type: behavioral
-  description: 'A named demo, GDPR at an international retail group (one group, EU and US subsidiaries): two regions,
-    EU and US, each with its own engine and replica store; each subsidiary''s own sources with their home region --
+  description: 'A named demo, GDPR at an international retail group (one group, EU and US subsidiaries): two regions, EU and US, defined in one model so that every cross-border data movement rule is coordinated and enforced in one place; the visitor stays on one node (the US node) and the EU region''s setup is shown in tour screenshots or explained; EU-homed data is landed and EU-named views, including the in-region message scoring, are built in the EU region''s own store at bundle build, and the US node reads them in place from that store, the per-request record naming eu as the serving region, or refuses naming eu when that store is absent; each subsidiary''s own sources with their home region --
     loyalty-programme customers with their marketing consent, orders, stores and staff -- plus shared reference data
     (products, stores), all generated; users with a region attribute and row rules on it. It shows: residency, EU
     customer rows stored and computed only in the EU region, and group reporting that reads EU data only as aggregates
@@ -82951,8 +82950,7 @@
     about one EU customer across every subsidiary''s sources (right of access), and the view that drives its erasure;
     an insider review in retail form, staff with access to customer data who then mail customer lists outside the
     group, their messages scored in their own region so no message body leaves it, one group review queue carrying
-    only the score, the signals and a pseudonymised sender, and the sender revealed only to a reviewer of the employee''s
-    own region; and one audit record across both regions of who saw which customer''s data, where. The same query
+    only the score, the signals and a pseudonymised sender, and the sender revealed only to a reviewer acting with the employee''s region pseudo-role (region__eu, REQ-2057) through the column''s ordered mask list (REQ-2059); and one audit record across both regions of who saw which customer''s data, where. The same query
     returns different rows per reader, the per-request record shows serving region and rules, no copy of EU rows
     exists outside the EU, and a cross-region read is served from the home region''s replica or refused naming it.
     Its tour states that legal requirements can be met with these features, but meeting them takes active design
@@ -83991,3 +83989,101 @@
     data; PII is straightforward, sensitive references (a merger, strategy) are harder and warrant post-review; an
     investment bank compares its list of entities in discussion (mergers, acquisitions, loans, underwriting) to the
     emails for a match score. One demo, framed as investment-bank compliance.'
+- id: REQ-2060
+  status: proposed
+  since: 2026-10
+  group: 1. Access Governance & Security
+  category: Security
+  feature: roles-and-capabilities-capabilities
+  priority: MUST
+  type: behavioral
+  description: 'Rights follow the request. A request''s data access AND its capabilities come only from the roles it names (X-Provisa-Role, or the session''s acting role), never from every role the user holds; each named role must be held, and one that is not is refused by name, as X-Provisa-Role already is. Administrative work therefore needs the acting role to hold the right: the admin UI acts as, or switches to, a role holding it before an admin action.'
+  use_case: 'An analyst who also holds org_admin acts as analyst and gets only analyst''s capabilities and data; to administer, they act as org_admin.'
+  scenario: 'Given a user holding analyst and org_admin
+
+
+When a request names only analyst
+
+
+Then an admin capability is refused and the data is analyst''s
+
+
+And a request naming a role the user does not hold is refused by name'
+  related_reqs:
+  - REQ-2035
+  - REQ-2057
+  notes: 'Maintainer 2026-10-15: "what''s the point of an acting role, if you get all rights anyway"; "the user could just have to be explicit in their request, if they claim a role, it must exist". Built first, as step 0 of REQ-2035 (ui).'
+- id: REQ-2057
+  status: proposed
+  since: 2026-10
+  group: 1. Access Governance & Security
+  category: Security
+  feature: roles-and-capabilities-capabilities
+  priority: SHOULD
+  type: behavioral
+  description: 'Pseudo-roles: roles derived from identity claims, which turn an attribute-conditioned (ABAC) column rule into an ordinary role grant (RBAC). For each claim type in the org''s declared list (an org setting with a UI surface), there is an implicit parent role named by the claim type (e.g. region) and, for each value, a child sub-role named <claim type>__<value> (e.g. region__eu), the double underscore as in GraphQL paths. A user holds a sub-role exactly when their claim has that value; the value comes from the org''s own user record, and the identity provider''s claim fills in only where the record has none. Pseudo-roles carry no capabilities, no domain access, no row-filter term and no mask vote; they are never assigned by hand and never self-granted; they act only as grant qualifiers, so existing grant points use them unchanged (visible_to, writable_by, masks, meta-roles). Like every role they count only when the request names them (REQ-2060): a request acts as analyst,region__eu to get EU reveals; the role picker offers the pseudo-roles a user holds. The node''s own region is never taken as the user''s. Row rules naming pseudo-roles are not part of this. Role inheritance stays additive: a child holds its parent''s rights plus its own, and nothing subtracts an inherited right; restriction comes from composition (REQ-2058), not from denials. docs/security.md explains meta-roles and pseudo-roles and why each is useful, led by the rationale that pseudo-roles simplify a traditional ABAC column problem into a simpler RBAC solution, with guidance on hierarchy versus composition (inheritance within one axis, composition across independent axes, a small role catalogue).'
+  use_case: 'An EU reviewer acting as reviewer,region__eu sees a sender column that is masked for every other reader, without any attribute evaluated at query time.'
+  scenario: 'Given region declared as a claim type and a user whose org record says region eu
+
+
+When the user acts as reviewer,region__eu
+
+
+Then a column unmasked to region__eu is shown unmasked
+
+
+And a user whose record says us cannot act as region__eu'
+  related_reqs:
+  - REQ-2035
+  - REQ-2060
+  - REQ-1382
+  - REQ-1383
+  notes: 'Maintainer 2026-10-15, in conversation with ui: "a parent role for the claim type and then a sub role for its stringified value"; "region would have to be injected as a claim"; "org record should win"; double-underscore naming "like graphql paths"; "pseudo-roles must be named too"; "mainly it simplifies a traditional ABAC column issue into a simpler RBAC solution"; docs explain meta-roles and pseudo-roles; no subtraction of parent rights ("it gets really complicated"). Built as part of REQ-2035 (ui), with the user-attributes port.'
+- id: REQ-2058
+  status: proposed
+  since: 2026-10
+  group: 1. Access Governance & Security
+  category: Security
+  feature: row-security-and-masking-masking
+  priority: SHOULD
+  type: behavioral
+  description: 'Composite grant entries: an entry in a grant list (visible_to, writable_by, a mask entry''s to) may be a+b, meaning the reader holds all of the named roles. Meta-roles are a union of their members'' rights; in a grant entry the same + means all-of. The column editor composes them as chips joined by "and".'
+  use_case: 'A column is shown only to readers acting as both analyst and region__eu.'
+  scenario: 'Given a column visible_to analyst+region__eu
+
+
+When a request acts as analyst alone
+
+
+Then the column is not visible
+
+
+And acting as analyst,region__eu it is'
+  related_reqs:
+  - REQ-2057
+  - REQ-2059
+  notes: 'Maintainer 2026-10-15: "yes to composites"; "meta-roles are a union, but in rights they become ANDs". Built as part of REQ-2035 (ui).'
+- id: REQ-2059
+  status: proposed
+  since: 2026-10
+  group: 1. Access Governance & Security
+  category: Security
+  feature: row-security-and-masking-masking
+  priority: SHOULD
+  type: behavioral
+  description: 'Per-reader masks: a column''s masking is one ordered list of entries, each {to: a grant list (composites allowed), a mask or unmasked}; the first entry matching the request''s roles applies, and an entry for everyone last is the default. The enumeration is the precedence, shown and checked in the column editor''s Access tab. It replaces today''s single mask plus unmasked_to (no back-compat): the column model, table_columns, the masking rules loader, the admin column types and mutations, config export and the UI.'
+  use_case: 'A sender column is unmasked for EU reviewers, pseudonymised for other reviewers and fully masked for everyone else.'
+  scenario: 'Given a column with entries [to region__eu: unmasked; to reviewer: pseudonymised; everyone: masked]
+
+
+When a reviewer acting with region__eu reads it
+
+
+Then it is unmasked
+
+
+And a reviewer without it sees the pseudonym, and anyone else the mask'
+  related_reqs:
+  - REQ-2057
+  - REQ-2058
+  notes: 'Maintainer 2026-10-15: "just list the masks in an enumerated list and the enumeration is the precedence". Built as part of REQ-2035 (ui).'
