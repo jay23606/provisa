@@ -135,9 +135,14 @@ async def engine_table_rows(engine: Any, source: Any, table: Any) -> list[dict]:
     ref = f'"{catalog}"."{table.schema_name}"."{table.table_name}"'
     # REQ-1965: a natively array/struct/map column is landed as JSON the engine produces.
     projection = _projection(table, lambda: engine.dialect)
-    result = await engine.execute_engine(
-        f"SELECT {projection} FROM {ref}", authorization=system_auth("source row load")
-    )
+    sql = f"SELECT {projection} FROM {ref}"
+    if not engine.engine.catalog_qualified:
+        # An engine whose SQL names no catalog (pg: PostgreSQL has no cross-database reference)
+        # reads the table at its folded name, as every statement it runs does (#269, REQ-1730).
+        from provisa.compiler.sql_rewrite import fold_catalog_into_schema
+
+        sql = fold_catalog_into_schema(sql)
+    result = await engine.execute_engine(sql, authorization=system_auth("source row load"))
     return [dict(zip(result.column_names, row)) for row in result.rows]
 
 

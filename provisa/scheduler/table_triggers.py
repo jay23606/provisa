@@ -18,7 +18,8 @@ background. What fires:
   whole-table replica changes when a build of it lands rows that differ from the last
   (``replica_builds.make_runner``): the native feeds, the signal webhook and a write through
   Provisa each ask for that build, and what runs reads what it landed. A table read live changes
-  when Provisa writes it or its signal says so (:func:`source_changed`). A table landed from a
+  when Provisa writes it or its signal says so (:func:`source_changed`); one a native feed
+  follows, from the feed alone, so a write through Provisa fires it once. A table landed from a
   Kafka or Debezium feed changes when a batch of its events lands, and the batch is given.
 - ``error`` and ``quarantine``, each time the event loop posts one for the table's node.
 
@@ -36,6 +37,11 @@ from typing import Any
 from provisa.core.connection_loop import spawn_background
 
 ReplicaKey = tuple[str, str, str]
+
+#: The change signal of a table its source's own change feed follows (PostgreSQL logical
+#: replication, MongoDB and Cosmos DB change streams, REQ-929): a write to it reaches its
+#: triggers through the feed.
+FEED_SIGNAL = "native"
 
 
 def table_changed(state: Any, key: ReplicaKey, *, changes: list[dict] | None = None) -> None:
@@ -64,13 +70,19 @@ def table_event(state: Any, key: ReplicaKey, event: str, payload: dict) -> None:
 async def source_changed(state: Any, table_id: int, source_id: str, reason: str) -> None:
     """A change to the registered table ``table_id`` that its change signal or a write reported.
     A table read from its whole-table replica asks for a build, and its triggers fire when the
-    build lands; any other's fire now."""
-    from provisa.federation import replica_builds
-    from provisa.federation.registry_view import registered_tables
+    build lands; any other's fire now -- but for a write to a table its source's native change feed
+    follows, which fires from the feed, once per burst, and not a second time from the write."""
+    from provisa.federation import replica_builds, replica_state
+    from provisa.federation.registry_view import registered_sources, registered_tables
 
     if await replica_builds.request_if_replicated(state, table_id, source_id, reason):
         return
     table = {t.id: t for t in await registered_tables(state)}[table_id]
+    if reason == replica_state.REASON_WRITE:
+        source = {s.id: s for s in await registered_sources(state)}[source_id]
+        signal = table.change_signal if table.change_signal is not None else source.change_signal
+        if signal == FEED_SIGNAL:
+            return  # its feed reports this write as a change
     table_changed(state, (source_id, table.schema_name, table.table_name))
 
 

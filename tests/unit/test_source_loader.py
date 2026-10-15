@@ -22,9 +22,11 @@ from provisa.executor.result import QueryResult
 
 
 class _Engine:
-    def __init__(self, result):
+    def __init__(self, result, *, catalog_qualified: bool = True):
         self._result = result
         self.sql: str | None = None
+        # The bound FederationEngine: whether its SQL names a catalog (pg's does not).
+        self.engine = SimpleNamespace(catalog_qualified=catalog_qualified)
 
     def address_replicas(self, sql):
         return sql  # this stand-in's tables are all read where the statement names them
@@ -54,6 +56,17 @@ async def test_engine_scan_returns_row_dicts():
     assert rows == [{"id": 1, "name": "a"}, {"id": 2, "name": "b"}]
     # hyphens in the source id become underscores in the engine catalog, quoted + schema-qualified.
     assert engine.sql == 'SELECT * FROM "pg_main"."public"."orders"'
+
+
+@pytest.mark.asyncio
+async def test_an_engine_naming_no_catalog_reads_the_table_at_its_folded_name():
+    """#269: on pg (no cross-database reference) a source's table is read as every statement
+    there reads it, the catalog folded into the schema."""
+    engine = _Engine(
+        QueryResult(rows=[(1,)], column_names=["id"], column_types=None), catalog_qualified=False
+    )
+    await SourceRowLoader(engine).load(_src("shop-pg", "postgresql"), _tbl("public", "bronze"))
+    assert engine.sql == 'SELECT * FROM "shop_pg_public"."bronze"'
 
 
 @pytest.mark.asyncio
