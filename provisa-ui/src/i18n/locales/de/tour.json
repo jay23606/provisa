@@ -587,6 +587,54 @@
       "insiderDone": {
         "title": "Was das ist und was nicht",
         "description": "Deals der Beobachtungsliste wurden nach Namen und nach Bedeutung mit der ausgehenden Post abgeglichen und zur Prüfung gereiht, und die Liste selbst wurde dem Prüfer nie gezeigt. Das ist nachgelagerte Prüfanalyse hinter Echtzeitkontrollen, kein Ersatz für Data Loss Prevention. Anhänge, Bilder, kodierter Text und private Kanäle liegen außerhalb. Die Überwachung von Mitarbeitenden erfordert Offenlegung und mancherorts eine Vereinbarung mit dem Betriebsrat."
+      },
+      "vulnerabilitiesScenario": {
+        "title": "Worum es in dieser Demo geht",
+        "description": "Ein Softwareunternehmen möchte wissen, welche der Schwachstellen in seinem Code Angreifer tatsächlich ausnutzen und wie lange jede schon offen ist. Seine Repositories, deren Pakete und die Dependabot-Warnungen dazu liegen in der eigenen Datenbank; die CVE-Einträge und CISAs Katalog der Known Exploited Vulnerabilities sind öffentlich. Die Tour zeigt, wie Provisa beides über die CVE verknüpft und die Frage in SQL, GraphQL, Cypher und REST beantwortet."
+      },
+      "vulnerabilitiesGovdata": {
+        "title": "Die öffentlichen Schwachstellendaten",
+        "description": "Die Behördendaten stammen von AskAmerica, einem echten Konto: die CVE-Einträge der NVD, MITREs Katalog von Softwareschwächen und CISAs Known Exploited Vulnerabilities. Die Tabellen werden einmal beim Erstellen der Demo geladen und danach dauerhaft aus dieser Kopie gelesen: Diese Demo ruft das Konto nie auf."
+      },
+      "vulnerabilitiesAlerts": {
+        "title": "Die Dependabot-Warnungen",
+        "description": "Eine Warnung je festgelegter Paketversion mit veröffentlichtem Advisory: das Repository, das Paket, die CVE, die Version, die sie behebt, und ob die Warnung offen, behoben oder verworfen ist. Sie wird live aus der Datenbank des Unternehmens gelesen."
+      },
+      "vulnerabilitiesNvd": {
+        "title": "Die CVE-Einträge, über einen Filter geladen",
+        "description": "Die NVD enthält eine Viertelmillion CVEs, die Warnungen des Unternehmens nennen neunzehn. Der Landefilter der Tabelle, eine Bedingung auf ihren eigenen Spalten, behält beim Laden nur diese, sodass die Kopie genau die Einträge enthält, die die Warnungen brauchen."
+      },
+      "vulnerabilitiesKev": {
+        "title": "CISAs bekannt ausgenutzte Schwachstellen",
+        "description": "Jede CVE, von der bekannt ist, dass Angreifer sie ausnutzen, mit dem Datum, bis zu dem Bundesbehörden sie beheben müssen, und ob Ransomware-Kampagnen sie verwenden. Vollständig geladen: Der Katalog ist klein."
+      },
+      "vulnerabilitiesJoin": {
+        "title": "Ausgenutzt, über die CVE",
+        "description": "Ein CVE-Eintrag und sein Eintrag in CISAs Katalog teilen die CVE-Kennung, und diese Beziehung verknüpft sie. Da die Warnungen mit ihren CVEs verknüpft sind, erreicht eine Warnung den Katalog in zwei Schritten."
+      },
+      "vulnerabilitiesTerms": {
+        "title": "Das Vokabular",
+        "description": "Bekannt ausgenutzte Schwachstelle, CVE, CWE und CVSS im Glossar des Unternehmens, jeweils mit den Spalten verknüpft, um die es geht. Ein CVSS-Wert sagt, wie schwer eine Schwachstelle ist; nur der Katalog sagt, ob sie jemand ausnutzt."
+      },
+      "vulnerabilitiesAnswer": {
+        "title": "Die Antwort in SQL",
+        "description": "Die Sicht exploited_in_our_code enthält jede offene Warnung, deren CVE in CISAs Katalog steht, mit den Tagen seit Ablauf von CISAs Frist, und wird gespeichert vorgehalten. Repositories mit Internetzugang zuerst, die am längsten überfälligen zuerst: Hier fängt man an."
+      },
+      "vulnerabilitiesByTeam": {
+        "title": "Die Antwort in GraphQL",
+        "description": "Dieselbe Sicht, auf dem Server nach Team gruppiert: wie viele ausgenutzte Schwachstellen jedes Team offen hat und wie lange die älteste überfällig ist."
+      },
+      "vulnerabilitiesGraph": {
+        "title": "Die Antwort als Graph",
+        "description": "Dieselben Verknüpfungen als Graph in Cypher: Repositories, die darin offenen Warnungen, ihre CVEs und die Katalogeinträge, die sie als ausgenutzt kennzeichnen."
+      },
+      "vulnerabilitiesRest": {
+        "title": "Dieselbe Antwort über REST",
+        "description": "Die Sicht ist auch ein REST-Endpunkt, auf dem Server gruppiert und gezählt. Ein Ticketsystem oder ein Dashboard erhält die Antwort, ohne SQL zu schreiben."
+      },
+      "vulnerabilitiesRecap": {
+        "title": "Was Sie gesehen haben",
+        "description": "Die eigenen Codedaten des Unternehmens, live gelesen, und öffentliche Schwachstellendaten, einmal geladen und nur so viel davon, wie die Warnungen brauchen, über die CVE in einem gesteuerten Modell verknüpft: Eine Sicht beantwortet, welche ausgenutzten Schwachstellen im Code stecken und wie überfällig jede ist, in SQL, GraphQL, Cypher und REST."
       }
     },
     "status": {
@@ -627,6 +675,10 @@
       "insider": {
         "title": "Insider-Prüfung",
         "summary": "Die ausgehende Post einer Bank, abgeglichen mit ihrer Beobachtungsliste laufender Deals und auf Kundendaten geprüft, in einer Prüfwarteschlange gereiht, die eine Erstprüferin liest, ohne die Liste je zu sehen."
+      },
+      "vulnerabilities": {
+        "title": "Ausgenutzte Schwachstellen in unserem Code",
+        "summary": "Die Dependabot-Warnungen eines Softwareunternehmens, über die CVE mit der NVD und CISAs Katalog der Known Exploited Vulnerabilities verknüpft: Welche ausgenutzten Schwachstellen stecken in unserem Code, und wie weit sind sie über CISAs Frist hinaus?"
       }
     }
   }

@@ -315,9 +315,13 @@ class SourceRowLoader:
             sql = f"SELECT {projection} FROM {relation}{landing_where(table, lambda: dialect)}"
             return DirectTableSource(lambda: open_direct_stream(pools, source.id, sql, []), columns)
         loader = self._adapter_loaders.get(stype) or _floored_file_loader(source, stype)
-        if loader is not None and table.landing_filter is not None:
+        if (
+            loader is not None
+            and table.landing_filter is not None
+            and not getattr(loader, "applies_landing_filter", False)
+        ):
             # REQ-2062: a landing filter is applied by a SQL read of the source; an adapter's
-            # read is no SQL statement to apply it to.
+            # read is no SQL statement to apply it to, unless it is one (a pgwire connector's).
             raise UnsupportedSourceFetch(
                 f"table {source.id}.{table.table_name}: its landing_filter is applied by a SQL read "
                 f"of its source, and a {stype} source is read by its adapter"

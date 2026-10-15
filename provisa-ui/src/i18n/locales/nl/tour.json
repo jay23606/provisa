@@ -587,6 +587,54 @@
       "insiderDone": {
         "title": "Wat dit is, en wat niet",
         "description": "Deals van de watchlist werden op naam en op betekenis vergeleken met uitgaande mail, gerangschikt voor beoordeling, en de lijst zelf werd nooit aan de beoordelaar getoond. Dit is analyse voor beoordeling achteraf, achter realtime controles, geen vervanging voor preventie van gegevensverlies. Bijlagen, afbeeldingen, gecodeerde tekst en privékanalen vallen erbuiten. Toezicht op medewerkers vraagt om openheid en, in sommige landen, om instemming van de ondernemingsraad."
+      },
+      "vulnerabilitiesScenario": {
+        "title": "Wat deze demo is",
+        "description": "Een softwarebedrijf wil weten welke kwetsbaarheden in zijn code aanvallers echt misbruiken, en hoe lang elk al openstaat. Zijn repositories, hun pakketten en de Dependabot-meldingen daarover staan in zijn eigen database; de CVE-records en CISA's catalogus van Known Exploited Vulnerabilities zijn openbaar. De rondleiding toont hoe Provisa beide via de CVE koppelt en de vraag beantwoordt in SQL, GraphQL, Cypher en REST."
+      },
+      "vulnerabilitiesGovdata": {
+        "title": "De openbare kwetsbaarheidsgegevens",
+        "description": "De overheidsgegevens komen van AskAmerica, een echt account: de CVE-records van de NVD, MITRE's catalogus van softwarezwakheden en CISA's Known Exploited Vulnerabilities. De tabellen worden één keer geladen, bij het bouwen van de demo, en daarna altijd uit die kopie gelezen: deze demo roept het account nooit aan."
+      },
+      "vulnerabilitiesAlerts": {
+        "title": "De Dependabot-meldingen",
+        "description": "Eén melding per vastgezette pakketversie met een gepubliceerd advies: de repository, het pakket, de CVE, de versie die het oplost en of de melding open, opgelost of afgewezen is. Ze wordt live uit de database van het bedrijf gelezen."
+      },
+      "vulnerabilitiesNvd": {
+        "title": "De CVE-records, via een filter geladen",
+        "description": "De NVD bevat een kwart miljoen CVE's, en de meldingen van het bedrijf noemen er negentien. Het laadfilter van de tabel, een voorwaarde op haar eigen kolommen, houdt bij het laden alleen die over, zodat de kopie precies de records bevat die de meldingen nodig hebben."
+      },
+      "vulnerabilitiesKev": {
+        "title": "CISA's bekend misbruikte kwetsbaarheden",
+        "description": "Elke CVE waarvan bekend is dat aanvallers haar misbruiken, met de datum waarop federale instanties haar moeten verhelpen en of ransomwarecampagnes haar gebruiken. Volledig geladen: de catalogus is klein."
+      },
+      "vulnerabilitiesJoin": {
+        "title": "Misbruikt, via de CVE",
+        "description": "Een CVE-record en zijn vermelding in CISA's catalogus delen de CVE-identificatie, en deze relatie koppelt ze. Omdat de meldingen aan hun CVE's gekoppeld zijn, bereikt een melding de catalogus in twee stappen."
+      },
+      "vulnerabilitiesTerms": {
+        "title": "De woordenschat",
+        "description": "Bekend misbruikte kwetsbaarheid, CVE, CWE en CVSS, in de woordenlijst van het bedrijf, elk gekoppeld aan de kolommen waar het over gaat. Een CVSS-score zegt hoe ernstig een kwetsbaarheid is; alleen de catalogus zegt of iemand haar misbruikt."
+      },
+      "vulnerabilitiesAnswer": {
+        "title": "Het antwoord in SQL",
+        "description": "De view exploited_in_our_code bewaart elke open melding waarvan de CVE in CISA's catalogus staat, met het aantal dagen sinds CISA's termijn verliep, en blijft opgeslagen. Repositories die internet bedienen eerst, de langst achterstallige eerst: waar je begint."
+      },
+      "vulnerabilitiesByTeam": {
+        "title": "Het antwoord in GraphQL",
+        "description": "Dezelfde view, op de server gegroepeerd per team: hoeveel misbruikte kwetsbaarheden elk team openstaan heeft en hoe lang de oudste over tijd is."
+      },
+      "vulnerabilitiesGraph": {
+        "title": "Het antwoord als graaf",
+        "description": "Dezelfde koppelingen als graaf in Cypher: repositories, de open meldingen daarin, hun CVE's en de catalogusvermeldingen die ze als misbruikt markeren."
+      },
+      "vulnerabilitiesRest": {
+        "title": "Hetzelfde antwoord via REST",
+        "description": "De view is ook een REST-endpoint, op de server gegroepeerd en geteld. Een ticketsysteem of dashboard krijgt het antwoord zonder SQL te schrijven."
+      },
+      "vulnerabilitiesRecap": {
+        "title": "Wat u zag",
+        "description": "De eigen codegegevens van het bedrijf, live gelezen, en openbare kwetsbaarheidsgegevens, één keer geladen en alleen zoveel als de meldingen nodig hebben, via de CVE gekoppeld in één beheerd model: één view beantwoordt welke misbruikte kwetsbaarheden in de code zitten en hoe ver elk over tijd is, in SQL, GraphQL, Cypher en REST."
       }
     },
     "status": {
@@ -627,6 +675,10 @@
       "insider": {
         "title": "Insidercontrole",
         "summary": "De uitgaande mail van een bank vergeleken met haar watchlist van lopende deals en gecontroleerd op klantgegevens, gerangschikt in één beoordelingswachtrij die een eerstelijnsbeoordelaar leest zonder de lijst ooit te zien."
+      },
+      "vulnerabilities": {
+        "title": "Misbruikte kwetsbaarheden in onze code",
+        "summary": "De Dependabot-meldingen van een softwarebedrijf, via de CVE gekoppeld aan de NVD en CISA's catalogus van Known Exploited Vulnerabilities: welke misbruikte kwetsbaarheden zitten in onze code, en hoe ver zijn ze over CISA's termijn?"
       }
     }
   }

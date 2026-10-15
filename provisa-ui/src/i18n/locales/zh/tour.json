@@ -587,6 +587,54 @@
       "insiderDone": {
         "title": "它是什么，不是什么",
         "description": "观察名单中的交易按名称和含义与外发邮件比对，排序供审查，而名单本身从未向审查员展示。这是实时控制之后的事后审查分析，不能替代数据防泄漏。附件、图片、编码文本和个人渠道不在其范围内。监控员工需要事先告知，在某些地方还需要与员工代表达成协议。"
+      },
+      "vulnerabilitiesScenario": {
+        "title": "这个演示是什么",
+        "description": "一家软件公司想知道其代码中的漏洞有哪些正被攻击者实际利用，以及每个漏洞已经多久未修复。它的代码仓库、这些仓库的软件包以及针对它们的 Dependabot 告警都在自己的数据库中；CVE 记录和 CISA 的 Known Exploited Vulnerabilities 目录是公开的。本导览展示 Provisa 如何按 CVE 将两者关联，并用 SQL、GraphQL、Cypher 和 REST 回答这个问题。"
+      },
+      "vulnerabilitiesGovdata": {
+        "title": "公开的漏洞数据",
+        "description": "政府数据来自 AskAmerica，一个真实账户：NVD 的 CVE 记录、MITRE 的软件弱点目录以及 CISA 的 Known Exploited Vulnerabilities。这些表在构建演示时加载一次，之后始终从该副本读取：本演示从不调用该账户。"
+      },
+      "vulnerabilitiesAlerts": {
+        "title": "Dependabot 告警",
+        "description": "每个有已发布安全公告的固定软件包版本对应一条告警：仓库、软件包、CVE、修复它的版本，以及告警是未处理、已修复还是已忽略。它从公司的数据库实时读取。"
+      },
+      "vulnerabilitiesNvd": {
+        "title": "经筛选条件加载的 CVE 记录",
+        "description": "NVD 收录了约二十五万个 CVE，而公司的告警只涉及其中十九个。该表的落地筛选条件（针对其自身列的条件）在加载时只保留这些，因此副本只包含告警需要的记录。"
+      },
+      "vulnerabilitiesKev": {
+        "title": "CISA 的已知被利用漏洞",
+        "description": "每个已知被攻击者利用的 CVE，附有联邦机构必须修复的截止日期，以及勒索软件活动是否使用它。整体加载：它很小。"
+      },
+      "vulnerabilitiesJoin": {
+        "title": "按 CVE 判定被利用",
+        "description": "CVE 记录与其在 CISA 目录中的条目共享 CVE 标识符，这个关系将它们关联起来。告警已与其 CVE 关联，因此一条告警两步即可到达目录。"
+      },
+      "vulnerabilitiesTerms": {
+        "title": "术语",
+        "description": "已知被利用漏洞、CVE、CWE 和 CVSS 都在公司的术语表中，各自关联到相关的列。CVSS 分数说明漏洞有多严重；只有目录能说明是否有人在利用它。"
+      },
+      "vulnerabilitiesAnswer": {
+        "title": "SQL 中的答案",
+        "description": "视图 exploited_in_our_code 保留每条 CVE 在 CISA 目录中的未处理告警，并给出 CISA 截止日期已过去的天数，结果会被存储。先看面向互联网的仓库，先看逾期最久的：从这里开始。"
+      },
+      "vulnerabilitiesByTeam": {
+        "title": "GraphQL 中的答案",
+        "description": "同一个视图，在服务器上按团队分组：每个团队有多少未处理的被利用漏洞，以及最早的那个已逾期多久。"
+      },
+      "vulnerabilitiesGraph": {
+        "title": "以图呈现的答案",
+        "description": "在 Cypher 中以图呈现相同的关联：仓库、其中未处理的告警、告警的 CVE，以及将它们标记为被利用的目录条目。"
+      },
+      "vulnerabilitiesRest": {
+        "title": "通过 REST 获得同样的答案",
+        "description": "该视图也是一个 REST 终结点，在服务器上分组并计数。工单系统或仪表板无需编写 SQL 即可获得答案。"
+      },
+      "vulnerabilitiesRecap": {
+        "title": "你看到了什么",
+        "description": "公司自身的代码数据（实时读取）和公开的漏洞数据（只加载一次，且只加载告警需要的部分）按 CVE 关联到一个受治理的模型中：一个视图用 SQL、GraphQL、Cypher 和 REST 回答代码中有哪些被利用的漏洞，以及各自逾期多久。"
       }
     },
     "status": {
@@ -627,6 +675,10 @@
       "insider": {
         "title": "内幕信息审查",
         "summary": "将一家银行的外发邮件与其在谈交易的观察名单比对，并检查客户数据，排入同一个审查队列；一线审查员阅读它，却从未见过名单本身。"
+      },
+      "vulnerabilities": {
+        "title": "我们代码中被利用的漏洞",
+        "summary": "一家软件公司的 Dependabot 告警按 CVE 关联到 NVD 和 CISA 的 Known Exploited Vulnerabilities 目录：我们的代码中有哪些被利用的漏洞，它们已超过 CISA 截止日期多久？"
       }
     }
   }

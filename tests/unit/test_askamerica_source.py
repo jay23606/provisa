@@ -825,7 +825,9 @@ async def test_a_landed_table_is_selected_from_its_own_schema():
 
     replica = pr.ConnectorReplica(_source(), connect=connect)
     replica.endpoint = lambda timeout=None: pr.PortPair(5440, "127.0.0.1", 5540)  # type: ignore[method-assign]
-    rows = await replica.load(SimpleNamespace(schema_name="sec", table_name="financial_facts"))
+    rows = await replica.load(
+        SimpleNamespace(schema_name="sec", table_name="financial_facts", landing_filter=None)
+    )
     assert rows == [{"cik": "1"}]
     assert statements == ['SELECT * FROM "sec"."financial_facts"']
 
@@ -1136,7 +1138,7 @@ async def test_a_single_schema_sibling_is_landed_from_its_one_schema_as_before(s
     source = Source(id="my-src", type=SourceType(stype))
     replica = pr.ConnectorReplica(source, connect=connect)
     replica.endpoint = lambda timeout=None: pr.PortPair(5440, "127.0.0.1", 5540)  # type: ignore[method-assign]
-    await replica.load(SimpleNamespace(schema_name="anything", table_name="t"))
+    await replica.load(SimpleNamespace(schema_name="anything", table_name="t", landing_filter=None))
     await replica.load_keys(SimpleNamespace(schema_name="anything", table_name="t"), ["id"], [(1,)])
     assert statements == [
         'SELECT * FROM "my_src"."t"',

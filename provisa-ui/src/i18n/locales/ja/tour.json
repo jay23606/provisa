@@ -587,6 +587,54 @@
       "insiderDone": {
         "title": "これは何で、何ではないか",
         "description": "ウォッチリストの案件を名前と意味で送信メールと照合し、審査のために順位付けしましたが、リスト自体は審査担当に一度も見せていません。これはリアルタイム統制の背後にある事後審査の分析であり、データ損失防止の代わりではありません。添付ファイル、画像、エンコードされたテキスト、個人のチャネルは対象外です。従業員の監視には開示が必要で、場所によっては従業員代表との合意も必要です。"
+      },
+      "vulnerabilitiesScenario": {
+        "title": "このデモについて",
+        "description": "あるソフトウェア企業は、自社コードの脆弱性のうち攻撃者が実際に悪用しているものはどれか、そしてそれぞれがどれだけ未修正のままかを知りたいと考えています。リポジトリ、そのパッケージ、それらに対する Dependabot アラートは自社のデータベースにあり、CVE レコードと CISA の Known Exploited Vulnerabilities カタログは公開されています。このツアーでは、Provisa が両者を CVE で結合し、SQL、GraphQL、Cypher、REST で問いに答える様子を示します。"
+      },
+      "vulnerabilitiesGovdata": {
+        "title": "公開の脆弱性データ",
+        "description": "政府データは実在のアカウントである AskAmerica から取得します。NVD の CVE レコード、MITRE のソフトウェア弱点カタログ、CISA の Known Exploited Vulnerabilities です。テーブルはデモのビルド時に一度だけロードされ、以後はそのコピーから読み取られます。このデモがアカウントを呼び出すことはありません。"
+      },
+      "vulnerabilitiesAlerts": {
+        "title": "Dependabot アラート",
+        "description": "公開されたアドバイザリがある、固定されたパッケージバージョンごとに 1 件のアラートです。リポジトリ、パッケージ、CVE、修正版のバージョン、そしてアラートがオープン・修正済み・却下のいずれかを示します。企業のデータベースからライブで読み取られます。"
+      },
+      "vulnerabilitiesNvd": {
+        "title": "フィルターを通してロードされた CVE レコード",
+        "description": "NVD には約 25 万件の CVE があり、企業のアラートが挙げるのは 19 件です。テーブルのランディングフィルター（自身の列に対する条件）がロード時にそれだけを残すため、コピーにはアラートに必要なレコードだけが入ります。"
+      },
+      "vulnerabilitiesKev": {
+        "title": "CISA の既知の悪用された脆弱性",
+        "description": "攻撃者による悪用が知られている各 CVE と、連邦機関が修正すべき期限、ランサムウェア攻撃で使われているかどうか。カタログは小さいため丸ごとロードします。"
+      },
+      "vulnerabilitiesJoin": {
+        "title": "CVE による悪用の判定",
+        "description": "CVE レコードと CISA カタログのエントリは同じ CVE 識別子を持ち、このリレーションシップで結合されます。アラートは自身の CVE と結合されているので、2 段階でカタログに届きます。"
+      },
+      "vulnerabilitiesTerms": {
+        "title": "用語",
+        "description": "既知の悪用された脆弱性、CVE、CWE、CVSS を企業の用語集に収め、それぞれ関係する列に結び付けています。CVSS スコアは脆弱性の深刻度を示すだけで、誰かが悪用しているかどうかはカタログだけが示します。"
+      },
+      "vulnerabilitiesAnswer": {
+        "title": "SQL での答え",
+        "description": "ビュー exploited_in_our_code は、CVE が CISA カタログにあるオープンなアラートを、CISA の期限を過ぎてからの日数とともに保持し、保存されています。インターネットに公開されたリポジトリから、最も期限を超過したものから。ここから着手します。"
+      },
+      "vulnerabilitiesByTeam": {
+        "title": "GraphQL での答え",
+        "description": "同じビューをサーバー側でチームごとにグループ化。各チームが抱える悪用済み脆弱性の数と、最も古いものの超過日数です。"
+      },
+      "vulnerabilitiesGraph": {
+        "title": "グラフでの答え",
+        "description": "同じ結合を Cypher のグラフで。リポジトリ、そこで発生したオープンなアラート、その CVE、悪用済みと示すカタログのエントリです。"
+      },
+      "vulnerabilitiesRest": {
+        "title": "REST での同じ答え",
+        "description": "このビューは REST エンドポイントでもあり、サーバー側でグループ化と集計を行います。チケットシステムやダッシュボードは SQL を書かずに答えを得られます。"
+      },
+      "vulnerabilitiesRecap": {
+        "title": "ご覧いただいた内容",
+        "description": "ライブで読み取る自社のコードデータと、一度だけ、アラートに必要な分だけロードした公開の脆弱性データを、CVE で 1 つのガバナンスされたモデルに結合しました。1 つのビューが、コードにある悪用済みの脆弱性と、それぞれの期限超過を、SQL、GraphQL、Cypher、REST で答えます。"
       }
     },
     "status": {
@@ -627,6 +675,10 @@
       "insider": {
         "title": "インサイダー審査",
         "summary": "銀行の送信メールを、進行中の案件のウォッチリストと照合し顧客データも検査して、一つの審査キューに順位付け。一次審査担当はリストを一度も見ずにそれを読みます。"
+      },
+      "vulnerabilities": {
+        "title": "自社コード内の悪用された脆弱性",
+        "summary": "ソフトウェア企業の Dependabot アラートを CVE で NVD と CISA の Known Exploited Vulnerabilities カタログに結合。自社コードにはどの悪用済み脆弱性があり、CISA の期限をどれだけ過ぎているか。"
       }
     }
   }

@@ -587,6 +587,54 @@
       "insiderDone": {
         "title": "O que é, e o que não é",
         "description": "As operações da lista de observação foram confrontadas com os e-mails de saída por nome e por significado, ordenadas para revisão, e a lista nunca foi mostrada ao revisor. É análise de revisão posterior por trás de controles em tempo real, não um substituto da prevenção de perda de dados. Anexos, imagens, texto codificado e canais pessoais ficam de fora. Monitorar funcionários exige transparência e, em alguns lugares, acordo com a comissão de trabalhadores."
+      },
+      "vulnerabilitiesScenario": {
+        "title": "O que é esta demo",
+        "description": "Uma empresa de software quer saber quais das vulnerabilidades do seu código os atacantes exploram de facto, e há quanto tempo cada uma está por corrigir. Os seus repositórios, os pacotes deles e os alertas do Dependabot sobre eles estão na sua própria base de dados; os registos CVE e o catálogo Known Exploited Vulnerabilities da CISA são públicos. A visita mostra o Provisa a juntar os dois pelo CVE e a responder à pergunta em SQL, GraphQL, Cypher e REST."
+      },
+      "vulnerabilitiesGovdata": {
+        "title": "Os dados públicos de vulnerabilidades",
+        "description": "Os dados governamentais vêm do AskAmerica, uma conta real: os registos CVE da NVD, o catálogo de fraquezas de software da MITRE e as Known Exploited Vulnerabilities da CISA. As tabelas são carregadas uma vez, quando a demo é construída, e lidas sempre dessa cópia: esta demo nunca chama a conta."
+      },
+      "vulnerabilitiesAlerts": {
+        "title": "Os alertas do Dependabot",
+        "description": "Um alerta por cada versão de pacote fixada com um aviso publicado: o repositório, o pacote, o CVE, a versão que o corrige e se o alerta está aberto, corrigido ou descartado. É lido em direto da base de dados da empresa."
+      },
+      "vulnerabilitiesNvd": {
+        "title": "Os registos CVE, carregados através de um filtro",
+        "description": "A NVD contém um quarto de milhão de CVE, e os alertas da empresa nomeiam dezanove. O filtro de carga da tabela, uma condição sobre as suas próprias colunas, mantém apenas esses ao carregar, pelo que a cópia contém só os registos de que os alertas precisam."
+      },
+      "vulnerabilitiesKev": {
+        "title": "As vulnerabilidades exploradas conhecidas da CISA",
+        "description": "Cada CVE que se sabe que os atacantes exploram, com a data até à qual as agências federais o devem corrigir e se campanhas de ransomware o usam. Carregado por inteiro: é pequeno."
+      },
+      "vulnerabilitiesJoin": {
+        "title": "Explorado, pelo CVE",
+        "description": "Um registo CVE e a sua entrada no catálogo da CISA partilham o identificador CVE, e esta relação junta-os. Com os alertas juntos aos seus CVE, um alerta chega ao catálogo em dois passos."
+      },
+      "vulnerabilitiesTerms": {
+        "title": "O vocabulário",
+        "description": "Vulnerabilidade explorada conhecida, CVE, CWE e CVSS, no glossário da empresa, cada um ligado às colunas de que trata. Uma pontuação CVSS diz quão grave é uma vulnerabilidade; só o catálogo diz se alguém a explora."
+      },
+      "vulnerabilitiesAnswer": {
+        "title": "A resposta em SQL",
+        "description": "A vista exploited_in_our_code guarda cada alerta aberto cujo CVE está no catálogo da CISA, com os dias desde que o prazo da CISA passou, e é mantida armazenada. Primeiro os repositórios expostos à internet, primeiro os mais atrasados: por onde começar."
+      },
+      "vulnerabilitiesByTeam": {
+        "title": "A resposta em GraphQL",
+        "description": "A mesma vista, agrupada por equipa no servidor: quantas vulnerabilidades exploradas cada equipa tem abertas e há quanto tempo a mais antiga está em atraso."
+      },
+      "vulnerabilitiesGraph": {
+        "title": "A resposta como grafo",
+        "description": "As mesmas junções como grafo em Cypher: os repositórios, os alertas abertos neles, os seus CVE e as entradas do catálogo que os marcam como explorados."
+      },
+      "vulnerabilitiesRest": {
+        "title": "A mesma resposta por REST",
+        "description": "A vista é também um endpoint REST, agrupado e contado no servidor. Um sistema de tickets ou um painel obtém a resposta sem escrever SQL."
+      },
+      "vulnerabilitiesRecap": {
+        "title": "O que viu",
+        "description": "Os dados de código da própria empresa, lidos em direto, e dados públicos de vulnerabilidades, carregados uma vez e só o que os alertas precisam, juntos pelo CVE num modelo governado: uma vista responde que vulnerabilidades exploradas estão no código e quão atrasada está cada uma, em SQL, GraphQL, Cypher e REST."
       }
     },
     "status": {
@@ -627,6 +675,10 @@
       "insider": {
         "title": "Revisão de informação privilegiada",
         "summary": "O e-mail de saída de um banco confrontado com sua lista de observação de operações em andamento e verificado para dados de clientes, ordenado em uma única fila de revisão que um revisor de primeiro nível lê sem nunca ver a lista."
+      },
+      "vulnerabilities": {
+        "title": "Vulnerabilidades exploradas no nosso código",
+        "summary": "Os alertas do Dependabot de uma empresa de software juntos pelo CVE à NVD e ao catálogo Known Exploited Vulnerabilities da CISA: que vulnerabilidades exploradas estão no nosso código, e quanto ultrapassaram o prazo da CISA?"
       }
     }
   }
