@@ -15,6 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from tests.role_state import with_surfaces
 
 pytestmark = [pytest.mark.e2e, pytest.mark.asyncio]
 
@@ -85,6 +86,7 @@ class TestSubscribeValidation:
         mock_ctx.tables = {"users": MagicMock()}
 
         with patch("provisa.api.app.state") as mock_state:
+            with_surfaces(mock_state)  # the role's surface, from the parts set below
             mock_state.tenant_db = MagicMock()
             mock_state.rls_contexts = {}
             mock_state.contexts = {"analyst": mock_ctx}

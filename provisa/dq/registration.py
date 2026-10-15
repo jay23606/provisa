@@ -20,6 +20,7 @@ written in YAML; two would let the surfaces disagree about what a checker table 
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 from provisa.dq.contract import CHECKERS, ContractError, contract_dataset, resolve_contract_target
@@ -99,7 +100,7 @@ def derive_checker_table(table: Any, source_type: Any) -> str:
     return dataset
 
 
-def check_contract_target(table: Any, dataset: str, contexts: dict) -> Any:
+def check_contract_target(table: Any, dataset: str, contexts: Mapping) -> Any:
     """The compiled table ``dataset`` observes, or :class:`ValueError` naming ``table``.
 
     A checker may only observe what Provisa governs (REQ-967), and the resolved target is the

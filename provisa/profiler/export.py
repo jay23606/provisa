@@ -30,6 +30,7 @@ Each is refused by name where no such checker exists.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -81,7 +82,9 @@ def _ident(name: str) -> str:
     return '"' + name.replace('"', '""') + '"'
 
 
-async def checkers_scanning(conn: Any, contexts: dict, table_ids: set[int]) -> list[CheckerTable]:
+async def checkers_scanning(
+    conn: Any, contexts: Mapping, table_ids: set[int]
+) -> list[CheckerTable]:
     """The checker tables whose contract scans one of ``table_ids``."""
     from provisa.core.schema_org import registered_tables as rt
     from provisa.core.schema_org import sources

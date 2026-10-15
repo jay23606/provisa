@@ -1615,7 +1615,9 @@ def _drop_data_surface(state, role_id: str) -> None:
     last build ran still has that build's schema, context and proto in place. Leaving them would
     go on showing the role a catalog it no longer reaches.
     """
-    state.surfaces.pop(role_id, None)
+    from provisa.api.role_surface import install_surface
+
+    install_surface(state._active_runtime(), role_id, None)
 
 
 def schema_input_for(
@@ -1649,7 +1651,7 @@ def schema_input_for(
 def register_role_surface(state: Any, role: dict, rls: Any) -> None:
     """Build and register one role's data surface: its GraphQL schema, REST path map, compiled
     context, RLS context and proto, from this generation's build inputs."""
-    from provisa.api.role_surface import RoleSurface
+    from provisa.api.role_surface import RoleSurface, install_surface
     from provisa.compiler.schema_gen import build_table_path_map
     from provisa.grpc.proto_gen import generate_proto
 
@@ -1675,7 +1677,7 @@ def register_role_surface(state: Any, role: dict, rls: Any) -> None:
         table_path_map=build_table_path_map(si),
         proto=generate_proto(si, field_numbers=inputs["field_numbers"]),
     )
-    state.surfaces[role["id"]] = surface
+    install_surface(state._active_runtime(), role["id"], surface)
 
 
 def _build_and_register_schemas(  # REQ-016, REQ-021, REQ-038, REQ-041, REQ-221, REQ-262, REQ-263

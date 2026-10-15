@@ -24,6 +24,7 @@ from unittest.mock import MagicMock, patch
 import asyncpg
 
 from tests.unit.pgwire.test_extended_protocol_portals import _engine_plan
+from tests.role_state import with_surfaces
 
 
 class RuntimeEngine:
@@ -117,7 +118,7 @@ async def fetch_through_pgwire(
 
     ctx = MagicMock()
     ctx.tables = {}
-    state = MagicMock()
+    state = with_surfaces(MagicMock())
     state.contexts = {"alice": ctx}
     state.schema_build_cache = {"column_types": {}}
     state.auth_config = None

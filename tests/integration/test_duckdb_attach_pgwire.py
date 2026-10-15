@@ -52,6 +52,7 @@ from provisa.compiler.context import build_context  # noqa: E402  # imports foll
 from provisa.executor.result import QueryResult  # noqa: E402  # imports follow the duckdb importorskip guard
 from provisa.pgwire.server import ProvisaConnection, ProvisaServer  # noqa: E402  # imports follow the duckdb importorskip guard
 from tests.integration.conftest import no_replica_routes  # noqa: E402
+from tests.role_state import with_surfaces  # noqa: E402
 
 
 # --- the governed table DuckDB will discover and scan --------------------------
@@ -106,7 +107,7 @@ def _build_state():
     )
     ctx = build_context(si)
 
-    state = no_replica_routes(MagicMock())
+    state = with_surfaces(no_replica_routes(MagicMock()))
     state.contexts = {"admin": ctx}
     state.rls_contexts = {}
     state.roles = {"admin": {"id": "admin", "capabilities": [], "domain_access": ["*"]}}

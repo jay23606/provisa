@@ -21,6 +21,7 @@ import sqlglot
 import sqlglot.expressions as exp
 
 from provisa.compiler.stage2 import GovernanceContext, apply_governance
+from tests.role_state import RoleState
 
 
 def _ref(table: exp.Table) -> str:
@@ -94,7 +95,7 @@ def run_after_write(table_id: int, table_name: str, source_id: str) -> dict[str,
         calls["sinks"].append(name)
         return 0
 
-    state = SimpleNamespace(
+    state = RoleState(
         response_cache_store=_Store(),
         model_db="fake",
         tenant_db="fake",

@@ -26,6 +26,8 @@ from graphql import (
     GraphQLString,
 )
 
+from provisa.api.role_surface import role_surface
+
 _FILTER_OPS = ["eq", "neq", "gt", "gte", "lt", "lte", "like"]
 
 
@@ -56,15 +58,16 @@ def generate_jsonapi_openapi_spec(
     state: Any, role_id: str, domains: list[str] | None = None
 ) -> dict[str, Any]:
     """Generate an OpenAPI 3.1 spec for /data/jsonapi endpoints."""
-    if role_id not in state.schemas:
+    surface = role_surface(state, role_id)  # one snapshot: the schema and its path map
+    if surface is None:
         return _empty_spec()
 
-    schema = state.schemas[role_id]
+    schema = surface.schema
     query_type = schema.query_type
     if query_type is None:
         return _empty_spec()
 
-    path_map: dict[str, dict] = getattr(state, "table_path_maps", {}).get(role_id, {})
+    path_map: dict[str, dict] = surface.table_path_map
     domain_filter = set(domains) if domains else None
 
     # Build domain description map from schema_build_cache

@@ -37,6 +37,7 @@ import pyarrow.flight as flight
 import pytest
 
 from provisa.core.connection_loop import LOOP_POOL
+from tests.role_state import RoleState
 
 pytestmark = [pytest.mark.integration]
 
@@ -355,7 +356,7 @@ def test_grpc_governance_runs_on_the_rpc_thread_in_parallel():
     from provisa.grpc.auth import AuthInterceptor
     from provisa.grpc.server import ProvisaServicer
 
-    state = SimpleNamespace(
+    state = RoleState(
         auth_config=None,
         auth_middleware_active=False,
         multitenancy=False,
