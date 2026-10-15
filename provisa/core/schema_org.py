@@ -1028,7 +1028,11 @@ scheduled_triggers = Table(
     metadata,
     Column("id", Text, primary_key=True),
     Column("name", Text, nullable=False),
-    Column("cron", Text, nullable=False),
+    # When it fires: a cron schedule, or (REQ-2054) a registered table's change or event-loop
+    # event -- one of the two.
+    Column("cron", Text),
+    Column("on_table", Text),  # "source_id.schema.table"
+    Column("on_event", Text),  # change | error | quarantine
     Column("kind", Text, nullable=False),
     # kind "webhook": the URL it calls (a config trigger), or the org's tracked webhook by name,
     # resolved when it fires (an admin-made one).
@@ -1037,14 +1041,22 @@ scheduled_triggers = Table(
     Column("args", JSON, nullable=False, default=dict, server_default="{}"),
     # kind "sql" (REQ-1003/1004): the statement and the role of this org it runs as.
     Column("sql", Text),
+    # kind "command" (REQ-2054): the registered command it runs, as ``role``.
+    Column("command", Text),
     Column("role", Text),
     Column("enabled", Boolean, nullable=False, server_default=true()),
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     CheckConstraint(
         "(kind = 'sql' AND sql IS NOT NULL AND role IS NOT NULL)"
-        " OR (kind = 'webhook' AND (url IS NOT NULL OR webhook_name IS NOT NULL))",
+        " OR (kind = 'webhook' AND (url IS NOT NULL OR webhook_name IS NOT NULL))"
+        " OR (kind = 'command' AND command IS NOT NULL AND role IS NOT NULL)",
         name="scheduled_triggers_kind_fields",
+    ),
+    CheckConstraint(
+        "(cron IS NOT NULL AND on_table IS NULL)"
+        " OR (cron IS NULL AND on_table IS NOT NULL AND on_event IS NOT NULL)",
+        name="scheduled_triggers_when",
     ),
 )
 
@@ -1462,6 +1474,20 @@ mail_sync_state = Table(
     Column("kind", Text, primary_key=True),
     Column("token", Text, nullable=False),
     Column("updated_at", DateTime(timezone=True), nullable=False),
+)
+
+# REQ-2054: each trigger's last run -- a scheduled one, or one run on a table's change or event --
+# keyed by the trigger, with when it ran, how it ended and, when it did not succeed, why. One row
+# per trigger, replaced by each run. V1: schema-defined, no migration.
+trigger_runs = Table(
+    "trigger_runs",
+    metadata,
+    Column("trigger_id", Text, primary_key=True),
+    Column("ran_at", DateTime(timezone=True), nullable=False),
+    Column("outcome", Text, nullable=False),  # succeeded | refused | failed
+    Column("error", Text),
+    # What fired it: the table and event of an on-change or on-event run; None for a schedule.
+    Column("fired_by", Text),
 )
 
 # REQ-1912 / REQ-826 replica state: one row per replica of a source table, shared by every worker

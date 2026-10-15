@@ -33,17 +33,22 @@ if TYPE_CHECKING:
 def _values(trigger: ScheduledTrigger, *, webhook_name: str | None = None) -> dict[str, Any]:
     if trigger.sql is not None:
         kind = "sql"
+    elif trigger.command is not None:
+        kind = "command"  # REQ-2054
     elif trigger.url is not None or (webhook_name or trigger.webhook_name) is not None:
         kind = "webhook"
     else:
         raise ValueError(
-            f"trigger {trigger.id!r} names nothing to run: a scheduled trigger is a SQL statement "
-            "or a webhook (internal functions are not supported)"
+            f"trigger {trigger.id!r} names nothing to run: a trigger runs a SQL statement, a "
+            "command or a webhook"
         )
     return {
         "id": trigger.id,
         "name": trigger.name or trigger.id,
         "cron": trigger.cron,
+        "on_table": trigger.on_table,  # REQ-2054
+        "on_event": trigger.on_event,
+        "command": trigger.command,
         "kind": kind,
         "url": trigger.url,
         "webhook_name": webhook_name or trigger.webhook_name,
@@ -57,6 +62,18 @@ def _values(trigger: ScheduledTrigger, *, webhook_name: str | None = None) -> di
 async def list_all(conn: "Connection") -> list[dict[str, Any]]:
     """Every trigger the org's model holds, by id."""
     result = await conn.execute_core(select(scheduled_triggers).order_by(scheduled_triggers.c.id))
+    return [dict(r._mapping) for r in result.fetchall()]
+
+
+async def on_table(conn: "Connection", table: str, event: str) -> list[dict[str, Any]]:
+    """The enabled triggers that fire on ``event`` for ``table`` ("source_id.schema.table"),
+    by id (REQ-2054)."""
+    t = scheduled_triggers.c
+    result = await conn.execute_core(
+        select(scheduled_triggers)
+        .where(t.on_table == table, t.on_event == event, t.enabled.is_(True))
+        .order_by(t.id)
+    )
     return [dict(r._mapping) for r in result.fetchall()]
 
 

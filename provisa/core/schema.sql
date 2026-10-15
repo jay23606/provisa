@@ -1050,19 +1050,27 @@ CREATE TABLE IF NOT EXISTS tracked_webhooks (
 CREATE TABLE IF NOT EXISTS scheduled_triggers (
     id            TEXT PRIMARY KEY,
     name          TEXT NOT NULL,
-    cron          TEXT NOT NULL,
-    kind          TEXT NOT NULL,          -- 'webhook' | 'sql'
+    cron          TEXT,                   -- when: a schedule, or (REQ-2054) on_table/on_event
+    on_table      TEXT,                   -- REQ-2054: "source_id.schema.table" it fires on
+    on_event      TEXT,                   -- REQ-2054: change | error | quarantine
+    kind          TEXT NOT NULL,          -- 'webhook' | 'sql' | 'command'
     url           TEXT,                   -- webhook: the URL it calls (a config trigger)
     webhook_name  TEXT,                   -- webhook: the org's tracked webhook, resolved at fire time
     args          JSONB NOT NULL DEFAULT '{}',
     sql           TEXT,                   -- sql: the statement (REQ-1003/1004)
-    role          TEXT,                   -- sql: the role of this org it runs as
+    command       TEXT,                   -- command (REQ-2054): the registered command it runs
+    role          TEXT,                   -- sql, command: the role of this org it runs as
     enabled       BOOLEAN NOT NULL DEFAULT TRUE,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT scheduled_triggers_kind_fields CHECK (
         (kind = 'sql' AND sql IS NOT NULL AND role IS NOT NULL)
         OR (kind = 'webhook' AND (url IS NOT NULL OR webhook_name IS NOT NULL))
+        OR (kind = 'command' AND command IS NOT NULL AND role IS NOT NULL)
+    ),
+    CONSTRAINT scheduled_triggers_when CHECK (
+        (cron IS NOT NULL AND on_table IS NULL)
+        OR (cron IS NULL AND on_table IS NOT NULL AND on_event IS NOT NULL)
     )
 );
 
@@ -1606,6 +1614,16 @@ CREATE TABLE IF NOT EXISTS mail_sync_state (
     token       TEXT NOT NULL,
     updated_at  TIMESTAMPTZ NOT NULL,
     PRIMARY KEY (source_id, account, scope, kind)
+);
+
+-- REQ-2054: each trigger's last run (a scheduled one, or one run on a table's change or event).
+-- Mirrors provisa.core.schema_org.trigger_runs.
+CREATE TABLE IF NOT EXISTS trigger_runs (
+    trigger_id TEXT PRIMARY KEY,
+    ran_at     TIMESTAMPTZ NOT NULL,
+    outcome    TEXT NOT NULL,  -- succeeded | refused | failed
+    error      TEXT,
+    fired_by   TEXT            -- the table and event that fired it; NULL for a schedule
 );
 
 -- Replica state (REQ-1912, REQ-826): one row per replica of a source table, shared by every

@@ -1003,6 +1003,7 @@ async def _apply_in_txn(  # REQ-012, REQ-013, REQ-016, REQ-041, REQ-250, REQ-126
     _validate_file_globs(config)
     _validate_delta(config)
     _validate_role_ttl(config)
+    _validate_triggers(config)
     _validate_paging(config)
     _validate_replicate(config)
     _validate_landing_ttl(config)
@@ -1264,6 +1265,20 @@ def _validate_role_ttl(config) -> None:  # REQ-1907
             raise ValueError(
                 f"table {table.table_name!r}: role_ttl names unknown role(s) {unknown}"
             )
+
+
+def _validate_triggers(config) -> None:  # REQ-2054
+    """Each trigger is on a registered table, runs a registered command that takes only what it
+    gives, as a role that exists: refused at load by name, never fired to fail."""
+    from provisa.core.models import trigger_refusal
+
+    commands = {f.name: [a.name for a in f.arguments] for f in config.functions}
+    tables = {f"{t.source_id}.{t.schema_name}.{t.table_name}" for t in config.tables}
+    roles = {r.id for r in config.roles} | set(SYSTEM_ROLE_IDS)
+    for trigger in config.scheduled_triggers:
+        refused = trigger_refusal(trigger, commands=commands, tables=tables, roles=roles)
+        if refused is not None:
+            raise ValueError(refused)
 
 
 def _validate_paging(config) -> None:  # REQ-318

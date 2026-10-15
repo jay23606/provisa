@@ -53,7 +53,9 @@ class _Sched:
 
 def test_build_processors_picks_variant():
     specs = [_spec("s.orders", "source"), _spec("mv.daily", "mv")]
-    procs = build_processors(specs, db=object(), dependents_of=lambda n: [])
+    procs = build_processors(
+        specs, db=object(), dependents_of=lambda n: [], on_event=lambda *_: None
+    )
     assert isinstance(procs[0], SourceTableProcessor) and procs[0].node == "s.orders"
     assert isinstance(procs[1], MVTableProcessor) and procs[1].node == "mv.daily"
     assert procs[0].name == "source:s.orders"  # unique lease name
@@ -61,7 +63,12 @@ def test_build_processors_picks_variant():
 
 def test_build_processors_rejects_unknown_kind():
     with pytest.raises(ValueError, match="unknown node kind"):
-        build_processors([_spec("x", "widget")], db=object(), dependents_of=lambda n: [])
+        build_processors(
+            [_spec("x", "widget")],
+            db=object(),
+            dependents_of=lambda n: [],
+            on_event=lambda *_: None,
+        )
 
 
 def _src(sid, stype):
@@ -154,7 +161,9 @@ def test_ttl_mv_poll_job_is_registered():
         ),  # poll MV WITH probe → poll job
         _spec("mv.driven", "mv"),  # no cadence/probe → upstream-driven only, no poll job
     ]
-    procs = build_processors(specs, db=object(), dependents_of=lambda n: [])
+    procs = build_processors(
+        specs, db=object(), dependents_of=lambda n: [], on_event=lambda *_: None
+    )
     sched = _Sched()
     register_runtime(sched, db=object(), processors=procs, specs=specs, org_id="default")
     assert "poll:mv.ttl:org_default" in sched.jobs
@@ -167,7 +176,9 @@ def test_register_runtime_adds_tick_reaper_and_poll_jobs():
         _spec("s.kafka", "source", cs="kafka"),  # push → no poll job (listener owned by processor)
         _spec("mv.driven", "mv"),  # no cadence → driven only by upstream events, no poll job
     ]
-    procs = build_processors(specs, db=object(), dependents_of=lambda n: [])
+    procs = build_processors(
+        specs, db=object(), dependents_of=lambda n: [], on_event=lambda *_: None
+    )
     sched = _Sched()
     register_runtime(sched, db=object(), processors=procs, specs=specs, org_id="default")
     assert "events:tick:org_default" in sched.jobs and "events:reaper:org_default" in sched.jobs
@@ -187,7 +198,9 @@ def test_register_runtime_seed_false_skips_boot_create():
     # A RE-wire after a runtime MV create must register poll jobs WITHOUT re-seeding/re-landing every
     # source — so no one-shot boot-create job, but poll jobs (and tick/reaper) still (re)register.
     specs = [_spec("mv.ttl", "mv", poll=300, pf=lambda: _probe)]
-    procs = build_processors(specs, db=object(), dependents_of=lambda n: [])
+    procs = build_processors(
+        specs, db=object(), dependents_of=lambda n: [], on_event=lambda *_: None
+    )
     sched = _Sched()
     register_runtime(
         sched, db=object(), processors=procs, specs=specs, seed=False, org_id="default"

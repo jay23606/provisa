@@ -1229,6 +1229,20 @@ scheduled_triggers:
 
 Les tâches planifiées se gèrent via l'interface d'administration (bascule activer/désactiver) ou la mutation d'administration `toggle_scheduled_task`. (REQ-216)
 
+Un déclencheur peut se déclencher sur une table enregistrée plutôt que selon une planification : `on: {table, event}` nomme la table sous la forme `source_id.schema.table` et l'événement, `change`, `error` ou `quarantine`. Un déclencheur `command` exécute une commande enregistrée sous son `role`, par la répartition gouvernée propre à la commande, et lui transmet en arguments ce qui l'a déclenché. Un changement transmet `table` et, quand le signal de changement le porte (Kafka, Debezium), le lot chargé sous `changes`. Un événement `error` ou `quarantine` transmet `table`, `event`, `reason` et `error`. Un déclencheur dont la commande déclare un argument qu'il ne transmet pas est refusé à l'enregistrement. Un changement se déclenche une fois par salve que signale son signal de changement, ou dès qu'une écriture faite via Provisa aboutit ; une table servie depuis sa réplique se déclenche quand une construction charge des lignes différentes de la précédente. L'écriture propre d'une commande est un changement, les déclencheurs s'enchaînent donc. Chaque exécution est enregistrée avec son heure, son résultat (`succeeded`, `refused` ou `failed`), son erreur et ce qui l'a déclenchée, et la requête d'administration `scheduledTasks` la liste. Seuls les déclencheurs de prod se déclenchent, et rien n'est installé dans une base de données source. (REQ-2054) [tool-verified: `provisa/scheduler/table_triggers.py`, `provisa/scheduler/trigger_runs.py`]
+
+```yaml
+scheduled_triggers:
+  - id: bronze_to_silver
+    on: {table: bronze_pg.public.bronze, event: change}
+    command: promote_to_silver
+    role: loader
+  - id: alert_on_quarantine
+    on: {table: bronze_pg.public.bronze, event: quarantine}
+    command: notify_steward      # declares arguments table, reason
+    role: loader
+```
+
 ## Format OrderBy
 
 OrderBy utilise le format `{column: direction}` avec une énumération de direction à six valeurs : (REQ-200, REQ-201)

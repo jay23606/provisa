@@ -692,7 +692,9 @@ async def wire_event_loop(scheduler: Any, *, state: Any, log: Any, seed: bool = 
             expected_events_of=lambda mv: expected_event_nodes(mv, state, graph),
             mv_admit_deltas=mv_admit_deltas,  # REQ-1921/1922
         )
-        processors = build_processors(specs, db=db, dependents_of=dependents_of)
+        processors = build_processors(
+            specs, db=db, dependents_of=dependents_of, on_event=node_event_triggers(state)
+        )
         # REQ-<NEW>: publish the live processors list AND which nodes already have a poll job so a
         # later, per-node-scoped rewire (wire_new_poll_jobs, called from _rebuild_schemas_impl on an
         # already-running runtime this function itself is never called from) can top up a NEWLY
@@ -737,6 +739,21 @@ async def wire_event_loop(scheduler: Any, *, state: Any, log: Any, seed: bool = 
     except Exception:
         log.exception("event loop wiring failed — the app runs without it")
         return 0
+
+
+def node_event_triggers(state: Any) -> Any:
+    """REQ-2054: what a node's ``error`` or ``quarantine`` event fires -- the triggers on its
+    table. A materialized view's node is no registered table, and nothing is on it."""
+    from provisa.scheduler.table_triggers import table_event
+
+    def fired(node: str, event: str, payload: dict) -> None:
+        if "/" not in node:
+            return  # a materialized view's node
+        source_id, qualified = node.split("/", 1)
+        schema_name, table_name = qualified.split(".", 1)
+        table_event(state, (source_id, schema_name, table_name), event, payload)
+
+    return fired
 
 
 async def wire_new_poll_jobs(*, state: Any, log: Any) -> int:
@@ -877,7 +894,9 @@ async def wire_new_poll_jobs(*, state: Any, log: Any) -> int:
             if spec.poll_seconds is None or spec.probe_factory is None:
                 # push node (owned by wire_push_listeners) or no cadence configured yet.
                 continue
-            [new_processor] = build_processors([spec], db=db, dependents_of=dependents_of)
+            [new_processor] = build_processors(
+                [spec], db=db, dependents_of=dependents_of, on_event=node_event_triggers(state)
+            )
             # Mutate the SAME list wire_event_loop's own register_runtime call closed over for the
             # scheduled tick job — appending here is what makes the new node's landed events actually
             # get drained, without touching (or re-registering) the tick job itself.

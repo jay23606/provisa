@@ -44,9 +44,14 @@ async def _listen_once(state, engine, batch, *, row_materialize: bool = False) -
     """Run the listener with a provider that delivers one batch and then ends."""
 
     async def _consume(provider, land_fn, **kwargs):
-        return await land_fn(batch)
+        # As a provider yields them: each event with its operation and row.
+        return await land_fn([SimpleNamespace(operation=e["op"], row=e["row"]) for e in batch])
 
-    with patch("provisa.subscriptions.cdc_landing.consume_cdc_into_store", _consume):
+    with (
+        patch("provisa.subscriptions.cdc_landing.consume_cdc_into_store", _consume),
+        # REQ-2054: what a landed batch fires is test_table_triggers.py's.
+        patch("provisa.scheduler.table_triggers.table_changed", lambda *a, **k: None),
+    ):
         await push_wiring._run_listener(
             state=state,
             engine=engine,
@@ -62,6 +67,7 @@ async def _listen_once(state, engine, batch, *, row_materialize: bool = False) -
             node=_NODE,
             log=SimpleNamespace(exception=lambda *a, **k: None),
             row_materialize=row_materialize,
+            key=("kafka_src", "s", "orders"),
         )
 
 

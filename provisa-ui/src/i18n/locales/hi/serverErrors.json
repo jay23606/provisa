@@ -378,8 +378,8 @@
       "task_enabled": "टास्क '{{task}}' सक्षम किया गया",
       "task_not_found": "टास्क '{{task}}' नहीं मिला",
       "trigger_exists": "ट्रिगर '{{trigger}}' पहले से मौजूद है",
-      "trigger_fields_required": "id, name और cron आवश्यक हैं",
-      "trigger_role_required": "ट्रिगर '{{trigger}}': SQL ट्रिगर इस संगठन की एक भूमिका के रूप में चलता है",
+      "trigger_fields_required": "id, नाम और एक cron शेड्यूल या फायर होने के लिए एक टेबल आवश्यक हैं",
+      "trigger_role_required": "ट्रिगर '{{trigger}}': SQL या कमांड ट्रिगर इस संगठन की किसी भूमिका के रूप में चलता है",
       "trigger_sql_refused": "{{reason}}",
       "unknown_request_type": "अज्ञात अनुरोध प्रकार '{{type}}'",
       "unknown_trigger_kind": "अज्ञात ट्रिगर प्रकार '{{kind}}'",
@@ -419,7 +419,8 @@
       "role_id_taken": "भूमिका '{{role}}' पहले से मौजूद है",
       "role_updated": "भूमिका '{{role}}' अपडेट की गई",
       "relationship_id_taken": "संबंध '{{relationship}}' पहले से मौजूद है",
-      "relationship_graphql_alias_taken": "GraphQL उपनाम '{{alias}}' पहले से '{{table}}' से संबंध '{{relationship}}' का उपनाम है"
+      "relationship_graphql_alias_taken": "GraphQL उपनाम '{{alias}}' पहले से '{{table}}' से संबंध '{{relationship}}' का उपनाम है",
+      "trigger_refused": "{{reason}}"
     },
     "secrets": {
       "name_refused": "{{name}} {{service}} में इस संगठन के सीक्रेट्स के भीतर का नाम नहीं है: नाम संगठन के सापेक्ष होता है और उससे बाहर नहीं जा सकता",

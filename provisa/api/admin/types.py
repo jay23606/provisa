@@ -1579,17 +1579,30 @@ class SystemHealthType:
 
 
 @strawberry.type
-class ScheduledTaskType:  # REQ-533
+class ScheduledTaskType:  # REQ-533, REQ-2054
+    """A trigger: when it fires, what it runs, as which role, and how its last run ended."""
+
     id: str
     name: str
-    cron_expression: str
+    # REQ-2054: what fires it -- "schedule" (``cron_expression``), "change" or "event" (on
+    # ``on_table``, for ``on_event``: change | error | quarantine).
+    fires_on: str
+    cron_expression: str | None
+    on_table: str | None
+    on_event: str | None
     webhook_url: str | None
-    kind: str  # REQ-1003: "webhook" | "sql"
+    kind: str  # REQ-1003, REQ-2054: "webhook" | "sql" | "command"
     sql: str | None  # REQ-1003: SQL statement for a SQL trigger
-    role: str | None  # the role a SQL trigger runs as
+    command: str | None  # REQ-2054: the command a command trigger runs
+    role: str | None  # the role a SQL or command trigger runs as
     enabled: bool
+    # Its last run (REQ-2054): when, how it ended (succeeded | refused | failed), why when it
+    # did not succeed, and what fired it ("change:<table>"; None for a schedule).
     last_run_at: str | None
-    next_run_at: str | None
+    last_outcome: str | None
+    last_error: str | None
+    last_fired_by: str | None
+    next_run_at: str | None  # a schedule's next firing; None for one on a table
 
 
 @strawberry.enum

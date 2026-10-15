@@ -378,8 +378,8 @@
       "task_enabled": "任務「{{task}}」已啟用",
       "task_not_found": "找不到任務「{{task}}」",
       "trigger_exists": "觸發程序「{{trigger}}」已存在",
-      "trigger_fields_required": "必須提供 id、name 及 cron",
-      "trigger_role_required": "觸發器 '{{trigger}}'：SQL 觸發器以本組織的某個角色執行",
+      "trigger_fields_required": "需要 id、名稱，以及 cron 排程或觸發所依據的表",
+      "trigger_role_required": "觸發器 '{{trigger}}'：SQL 或命令觸發器以本組織的角色執行",
       "trigger_sql_refused": "{{reason}}",
       "unknown_request_type": "未知的請求類型「{{type}}」",
       "unknown_trigger_kind": "未知的觸發程序類型「{{kind}}」",
@@ -419,7 +419,8 @@
       "role_id_taken": "角色「{{role}}」已存在",
       "role_updated": "角色「{{role}}」已更新",
       "relationship_id_taken": "關係「{{relationship}}」已存在",
-      "relationship_graphql_alias_taken": "GraphQL 別名「{{alias}}」已是來自「{{table}}」的關係「{{relationship}}」的別名"
+      "relationship_graphql_alias_taken": "GraphQL 別名「{{alias}}」已是來自「{{table}}」的關係「{{relationship}}」的別名",
+      "trigger_refused": "{{reason}}"
     },
     "secrets": {
       "name_refused": "{{name}} 並非 {{service}} 中本組織密鑰範圍內的名稱：名稱相對於組織，不能超出組織範圍",

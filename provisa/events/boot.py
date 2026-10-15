@@ -443,7 +443,11 @@ def specs_from_config(
 
 
 def build_processors(
-    specs: list[NodeSpec], *, db: Any, dependents_of: Callable[[str], list[str]]
+    specs: list[NodeSpec],
+    *,
+    db: Any,
+    dependents_of: Callable[[str], list[str]],
+    on_event: Callable[[str, str, dict], None],
 ) -> list[TableProcessor]:
     """Build one ``TableProcessor`` per spec (Source or MV variant), sharing ``dependents_of`` and
     the control-plane ``db``. The lease name is unique per node."""
@@ -462,6 +466,7 @@ def build_processors(
             "expected_events": spec.expected_events,  # REQ-961 freshness contract
             "freshness_of": spec.freshness_of,  # REQ-961 per-input freshness reader
             "preprocess": spec.preprocess,  # REQ-957 preprocess(rows, ctx) hook
+            "on_event": on_event,  # REQ-2054: the triggers on the node's error/quarantine
         }
         if spec.kind == "source":
             processors.append(SourceTableProcessor(spec.node, land=spec.handle, **common))

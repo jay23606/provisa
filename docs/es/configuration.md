@@ -1229,6 +1229,20 @@ scheduled_triggers:
 
 Las tareas programadas se gestionan mediante la interfaz de administración (activar/desactivar) o la mutación de administración `toggle_scheduled_task`. (REQ-216)
 
+Un disparador puede activarse sobre una tabla registrada en lugar de una programación: `on: {table, event}` nombra la tabla como `source_id.schema.table` y el evento, `change`, `error` o `quarantine`. Un disparador `command` ejecuta un comando registrado como su `role`, mediante el despacho gobernado del propio comando, y le pasa como argumentos lo que lo activó. Un cambio pasa `table` y, donde la señal de cambio lo lleva (Kafka, Debezium), el lote cargado como `changes`. Un evento `error` o `quarantine` pasa `table`, `event`, `reason` y `error`. Un disparador cuyo comando declara un argumento que el disparador no pasa se rechaza al guardar. Un cambio se activa una vez por ráfaga que informa su señal de cambio, o cuando llega una escritura hecha a través de Provisa; una tabla servida desde su réplica se activa cuando una construcción carga filas distintas de la anterior. La propia escritura de un comando es un cambio, así que los disparadores se encadenan. Cada ejecución se registra con su hora, su resultado (`succeeded`, `refused` o `failed`), su error y lo que la activó, y la consulta de administración `scheduledTasks` la lista. Solo se activan los disparadores de prod, y no se instala nada en ninguna base de datos de origen. (REQ-2054) [tool-verified: `provisa/scheduler/table_triggers.py`, `provisa/scheduler/trigger_runs.py`]
+
+```yaml
+scheduled_triggers:
+  - id: bronze_to_silver
+    on: {table: bronze_pg.public.bronze, event: change}
+    command: promote_to_silver
+    role: loader
+  - id: alert_on_quarantine
+    on: {table: bronze_pg.public.bronze, event: quarantine}
+    command: notify_steward      # declares arguments table, reason
+    role: loader
+```
+
 ## Formato OrderBy
 
 OrderBy usa el formato `{column: direction}` con un enum de dirección de 6 valores: (REQ-200, REQ-201)

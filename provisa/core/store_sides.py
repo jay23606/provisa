@@ -66,6 +66,7 @@ STATE: frozenset[str] = frozenset(
         # Builds into the region's own replica / MV stores (REQ-1912, REQ-1922).
         "replica_state",
         "mail_sync_state",  # where the region's replicas of a mail source were read to
+        "trigger_runs",  # REQ-2054: when the region's triggers last ran, and how
         "preserved_snapshots",
         "mv_build_state",
         "mv_refresh_log",

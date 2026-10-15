@@ -378,8 +378,8 @@
       "task_enabled": "Task '{{task}}' enabled",
       "task_not_found": "Task '{{task}}' not found",
       "trigger_exists": "Trigger '{{trigger}}' already exists",
-      "trigger_fields_required": "id, name, and cron are required",
-      "trigger_role_required": "Trigger '{{trigger}}': a SQL trigger runs as a role of this org",
+      "trigger_fields_required": "id, name, and a cron schedule or a table to fire on are required",
+      "trigger_role_required": "Trigger '{{trigger}}': a SQL or command trigger runs as a role of this org",
       "trigger_sql_refused": "{{reason}}",
       "unknown_request_type": "Unknown request type '{{type}}'",
       "unknown_trigger_kind": "Unknown trigger kind '{{kind}}'",
@@ -419,7 +419,8 @@
       "role_id_taken": "Role '{{role}}' already exists",
       "role_updated": "Role '{{role}}' updated",
       "relationship_id_taken": "Relationship '{{relationship}}' already exists",
-      "relationship_graphql_alias_taken": "GraphQL alias '{{alias}}' is already the alias of relationship '{{relationship}}' from '{{table}}'"
+      "relationship_graphql_alias_taken": "GraphQL alias '{{alias}}' is already the alias of relationship '{{relationship}}' from '{{table}}'",
+      "trigger_refused": "{{reason}}"
     },
     "secrets": {
       "name_refused": "{{name}} is not a name inside this organization's secrets in {{service}}: a name is relative to the organization and cannot leave it",

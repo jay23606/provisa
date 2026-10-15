@@ -47,4 +47,4 @@ class TestBuildScheduler:
     def test_model_validation(self):
         t = ScheduledTrigger(id="test", cron="0 * * * *", url="http://example.com")
         assert t.enabled is True
-        assert t.function is None
+        assert t.command is None

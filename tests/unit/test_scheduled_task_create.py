@@ -81,7 +81,8 @@ async def test_create_sql_trigger_persists(cfg_path, monkeypatch):
     model = ScheduledTrigger(**{k: t[k] for k in fields})
     scheduler = jobs.build_scheduler([model], "default")
     job = scheduler.get_job("nightly:org_default")
-    assert job.func is jobs._execute_sql
+    assert job.func is jobs._run_scheduled  # REQ-2054: every trigger's run is recorded
+    assert job.args[0]["kind"] == "sql"
 
 
 async def test_create_sql_trigger_requires_sql(cfg_path, monkeypatch):

@@ -125,6 +125,8 @@ NEVER_RUNTIME: frozenset[str] = frozenset(
         "replica_state",
         # REQ-1923: where this environment's replicas of a mail source were read to.
         "mail_sync_state",
+        # REQ-2054: when this environment's triggers last ran, and how.
+        "trigger_runs",
         "preserved_snapshots",
         "admin_audit_log",
         "catalog_bindings",

@@ -1229,6 +1229,20 @@ scheduled_triggers:
 
 I task pianificati vengono gestiti tramite la UI di amministrazione (toggle abilita/disabilita) o la mutation admin `toggle_scheduled_task`. (REQ-216)
 
+Un trigger può scattare su una tabella registrata invece che su una pianificazione: `on: {table, event}` indica la tabella come `source_id.schema.table` e l'evento, `change`, `error` o `quarantine`. Un trigger `command` esegue un comando registrato come il suo `role`, tramite l'invio governato proprio del comando, e gli passa come argomenti ciò che l'ha fatto scattare. Una modifica passa `table` e, dove il segnale di modifica lo porta (Kafka, Debezium), il lotto caricato come `changes`. Un evento `error` o `quarantine` passa `table`, `event`, `reason` ed `error`. Un trigger il cui comando dichiara un argomento che il trigger non passa viene rifiutato al salvataggio. Una modifica scatta una volta per ogni raffica segnalata dal suo segnale di modifica, o quando arriva una scrittura fatta tramite Provisa; una tabella servita dalla sua replica scatta quando una costruzione carica righe diverse dalla precedente. La scrittura stessa di un comando è una modifica, quindi i trigger si concatenano. Ogni esecuzione è registrata con l'ora, l'esito (`succeeded`, `refused` o `failed`), l'errore e ciò che l'ha fatta scattare, e la query di amministrazione `scheduledTasks` la elenca. Scattano solo i trigger di prod, e nulla viene installato in un database di origine. (REQ-2054) [tool-verified: `provisa/scheduler/table_triggers.py`, `provisa/scheduler/trigger_runs.py`]
+
+```yaml
+scheduled_triggers:
+  - id: bronze_to_silver
+    on: {table: bronze_pg.public.bronze, event: change}
+    command: promote_to_silver
+    role: loader
+  - id: alert_on_quarantine
+    on: {table: bronze_pg.public.bronze, event: quarantine}
+    command: notify_steward      # declares arguments table, reason
+    role: loader
+```
+
 ## Formato OrderBy
 
 OrderBy usa il formato `{column: direction}` con un enum di direzione a 6 valori: (REQ-200, REQ-201)

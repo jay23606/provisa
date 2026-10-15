@@ -378,8 +378,8 @@
       "task_enabled": "Tâche « {{task}} » activée",
       "task_not_found": "Tâche « {{task}} » introuvable",
       "trigger_exists": "Le déclencheur « {{trigger}} » existe déjà",
-      "trigger_fields_required": "id, name et cron sont requis",
-      "trigger_role_required": "Déclencheur '{{trigger}}' : un déclencheur SQL s'exécute en tant que rôle de cette organisation",
+      "trigger_fields_required": "id, nom et une planification cron ou une table sur laquelle se déclencher sont requis",
+      "trigger_role_required": "Déclencheur '{{trigger}}' : un déclencheur SQL ou de commande s'exécute sous un rôle de cette organisation",
       "trigger_sql_refused": "{{reason}}",
       "unknown_request_type": "Type de demande « {{type}} » inconnu",
       "unknown_trigger_kind": "Type de déclencheur « {{kind}} » inconnu",
@@ -419,7 +419,8 @@
       "role_id_taken": "Le rôle « {{role}} » existe déjà",
       "role_updated": "Rôle « {{role}} » mis à jour",
       "relationship_id_taken": "La relation « {{relationship}} » existe déjà",
-      "relationship_graphql_alias_taken": "L'alias GraphQL « {{alias}} » est déjà l'alias de la relation « {{relationship}} » depuis « {{table}} »"
+      "relationship_graphql_alias_taken": "L'alias GraphQL « {{alias}} » est déjà l'alias de la relation « {{relationship}} » depuis « {{table}} »",
+      "trigger_refused": "{{reason}}"
     },
     "secrets": {
       "name_refused": "{{name}} n'est pas un nom situé dans les secrets de cette organisation dans {{service}} : un nom est relatif à l'organisation et ne peut pas en sortir",

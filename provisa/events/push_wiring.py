@@ -311,6 +311,7 @@ async def wire_push_listeners(*, state: Any, log: Any) -> list[LongLived]:
                 debounce_max_delay=debounce_max_delay,
                 node=node,
                 row_materialize=row_materialize,
+                key=(src.id, tbl["schema_name"], tbl["table_name"]),
                 log=log,
                 write_lock=(
                     None
@@ -443,7 +444,16 @@ async def _run_logical_stream(
     name = pg_logical.slot_name(source.id)
 
     async def _ask(changed: set[tuple[str, str]]) -> None:
+        # A burst of changes: each table's build, and the commands that run on it (REQ-2054).
+        from provisa.scheduler.table_triggers import source_changed
+
         for key in sorted(changed & ids.keys()):
+            await source_changed(state, ids[key], source.id, replica_state.REASON_REFRESH)
+
+    async def _opened() -> None:
+        # What changed while nothing read the slot is unknown: a build of each table, and no
+        # command runs for a change nothing reported.
+        for key in sorted(ids):
             await replica_builds.request_if_replicated(
                 state, ids[key], source.id, replica_state.REASON_REFRESH
             )
@@ -454,7 +464,7 @@ async def _run_logical_stream(
                 conn = await asyncio.to_thread(pg_logical.PgConnection.from_source(source).connect)
             try:
                 await asyncio.to_thread(pg_logical.ensure_slot, conn, name, list(ids))
-                await _ask(set(ids))
+                await _opened()
                 # A burst ends after a read with nothing new, or _LOGICAL_MAX_DELAY_SECONDS after
                 # its first change: a table written to without pause still asks.
                 pending: set[tuple[str, str]] = set()
@@ -792,6 +802,13 @@ async def _run_change_stream(
     from provisa.subscriptions.mongo_provider import open_change_stream
 
     async def _ask() -> None:
+        # A burst of changes: the table's build, and the commands that run on it (REQ-2054).
+        from provisa.scheduler.table_triggers import source_changed
+
+        await source_changed(state, table_id, source.id, replica_state.REASON_REFRESH)
+
+    async def _opened() -> None:
+        # What changed before the stream opened is unknown: a build, and no command runs.
         await replica_builds.request_if_replicated(
             state, table_id, source.id, replica_state.REASON_REFRESH
         )
@@ -831,7 +848,7 @@ async def _run_change_stream(
                     )
             async with opened as stream:
                 await _feed(None)
-                await _ask()  # watching from here on: what changed before is in this build
+                await _opened()  # watching from here on: what changed before is in this build
                 await follow_changes(
                     stream, _ask, disconnect, quiet=debounce_quiet, max_delay=debounce_max_delay
                 )
@@ -872,6 +889,7 @@ async def _run_listener(
     log: Any,
     row_materialize: bool = False,
     write_lock: Any = None,
+    key: tuple[str, str, str],
 ) -> None:
     """One push table's whole lifetime: drain the provider into the landed table through the
     engine's own write face (``EngineRuntime.apply_cdc_events``, REQ-989/REQ-1733 — never a raw
@@ -907,6 +925,15 @@ async def _run_listener(
             from provisa.events.ripple import ripple
 
             await ripple(state, node, event_type="delta", payload={"landed": counts})
+        if any(counts.values()):
+            # REQ-2054: a landed batch is a burst of changes to the table.
+            from provisa.scheduler.table_triggers import table_changed
+
+            table_changed(
+                state,
+                key,
+                changes=[{"operation": e.operation, "row": e.row} for e in events],
+            )
         return counts
 
     try:

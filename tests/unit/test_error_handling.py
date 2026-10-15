@@ -34,6 +34,11 @@ from provisa.webhooks.executor import execute_webhook
 # ── Insufficient rights errors propagate ─────────────────────────────────────
 
 
+#: A webhook trigger's stored row, as its run is given it.
+_HOOK = {"id": "trigger-1", "kind": "webhook", "url": "https://example.com/hook",
+         "webhook_name": None, "args": {}}  # fmt: skip
+
+
 class TestInsufficientRightsErrorPropagates:
     def test_missing_capability_raises(self):
         """Role without required capability raises InsufficientRightsError."""
@@ -170,8 +175,9 @@ class TestScheduledTriggerSwallowsExceptions:
 
     @pytest.mark.asyncio
     async def test_scheduled_webhook_does_not_propagate_http_error(self):
-        """_execute_webhook (scheduler) catches all exceptions — scheduler stays alive."""
-        from provisa.scheduler.jobs import _execute_webhook
+        """A webhook trigger's run catches every exception — the scheduler stays alive, and the
+        failure is recorded."""
+        from provisa.scheduler.trigger_runs import run_trigger
 
         with patch("httpx.AsyncClient") as mock_cls:
             mock_client = AsyncMock()
@@ -180,14 +186,15 @@ class TestScheduledTriggerSwallowsExceptions:
             mock_client.post = AsyncMock(side_effect=httpx.ConnectError("connection refused"))
             mock_cls.return_value = mock_client
 
-            # Must not raise — scheduler-level exception swallowing is intentional
-            result = await _execute_webhook("https://example.com/hook", "trigger-1")
-        assert result is None
+            # Must not raise — a trigger's run records its end instead (REQ-2054)
+            with patch("provisa.scheduler.trigger_runs.record", AsyncMock()):
+                result = await run_trigger(_HOOK, "default", given={}, fired_by=None)
+        assert result == "failed"
 
     @pytest.mark.asyncio
     async def test_scheduled_webhook_does_not_propagate_500(self):
-        """_execute_webhook (scheduler) catches HTTPStatusError from 500 responses."""
-        from provisa.scheduler.jobs import _execute_webhook
+        """A webhook trigger's run records a 500 response as a failure, and does not raise."""
+        from provisa.scheduler.trigger_runs import run_trigger
 
         mock_response = MagicMock()
         mock_response.status_code = 500
@@ -202,5 +209,6 @@ class TestScheduledTriggerSwallowsExceptions:
             mock_client.post = AsyncMock(return_value=mock_response)
             mock_cls.return_value = mock_client
 
-            result = await _execute_webhook("https://example.com/hook", "trigger-1")
-        assert result is None
+            with patch("provisa.scheduler.trigger_runs.record", AsyncMock()):
+                result = await run_trigger(_HOOK, "default", given={}, fired_by=None)
+        assert result == "failed"
