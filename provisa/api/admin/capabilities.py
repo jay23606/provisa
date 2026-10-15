@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from provisa.auth.models import AuthIdentity
 from provisa.security.rights import (
     capabilities_for_claims,
     domain_access_for_capability,
@@ -49,7 +50,12 @@ def _resolved_capabilities(identity, state) -> set[str]:
     # REQ-1337: RIGHTS ONLY. The role id is never folded in as a pseudo-capability — a gate reads
     # the rights a role carries, and the seed (schema.sql + apply_tenancy_role_grants) is the single
     # place that decides which role carries which right.
-    return capabilities_for_claims(getattr(identity, "roles", []), getattr(state, "roles", {}))
+    held = capabilities_for_claims(getattr(identity, "roles", []), getattr(state, "roles", {}))
+    # REQ-1528: plus what owning the environment this request is bound to confers. Only a real
+    # identity carries it -- it is settled where the environment is bound, from ``created_by``.
+    if isinstance(identity, AuthIdentity):
+        held |= identity.env_capabilities
+    return held
 
 
 def env_gate_capabilities(identity, state) -> set[str] | None:

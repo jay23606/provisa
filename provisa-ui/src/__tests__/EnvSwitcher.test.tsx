@@ -35,6 +35,8 @@ const auth = {
   // REQ-1596/REQ-1617: the membership carries the environment it is confined to, and that pin is
   // what the org serves this caller — not the name this browser happens to have stored.
   orgMemberships: [] as { org_id: string; env_name?: string | null }[],
+  // REQ-1528: rights are per environment, so a switch re-reads the identity.
+  rebind: vi.fn().mockResolvedValue(undefined),
 };
 vi.mock("../context/AuthContext", () => ({ useAuth: () => auth }));
 vi.mock("@mantine/notifications", () => ({ notifications: { show: vi.fn() } }));

@@ -45,6 +45,7 @@ from provisa.core.env_reaper import utcnow
 from provisa.core.environments import PROD, is_env_name
 
 if TYPE_CHECKING:
+    from provisa.auth.models import AuthIdentity
     from provisa.core.database import Database
 
 #: The header carrying the selection (REQ-1487). An environment is not a DNS label and not a path
@@ -178,6 +179,29 @@ async def resolve_selected_env(
                     pinned_env = row[0]
 
     return await select_environment(admin_db, org_id, requested, capabilities, pinned_env)
+
+
+async def bind_owner_capabilities(
+    admin_db: "Database | None", org_id: str, env: str, identity: "AuthIdentity"
+) -> None:
+    """Settle what ``identity`` holds by OWNING ``env``, the environment being bound (REQ-1528).
+
+    Asked here because this is where the environment is bound: the grant is derived from
+    ``environments.created_by`` at authorization time, for this environment and no other, so every
+    capability gate behind the binding reads one answer. Set on every binding, so an owner who
+    moves to somebody else's environment leaves the grant behind.
+
+    prod is never asked about: the row provisioning writes has no creator, and its rights are the
+    org's own, held the ordinary way.
+    """
+    if env == PROD or admin_db is None or identity.user_id == "anonymous":
+        identity.env_capabilities = frozenset()
+        return
+    from provisa.core import env_authority
+
+    identity.env_capabilities = await env_authority.capabilities_within(
+        admin_db, org_id, env, identity.user_id
+    )
 
 
 async def _existing_env(admin_db: "Database | None", org_id: str, name: str) -> str:

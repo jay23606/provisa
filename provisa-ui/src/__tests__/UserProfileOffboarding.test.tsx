@@ -50,6 +50,7 @@ vi.mock("../context/AuthContext", () => ({
     ],
     activeOrgId: "acme",
     refresh: vi.fn(),
+    rebind: vi.fn(),
   }),
 }));
 

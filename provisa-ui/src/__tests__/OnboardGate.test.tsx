@@ -73,6 +73,7 @@ function identity({ userId, orgMemberships = [], assignments = [] }: Identity) {
     assignments,
     org_memberships: orgMemberships,
     active_org_id: null,
+    env_capabilities: [],
   } as unknown as Awaited<ReturnType<typeof fetchMe>>;
 }
 

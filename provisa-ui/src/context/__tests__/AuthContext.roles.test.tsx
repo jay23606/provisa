@@ -34,7 +34,7 @@ vi.mock("../../hooks/useAdminQueries", async (importOriginal) => ({
 }));
 
 function Probe() {
-  const { role, availableRoles, error, devMode, selectRole, refresh } = useAuth();
+  const { role, availableRoles, error, devMode, selectRole, refresh, capabilities } = useAuth();
   return (
     <div>
       <button onClick={() => selectRole(availableRoles.find((r) => r.id === "analyst")!)}>
@@ -45,6 +45,7 @@ function Probe() {
       <span data-testid="available">{availableRoles.map((r) => r.id).join(",") || "none"}</span>
       <span data-testid="error">{error ?? "none"}</span>
       <span data-testid="dev">{String(devMode)}</span>
+      <span data-testid="caps">{capabilities.join(",") || "none"}</span>
     </div>
   );
 }
@@ -63,6 +64,7 @@ const ORG_ADMIN_IDENTITY = {
   assignments: [{ role_id: "org_admin", domain_id: "*" }],
   org_memberships: [{ org_id: "kstott", role: "org_admin" }],
   active_org_id: "kstott",
+  env_capabilities: [],
 };
 
 const ORG_ROLE_CATALOG = {
@@ -110,6 +112,22 @@ describe("AuthProvider role resolution (REQ-1295)", () => {
     expect(screen.getByTestId("error")).toHaveTextContent(/Org selection required/);
     expect(screen.getByTestId("available")).toHaveTextContent("none");
     expect(screen.getByTestId("role")).toHaveTextContent("none");
+  });
+
+  it("adds what owning the environment being read confers to the caller's rights", async () => {
+    // REQ-1528: the server derives the grant from who created the environment and reports it;
+    // the UI offers what the server will accept, so the two read the same set.
+    fetchMe.mockResolvedValue({
+      ...ORG_ADMIN_IDENTITY,
+      env_capabilities: ["relationship_registration"],
+    });
+    refetchRoles.mockResolvedValue(ORG_ROLE_CATALOG);
+
+    renderAuth(true);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("caps")).toHaveTextContent("relationship_registration"),
+    );
   });
 
   it("ignores a stored role the user is not assigned", async () => {

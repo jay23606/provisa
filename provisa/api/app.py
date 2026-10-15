@@ -3801,6 +3801,14 @@ def create_app() -> FastAPI:
                 )(scope, receive, send)
                 return
 
+            # REQ-1528: the environment is settled, so what owning it confers is settled with it.
+            from provisa.auth.models import AuthIdentity
+
+            if isinstance(identity, AuthIdentity):
+                from provisa.api.env_routing import bind_owner_capabilities
+
+                await bind_owner_capabilities(state.admin_db, env_org, selected_env, identity)
+
             # Keep existing tenant cache-key call sites (which read request.state.tenant_id)
             # pointed at the same id space as the org router.
             request_state["tenant_id"] = active_org

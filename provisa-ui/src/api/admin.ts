@@ -44,6 +44,8 @@ export async function fetchMe(): Promise<{
   control_plane_id: string; // REQ-2008: browser state is saved per control plane and org
   org_memberships: OrgMembership[];
   assignments: RoleAssignment[];
+  // REQ-1528: rights held by OWNING the environment the request was served by.
+  env_capabilities: string[];
 }> {
   let res: Response;
   try {
