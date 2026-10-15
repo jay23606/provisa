@@ -476,13 +476,17 @@ def _govern_select(
 
     for expr in existing_exprs:
         if isinstance(expr, exp.Star):
-            # Expand SELECT * using all_columns, filtered by visibility.
-            # Fall back to keeping * when column metadata is unavailable.
-            expanded = _expand_star(alias_to_tid, gov_ctx, final=final)
-            if expanded:
-                new_exprs.extend(expanded)
-            else:
+            # A star is the role's served columns of every governed table it covers, each masked
+            # as the column named alone is. It is never kept as ``*``: that reads every column.
+            new_exprs.extend(_expand_star(alias_to_tid, gov_ctx, final=final))
+        elif isinstance(expr, exp.Column) and isinstance(expr.this, exp.Star):
+            # ``t.*``: the same, for the one table it names. A derived relation's star reads what
+            # that relation's own governed SELECT projects.
+            tid = alias_to_tid.get(expr.table)
+            if tid is None:
                 new_exprs.append(expr)
+            else:
+                new_exprs.extend(_expand_star({expr.table: tid}, gov_ctx, final=final))
         elif isinstance(expr, exp.Column) and isinstance(expr.table, str):
             if not _is_column_visible(expr, alias_to_tid, gov_ctx):
                 pass  # drop invisible column
@@ -844,6 +848,11 @@ def _expand_star(
                     result.append(
                         exp.Alias(this=read, alias=exp.Identifier(this=sql_col_name, quoted=True))
                     )
+    if not result:
+        # Nothing of the tables the star covers is served to the role: refused as a named hidden
+        # column is (V003), never read as every column.
+        names = ", ".join(sorted(alias_to_tid))
+        raise PermissionError(f"no column of {names} is visible to this role")
     return result
 
 
@@ -888,6 +897,48 @@ def _govern_selects(
     return tree
 
 
+def _govern_returning(tree: exp.Expr, gov_ctx: GovernanceContext) -> None:  # pyright: ignore[reportPrivateImportUsage]
+    """The rows a write returns (``RETURNING``) are read like a SELECT's: a star is the role's
+    served columns, masked; a named column the role is not served is refused (V003); a served
+    column is masked, and any other expression computes over the masked values. Without this a
+    write handed back what the role may not read -- ``DELETE ... RETURNING *`` every column."""
+    from provisa.compiler.write_admission import _target  # noqa: PLC0415
+
+    returning = tree.args.get("returning")
+    if returning is None:
+        return
+    table, _listed = _target(tree)  # pyright: ignore[reportArgumentType]  # an admitted write
+    tid = _table_id_for_node(table, gov_ctx)
+    if tid is None:
+        return  # an unregistered target is refused by the write's admission
+    alias_to_tid = {_alias_for(table): tid, table.name: tid}
+    governed: list[exp.Expr] = []  # pyright: ignore[reportPrivateImportUsage]
+    for expr in returning.expressions:
+        if isinstance(expr, exp.Star) or (
+            isinstance(expr, exp.Column) and isinstance(expr.this, exp.Star)
+        ):
+            governed.extend(_expand_star({_alias_for(table): tid}, gov_ctx))
+            continue
+        col = expr.this if isinstance(expr, exp.Alias) else expr
+        for ref in list(expr.find_all(exp.Column)) if not isinstance(expr, exp.Column) else [expr]:
+            if not _is_column_visible(ref, alias_to_tid, gov_ctx):
+                raise PermissionError(f"[V003] Column {ref.name!r} is not visible to this role")
+        if isinstance(col, exp.Column):
+            masked = _maybe_mask_column(col, alias_to_tid, gov_ctx)
+            if masked is col:
+                governed.append(expr)
+            else:
+                name = expr.args["alias"].copy() if isinstance(expr, exp.Alias) else col.this.copy()
+                governed.append(exp.Alias(this=masked, alias=name))
+            continue
+        for ref in list(expr.find_all(exp.Column)):
+            masked = _maybe_mask_column(ref, alias_to_tid, gov_ctx)
+            if masked is not ref:
+                ref.replace(masked)
+        governed.append(expr)
+    returning.set("expressions", governed)
+
+
 def govern_fragment(sql: str, gov_ctx: GovernanceContext) -> str:
     """``sql`` — a read that becomes part of a larger statement (a view's body) — with the
     role's row filters, masks and column visibility applied. No row cap and no sampling: those
@@ -918,6 +969,7 @@ def apply_governance(
     writes = is_write(tree)  # pyright: ignore[reportArgumentType]  # sqlglot stub types parse_one as Expr
     if writes:
         tree = admit_write(tree, gov_ctx, session_vars, params)  # pyright: ignore[reportArgumentType]
+        _govern_returning(tree, gov_ctx)
 
     tree = _govern_selects(tree, gov_ctx, answers=not writes)
 

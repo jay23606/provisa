@@ -486,6 +486,13 @@ def _check_column_visibility(  # REQ-040, REQ-263, REQ-265
     for select in tree.find_all(exp.Select):
         am = _alias_map(select, gov_ctx, cte_names_set)
         for expr in select.expressions:
+            if _is_star(expr):
+                # A star's columns are the ones the role is served (stage2._expand_star); it is
+                # refused only when that is none of them.
+                star = _star_violation(expr, am, gov_ctx)
+                if star is not None:
+                    violations.append(star)
+                continue
             cols = _collect_columns(expr)
             for col in cols:
                 tbl_ref = col.table
@@ -514,6 +521,39 @@ def _check_column_visibility(  # REQ-040, REQ-263, REQ-265
                             )
                         )
     return violations
+
+
+def _is_star(expr: exp.Expr) -> bool:
+    return isinstance(expr, exp.Star) or (
+        isinstance(expr, exp.Column) and isinstance(expr.this, exp.Star)
+    )
+
+
+def _star_violation(
+    expr: exp.Expr, am: dict[str, int], gov_ctx: GovernanceContext
+) -> ValidationViolation | None:
+    """V003 for a star (``*`` or ``t.*``) over governed tables of which the role is served no
+    column: it is refused as a named hidden column is, never read as every column. A star the
+    role is served some columns of reads those (``stage2._expand_star``)."""
+    if isinstance(expr, exp.Star):
+        covered = list(am.items())
+    elif isinstance(expr, exp.Column) and isinstance(expr.this, exp.Star):
+        tid = am.get(expr.table)
+        covered = [(expr.table, tid)] if tid is not None else []
+    else:
+        return None
+    if not covered:
+        return None  # a star over derived relations only: their own SELECTs are checked
+    if any(served_columns(tid, gov_ctx) for _alias, tid in covered):
+        return None
+    names = ", ".join(sorted(alias for alias, _tid in covered))
+    return ValidationViolation("V003", f"No column of {names} is visible to this role")
+
+
+def served_columns(tid: int, gov_ctx: GovernanceContext) -> list[str]:
+    """The registered columns of table ``tid`` the role is served (REQ-040)."""
+    vis = gov_ctx.visible_columns.get(tid)
+    return [c for c, _ in gov_ctx.all_columns.get(tid, []) if vis is None or c in vis]
 
 
 def _collect_columns(expr: exp.Expr) -> list[exp.Column]:

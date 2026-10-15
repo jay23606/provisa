@@ -171,7 +171,11 @@ class TestRLSOnMutation:
 
     def test_no_rls_when_no_rule(self):
         m = self._compiled("mutation { deleteOrders(where: { id: { eq: 1 } }) { affected_rows } }")
-        assert admitted(m.sql, write_governance(_ORDERS), m.params) == m.sql
+        governed = admitted(m.sql, write_governance(_ORDERS), m.params)
+        # No row filter: only its RETURNING is governed, the star read as the served columns.
+        statement, returned = governed.split(" RETURNING ")
+        assert statement == m.sql.split(" RETURNING ")[0]
+        assert "*" not in returned and '"orders"."id"' in returned
 
 
 class TestUpsertMutation:

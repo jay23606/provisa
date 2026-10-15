@@ -540,7 +540,12 @@ def test_an_insert_carries_no_where_and_is_checked_against_the_filter():
 def test_a_rule_on_another_table_leaves_the_statement_as_given():
     original = _make_delete_mutation()
     gov = _person_gov(rls={TABLE_ID_ORDER: "tenant_id = 'acme'"})
-    assert admitted(original.sql, gov, original.params) == original.sql
+    governed = admitted(original.sql, gov, original.params)
+    # No row filter of its own: only its RETURNING is governed -- the star is the columns the
+    # role is served, never ``*`` (REQ-040).
+    statement, returned = governed.split(" RETURNING ")
+    assert statement == original.sql.split(" RETURNING ")[0]
+    assert "*" not in returned and '"persons"."id"' in returned
 
 
 def test_the_filter_is_parenthesised_so_an_or_does_not_escape():
