@@ -26,7 +26,8 @@
 #   polly         a question for Polly (REQ-2012): answered once when the demo's template is
 #                 built, and shown with that stored answer in the Polly panel; nothing is asked
 #                 live. A demo with no stored answer leaves the step out. The question is one of
-#                 the Polly bake-off's graded questions (tests/integration/polly_bakeoff_questions.py)
+#                 the demo's own graded bake-off questions (QUESTIONS[<demo>] in
+#                 tests/integration/polly_bakeoff_questions.py)
 #
 # A step with no route stays on the page of the step before it. The words of each step are
 # tour.steps.<key> in the UI's tour.json, in every language. Every name here is checked against

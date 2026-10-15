@@ -453,8 +453,9 @@ Each step has:
 | `polly` | a natural-language question | Polly panel |
 
 A `polly` step is answered once when the demo's template is built; what the sandbox shows is
-that stored answer. Nothing is asked live. The question must be one of the Polly bake-off's
-graded questions (`tests/integration/polly_bakeoff_questions.py`). A demo with no stored answer
+that stored answer. Nothing is asked live. The question must be one of the demo's own graded
+bake-off questions: `QUESTIONS["<demo>"]` in `tests/integration/polly_bakeoff_questions.py`, each
+with the SQL over the demo's tables whose rows are its right answers. A demo with no stored answer
 leaves the step out.
 
 ### Track

@@ -10,8 +10,10 @@
 
 """The Polly bake-off's questions, each with the SQL whose rows are its right answers (REQ-2012).
 
-Asked on the weblogs demo by tests/integration/test_polly_bakeoff_e2e.py; every grading query
-names the demo's tables and views as they register (tests/unit/test_polly_bakeoff_questions.py)."""
+Each named demo has its own questions (QUESTIONS, by demo name), asked on that demo and graded
+over its tables: the weblogs demo's by tests/integration/test_polly_bakeoff_e2e.py. A demo's tour
+may ask Polly any of its own (tests/unit/test_named_demo_tour.py), and every grading query names
+its demo's tables and views as they register (tests/unit/test_polly_bakeoff_questions.py)."""
 
 # Requirements: REQ-2012
 
@@ -31,7 +33,7 @@ class Question:
 # The weblogs demo's own question, the one its tour answers in SQL and over REST.
 DEMO_QUESTION = "Which pages are slowest, and which SQL makes them slow?"
 
-QUESTIONS = (
+WEBLOGS = (
     Question(
         "How many customers does the shop have?", 'SELECT COUNT(*) AS a FROM "shop"."customers"'
     ),
@@ -83,3 +85,6 @@ QUESTIONS = (
         "ORDER BY AVG(page_ms) DESC LIMIT 1",
     ),
 )
+
+# Each named demo's questions, by its name (its directory under demo/named).
+QUESTIONS: dict[str, tuple[Question, ...]] = {"weblogs": WEBLOGS}

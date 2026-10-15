@@ -43,7 +43,7 @@ import httpx
 import pytest
 import yaml
 
-from tests.integration.polly_bakeoff_questions import QUESTIONS, Question
+from tests.integration.polly_bakeoff_questions import WEBLOGS, Question
 from tests.integration.polly_bakeoff_turn import Turn, ask
 from tests.integration.test_weblogs_demo import (
     _DEMO,
@@ -226,12 +226,12 @@ def server(stack, run, tmp_path_factory):
 
 def test_polly_bakeoff(server, run):
     via, models = run
-    expected = {q.text: _expected(server, q) for q in QUESTIONS}
-    report = {"via": via, "budget_usd": _BUDGET_USD, "questions": len(QUESTIONS), "models": []}
+    expected = {q.text: _expected(server, q) for q in WEBLOGS}
+    report = {"via": via, "budget_usd": _BUDGET_USD, "questions": len(WEBLOGS), "models": []}
     for model in models:
         _use_model(server, model)
         answers = []
-        for question in QUESTIONS:
+        for question in WEBLOGS:
             turn, seconds = _ask(server, question.text)
             reply, usage, error, tools = turn.reply, turn.usage, turn.error, turn.tools
             want = expected[question.text]
@@ -252,7 +252,7 @@ def test_polly_bakeoff(server, run):
 
     out = Path(os.environ.get("POLLY_BAKEOFF_REPORT", "polly-bakeoff.json"))
     out.write_text(json.dumps(report, indent=2, default=str))
-    print(f"\nPolly bake-off via {via}, {len(QUESTIONS)} questions, budget ${_BUDGET_USD}:")
+    print(f"\nPolly bake-off via {via}, {len(WEBLOGS)} questions, budget ${_BUDGET_USD}:")
     for m in report["models"]:
         print(
             f"  {m['model']}: right {m['accuracy']}, errors {m['errors']}, "
@@ -261,5 +261,5 @@ def test_polly_bakeoff(server, run):
             f"questions per ${_BUDGET_USD} (median / p90), latency {m['median_latency_s']} s, "
             f"cached input {m['cached_input_share']}"
         )
-    unasked = [m["model"] for m in report["models"] if m["errors"] == len(QUESTIONS)]
+    unasked = [m["model"] for m in report["models"] if m["errors"] == len(WEBLOGS)]
     assert not unasked, f"these models could not be asked at all: {unasked} (see {out})"

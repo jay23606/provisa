@@ -201,7 +201,9 @@ def _check_steps(home: Path, steps: list[dict]) -> None:
         if "polly" in step:
             # Its answer is stored at the template build and graded by the bake-off.
             assert "route" not in step, f"{step['key']}: Polly opens over the page it is on"
-            assert step["polly"] in {q.text for q in QUESTIONS}, step
+            # A demo with no bake-off questions of its own has none a step may ask.
+            asked = {q.text for q in QUESTIONS.get(home.name, ())}
+            assert step["polly"] in asked, f"{step['key']}: not one of the demo's own questions"
         if "relationship" in step:
             assert step["relationship"] in aliases, step
         if "example" in step:
