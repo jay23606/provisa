@@ -203,6 +203,18 @@ export function EnvSwitcher() {
       const answer = back
         ? await undoEnvironment(orgId, active)
         : await redoEnvironment(orgId, active);
+      if ("requires_approval" in answer) {
+        // REQ-1504: a protected environment is proposed to. Nothing was applied, so the model on
+        // screen is still this environment's and the store is left alone.
+        notifications.show({
+          color: "blue",
+          message: t("envSwitcher.proposed", {
+            env: active,
+            sha: (answer.request.source_sha ?? "").slice(0, 7),
+          }),
+        });
+        return;
+      }
       notifications.show({
         color: "green",
         message: t(back ? "envSwitcher.undone" : "envSwitcher.redone", {

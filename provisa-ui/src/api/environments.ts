@@ -326,7 +326,14 @@ export async function pushEnvironment(
 export async function pullEnvironment(
   orgId: string,
   name: string,
-): Promise<{ applied: boolean; report?: CopyReport; sync: BranchSync }> {
+): Promise<{
+  applied: boolean;
+  report?: CopyReport;
+  sync: BranchSync;
+  // REQ-1504: a pull into a protected environment is proposed, not applied.
+  request?: MergeRequest;
+  requires_approval?: boolean;
+}> {
   const res = await fetch(`${base(orgId)}/${encodeURIComponent(name)}/pull`, { method: "POST" });
   // REQ-1556: a divergence is refused, and the refusal names the objects both lines moved. That
   // list is the whole point of the refusal -- "the two lines diverged" is not a statement about any
@@ -373,18 +380,34 @@ export interface Position {
 }
 
 /**
+ * A step into a PROTECTED environment (REQ-1504): proposed for somebody else to decide, with
+ * nothing applied and the position unmoved.
+ */
+export interface ProposedStep {
+  request: MergeRequest;
+  applied: false;
+  requires_approval: true;
+}
+
+/**
  * Put the environment back to the commit before the one it is at (REQ-1543).
  *
  * An undo is an apply like any other — the model at the earlier commit is applied, and the
  * position moves. `redo_sha` is where the undo departed from, which is what makes redo possible.
  */
-export async function undoEnvironment(orgId: string, name: string): Promise<Position> {
+export async function undoEnvironment(
+  orgId: string,
+  name: string,
+): Promise<Position | ProposedStep> {
   const res = await fetch(`${base(orgId)}/${encodeURIComponent(name)}/undo`, { method: "POST" });
   return ok(res, "undoEnvironment");
 }
 
 /** Step forward again toward the position an undo departed from (REQ-1543). */
-export async function redoEnvironment(orgId: string, name: string): Promise<Position> {
+export async function redoEnvironment(
+  orgId: string,
+  name: string,
+): Promise<Position | ProposedStep> {
   const res = await fetch(`${base(orgId)}/${encodeURIComponent(name)}/redo`, { method: "POST" });
   return ok(res, "redoEnvironment");
 }
@@ -473,14 +496,13 @@ export interface LoadOutcome {
  * pipeline. Nothing else applies a tree — no watcher turns somebody's merge into a change here.
  *
  * `dry_run` reports without writing and is what the panel runs first, so the report is read before
- * it is agreed to. `seed` is off unless the load is what CREATES the environment: a tree carries
- * the roles of whatever control plane projected it, and a desktop's self-granted rights must not
- * arrive with it (REQ-1539).
+ * it is agreed to. A load never applies roles: they are seeded once, by whatever CREATES the
+ * environment, so a tree's roles do not arrive with it (REQ-1539).
  */
 export async function deployEnvironment(
   orgId: string,
   name: string,
-  body: { ref: string; dry_run?: boolean; seed?: boolean; message?: string },
+  body: { ref: string; dry_run?: boolean; message?: string },
 ): Promise<LoadOutcome> {
   const res = await fetch(`${base(orgId)}/${encodeURIComponent(name)}/deploy`, json("POST", body));
   return ok(res, "deployEnvironment");

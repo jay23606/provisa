@@ -317,6 +317,23 @@ describe("EnvironmentsTab", () => {
     await waitFor(() => expect(mockPull).toHaveBeenCalledWith("acme", "dev"));
   });
 
+  it("says a pull into a protected environment is proposed", async () => {
+    // REQ-1504: nothing was applied, and the message does not claim a pull happened.
+    mockPull.mockResolvedValue({
+      applied: false,
+      requires_approval: true,
+      request: { id: 7, source_sha: "abc1234", target_env: "dev" } as never,
+      sync: syncOf(),
+    });
+    render(<EnvironmentsTab />);
+    fireEvent.click(await screen.findByTestId("env-pull-dev"));
+    await waitFor(() =>
+      expect(notifications.show).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "Proposed a deploy into dev for approval." }),
+      ),
+    );
+  });
+
   it("names the objects a pull carried away from this environment", async () => {
     // REQ-1556: a fast-forward is not refused and looks like any other pull, and it can still
     // overwrite an edit sitting in this schema that no commit holds.

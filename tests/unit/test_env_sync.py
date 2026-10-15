@@ -241,6 +241,16 @@ class TestAPullLandsOnTheCommitItApplied:
         async def _org_model_db(org_id):
             return "model-db"
 
+        async def _member_count(org_id):
+            return 1
+
+        async def is_protected(admin_db, org_id, name, member_count):
+            return False  # REQ-1504: a protected environment is proposed to instead
+
+        from provisa.core import env_approvals
+
+        monkeypatch.setattr(er, "_member_count", _member_count)
+        monkeypatch.setattr(env_approvals, "is_protected", is_protected)
         monkeypatch.setattr(secrets_store, "bound", _bound)
         monkeypatch.setattr(er, "_guard_within", _guard_within)
         monkeypatch.setattr(er, "_known", _known)

@@ -402,7 +402,6 @@ def _cmd_env_deploy(args: argparse.Namespace) -> int:
         {
             "ref": args.ref,
             "dry_run": args.dry_run,
-            "seed": args.seed,
             "message": args.message or "",
         },
     )
@@ -749,12 +748,6 @@ def main(argv: list[str] | None = None) -> int:
         "--dry-run",
         action="store_true",
         help="Report what the deploy would do and apply none of it",
-    )
-    env_deploy.add_argument(
-        "--seed",
-        action="store_true",
-        help="Also apply the creation-only classes (roles). Only correct when this deploy is what "
-        "creates the environment: a tree carries the roles of whatever control plane projected it",
     )
     env_deploy.add_argument("--message", default=None, help="Note carried onto an approval request")
     env_deploy.add_argument(

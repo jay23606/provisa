@@ -390,9 +390,9 @@ class DeployBody(BaseModel):
     # is loaded and reported, so the answer never describes a different commit than the one applied.
     ref: str
     dry_run: bool = False
-    # REQ-1539: whether the deploy applies the creation-only classes -- roles above all. OFF except
-    # when the deploy is what CREATES the environment, because a tree carries the roles of whatever
-    # control plane projected it, and a desktop's self-granted rights must not arrive with it.
+    # REQ-1539: the creation-only classes -- roles above all -- are applied only by the load that
+    # CREATES an environment, and this door loads into one that already exists. Kept on the body so
+    # that asking for it is refused by name rather than dropped unread.
     seed: bool = False
     message: str = ""
 
@@ -962,6 +962,49 @@ async def _retire(org_id: str, actor: str | None, name: str, *, remote: bool = F
     return outcome
 
 
+async def _proposed_load(
+    org_id: str,
+    name: str,
+    actor: str | None,
+    db: Database,
+    *,
+    ref: str,
+    sha: str,
+    tree: dict,
+    message: str = "",
+) -> dict | None:
+    """The answer when a load lands on a PROTECTED environment, or ``None`` when it may apply.
+
+    Every act that applies a tree -- deploy, undo, redo, pull -- asks here, so a protected
+    environment has one door (REQ-1504): the same call becomes a request somebody else decides,
+    carrying the pinned sha and the report of what it would do (REQ-1496).
+    """
+    if not await env_approvals.is_protected(
+        _admin_pool(), org_id, name, await _member_count(org_id)
+    ):
+        return None
+    deploy_request = await env_approvals.request_deploy(
+        _admin_pool(),
+        db,
+        org_id,
+        ref=ref,
+        sha=sha,
+        tree=tree,
+        target_env=name,
+        requested_by=actor or "anonymous",
+        message=message,
+        seed=False,  # REQ-1539: a load into an existing environment never seeds roles
+    )
+    await _audit(
+        org_id,
+        actor,
+        "environment.deploy_requested",
+        name,
+        {"request_id": deploy_request["id"], **deploy_request["report"]},
+    )
+    return {"request": _rendered(deploy_request), "applied": False, "requires_approval": True}
+
+
 @router.post("/{name}/deploy")
 @model_change.commits_itself  # REQ-1524: commits the model it writes itself
 async def deploy_into_environment(
@@ -992,50 +1035,31 @@ async def deploy_into_environment(
 
     actor = await _guard_within(request, org_id, name)
     await _known(org_id, name)
+    if body.seed:
+        raise ApiError(
+            400,
+            "environments.seed_only_at_creation",
+            f"Environment {name!r} already exists, so a load into it does not apply roles: they "
+            "are seeded once, when an environment is created.",
+            org=org_id,
+            env=name,
+        )
     sha = _readable(org_id, body.ref, lambda: resolve_sha(org_id, body.ref))
     tree = load_files(_readable(org_id, body.ref, lambda: files_at(org_id, sha)))
     db = await _org_model_db(org_id)
-    protected = await env_approvals.is_protected(
+    # A dry run writes nothing, so it only REPORTS whether the load would wait for an approval.
+    protected = body.dry_run and await env_approvals.is_protected(
         _admin_pool(), org_id, name, await _member_count(org_id)
     )
     try:
-        if protected and not body.dry_run:
-            deploy_request = await env_approvals.request_deploy(
-                _admin_pool(),
-                db,
-                org_id,
-                ref=body.ref,
-                sha=sha,
-                tree=tree,
-                target_env=name,
-                requested_by=actor or "anonymous",
-                message=body.message,
-                seed=body.seed,
+        if not body.dry_run:
+            proposed = await _proposed_load(
+                org_id, name, actor, db, ref=body.ref, sha=sha, tree=tree, message=body.message
             )
-            await _audit(
-                org_id,
-                actor,
-                "environment.deploy_requested",
-                name,
-                {"request_id": deploy_request["id"], **deploy_request["report"]},
-            )
-            return {
-                "request": _rendered(deploy_request),
-                "applied": False,
-                "requires_approval": True,
-            }
-
-        if body.dry_run:
-            report = await plan_deploy(db, org_id, name, tree, ref=sha, seed=body.seed)
-        else:
-            report = await deploy_tree(
-                db,
-                org_id,
-                name,
-                tree,
-                ref=sha,
-                seed=body.seed,
-            )
+            if proposed is not None:
+                return proposed
+        run = plan_deploy if body.dry_run else deploy_tree
+        report = await run(db, org_id, name, tree, ref=sha)
     except DeployError as exc:
         # REQ-1496: a tree that does not hold is refused WHOLE. Nothing partial has landed -- the
         # decomposition raises before a statement is issued -- so the environment is untouched.
@@ -1142,13 +1166,21 @@ async def _move(request: Request, org_id: str, name: str, forward: bool) -> dict
     tree = load_files(_readable(org_id, target, lambda: files_at(org_id, target)))
     db = await _org_model_db(org_id)
     try:
-        report = await deploy_tree(
-            db,
+        # REQ-1496/REQ-1504: a step along the history is a load, so a protected environment is
+        # proposed to exactly as a deploy proposes to it.
+        proposed = await _proposed_load(
             org_id,
             name,
-            tree,
+            actor,
+            db,
             ref=target,
+            sha=target,
+            tree=tree,
+            message=f"{'redo' if forward else 'undo'} {name} from {here[:12]} to {target[:12]}",
         )
+        if proposed is not None:
+            return proposed
+        report = await deploy_tree(db, org_id, name, tree, ref=target)
     except DeployError as exc:
         raise ApiError(
             422, "environments.tree_does_not_hold", str(exc), org=org_id, env=name, ref=target
@@ -1771,14 +1803,21 @@ async def pull_environment(request: Request, org_id: str, name: str) -> dict:
     tree = load_files(_readable(org_id, sha, lambda: files_at(org_id, sha)))
     db = await _org_model_db(org_id)
     try:
-        report = await deploy_tree(
-            db,
+        # REQ-1496/REQ-1504: a pull is a load, so a protected environment is proposed to exactly
+        # as a deploy proposes to it; its approval lands the branch as a pull does (REQ-1547).
+        proposed = await _proposed_load(
             org_id,
             name,
-            tree,
-            ref=sha,
-            base_sha=base_sha,
+            actor,
+            db,
+            ref=f"origin/{name}",
+            sha=sha,
+            tree=tree,
+            message=f"pull {name} from the remote at {sha[:12]}",
         )
+        if proposed is not None:
+            return {**proposed, "sync": state}
+        report = await deploy_tree(db, org_id, name, tree, ref=sha, base_sha=base_sha)
     except DeployError as exc:
         raise ApiError(
             422, "environments.tree_does_not_hold", str(exc), org=org_id, env=name, ref=sha

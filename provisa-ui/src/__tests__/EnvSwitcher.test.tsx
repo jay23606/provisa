@@ -17,6 +17,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "../test-utils/render";
+import { notifications } from "@mantine/notifications";
 import { EnvSwitcher } from "../components/EnvSwitcher";
 import { modelReplaced } from "../apolloClient";
 import { ENV_STORAGE_KEY } from "../lib/authFetch";
@@ -36,6 +37,7 @@ const auth = {
   orgMemberships: [] as { org_id: string; env_name?: string | null }[],
 };
 vi.mock("../context/AuthContext", () => ({ useAuth: () => auth }));
+vi.mock("@mantine/notifications", () => ({ notifications: { show: vi.fn() } }));
 // The store reset is the switch's other half, so what is asserted is that it happens. A real
 // ApolloClient here would put a network stack behind a menu click and test that instead.
 vi.mock("../apolloClient", () => ({ modelReplaced: vi.fn().mockResolvedValue(undefined) }));
@@ -228,6 +230,29 @@ describe("EnvSwitcher", () => {
   });
 
   // REQ-1553: neither end of the line is offered into a refusal.
+  // REQ-1504: a step into a protected environment is proposed; nothing was applied, so the model
+  // on screen is not replaced.
+  it("says a step into a protected environment is proposed and replaces nothing", async () => {
+    mockFetch.mockResolvedValue([env("prod")]);
+    vi.mocked(modelReplaced).mockClear();
+    mockUndo.mockResolvedValue({
+      request: { id: 7, source_sha: "bbbbbbbcccc", target_env: "prod" } as never,
+      applied: false,
+      requires_approval: true,
+    });
+    render(<EnvSwitcher />);
+    fireEvent.click(await screen.findByTestId("env-switcher-trigger"));
+    fireEvent.click(await screen.findByTestId("env-switcher-undo"));
+    await waitFor(() =>
+      expect(notifications.show).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: expect.stringContaining("bbbbbbb is proposed for prod"),
+        }),
+      ),
+    );
+    expect(modelReplaced).not.toHaveBeenCalled();
+  });
+
   it("withholds undo at the first commit and redo when nothing was stepped back from", async () => {
     mockFetch.mockResolvedValue([env("prod", { can_undo: false, can_redo: false })]);
     render(<EnvSwitcher />);
