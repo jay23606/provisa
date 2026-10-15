@@ -399,6 +399,54 @@
       "filesDone": {
         "title": "フォルダーがカタログになった",
         "description": "ファイルのフォルダーが統制されたカタログになりました: テーブル、リレーションシップ、用語集の用語、保存されたビューがあり、何もロードしていません。新しい月次の苦情ファイルに新しいテーブルは要りません: パターンがすでにそれを含んでいます。"
+      },
+      "reviewsCatalog": {
+        "title": "このデモについて",
+        "description": "ある家電ショップは、どの商品が期待外れで、その購入者がどうしているのかを知りたがっています。答えは 3 つの NoSQL ストアに分かれています。このストア <strong>catalog</strong> は MongoDB で、商品ごとに 1 つのドキュメントがあり、仕様はネストされ、顧客がつけた星評価も入っています。"
+      },
+      "reviewsSearchStore": {
+        "title": "レビューは Elasticsearch に",
+        "description": "<strong>reviews</strong> は Elasticsearch です。顧客が書いた 5,000 件のレビューがあり、それぞれに商品、星、本文が付いています。Provisa はこれをライブで読み、事前のコピーはありません。"
+      },
+      "reviewsGraphStore": {
+        "title": "誰が何を買ったか、Neo4j で",
+        "description": "<strong>purchases</strong> は Neo4j です。2,000 人の顧客が、購入した商品と BOUGHT リレーションシップで結ばれています。3 つのストアはどれも同じ ID で商品を指します。"
+      },
+      "reviewsPipeline": {
+        "title": "MongoDB のパイプラインをテーブルとして",
+        "description": "<strong>ratings_by_product</strong> は MongoDB の集計パイプラインで、テーブルとして登録されています。星評価を商品ごとにまとめ、各商品の件数、平均、星 1 の評価を返します。クエリは他のテーブルと同じように読み取ります。"
+      },
+      "reviewsSearchTable": {
+        "title": "Elasticsearch の検索をテーブルとして",
+        "description": "<strong>reviews_matching</strong> は Elasticsearch の検索で、テーブルとして登録されています。フレーズはパラメーターで、クエリが指定します。各行は本文にそのフレーズを含むレビューで、フレーズはハイライトされます。"
+      },
+      "reviewsCypherTable": {
+        "title": "Cypher クエリをテーブルとして",
+        "description": "<strong>bought_together</strong> は Neo4j に対する Cypher クエリで、テーブルとして登録されています。商品ごとに、その購入者が買ったほかのすべての商品と、何人が買ったかを返します。"
+      },
+      "reviewsJoin": {
+        "title": "商品で結合",
+        "description": "リレーションシップが、3 つのストアすべてで商品 ID によりテーブルを結合します。<strong>COMPLAINS_ABOUT</strong> は一致したレビューをカタログ内の商品に結び付けるため、クエリは結合を書かなくても Elasticsearch から MongoDB まで到達できます。"
+      },
+      "reviewsBatteryDies": {
+        "title": "バッテリーが切れるところ",
+        "description": "ショップの最初の問いを SQL で:「battery dies」と書かれたレビューを商品ごとに数え、各商品の評価を添えます。1 つのステートメントが Elasticsearch の検索と 2 つの MongoDB テーブルを読み、いくつかの商品が目立ちます。"
+      },
+      "reviewsBoughtWith": {
+        "title": "購入者は何を買ったか",
+        "description": "2 つ目の問いを Cypher で:星 3 つ未満の商品と、その購入者がほかに買ったもの。グラフは MongoDB の評価と Neo4j の購入をまたいで動き、モバイルバッテリーが繰り返し現れます。"
+      },
+      "reviewsRest": {
+        "title": "REST での検索",
+        "description": "同じ検索を REST 呼び出しで、フレーズをパラメーターとして渡します。Provisa が提供するどのインターフェースも同じ統制されたテーブルを読むため、REST も SQL や GraphQL と同じ権限のもとで答えます。"
+      },
+      "reviewsExample": {
+        "title": "GraphQL での検索",
+        "description": "クエリの例:バッテリーに関する苦情を GraphQL で取得します。各レビューのハイライトされた本文と、その下にリレーションシップを通じてネストされた商品が返ります。"
+      },
+      "reviewsDone": {
+        "title": "ご覧いただいた内容",
+        "description": "3 つの NoSQL ストア、MongoDB のパイプライン、Elasticsearch の検索、Cypher クエリを商品で結合し、ショップの問いを SQL、Cypher、REST、GraphQL で尋ねました。"
       }
     },
     "status": {
@@ -423,6 +471,10 @@
       "files": {
         "title": "インスタント・データレイク",
         "summary": "市のオープンデータのファイルを、その場で一つのカタログとして読む: 稼働中の工事現場の近くで苦情が最も多い地区はどこか?"
+      },
+      "reviews": {
+        "title": "商品レビュー",
+        "summary": "家電ショップのカタログ、レビュー、購入履歴を MongoDB、Elasticsearch、Neo4j から商品で結合します。どの商品のレビューが「battery dies」と言っているのか、そしてその購入者はほかに何を買ったのか。"
       }
     }
   }

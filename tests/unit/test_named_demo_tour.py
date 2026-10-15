@@ -136,7 +136,7 @@ def _path_names(path: str, prefix: str) -> tuple[str, str]:
 
 
 def test_there_is_a_demo_tour_to_check():
-    assert [p.parent.name for p in TOURS] == ["files", "sonnets", "weblogs"]
+    assert [p.parent.name for p in TOURS] == ["files", "reviews", "sonnets", "weblogs"]
 
 
 @pytest.mark.parametrize("path", TOURS, ids=[p.parent.name for p in TOURS])

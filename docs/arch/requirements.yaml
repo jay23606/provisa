@@ -82642,6 +82642,59 @@
   notes: 'Maintainer 2026-10-14, via the lead: extend Qdrant search tables to the full Query API (today''s table
     accepts only collection, query, using, filter, limit, score_threshold, model; provisa/qdrant/table.py _KEYS).
     Lead''s elaboration: the list of request features and the text-to-vector rule.'
+- id: REQ-2030
+  status: in-progress
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI
+  feature: product-tour-and-demos-named-demos
+  priority: SHOULD
+  type: behavioral
+  description: 'The reviews named demo: an electronics shop''s three NoSQL stores, read live and joined on the
+    product id they share. MongoDB holds the catalog (about 200 product documents, specs nested) and the star
+    ratings; ratings_by_product is an aggregation-pipeline table over the ratings (REQ-1980), a row a product.
+    Elasticsearch holds about 5,000 reviews; reviews_matching is a native search table (REQ-2017) whose phrase is
+    its parameter, each row a review whose text holds the phrase, the phrase highlighted. Neo4j holds about 2,000
+    customers and (:Customer)-[:BOUGHT]->(:Product); bought_together is a Cypher table, for each product each other
+    product its buyers bought and how many did. Relationships join reviews, ratings and purchases to the catalog''s
+    products, and reviews and purchases to the customers. Every value is invented by the demo''s seeder from a
+    fixed seed (no licensed data): a few battery products have reviews that say the battery dies, lower ratings,
+    and buyers who also bought power banks. The demo ships 4-6 example queries, and its tour follows the named-demo
+    shape: the scenario and its three stores; the pipeline, search and Cypher tables and the relationships; then
+    the shop''s question answered over several surfaces -- the battery complaints by product in SQL, what the
+    buyers of the lowest-rated products also bought in Cypher, the search over REST and in GraphQL -- and a recap.
+    Its tour''s words are in every language the UI speaks.'
+  use_case: 'A visitor opens the reviews demo and sees three NoSQL stores answer one question together: the
+    reviews that say the battery dies, the products they are about, and what those products'' buyers bought
+    with them.'
+  scenario: 'Given the reviews demo started, its stores filled by its seeder
+
+    When the visitor runs the tour''s SQL for reviews that say "battery dies"
+
+    Then each row is a product from the MongoDB catalog with how many reviews say it and its ratings
+
+    When the visitor runs the tour''s Cypher over the lowest-rated products
+
+    Then the graph shows what their buyers also bought, and a weak battery''s buyers most often bought a power bank
+
+    When a query reads reviews_matching without a phrase
+
+    Then it is refused, naming the phrase'
+  related_reqs: [REQ-1858, REQ-2010, REQ-2017, REQ-1980, REQ-2006]
+  code:
+  - demo/named/reviews/config.yaml
+  - demo/named/reviews/seed.py
+  - demo/named/reviews/docker-compose.yml
+  - demo/named/reviews/tour.yaml
+  tests:
+  - tests/integration/test_reviews_demo.py
+  - tests/unit/test_named_demo_tour.py
+  notes: 'Lead, 2026-10-14: MongoDB catalog with a pipeline table ratings_by_product, Elasticsearch reviews with a
+    native-query table reviews_matching(phrase) with highlight, Neo4j purchases with a Cypher table bought_together;
+    relationships on product id across the three stores; 4-6 example queries; the "battery dies" -> catalog ->
+    bought-together headline; data from a seeder, no licensed data. A Cypher table takes no parameter, so
+    bought_together holds every product''s pairs and a query filters it by product_id. Not published yet: the
+    bundle build dumps Postgres and Qdrant stores only.'
 - id: REQ-2031
   status: proposed
   since: 2026-10

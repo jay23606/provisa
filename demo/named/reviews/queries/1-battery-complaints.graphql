@@ -1,0 +1,13 @@
+# The reviews that say the battery dies (an Elasticsearch search, the phrase highlighted), each
+# with the product it is about from the MongoDB catalog.
+query BatteryComplaints {
+  reviewsMatching(phrase: "battery dies", order_by: [{ rating: asc }], limit: 20) {
+    rating
+    highlightText
+    product {
+      name
+      category
+      specsBatteryHours
+    }
+  }
+}

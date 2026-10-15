@@ -399,6 +399,54 @@
       "filesDone": {
         "title": "一个文件夹变成了目录",
         "description": "一个文件夹变成了受治理的目录：表、关系、一个术语和一个存储视图，没有加载任何数据。新的月度投诉文件不需要新表：通配模式已经包含了它。"
+      },
+      "reviewsCatalog": {
+        "title": "这个演示是什么",
+        "description": "一家电子产品商店想知道哪些产品令人失望，以及买家对此怎么做。答案分散在三个 NoSQL 存储中。这个存储 <strong>catalog</strong> 是 MongoDB：每个产品一个文档，规格嵌套其中，还有客户给出的星级评分。"
+      },
+      "reviewsSearchStore": {
+        "title": "评论存放在 Elasticsearch",
+        "description": "<strong>reviews</strong> 是 Elasticsearch：客户撰写的 5,000 条评论，每条都有对应的产品、星级和文本。Provisa 实时读取它，事先不复制任何内容。"
+      },
+      "reviewsGraphStore": {
+        "title": "谁买了什么，存放在 Neo4j",
+        "description": "<strong>purchases</strong> 是 Neo4j：2,000 位客户，每位都通过 BOUGHT 关系与所购产品相连。三个存储用同一个 id 指代产品。"
+      },
+      "reviewsPipeline": {
+        "title": "把 MongoDB 管道当作表",
+        "description": "<strong>ratings_by_product</strong> 是一个 MongoDB 聚合管道，已注册为表：它按产品对星级评分分组，给出每个产品的评分数、平均分和一星评分。查询读取它的方式与其他表无异。"
+      },
+      "reviewsSearchTable": {
+        "title": "把 Elasticsearch 搜索当作表",
+        "description": "<strong>reviews_matching</strong> 是一个 Elasticsearch 搜索，已注册为表。它的短语是参数，由查询设定；每一行是文本包含该短语的评论，短语会高亮显示。"
+      },
+      "reviewsCypherTable": {
+        "title": "把 Cypher 查询当作表",
+        "description": "<strong>bought_together</strong> 是针对 Neo4j 的 Cypher 查询，已注册为表：对每个产品，给出其买家买过的所有其他产品，以及有多少人买过。"
+      },
+      "reviewsJoin": {
+        "title": "按产品关联",
+        "description": "关系在全部三个存储之间按产品 id 关联各表。<strong>COMPLAINS_ABOUT</strong> 把匹配的评论关联到目录中的对应产品，因此查询无需写出关联，就能从 Elasticsearch 抵达 MongoDB。"
+      },
+      "reviewsBatteryDies": {
+        "title": "电池在哪里耗尽",
+        "description": "商店的第一个问题，用 SQL 提出：说到“battery dies”的评论，按产品统计，并附上每个产品的评分。一条语句读取一个 Elasticsearch 搜索和两张 MongoDB 表，少数几个产品格外突出。"
+      },
+      "reviewsBoughtWith": {
+        "title": "买家还买了什么",
+        "description": "第二个问题，用 Cypher 提出：评分低于三星的产品，以及它们的买家还买了什么。该图跨越 MongoDB 的评分和 Neo4j 的购买记录，移动电源不断出现。"
+      },
+      "reviewsRest": {
+        "title": "通过 REST 搜索",
+        "description": "同一个搜索以 REST 调用的形式进行，短语作为参数传入。Provisa 提供的每个接口都读取同样受管控的表，因此 REST 与 SQL、GraphQL 一样作答，权限也相同。"
+      },
+      "reviewsExample": {
+        "title": "通过 GraphQL 搜索",
+        "description": "示例查询：用 GraphQL 查询电池投诉，返回每条评论的高亮文本，其产品通过关系嵌套在下方。"
+      },
+      "reviewsDone": {
+        "title": "你刚刚看到了什么",
+        "description": "三个 NoSQL 存储、一个 MongoDB 管道、一个 Elasticsearch 搜索和一个 Cypher 查询，按产品关联，并用 SQL、Cypher、REST 和 GraphQL 提出了商店的问题。"
       }
     },
     "status": {
@@ -423,6 +471,10 @@
       "files": {
         "title": "即时数据湖",
         "summary": "一座城市的开放数据文件，就地读取为一个目录：哪些街区在施工现场附近的投诉最多？"
+      },
+      "reviews": {
+        "title": "产品评论",
+        "summary": "一家电子产品商店的目录、评论和购买记录分别存放在 MongoDB、Elasticsearch 和 Neo4j 中，按产品关联：评论说哪些产品“battery dies”，它们的买家还买了什么？"
       }
     }
   }

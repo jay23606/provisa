@@ -399,6 +399,54 @@
       "filesDone": {
         "title": "A folder became a catalog",
         "description": "A folder of files became a governed catalog: tables, relationships, a glossary term and a stored view, with nothing loaded. A new month's complaints file needs no new table: the glob already names it."
+      },
+      "reviewsCatalog": {
+        "title": "What this demo is",
+        "description": "An electronics shop wants to know which products disappoint, and what their buyers do about it. The answer is spread over three NoSQL stores. This one, <strong>catalog</strong>, is MongoDB: a document for each product, its specs nested, and the star ratings customers give."
+      },
+      "reviewsSearchStore": {
+        "title": "The reviews, in Elasticsearch",
+        "description": "<strong>reviews</strong> is Elasticsearch: the 5,000 reviews customers wrote, each with its product, its stars and its text. Provisa reads it live; nothing is copied first."
+      },
+      "reviewsGraphStore": {
+        "title": "Who bought what, in Neo4j",
+        "description": "<strong>purchases</strong> is Neo4j: 2,000 customers, each linked by a BOUGHT relationship to the products they bought. All three stores name a product by the same id."
+      },
+      "reviewsPipeline": {
+        "title": "A MongoDB pipeline as a table",
+        "description": "<strong>ratings_by_product</strong> is a MongoDB aggregation pipeline, registered as a table: it groups the star ratings by product and gives each product's count, average and one-star ratings. A query reads it like any other table."
+      },
+      "reviewsSearchTable": {
+        "title": "An Elasticsearch search as a table",
+        "description": "<strong>reviews_matching</strong> is an Elasticsearch search, registered as a table. Its phrase is a parameter: a query sets it, and each row is a review whose text holds the phrase, with the phrase highlighted."
+      },
+      "reviewsCypherTable": {
+        "title": "A Cypher query as a table",
+        "description": "<strong>bought_together</strong> is a Cypher query against Neo4j, registered as a table: for each product, every other product its buyers bought, and how many of them did."
+      },
+      "reviewsJoin": {
+        "title": "Joined on the product",
+        "description": "Relationships join the tables on the product id across all three stores. <strong>COMPLAINS_ABOUT</strong> joins a matching review to its product in the catalog, so a query reaches from Elasticsearch to MongoDB without spelling out the join."
+      },
+      "reviewsBatteryDies": {
+        "title": "Where the battery dies",
+        "description": "The shop's first question, in SQL: the reviews that say \"battery dies\", counted by product, with each product's ratings. One statement reads an Elasticsearch search and two MongoDB tables, and a handful of products stand out."
+      },
+      "reviewsBoughtWith": {
+        "title": "What their buyers bought",
+        "description": "The second question, in Cypher: the products rated under three stars, and what their buyers also bought. The graph runs across the MongoDB ratings and the Neo4j purchases, and power banks keep turning up."
+      },
+      "reviewsRest": {
+        "title": "The search over REST",
+        "description": "The same search as a REST call, its phrase passed as a parameter. Every surface Provisa serves reads the same governed tables, so REST answers as SQL and GraphQL do, under the same rights."
+      },
+      "reviewsExample": {
+        "title": "The search in GraphQL",
+        "description": "An example query: the battery complaints in GraphQL, each review's highlighted text with its product nested beneath it through the relationship."
+      },
+      "reviewsDone": {
+        "title": "What you just saw",
+        "description": "Three NoSQL stores, a MongoDB pipeline, an Elasticsearch search and a Cypher query, joined on the product and asked the shop's question in SQL, Cypher, REST and GraphQL."
       }
     },
     "status": {
@@ -423,6 +471,10 @@
       "files": {
         "title": "Instant data lake",
         "summary": "A city's open-data files read in place as one catalog: which neighborhoods have the most complaints near active construction?"
+      },
+      "reviews": {
+        "title": "Product reviews",
+        "summary": "An electronics shop's catalog, reviews and purchases in MongoDB, Elasticsearch and Neo4j, joined on the product: which products do reviews say the battery dies on, and what else did their buyers buy?"
       }
     }
   }

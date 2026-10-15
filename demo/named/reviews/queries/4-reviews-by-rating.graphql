@@ -1,0 +1,9 @@
+# How many reviews give each number of stars, from the Elasticsearch reviews.
+query ReviewsByRating {
+  reviewsGroupBy(by: [rating], order_by: [{ groupKey: { rating: asc } }]) {
+    groupKey
+    aggregate {
+      count
+    }
+  }
+}

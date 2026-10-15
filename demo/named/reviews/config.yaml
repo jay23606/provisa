@@ -1,0 +1,184 @@
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+#
+# The WHOLE config of the named demo "reviews" (start-ui-install.sh --demo reviews; REQ-2030): an
+# electronics shop's three NoSQL stores, read live and joined on the product id they share.
+# docker-compose.yml in this directory brings the stores up and fills them (seed.py).
+#
+#   catalog    MongoDB: products, one document a product with its specs nested, and star ratings.
+#              ratings_by_product is an aggregation pipeline over the ratings, one row a product.
+#   reviews    Elasticsearch: the reviews customers write. reviews_matching is a search: the
+#              reviews whose text holds a phrase, the phrase highlighted.
+#   purchases  Neo4j: customers and what they bought. bought_together is a Cypher query: for each
+#              product, each other product its buyers bought, with how many of them did.
+#
+# The search's phrase is a parameter of its table (_nf_phrase): SQL sets it by an equality on that
+# column, GraphQL by the field's phrase argument.
+auth:
+  assignments_source: provisa
+  default_assignments:
+  - domain_id: '*'
+    role_id: org_admin
+  provider: none
+cache:
+  default_ttl: 300
+  enabled: true
+discovery:
+  api_key: ${env:ANTHROPIC_API_KEY:-}
+  min_confidence: 0.7
+  sample_size: 20
+domains:
+- id: store
+  description: An electronics shop's catalog (MongoDB), its customers' reviews (Elasticsearch) and
+    who bought what (Neo4j), joined on the product id
+federation_engine: duckdb
+naming:
+  domain_prefix: false
+  rules: []
+roles:
+- id: analyst
+  capabilities:
+  - query_development
+  domain_access:
+  - store
+server:
+  limits:
+    default_row_limit: 100
+    request_timeout: 60
+    trino_query_timeout: 120
+sources:
+- id: catalog
+  type: mongodb
+  host: ${env:REVIEWS_MONGO_HOST:-localhost}
+  port: ${env:REVIEWS_MONGO_PORT:-28617}
+  database: catalog
+  cache_ttl: 300
+  description: The shop's catalog in MongoDB -- its products, specs nested, and their star ratings
+- id: reviews
+  type: elasticsearch
+  host: ${env:REVIEWS_ES_HOST:-localhost}
+  port: ${env:REVIEWS_ES_PORT:-28692}
+  cache_ttl: 300
+  description: The reviews the shop's customers write, in Elasticsearch
+- id: purchases
+  type: neo4j
+  host: ${env:REVIEWS_NEO4J_HOST:-localhost}
+  port: ${env:REVIEWS_NEO4J_HTTP_PORT:-28674}
+  database: neo4j
+  cache_ttl: 300
+  description: The shop's customers and what they bought, as a graph in Neo4j
+tables:
+- source_id: catalog
+  domain_id: store
+  schema: catalog
+  table: products
+  description: What the shop sells, one MongoDB document a product
+  columns:
+  - {name: product_id, data_type: integer, is_primary_key: true, description: The product's id, visible_to: [org_admin, analyst]}
+  - {name: name, data_type: varchar, description: The product's name, visible_to: [org_admin, analyst]}
+  - {name: category, data_type: varchar, description: 'Its category: headphones, phone, laptop, power bank and so on', visible_to: [org_admin, analyst]}
+  - {name: brand, data_type: varchar, description: The brand, visible_to: [org_admin, analyst]}
+  - {name: price, data_type: double, description: The price in USD, visible_to: [org_admin, analyst]}
+  - {name: specs_battery_hours, data_type: integer, path: specs.battery_hours, description: 'Hours on a charge, as the maker states it (nested: specs.battery_hours)', visible_to: [org_admin, analyst]}
+  - {name: specs_weight_g, data_type: integer, path: specs.weight_g, description: 'Its weight in grams (nested: specs.weight_g)', visible_to: [org_admin, analyst]}
+- source_id: catalog
+  domain_id: store
+  schema: catalog
+  table: ratings_by_product
+  description: Each product's star ratings, summed up by a MongoDB aggregation pipeline over the
+    ratings collection
+  query_template: '{"inputCollection": "ratings", "pipeline": [{"$group": {"_id": "$product_id",
+    "ratings": {"$sum": 1}, "avg_stars": {"$avg": "$stars"}, "one_star": {"$sum": {"$cond":
+    [{"$eq": ["$stars", 1]}, 1, 0]}}}}, {"$project": {"_id": 0, "product_id": "$_id", "ratings":
+    1, "avg_stars": {"$round": ["$avg_stars", 2]}, "one_star": 1}}]}'
+  columns:
+  - {name: product_id, data_type: integer, description: The product rated, visible_to: [org_admin, analyst]}
+  - {name: ratings, data_type: integer, description: How many star ratings it has, visible_to: [org_admin, analyst]}
+  - {name: avg_stars, data_type: double, description: 'Its average rating, 1 to 5 stars', visible_to: [org_admin, analyst]}
+  - {name: one_star, data_type: integer, description: How many of its ratings are one star, visible_to: [org_admin, analyst]}
+- source_id: reviews
+  domain_id: store
+  schema: default
+  table: reviews
+  description: Every review a customer wrote, one Elasticsearch document a review
+  # GraphQL's Aggregate and GroupBy fields, which the example queries (queries/) use.
+  enable_aggregates: true
+  enable_group_by: true
+  columns:
+  - {name: review_id, data_type: varchar, is_primary_key: true, description: The review's id, visible_to: [org_admin, analyst]}
+  - {name: product_id, data_type: integer, description: The product reviewed, visible_to: [org_admin, analyst]}
+  - {name: customer_id, data_type: integer, description: The customer who wrote it, visible_to: [org_admin, analyst]}
+  - {name: rating, data_type: integer, description: 'The stars given, 1 to 5', visible_to: [org_admin, analyst]}
+  - {name: title, data_type: varchar, description: The review's title, visible_to: [org_admin, analyst]}
+  - {name: text, data_type: varchar, description: What the customer wrote, visible_to: [org_admin, analyst]}
+  - {name: created_at, data_type: timestamp, description: When it was written, visible_to: [org_admin, analyst]}
+- source_id: reviews
+  domain_id: store
+  schema: default
+  table: reviews_matching
+  description: The reviews whose text holds a phrase, as an Elasticsearch search with the phrase
+    highlighted; set the phrase with its phrase parameter
+  query_template: '{"index": "reviews", "size": 1000, "query": {"match_phrase": {"text": "{{phrase}}"}},
+    "highlight": {"fields": {"text": {}}}}'
+  columns:
+  - {name: review_id, data_type: varchar, description: The review, visible_to: [org_admin, analyst]}
+  - {name: score, data_type: double, path: _score, description: How well the review matches the phrase, visible_to: [org_admin, analyst]}
+  - {name: product_id, data_type: integer, description: The product reviewed, visible_to: [org_admin, analyst]}
+  - {name: rating, data_type: integer, description: 'The stars given, 1 to 5', visible_to: [org_admin, analyst]}
+  - {name: text, data_type: varchar, description: What the customer wrote, visible_to: [org_admin, analyst]}
+  - {name: highlight_text, data_type: json, description: 'The passages of the text that hold the phrase, the phrase marked', visible_to: [org_admin, analyst]}
+  - {name: _nf_phrase, data_type: varchar, native_filter_type: query_arg, native_filter_required: false, required_by_steward: true, description: The phrase to search the reviews for, visible_to: []}
+- source_id: purchases
+  domain_id: store
+  schema: neo4j
+  table: customers
+  description: The shop's customers, one (:Customer) node each
+  query_template: >-
+    MATCH (c:Customer)
+    RETURN c.customer_id AS customer_id, c.name AS name, c.city AS city
+    ORDER BY c.customer_id
+  columns:
+  - {name: customer_id, data_type: integer, is_primary_key: true, description: The customer's id, visible_to: [org_admin, analyst]}
+  - {name: name, data_type: varchar, description: The customer's name, visible_to: [org_admin]}
+  - {name: city, data_type: varchar, description: Where the customer lives, visible_to: [org_admin, analyst]}
+- source_id: purchases
+  domain_id: store
+  schema: neo4j
+  table: purchases
+  description: Each product a customer bought, one (:Customer)-[:BOUGHT]->(:Product) relationship each
+  query_template: >-
+    MATCH (c:Customer)-[b:BOUGHT]->(p:Product)
+    RETURN c.customer_id AS customer_id, p.product_id AS product_id, toString(b.on) AS bought_on
+  columns:
+  - {name: customer_id, data_type: integer, description: The customer who bought it, visible_to: [org_admin, analyst]}
+  - {name: product_id, data_type: integer, description: The product bought, visible_to: [org_admin, analyst]}
+  - {name: bought_on, data_type: varchar, description: 'When it was bought, as YYYY-MM-DD', visible_to: [org_admin, analyst]}
+- source_id: purchases
+  domain_id: store
+  schema: neo4j
+  table: bought_together
+  description: For each product, each other product its buyers also bought and how many of them
+    did, from a Cypher query over who bought what
+  query_template: >-
+    MATCH (p:Product)<-[:BOUGHT]-(c:Customer)-[:BOUGHT]->(o:Product)
+    WHERE p <> o
+    RETURN p.product_id AS product_id, o.product_id AS also_bought_id, count(DISTINCT c) AS customers
+  columns:
+  - {name: product_id, data_type: integer, description: The product, visible_to: [org_admin, analyst]}
+  - {name: also_bought_id, data_type: integer, description: Another product its buyers bought, visible_to: [org_admin, analyst]}
+  - {name: customers, data_type: integer, description: How many of its buyers bought that one too, visible_to: [org_admin, analyst]}
+relationships:
+- {id: review-of-product, alias: REVIEW_OF, cardinality: many-to-one, source_table_id: reviews, source_column: product_id, target_table_id: products, target_column: product_id}
+- {id: review-by-customer, alias: WRITTEN_BY, cardinality: many-to-one, source_table_id: reviews, source_column: customer_id, target_table_id: customers, target_column: customer_id}
+- {id: match-of-product, alias: COMPLAINS_ABOUT, graphql_alias: product, cardinality: many-to-one, source_table_id: reviews_matching, source_column: product_id, target_table_id: products, target_column: product_id}
+- {id: ratings-of-product, alias: RATINGS_OF, graphql_alias: product, cardinality: many-to-one, source_table_id: ratings_by_product, source_column: product_id, target_table_id: products, target_column: product_id}
+- {id: purchase-by-customer, alias: BOUGHT_BY, cardinality: many-to-one, source_table_id: purchases, source_column: customer_id, target_table_id: customers, target_column: customer_id}
+- {id: purchase-of-product, alias: PURCHASE_OF, cardinality: many-to-one, source_table_id: purchases, source_column: product_id, target_table_id: products, target_column: product_id}
+- {id: together-with-product, alias: BOUGHT_WITH, graphql_alias: product, cardinality: many-to-one, source_table_id: bought_together, source_column: product_id, target_table_id: products, target_column: product_id}
+- {id: together-also-bought, alias: ALSO_BOUGHT, graphql_alias: alsoBought, cardinality: many-to-one, source_table_id: bought_together, source_column: also_bought_id, target_table_id: products, target_column: product_id}

@@ -1,0 +1,20 @@
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+#
+# The reviews demo's card on provisa.dev's live demos page (REQ-2006). Not published yet: its
+# bundle build dumps Postgres and Qdrant stores only (scripts/demo_bundle.py), and this demo's are
+# MongoDB, Elasticsearch and Neo4j. It runs from the checkout (start-ui-install.sh --demo reviews),
+# its stores filled by its seeder.
+title: Product reviews
+description: >-
+  An electronics shop's catalog in MongoDB, its customers' reviews in Elasticsearch and who bought
+  what in Neo4j, joined on the product: which products do reviews say the battery dies on, and
+  what else did their buyers buy?
+published: false
+requires_provisa: 0.1.0a486
