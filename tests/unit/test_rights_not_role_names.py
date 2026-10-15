@@ -257,9 +257,12 @@ def test_no_module_gates_on_a_role_id(path: pathlib.Path):
 
 
 class _Identity:
+    """An identity the auth middleware has resolved: it acts as every role it holds (REQ-2060)."""
+
     def __init__(self, user_id: str, roles: list[str]) -> None:
         self.user_id = user_id
         self.roles = roles
+        self.acting_roles = roles
 
 
 class _Request:
