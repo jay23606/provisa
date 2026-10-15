@@ -569,3 +569,53 @@ def test_the_generic_command_rpc_is_every_roles(meta_reach):
     """REQ-1156: commands are invocable on every surface; the generic entry is always there."""
     for role in ("sales_reader", "cataloguer"):
         assert "CallCommand" in _rpcs(meta_reach.proto_files[role])
+
+
+def test_every_roles_service_resolves_a_semantic_address(meta_reach):
+    """REQ-1365, REQ-1929: resolve is in every role's GraphQL schema, so its RPC is in every
+    role's service, generated from the same rule."""
+    for role in ("sales_reader", "cataloguer"):
+        assert "resolve" in meta_reach.schemas[role].query_type.fields
+        assert "Resolve" in _rpcs(meta_reach.proto_files[role])
+
+
+_RESOLVE = """syntax = "proto3";
+package provisa.v1;
+message Orders { int32 id = 1; }
+message OrdersRequest { int32 limit = 1; }
+message ResolveAddressRequest { string uri = 1; string as_of = 2; }
+message ResolveAddressResponse { string result_json = 1; }
+service ProvisaService {
+  rpc QueryOrders (OrdersRequest) returns (stream Orders);
+  rpc Resolve (ResolveAddressRequest) returns (ResolveAddressResponse);
+}
+"""
+
+
+def test_a_resolve_call_is_answered_by_the_one_resolve_function(deployment, monkeypatch):
+    """The RPC hands the address, the role and the bound organisation to the resolve every other
+    surface calls, and answers what it found as JSON. An as_of the call does not give is none."""
+    import json
+
+    from provisa.api.data import resolve as resolve_mod
+
+    state, channel = deployment
+    state.protos["acme"] = _RESOLVE
+    state.roles["acme"]["analyst"] = _RESOLVE
+    calls: list[tuple] = []
+
+    async def _resolve(_state, role_id, uri, *, org_id, as_of=None):
+        calls.append((role_id, uri, org_id, as_of))
+        return {"uri": uri, "row": {"id": 7}}
+
+    monkeypatch.setattr(resolve_mod, "resolve", _resolve)
+    messages = OrgDescriptor(_RESOLVE)
+    call = channel.unary_unary(
+        "/provisa.v1.ProvisaService/Resolve",
+        request_serializer=lambda message: message.SerializeToString(),
+        response_deserializer=messages.ResolveAddressResponse.FromString,
+    )
+    uri = "provisa://acme/sales/tables/orders/pk=7"
+    answer = call(messages.ResolveAddressRequest(uri=uri), metadata=_as("acme"))
+    assert json.loads(answer.result_json) == {"uri": uri, "row": {"id": 7}}
+    assert calls == [("analyst", uri, "acme", None)]
