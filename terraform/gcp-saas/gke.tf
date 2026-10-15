@@ -3,7 +3,7 @@
 # Engine cluster (REQ-1447, REQ-1450, REQ-1451, REQ-1464, REQ-1465).
 #
 # One GKE cluster runs Trino and nothing else. The control plane stays on its own
-# VM with Cloud SQL — it serializes org-runtime rebuilds on an in-process lock, so
+# VM with its control-db — it serializes org-runtime rebuilds on an in-process lock, so
 # it is deliberately not a scheduled workload (REQ-1451).
 #
 # TWO topologies are declared here and var.engine_cluster_mode picks one. Both are

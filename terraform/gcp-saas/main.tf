@@ -115,6 +115,21 @@ resource "google_compute_firewall" "minio_from_pods" {
   target_tags   = ["provisa-saas-node"]
 }
 
+# The engine pods dial the control-plane DB too (its self-catalog and the Iceberg JDBC
+# metastore), at the coordinator's VPC address control-db is published on.
+resource "google_compute_firewall" "control_db_from_pods" {
+  name    = "provisa-saas-allow-control-db-from-pods"
+  network = google_compute_network.main.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["5432"]
+  }
+
+  source_ranges = [var.pods_cidr]
+  target_tags   = ["provisa-saas-node"]
+}
+
 resource "google_compute_firewall" "ssh" {
   count   = var.ssh_public_key != "" && var.admin_cidr != "" ? 1 : 0
   name    = "provisa-saas-allow-ssh"
@@ -136,7 +151,7 @@ resource "google_service_account" "provisa" {
   display_name = "Provisa SaaS Node"
 }
 
-# ── Private Service Access — required for Cloud SQL private IP on this VPC ────────
+# ── Private Service Access (the VPC's peering for Google-managed services) ─────────
 
 resource "google_compute_global_address" "psa" {
   name          = "provisa-saas-psa"
@@ -152,59 +167,13 @@ resource "google_service_networking_connection" "psa" {
   reserved_peering_ranges = [google_compute_global_address.psa.name]
 }
 
-# ── Cloud SQL — managed, always-warm control plane (Postgres) ────────────────────
-# Holds the multitenancy metadata (PLATFORM_DATABASE_URL / TENANT_DATABASE_URL).
-# Private IP only; reachable from the coordinator over the PSA-peered VPC.
+# ── Control-plane DB password ───────────────────────────────────────────────────
+# The control-db service's (control_db_setup); it is never printed and lives only in the
+# node's provisa.env.
 
 resource "random_password" "db" {
   length  = 32
   special = false
-}
-
-resource "google_sql_database_instance" "main" {
-  name                = "provisa-saas-control"
-  region              = var.region
-  database_version    = "POSTGRES_16"
-  deletion_protection = false
-
-  depends_on = [google_service_networking_connection.psa]
-
-  settings {
-    tier              = var.cloudsql_tier
-    availability_type = var.cloudsql_ha ? "REGIONAL" : "ZONAL"
-    disk_size         = var.cloudsql_disk_gb
-    disk_autoresize   = true
-
-    ip_configuration {
-      ipv4_enabled    = false
-      private_network = google_compute_network.main.id
-    }
-
-    # REQ-1316: db-f1-micro derives max_connections from its 0.6 GB of memory, giving 25 — of which
-    # Cloud SQL reserves 3 for cloudsqladmin plus the superuser reserve. The control plane, the audit
-    # plane and every org's tenant handle all connect to THIS one instance, so a deployment with a
-    # couple of orgs and normal pool sizing runs the server out of slots and every query fails with
-    # "remaining connection slots are reserved for roles with privileges of pg_use_reserved_connections".
-    # The pool-per-org multiplication is fixed separately (one shared tenant engine); this is the
-    # server-side headroom that keeps a second org from being fatal.
-    database_flags {
-      name  = "max_connections"
-      value = var.cloudsql_max_connections
-    }
-
-    user_labels = local.all_labels
-  }
-}
-
-resource "google_sql_database" "provisa" {
-  name     = "provisa"
-  instance = google_sql_database_instance.main.name
-}
-
-resource "google_sql_user" "provisa" {
-  name     = "provisa"
-  instance = google_sql_database_instance.main.name
-  password = random_password.db.result
 }
 
 # ── Locals ──────────────────────────────────────────────────────────────────────
@@ -313,17 +282,91 @@ locals {
     cd /opt
   SHELL
 
-  # External control-plane DB env (Cloud SQL). docker-compose.app.yml interpolates
-  # PG_* / PLATFORM_DATABASE_URL / TENANT_DATABASE_URL from CONFIG_DB_*, and
-  # first-launch persists these into the systemd EnvironmentFile (allowlist in
-  # packaging/linux/first-launch.sh). PROVISA_EXTERNAL_CONTROL_DB flags the mode.
+  # The control-plane DB: the control-db service on this node (control_db_setup). The
+  # control-plane compose base interpolates PG_* / PLATFORM_DATABASE_URL /
+  # TENANT_DATABASE_URL from CONFIG_DB_*, and first-launch persists these into the systemd
+  # EnvironmentFile on every boot (allowlist in packaging/linux/first-launch.sh).
   external_db_exports = <<-SHELL
     export PROVISA_EXTERNAL_CONTROL_DB=1
-    export CONFIG_DB_HOST="${google_sql_database_instance.main.private_ip_address}"
+    export CONFIG_DB_HOST=control-db
     export CONFIG_DB_PORT=5432
-    export CONFIG_DB_NAME="${google_sql_database.provisa.name}"
-    export CONFIG_DB_USER="${google_sql_user.provisa.name}"
+    export CONFIG_DB_NAME="${local.control_db_name}"
+    export CONFIG_DB_USER="${local.control_db_user}"
     export CONFIG_DB_PASSWORD='${random_password.db.result}'
+  SHELL
+
+  control_db_name = "provisa"
+  control_db_user = "provisa"
+
+  # The control-plane Postgres runs on this node, on the object-store disk (which survives an
+  # instance replacement), published only on the node's VPC address, for the engine pods
+  # (control_db_from_pods), which the app names to the engine. It is an
+  # extension compose file, which scripts/provisa layers onto the control-plane base. A nightly
+  # pg_dump goes to the backups bucket; Persistent= runs a night the node slept through at its
+  # next boot. Runs after object_store_mount.
+  control_db_setup = <<-SHELL
+    mkdir -p /var/lib/provisa-object-store/control-db /root/.provisa/extensions/control-db
+    cat > /root/.provisa/extensions/control-db/docker-compose.control-db.yml <<'YAML'
+    services:
+      control-db:
+        image: postgres:16.14@sha256:95206741a5b214807675e14165369d05b93a9cf692223b616d07cca227e74b0b
+        restart: unless-stopped
+        command: ["postgres", "-c", "max_connections=200"]
+        environment:
+          POSTGRES_DB: "$${CONFIG_DB_NAME:?}"
+          POSTGRES_USER: "$${CONFIG_DB_USER:?}"
+          POSTGRES_PASSWORD: "$${CONFIG_DB_PASSWORD:?}"
+        ports:
+          - "${google_compute_address.coordinator_internal.address}:5432:5432"
+        volumes:
+          - /var/lib/provisa-object-store/control-db:/var/lib/postgresql/data
+        healthcheck:
+          test: ["CMD-SHELL", "pg_isready -U $${CONFIG_DB_USER} -d $${CONFIG_DB_NAME}"]
+          interval: 5s
+          timeout: 5s
+          retries: 30
+      provisa:
+        environment:
+          PROVISA_ENGINE_CONTROL_PLANE_HOST: "${google_compute_address.coordinator_internal.address}"
+        depends_on:
+          control-db:
+            condition: service_healthy
+      provisa-ui:
+        depends_on:
+          control-db:
+            condition: service_healthy
+      provisa-sandbox:
+        depends_on:
+          control-db:
+            condition: service_healthy
+    YAML
+    cat > /usr/local/bin/provisa-control-db-backup <<'BACKUP'
+    #!/bin/bash
+    set -euo pipefail
+    cid=$(docker ps -q --filter label=com.docker.compose.service=control-db)
+    [ -n "$cid" ] || { echo "control-db is not running" >&2; exit 1; }
+    docker exec "$cid" pg_dump -U ${local.control_db_user} -Fc ${local.control_db_name} \
+      | gsutil -q cp - "gs://${google_storage_bucket.control_db_backups.name}/nightly/provisa-$(date -u +%Y%m%dT%H%M%SZ).dump"
+    BACKUP
+    chmod 755 /usr/local/bin/provisa-control-db-backup
+    cat > /etc/systemd/system/provisa-control-db-backup.service <<'UNIT'
+    [Unit]
+    Description=pg_dump of the Provisa control-plane DB to Cloud Storage
+    [Service]
+    Type=oneshot
+    ExecStart=/usr/local/bin/provisa-control-db-backup
+    UNIT
+    cat > /etc/systemd/system/provisa-control-db-backup.timer <<'UNIT'
+    [Unit]
+    Description=Nightly control-plane DB backup
+    [Timer]
+    OnCalendar=*-*-* 03:00:00 UTC
+    Persistent=true
+    [Install]
+    WantedBy=timers.target
+    UNIT
+    systemctl daemon-reload
+    systemctl enable --now provisa-control-db-backup.timer
   SHELL
 
   # Engine-cluster env (REQ-1447/1450/1451). The CLUSTER_* + IMAGE settings say this
@@ -398,8 +441,8 @@ locals {
 # Runs the Provisa API, the UI, and the in-process protocol listeners, and NOTHING
 # of the query engine: every coordinator is a pod on the GKE cluster (REQ-1451), so
 # this VM's role is `control-plane` rather than the Trino-bearing `primary`. The
-# control-plane DB is offloaded to Cloud SQL (external_db_exports); redis/minio ride
-# this VM at low scale (see the plan doc's service-placement table).
+# control-plane DB is the control-db service on this VM (control_db_setup); redis/minio
+# ride this VM at low scale (see the plan doc's service-placement table).
 #
 # The resource keeps its `coordinator` name: it is the same instance, and renaming
 # it would destroy and recreate the live control plane for a label.
@@ -422,8 +465,9 @@ resource "google_compute_address" "coordinator_internal" {
 }
 
 # The object store's data, on a disk with its own lifetime. The Iceberg metastore for the
-# `otel` catalog is a table in Cloud SQL, which outlives any single coordinator, while the
-# warehouse it points at was a docker named volume on the boot disk, which does not: after
+# `otel` catalog is a table in the control-plane DB, which this disk also holds. The
+# warehouse it points at was once a docker named volume on the boot disk, which did not
+# outlive the instance: after
 # the instance was replaced, every iceberg_tables row named a metadata object that no longer
 # existed and every ops query failed with ICEBERG_MISSING_METADATA. A metastore that survives
 # an instance must point at a warehouse that survives one too.
@@ -440,6 +484,39 @@ resource "google_compute_disk" "coordinator_data" {
   lifecycle {
     prevent_destroy = true
   }
+}
+
+# The control-plane DB's nightly dumps (control_db_setup), kept 30 days. A dump outside
+# nightly/ (the final Cloud SQL dump) is kept until it is removed by hand.
+resource "google_storage_bucket" "control_db_backups" {
+  name                        = "${var.project}-control-db-backups"
+  location                    = var.region
+  uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+  labels                      = local.all_labels
+
+  lifecycle_rule {
+    condition {
+      age            = 30
+      matches_prefix = ["nightly/"]
+    }
+    action {
+      type = "Delete"
+    }
+  }
+}
+
+resource "google_storage_bucket_iam_member" "control_db_backups_writer" {
+  bucket = google_storage_bucket.control_db_backups.name
+  role   = "roles/storage.objectCreator"
+  member = "serviceAccount:${google_service_account.provisa.email}"
+}
+
+# gsutil cp reads the destination before it writes; viewer lets it, and still deletes nothing.
+resource "google_storage_bucket_iam_member" "control_db_backups_reader" {
+  bucket = google_storage_bucket.control_db_backups.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.provisa.email}"
 }
 
 resource "google_compute_instance" "coordinator" {
@@ -490,14 +567,13 @@ resource "google_compute_instance" "coordinator" {
     }
   }
 
-  depends_on = [google_sql_user.provisa]
-
   metadata = merge(local.metadata_ssh, {
     startup-script = <<-SHELL
       ${local.base_startup}
       ${local.external_db_exports}
       ${local.engine_cluster_exports}
       ${local.object_store_mount}
+      ${local.control_db_setup}
       /opt/Provisa.AppImage \
         --non-interactive \
         --role control-plane \
