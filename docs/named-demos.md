@@ -72,7 +72,7 @@ databases manually, or issue commands in a specific order. One command, fully au
 ## The seeder pattern
 
 Heavy data generation must not re-run on every container restart. The `perf` demo uses a
-`seeder` service that writes a marker file on a bind-mounted data volume [tool-verified]:
+`seeder` service that writes a marker file on a bind-mounted directory [tool-verified]:
 
 ```python
 # demo/named/perf/seed.py:29,42-43
@@ -86,7 +86,7 @@ def main() -> int:
 
 When the seeder container starts, it checks for the marker. If present, it exits immediately. If
 absent, it runs all generation scripts in sequence, then writes the marker. Because the marker
-lives on the bind-mounted `./data/` volume, it survives container restarts but not `./data/`
+lives on the bind-mounted `data/` directory, it survives container restarts but not `data/`
 being deleted. A start without `--keep-data` deletes it, so the marker only matters to a demo started
 with `--keep-data`. [tool-verified]
 
@@ -110,14 +110,32 @@ For lighter demos — a few hundred rows, fast to regenerate — skipping the ma
 the seeder re-run every start is fine. The marker pattern is only necessary when generation
 takes minutes or writes gigabytes.
 
-## Bind mounts, not named volumes
+## Volumes: named for databases, the demo directory for files
 
-Use bind mounts to `./data/` for all data volumes. Docker Desktop stores named volumes inside
-its own VM disk image on the macOS boot volume, which fills fast. Bind mounts to `./data/` keep
-every byte on the external volume (e.g. `/Volumes/main`) [tool-verified].
+A database's storage is a named volume of the compose project (`weblogs_pg`, `sonnets_pg`,
+`sonnets_qdrant`). `docker compose down -v` removes it, so a test that runs the demo's compose
+file under its own project starts from an empty database every run and leaves nothing in the
+checkout [tool-verified: `demo/named/weblogs/docker-compose.yml`,
+`demo/named/sonnets/docker-compose.yml`, `tests/integration/test_sonnets_demo.py`].
 
-This requires `/Volumes/main` (or whatever host path contains the repo) to be added under
-Docker Desktop → Settings → Resources → File Sharing.
+What the demo's own tooling reads or writes as files -- the seeder's marker, log files a Logs
+source reads -- goes under `${PROVISA_NAMED_DEMO_DIR:-.}`: the demo's directory when
+`start-ui-install.sh` runs it, a temporary directory when a test sets the variable
+[tool-verified: `demo/named/weblogs/docker-compose.yml`]:
+
+```yaml
+# demo/named/weblogs/docker-compose.yml (excerpt)
+    volumes:
+      - weblogs_pg:/var/lib/postgresql/data
+      - ${PROVISA_NAMED_DEMO_DIR:-.}/logs/postgres:/var/log/pglog
+...
+  seeder:
+    volumes:
+      - ${PROVISA_NAMED_DEMO_DIR:-.}/data:/data-marker
+```
+
+`demo/named/*/data/` is ignored by git. The `perf` demo predates this and binds its stores to
+`./data/`.
 
 ## Container labels
 
@@ -578,7 +596,8 @@ mkdir -p demo/named/banking/data
 **2. Write `docker-compose.yml`.**
 
 Include one service per local data store plus a `seeder` service. Add the standard labels.
-Use bind mounts to `./data/`. Expose ports on non-conflicting host ports.
+Keep the database in a named volume and the seeder's marker under `${PROVISA_NAMED_DEMO_DIR:-.}`
+(see "Volumes" above). Expose ports on non-conflicting host ports.
 
 ```yaml
 x-demo-labels: &demo-labels
@@ -593,7 +612,7 @@ services:
     ports:
       - "${PROVISA_BANKING_PG_PORT:-25700}:5432"
     volumes:
-      - ./data/postgresql:/var/lib/postgresql/data
+      - banking_pg:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U provisa -d banking"]
       interval: 5s
@@ -620,7 +639,10 @@ services:
       PROVISA_BANKING_PG_HOST: postgresql
       PROVISA_BANKING_PG_PORT: "5432"
     volumes:
-      - ./data:/data-marker
+      - ${PROVISA_NAMED_DEMO_DIR:-.}/data:/data-marker
+
+volumes:
+  banking_pg:
 ```
 
 The Snowflake source requires no service entry — it is external. Its credentials belong in
