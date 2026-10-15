@@ -43,6 +43,8 @@ steps:
     ORDER BY a.total DESC
     LIMIT 20
 - key: __NAME__Example
+  route: /query
+  capability: query_development
   example: 1-answer
 # The recap.
 - key: __NAME__Recap
