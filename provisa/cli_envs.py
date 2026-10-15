@@ -27,7 +27,7 @@ THE CONTRACT WITH A SCRIPT is the exit code and ``--json``:
   pipeline that read a pending approval as success would report a release that has not happened.
 """
 
-# Requirements: REQ-1496, REQ-1498, REQ-1504, REQ-1541, REQ-1543, REQ-1942
+# Requirements: REQ-1496, REQ-1498, REQ-1504, REQ-1506, REQ-1541, REQ-1543, REQ-1548, REQ-1942
 
 from __future__ import annotations
 
@@ -94,8 +94,8 @@ def _guarded(command):
 
 def _print_report(report: dict[str, Any]) -> None:
     """A report as a log reads it. Two shapes reach here and both say the same four things -- what
-    was added, changed, removed and left alone: a merge counts objects per registry (REQ-1490), a
-    load lists paths (REQ-1496)."""
+    was added, changed, removed and left alone: a merge counts objects and names their paths
+    (REQ-1548), a load lists paths (REQ-1496)."""
     if "ref" in report:
         print(f"  ref       {report['ref']}")
         for kind in ("added", "changed", "removed"):
@@ -107,10 +107,13 @@ def _print_report(report: dict[str, Any]) -> None:
         f"  added {report['added']}  changed {report['changed']}  "
         f"removed {report['removed']}  unchanged {report['unchanged']}"
     )
-    for table in report["tables"]:
-        for kind in ("added", "changed", "removed"):
-            for key in table[kind]:
-                print(f"  {kind[0].upper()} {table['table']} {key}")
+    for kind in ("added", "changed", "removed"):
+        for path in report["paths"][kind]:
+            print(f"  {kind[0].upper()} {path}")
+        for key in report["settings"][kind]:
+            print(f"  {kind[0].upper()} setting {key}")
+    for path in report["pulled_in"]:
+        print(f"  + {path} (required by the selection)")
     for conflict in report["conflicts"]:
         print(
             f"  ! {conflict['path']} ({conflict['source']} here, {conflict['target']} in the target)"
@@ -186,7 +189,13 @@ def _cmd_show(args: argparse.Namespace) -> int:
 def _cmd_diff(args: argparse.Namespace) -> int:
     """`provisa env diff` — what merging one environment into another would do. A GET: the method
     that cannot write is the one to hand a runner."""
-    query = urlencode({"from_env": args.from_env, "removals": _flag(args.removals)})
+    query = urlencode(
+        [
+            ("from_env", args.from_env),
+            ("removals", _flag(args.removals)),
+            *(("select", path) for path in args.select or []),
+        ]
+    )
     result = _call(args, "GET", f"{_env_path(args, args.into, 'merge-preview')}?{query}")
     return _outcome(args, result, "Merge", dry_run=True)
 
@@ -241,6 +250,7 @@ def _cmd_merge(args: argparse.Namespace) -> int:
         {
             "from_env": args.from_env,
             "removals": args.removals,
+            "selection": args.select,
             "dry_run": args.dry_run,
             "retire_source": args.retire_source,
             "retire_remote": args.retire_remote,
@@ -436,6 +446,14 @@ def register(sub) -> None:
             "--removals",
             action="store_true",
             help="Also remove from the target what the source no longer has",
+        )
+        parser.add_argument(
+            "--select",
+            action="append",
+            default=None,
+            metavar="PATH",
+            help="Scope the merge to this object, by its path in the model "
+            "(metrics/revenue.yaml); repeat for more. What it requires is carried with it",
         )
     merge.add_argument(
         "--dry-run", action="store_true", help="Print the merge report and apply none of it"

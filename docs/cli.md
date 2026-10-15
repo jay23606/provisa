@@ -313,7 +313,7 @@ cannot write; hand it to a runner that must not change anything. [tool-verified:
 cli_envs.py:186-191]
 
 ```
-provisa env diff --org ORG --from SOURCE --into TARGET [--removals]
+provisa env diff --org ORG --from SOURCE --into TARGET [--removals] [--select PATH ...]
 ```
 
 | Flag | Required | Notes |
@@ -321,6 +321,7 @@ provisa env diff --org ORG --from SOURCE --into TARGET [--removals]
 | `--from` | yes | Environment merged from |
 | `--into` | yes | Environment merged into |
 | `--removals` | no | Also remove from the target what the source no longer has |
+| `--select PATH` | no | Scope the merge to this object, by its path in the model (`metrics/revenue.yaml`); repeat for more. What it requires and the target lacks is carried with it and listed (REQ-1506) |
 
 [tool-verified: cli_envs.py:426-439]
 
@@ -330,7 +331,7 @@ Merge one environment into another, by identity (REQ-1490). [tool-verified: cli_
 
 ```
 provisa env merge --org ORG --from SOURCE --into TARGET
-                  [--removals] [--dry-run] [--message MSG]
+                  [--removals] [--select PATH ...] [--dry-run] [--message MSG]
                   [--retire-source] [--retire-remote]
 ```
 
@@ -339,6 +340,7 @@ provisa env merge --org ORG --from SOURCE --into TARGET
 | `--from` | yes | Environment merged from |
 | `--into` | yes | Environment merged into |
 | `--removals` | no | Also remove from the target what the source no longer has |
+| `--select PATH` | no | Scope the merge to this object, by its path in the model (`metrics/revenue.yaml`); repeat for more. What it requires and the target lacks is carried with it and listed (REQ-1506) |
 | `--dry-run` | no | Print the merge report and apply none of it |
 | `--message` | no | What the merge does; required to apply |
 | `--retire-source` | no | Delete the source once its work has landed |

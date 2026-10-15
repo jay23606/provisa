@@ -138,6 +138,9 @@
     "mergedOverwriting": "Merged into {{env}}, overwriting {{count}} object(s) changed there.",
     "pulledOverwriting": "Pulled {{env}} from the remote, overwriting {{count}} object(s) changed here since these lines parted:",
     "expiredKept": "expired, kept",
-    "expiredKeptHint": "This environment has expired and is kept because something still refers to it ({{reasons}}). Remove those and it is retired on the next sweep."
+    "expiredKeptHint": "This environment has expired and is kept because something still refers to it ({{reasons}}). Remove those and it is retired on the next sweep.",
+    "selectTitle": "Objects this merge would carry",
+    "selectHelp": "Tick objects to merge only those. Leave every box unticked to merge the whole model.",
+    "pulledIn": "Also carried, because the selection requires them:"
   }
 }

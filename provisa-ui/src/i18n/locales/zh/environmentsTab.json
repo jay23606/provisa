@@ -138,6 +138,9 @@
     "mergedOverwriting": "已合并到 {{env}}，覆盖了该处已更改的 {{count}} 个对象。",
     "pulledOverwriting": "已从远程仓库拉取 {{env}}，覆盖了自这些分支分叉以来此处已更改的 {{count}} 个对象：",
     "expiredKept": "已过期，保留中",
-    "expiredKeptHint": "此环境已过期，但因仍被引用而保留（{{reasons}}）。移除这些引用后，它将在下次清理时被停用。"
+    "expiredKeptHint": "此环境已过期，但因仍被引用而保留（{{reasons}}）。移除这些引用后，它将在下次清理时被停用。",
+    "selectTitle": "此次合并将带入的对象",
+    "selectHelp": "勾选对象以仅合并这些对象。全部不勾选则合并整个模型。",
+    "pulledIn": "由于所选对象需要，以下对象也将一并带入："
   }
 }

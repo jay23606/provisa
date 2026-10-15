@@ -35,15 +35,20 @@ REPORT = {
     "changed": 2,
     "unchanged": 7,
     "removed": 0,
-    "tables": [
-        {
-            "table": "metrics",
-            "added": ["revenue"],
-            "changed": ["margin", "churn"],
-            "removed": [],
-            "unchanged": 7,
-        }
-    ],
+    "paths": {
+        "added": ["metrics/revenue.yaml"],
+        "changed": ["metrics/margin.yaml", "metrics/churn.yaml"],
+        "removed": [],
+    },
+    "settings": {
+        "table": "org_settings",
+        "added": [],
+        "changed": [],
+        "removed": [],
+        "unchanged": 0,
+    },
+    "selection": None,
+    "pulled_in": [],
     "base": "abc",
     "compared": True,
     "conflicts": [],
@@ -195,12 +200,36 @@ class TestDiffAndMerge:
         assert seen[0][2] == {
             "from_env": "dev",
             "removals": True,
+            "selection": None,
             "dry_run": False,
             "retire_source": False,
             "retire_remote": False,
             "message": "fix margin",
         }
         assert "APPLIED" in capsys.readouterr().out
+
+    def test_a_scoped_merge_names_its_objects_and_what_they_pulled_in(self, api, capsys):
+        # REQ-1506: the selection travels as paths, and the report says what it required.
+        seen, answers = api
+        scoped = {
+            **REPORT,
+            "selection": ["metrics/revenue.yaml"],
+            "pulled_in": ["sales/domain.yaml"],
+        }
+        answers.extend(
+            [
+                {"report": scoped, "applied": False, "requires_approval": False},
+                {"report": scoped, "applied": True, "requires_approval": False},
+            ]
+        )
+        _run("diff", "--org", "acme", "--from", "dev", "--into", "prod", "--select", "metrics/revenue.yaml")  # fmt: skip
+        assert seen[0][1].endswith("&select=metrics%2Frevenue.yaml")
+        _run(
+            "merge", "--org", "acme", "--from", "dev", "--into", "prod", "--message", "m",
+            "--select", "metrics/revenue.yaml",
+        )  # fmt: skip
+        assert seen[1][2]["selection"] == ["metrics/revenue.yaml"]
+        assert "sales/domain.yaml (required by the selection)" in capsys.readouterr().out
 
     def test_json_emits_the_same_report(self, api, capsys):
         _, answers = api

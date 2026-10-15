@@ -138,6 +138,9 @@
     "mergedOverwriting": "Merge eseguito in {{env}}, sovrascrivendo {{count}} oggetto/i modificato/i lì.",
     "pulledOverwriting": "Recuperato {{env}} dal remote, sovrascrivendo {{count}} oggetto/i modificato/i qui da quando queste linee si sono separate:",
     "expiredKept": "scaduto, mantenuto",
-    "expiredKeptHint": "Questo ambiente è scaduto ed è mantenuto perché qualcosa vi fa ancora riferimento ({{reasons}}). Rimuovi quei riferimenti e sarà ritirato al prossimo controllo."
+    "expiredKeptHint": "Questo ambiente è scaduto ed è mantenuto perché qualcosa vi fa ancora riferimento ({{reasons}}). Rimuovi quei riferimenti e sarà ritirato al prossimo controllo.",
+    "selectTitle": "Oggetti che questo merge porterebbe",
+    "selectHelp": "Spunta gli oggetti per eseguire il merge solo di quelli. Lascia tutte le caselle vuote per eseguire il merge dell'intero modello.",
+    "pulledIn": "Portati anche questi, perché la selezione li richiede:"
   }
 }

@@ -72,6 +72,21 @@ const PROD = "prod";
  * not offered: the refused pull applied nothing and the fast-forward already applied everything,
  * so there is nothing here to choose.
  */
+/**
+ * The objects a merge preview offers for selection (REQ-1506): everything it would add, change or
+ * remove, plus whatever is already selected -- a scoped preview names only its own objects, and a
+ * box that vanished on being ticked could never be unticked.
+ */
+function offered(preview: CopyReport, selection: string[]): string[] {
+  const paths = preview.paths;
+  if (!paths) return selection;
+  const pulledIn = new Set(preview.pulled_in ?? []);
+  const named = [...paths.added, ...paths.changed, ...paths.removed].filter(
+    (path) => !pulledIn.has(path),
+  );
+  return [...new Set([...named, ...selection])].sort();
+}
+
 function ConflictNotice({ head, conflicts }: { head: string; conflicts: Conflict[] }) {
   const { t } = useTranslation();
   return (
@@ -128,6 +143,8 @@ export function EnvironmentsTab() {
   const [mergeSource, setMergeSource] = useState<Environment | null>(null);
   const [mergeInto, setMergeInto] = useState<string | null>(null);
   const [removals, setRemovals] = useState(false);
+  // REQ-1506: the objects the merge is scoped to. Empty is the whole model.
+  const [selection, setSelection] = useState<string[]>([]);
   const [message, setMessage] = useState("");
   // REQ-1550: what happens to the source once its work has landed. Both are off by default, and
   // the remote one is a modifier on the local one rather than a choice of its own.
@@ -323,6 +340,7 @@ export function EnvironmentsTab() {
     // it too (REQ-1549).
     setMergeInto(env.parent);
     setRemovals(false);
+    setSelection([]);
     setMessage("");
     setRetireSource(false);
     setRetireRemote(false);
@@ -332,7 +350,7 @@ export function EnvironmentsTab() {
   async function runPreview() {
     if (!mergeSource || mergeInto === null) return;
     try {
-      const answer = await previewMerge(orgId, mergeInto, mergeSource.name, removals);
+      const answer = await previewMerge(orgId, mergeInto, mergeSource.name, removals, selection);
       setPreview(answer.report);
     } catch (err) {
       fail(err as Error);
@@ -346,6 +364,7 @@ export function EnvironmentsTab() {
       const answer = await mergeEnvironment(orgId, mergeInto, {
         from_env: mergeSource.name,
         removals,
+        selection: selection.length > 0 ? selection : null,
         message,
         retire_source: retireSource,
         retire_remote: retireRemote,
@@ -856,6 +875,45 @@ export function EnvironmentsTab() {
                           target: t(`environmentsTab.conflictSide.${c.target}`),
                         })}
                       </List.Item>
+                    ))}
+                  </List>
+                </Alert>
+              )}
+              {/* REQ-1506: the objects the preview named, each one selectable. Ticking any scopes
+              the merge to those; what they require and the target lacks is carried with them, and
+              the next preview names it. */}
+              {preview?.paths && offered(preview, selection).length > 0 && (
+                <Stack gap={4} data-testid="env-merge-select">
+                  <Text size="sm" fw={600}>
+                    {t("environmentsTab.selectTitle")}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    {t("environmentsTab.selectHelp")}
+                  </Text>
+                  {offered(preview, selection).map((path) => (
+                    <Checkbox
+                      key={path}
+                      size="xs"
+                      label={path}
+                      checked={selection.includes(path)}
+                      onChange={(e) =>
+                        setSelection((prev) =>
+                          e.currentTarget.checked
+                            ? [...prev, path]
+                            : prev.filter((p) => p !== path),
+                        )
+                      }
+                      data-testid={`env-merge-select-${path}`}
+                    />
+                  ))}
+                </Stack>
+              )}
+              {preview?.pulled_in && preview.pulled_in.length > 0 && (
+                <Alert color="blue" data-testid="env-merge-pulled-in">
+                  <Text size="sm">{t("environmentsTab.pulledIn")}</Text>
+                  <List size="sm" withPadding>
+                    {preview.pulled_in.map((path) => (
+                      <List.Item key={path}>{path}</List.Item>
                     ))}
                   </List>
                 </Alert>

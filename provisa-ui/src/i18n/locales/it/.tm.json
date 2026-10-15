@@ -6272,5 +6272,8 @@
   "it/tour.json::tour.steps.reviewsSearchTable.description": "<strong>reviews_matching</strong> is an Elasticsearch search, registered as a table. Its phrase is a parameter: a query sets it, and each row is a review whose text holds the phrase, with the phrase highlighted.",
   "it/tour.json::tour.steps.reviewsSearchTable.title": "An Elasticsearch search as a table",
   "it/userProfileModal.json::userProfileModal.patEnvironment": "Environment",
-  "it/userProfileModal.json::userProfileModal.patEnvironmentHelp": "A token works in one environment: the one you were reading when you issued it. A new token will work in {{env}}."
+  "it/userProfileModal.json::userProfileModal.patEnvironmentHelp": "A token works in one environment: the one you were reading when you issued it. A new token will work in {{env}}.",
+  "it/environmentsTab.json::environmentsTab.selectTitle": "Objects this merge would carry",
+  "it/environmentsTab.json::environmentsTab.selectHelp": "Tick objects to merge only those. Leave every box unticked to merge the whole model.",
+  "it/environmentsTab.json::environmentsTab.pulledIn": "Also carried, because the selection requires them:"
 }

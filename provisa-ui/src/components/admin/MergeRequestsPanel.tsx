@@ -17,12 +17,19 @@ import type { MergeRequest } from "../../api/environments";
 import { ListRow } from "../list/ListTable";
 import { SortGroupTable } from "../list/SortGroupTable";
 
+// The states the server sends (provisa/core/env_approvals.py): stored, and `stale` derived at
+// read time.
 const STATE_COLOR: Record<string, string> = {
-  open: "blue",
-  approved: "green",
+  requested: "blue",
+  applied: "green",
   rejected: "red",
   stale: "orange",
 };
+
+/** A merge's report counts objects; a load's lists paths (REQ-1496). Either way, how many. */
+function count(value: unknown): number {
+  return Array.isArray(value) ? value.length : (value as number);
+}
 
 /**
  * What a request is applying, as a person reads it (REQ-1496).
@@ -95,8 +102,18 @@ export function MergeRequestsPanel({ orgId, canDecide }: { orgId: string; canDec
           rows={requests}
           columns={[
             { key: "merge", label: t("environmentsTab.colMerge"), sortValue: (r) => r.id },
-            { key: "state", label: t("environmentsTab.colState"), sortValue: (r) => r.state, groupValue: (r) => r.state },
-            { key: "requestedBy", label: t("environmentsTab.colRequestedBy"), sortValue: (r) => r.requested_by ?? "", groupValue: (r) => r.requested_by ?? "" },
+            {
+              key: "state",
+              label: t("environmentsTab.colState"),
+              sortValue: (r) => r.state,
+              groupValue: (r) => r.state,
+            },
+            {
+              key: "requestedBy",
+              label: t("environmentsTab.colRequestedBy"),
+              sortValue: (r) => r.requested_by ?? "",
+              groupValue: (r) => r.requested_by ?? "",
+            },
           ]}
           headers={[
             { col: "merge" },
@@ -108,51 +125,53 @@ export function MergeRequestsPanel({ orgId, canDecide }: { orgId: string; canDec
           colSpan={5}
           rowKey={(r) => r.id}
           render={(r) => (
-              <ListRow key={r.id} testId={`merge-request-${r.id}`}>
-                <Table.Td>
-                  <Text size="sm">
-                    {sourceOf(r)} → {r.target_env}
-                  </Text>
-                  {r.message && (
-                    <Text size="xs" c="dimmed">
-                      {r.message}
-                    </Text>
-                  )}
-                </Table.Td>
-                <Table.Td>
-                  <Badge color={STATE_COLOR[r.state]} data-testid={`merge-request-state-${r.id}`}>
-                    {r.state}
-                  </Badge>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm">{r.requested_by}</Text>
+            <ListRow key={r.id} testId={`merge-request-${r.id}`}>
+              <Table.Td>
+                <Text size="sm">
+                  {sourceOf(r)} → {r.target_env}
+                </Text>
+                {r.message && (
                   <Text size="xs" c="dimmed">
-                    {r.requested_at}
+                    {r.message}
                   </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm">
-                    {t("environmentsTab.reportCounts", {
-                      added: r.report.added,
-                      changed: r.report.changed,
-                      removed: r.report.removed,
-                    })}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  {canDecide && r.state === "open" ? (
-                    <Stack gap="xs">
-                      <Textarea
-                        autosize
-                        minRows={1}
-                        placeholder={t("environmentsTab.notePlaceholder")}
-                        value={notes[r.id] ?? ""}
-                        onChange={(e) =>
-                          setNotes((prev) => ({ ...prev, [r.id]: e.currentTarget.value }))
-                        }
-                        data-testid={`merge-request-note-${r.id}`}
-                      />
-                      <Group gap="xs">
+                )}
+              </Table.Td>
+              <Table.Td>
+                <Badge color={STATE_COLOR[r.state]} data-testid={`merge-request-state-${r.id}`}>
+                  {r.state}
+                </Badge>
+              </Table.Td>
+              <Table.Td>
+                <Text size="sm">{r.requested_by}</Text>
+                <Text size="xs" c="dimmed">
+                  {r.requested_at}
+                </Text>
+              </Table.Td>
+              <Table.Td>
+                <Text size="sm" data-testid={`merge-request-report-${r.id}`}>
+                  {t("environmentsTab.reportCounts", {
+                    added: count(r.report.added),
+                    changed: count(r.report.changed),
+                    removed: count(r.report.removed),
+                  })}
+                </Text>
+              </Table.Td>
+              <Table.Td>
+                {canDecide && (r.state === "requested" || r.state === "stale") ? (
+                  <Stack gap="xs">
+                    <Textarea
+                      autosize
+                      minRows={1}
+                      placeholder={t("environmentsTab.notePlaceholder")}
+                      value={notes[r.id] ?? ""}
+                      onChange={(e) =>
+                        setNotes((prev) => ({ ...prev, [r.id]: e.currentTarget.value }))
+                      }
+                      data-testid={`merge-request-note-${r.id}`}
+                    />
+                    <Group gap="xs">
+                      {/* A stale request no longer describes the change: it can only be rejected. */}
+                      {r.state === "requested" && (
                         <Button
                           size="compact-sm"
                           color="green"
@@ -162,26 +181,27 @@ export function MergeRequestsPanel({ orgId, canDecide }: { orgId: string; canDec
                         >
                           {t("environmentsTab.approve")}
                         </Button>
-                        <Button
-                          size="compact-sm"
-                          color="red"
-                          variant="light"
-                          loading={busy === r.id}
-                          onClick={() => decide(r.id, false)}
-                          data-testid={`merge-request-reject-${r.id}`}
-                        >
-                          {t("environmentsTab.reject")}
-                        </Button>
-                      </Group>
-                    </Stack>
-                  ) : (
-                    <Text size="xs" c="dimmed">
-                      {r.decided_by ? t("environmentsTab.decidedBy", { who: r.decided_by }) : "—"}
-                    </Text>
-                  )}
-                </Table.Td>
-              </ListRow>
-            )}
+                      )}
+                      <Button
+                        size="compact-sm"
+                        color="red"
+                        variant="light"
+                        loading={busy === r.id}
+                        onClick={() => decide(r.id, false)}
+                        data-testid={`merge-request-reject-${r.id}`}
+                      >
+                        {t("environmentsTab.reject")}
+                      </Button>
+                    </Group>
+                  </Stack>
+                ) : (
+                  <Text size="xs" c="dimmed">
+                    {r.decided_by ? t("environmentsTab.decidedBy", { who: r.decided_by }) : "—"}
+                  </Text>
+                )}
+              </Table.Td>
+            </ListRow>
+          )}
         />
       )}
     </Stack>

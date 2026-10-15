@@ -221,6 +221,7 @@ def commit_files(
     message: str,
     actor: str | None,
     onto: str | None = None,
+    merged_from: str | None = None,
 ) -> str | None:
     """Commit ``files`` as the whole content of ``env``'s branch. ``None`` when nothing changed.
 
@@ -239,6 +240,11 @@ def commit_files(
     Either way the branch now CONTAINS that commit, so the two lines are reconciled rather than
     left diverged by the act that reconciled them. Refused unless the branch is behind it: moving
     a branch onto a commit that is not ahead of it would drop the commits it holds.
+
+    ``merged_from`` names the commit of ANOTHER line whose whole model this commit now holds -- the
+    source of a merge (REQ-1555). It is recorded as a second parent, after the branch's own line,
+    so the commit the two lines last shared advances to it: the next merge between them is
+    measured from here, and does not re-report what this one already carried.
     """
     tree_id = _build_tree(repo, files)
     ref = _branch_ref(env)
@@ -259,6 +265,8 @@ def commit_files(
         if parent.tree == tree_id:
             return None
         parents = [ObjectID(head)]
+        if merged_from is not None and merged_from.encode() != head:
+            parents.append(ObjectID(merged_from.encode()))
 
     commit = Commit()
     commit.tree = tree_id
@@ -312,10 +320,12 @@ async def write_through(
     message: str,
     actor: str | None,
     onto: str | None = None,
+    merged_from: str | None = None,
 ) -> str | None:
     """Project ``schema`` into ``env``'s branch and commit it. Never raises.
 
-    ``onto``: the fetched commit the model was just made from (see :func:`commit_files`).
+    ``onto``: the fetched commit the model was just made from; ``merged_from``: the commit of the
+    line a whole merge just carried (see :func:`commit_files`).
 
     THE RETURN IS THE SHA, and ``None`` means either nothing changed or the projection did not land
     -- the caller cannot act differently on those two anyway, because neither is a reason to undo the
@@ -340,7 +350,7 @@ async def write_through(
         files = dump(await project(conn, schema))
         exact_stamp = before if await model_stamp(conn, schema) == before else None
         repo = ensure_repo(org_id)
-        sha = commit_files(repo, env, files, message, actor, onto)
+        sha = commit_files(repo, env, files, message, actor, onto, merged_from)
     except Exception:  # noqa: BLE001 — REQ-1524: the projection never fails the change it observes
         import logging
 
@@ -609,9 +619,9 @@ def merge_base(org_id: str, a: str, b: str) -> str | None:
     """
     repo = ensure_repo(org_id)
     bases = find_merge_base(repo, [ObjectID(a.encode()), ObjectID(b.encode())])
-    # Several bases means a criss-cross history, which the write-through cannot produce: a commit
-    # it writes has one parent, and the only multi-parent commits here are merges recorded against
-    # their target's line first. The first is taken for the same reason ``parent_of`` takes it.
+    # Several bases means a criss-cross history -- two lines that each merged the other. The
+    # multi-parent commits here are merges, recorded against their target's line first; the first
+    # base is taken for the same reason ``parent_of`` takes the first parent.
     return bases[0].decode() if bases else None
 
 

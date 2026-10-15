@@ -138,6 +138,9 @@
     "mergedOverwriting": "In {{env}} gemergt; {{count}} dort geänderte(s) Objekt(e) überschrieben.",
     "pulledOverwriting": "{{env}} vom Remote gepullt; {{count}} hier seit der Trennung dieser Linien geänderte(s) Objekt(e) überschrieben:",
     "expiredKept": "abgelaufen, beibehalten",
-    "expiredKeptHint": "Diese Umgebung ist abgelaufen und wird beibehalten, weil noch etwas auf sie verweist ({{reasons}}). Entfernen Sie diese Verweise, dann wird sie beim nächsten Durchlauf stillgelegt."
+    "expiredKeptHint": "Diese Umgebung ist abgelaufen und wird beibehalten, weil noch etwas auf sie verweist ({{reasons}}). Entfernen Sie diese Verweise, dann wird sie beim nächsten Durchlauf stillgelegt.",
+    "selectTitle": "Objekte, die dieser Merge überträgt",
+    "selectHelp": "Haken Sie Objekte an, um nur diese zu mergen. Lassen Sie alle Kästchen leer, um das gesamte Modell zu mergen.",
+    "pulledIn": "Ebenfalls übertragen, weil die Auswahl sie erfordert:"
   }
 }

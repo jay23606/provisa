@@ -8,42 +8,29 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 
-"""Moving a governed model from one environment's schema into another's (REQ-1489, REQ-1490,
-REQ-1491).
+"""Carrying a governed model whole into an environment's schema (REQ-1489, REQ-1491).
 
-Two shapes, and the difference between them is what the operator asked for rather than a heuristic:
-
-REPLACE is what a creation and a checkout do. The carried classes of the target become the source's,
-wholesale — an object the incoming model does not have is gone from the target, because a checkout
-is a statement about which model the environment is running and a merge-by-identity would leave
-behind whatever the branch deleted.
-
-MERGE is REQ-1490's: every carried object is matched by identity, created or updated, and an object
-the source no longer has is removed only when the caller asks for removals. Both report what they
-did or would do, and both apply whole or not at all — one transaction, and a report computed from
+REPLACE IS WHAT A CREATION DOES. The carried classes of the target become the source's, wholesale
+-- an object the incoming model does not have is gone from the target -- and the rows travel with
+the keys they have, because a new environment starts as the one it came from. The copy reports what
+it did or would do, and applies whole or not at all: one transaction, and a report computed from
 the same read the apply uses, so what is shown is what happens.
 
-WHAT NEITHER OF THEM MOVES. The binding columns of REQ-1491 never travel in either shape, and an
-IDENTITY_ONLY row is never deleted by either. A checkout keeps the environment's bindings for the
-reason REQ-1491 gives — the incoming tree has nothing to overwrite them with — and dropping a source
-the incoming model does not name would destroy a binding the operator established deliberately, so
-those rows stay and are simply unreferenced. Rows this copy creates are marked unbound (REQ-1491):
-an empty host is not an absent one, and the connection builder would read it as localhost.
+A MERGE IS NOT A COPY and is not here. It decides what the target's model becomes by IDENTITY and
+lands it through the one apply every load goes through (:mod:`provisa.core.env_merge`, REQ-1548).
 
-WHAT A MERGE SAYS ABOUT WHAT IT OVERWROTE. Matching by identity means the source wins on every
-object both sides hold, and for an object the TARGET changed since the two lines parted that is a
-second person's work being carried away. The report names those objects (REQ-1555, computed in
-:mod:`provisa.core.env_conflicts` against the commit both lines last held) rather than letting them
-pass as ordinary changes. It does not refuse the merge: a merge into a target is the source winning,
-and what was missing was not a veto but the sentence saying whose work went.
+WHAT A COPY DOES NOT MOVE. The binding columns of REQ-1491 never travel unless the caller asks for
+them, and an IDENTITY_ONLY row is never deleted: dropping a source the incoming model does not name
+would destroy a binding the operator established deliberately, so those rows stay and are simply
+unreferenced. Rows this copy creates land as the caller says (REQ-1491, REQ-1942): an empty host is
+not an absent one, and the connection builder would read it as localhost.
 
-Nor do either of them move ``SEEDED_AT_CREATION`` — the roles and the assignments naming them.
-Those are seeded once, by the creation, and are afterwards the environment's own answer to who may
-do what (REQ-1539). A merge that carried them would let an unrestricted branch role overwrite the
-restricted one in the base it merges into, which would make the review path the escalation route.
+``SEEDED_AT_CREATION`` -- the roles and the assignments naming them -- travels only when the caller
+says this copy IS the creation (``seed``). Afterwards they are the environment's own answer to who
+may do what (REQ-1539).
 """
 
-# Requirements: REQ-1488, REQ-1489, REQ-1490, REQ-1491, REQ-1539, REQ-1555
+# Requirements: REQ-1488, REQ-1489, REQ-1491, REQ-1539
 
 from __future__ import annotations
 
@@ -66,7 +53,6 @@ from provisa.core.env_classes import (
     model_type,
 )
 from provisa.core.env_conflicts import Conflict
-from provisa.core.env_conflicts import detect as detect_conflicts
 from provisa.core.environments import org_schema
 from provisa.core.schema_org import metadata as org_metadata
 from provisa.core.schema_org import org_settings
@@ -203,7 +189,6 @@ class CopyReport:
 
 
 REPLACE = "replace"
-MERGE = "merge"
 
 
 async def plan_copy(
@@ -212,12 +197,11 @@ async def plan_copy(
     source_env: str | None,
     target_env: str | None,
     *,
-    mode: str = MERGE,
-    removals: bool = False,
+    mode: str = REPLACE,
     seed: bool = False,
     strip_identities: bool = True,
 ) -> CopyReport:
-    """What :func:`copy_model` would do, without doing any of it (REQ-1490)."""
+    """What :func:`copy_model` would do, without doing any of it."""
     async with db.acquire() as conn:
         return await _copy(
             conn,
@@ -225,7 +209,6 @@ async def plan_copy(
             source_env,
             target_env,
             mode,
-            removals,
             seed,
             strip_identities,
             None,  # a plan writes no row, so no row lands
@@ -239,13 +222,12 @@ async def copy_model(
     source_env: str | None,
     target_env: str | None,
     *,
-    mode: str = MERGE,
-    removals: bool = False,
+    mode: str = REPLACE,
     seed: bool = False,
     strip_identities: bool = True,
     landing: str,
 ) -> CopyReport:
-    """Carry ``source_env``'s governed model into ``target_env``. One transaction (REQ-1490).
+    """Carry ``source_env``'s governed model into ``target_env``. One transaction.
 
     ``seed`` is the creation path's alone: it additionally carries
     :data:`~provisa.core.env_classes.SEEDED_AT_CREATION` so a new environment opens with the roles
@@ -266,7 +248,6 @@ async def copy_model(
             source_env,
             target_env,
             mode,
-            removals,
             seed,
             strip_identities,
             landing,
@@ -335,7 +316,6 @@ async def _copy(
     source_env: str | None,
     target_env: str | None,
     mode: str,
-    removals: bool,
     seed: bool,
     strip_identities: bool,
     landing: str | None,
@@ -343,31 +323,22 @@ async def _copy(
     apply: bool,
 ) -> CopyReport:
     assert (landing is not None) == apply, "a copy that writes says how its new rows land"
-    if mode not in (REPLACE, MERGE):
-        raise ValueError(f"unknown copy mode: {mode!r}")
+    if mode != REPLACE:
+        raise ValueError(
+            f"unknown copy mode: {mode!r}; a copy replaces, and a merge is provisa.core.env_merge"
+        )
     src_schema = org_schema(org_id, source_env)
     dst_schema = org_schema(org_id, target_env)
     if src_schema == dst_schema:
         raise ValueError(f"an environment cannot be copied onto itself ({src_schema})")
-    report = CopyReport(source_env or "prod", target_env or "prod", mode, removals)
-
-    if mode == MERGE and not seed:
-        # REQ-1555: which of the target's own work this merge carries away. FIRST, because the
-        # answer is about the target as it stands: once the copy has run the target holds the
-        # source's model and there is nothing left to notice. Asked of a MERGE only -- a REPLACE is
-        # the operator saying which model the environment runs, so the target's divergence from the
-        # source is the point of the act rather than a collision inside it.
-        report.base, report.conflicts = await detect_conflicts(
-            conn, org_id, source_env, target_env, src_schema, dst_schema
-        )
-
+    report = CopyReport(source_env or "prod", target_env or "prod", mode, True)
     return await _copy_schemas(
         conn,
         src_schema,
         dst_schema,
         report,
         mode,
-        removals,
+        True,
         seed,
         strip_identities,
         landing,

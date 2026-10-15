@@ -419,7 +419,9 @@ describe("EnvironmentsTab", () => {
     // was branched from — so dev's merge is previewed against prod with nothing else chosen.
     fireEvent.click(await screen.findByTestId("env-merge-dev"));
     fireEvent.click(await screen.findByTestId("env-merge-preview-run"));
-    await waitFor(() => expect(mockPreview).toHaveBeenCalledWith("acme", "prod", "dev", false));
+    await waitFor(() =>
+      expect(mockPreview).toHaveBeenCalledWith("acme", "prod", "dev", false, []),
+    );
     expect(mockMerge).not.toHaveBeenCalled();
     expect(await screen.findByTestId("env-merge-preview")).toHaveTextContent("+2 / ~1 / -0");
   });
@@ -495,10 +497,69 @@ describe("EnvironmentsTab", () => {
       expect(mockMerge).toHaveBeenCalledWith("acme", "prod", {
         from_env: "dev",
         removals: false,
+        selection: null,
         message: "adds the tag domain",
         retire_source: false,
         retire_remote: false,
       }),
+    );
+  });
+
+  it("scopes the merge to the objects that were ticked", async () => {
+    // REQ-1506: promoting one corrected metric does not require promoting every other change.
+    // The preview names the objects; ticking one scopes the merge to it, and the next preview
+    // says what that selection required.
+    mockPreview.mockResolvedValueOnce({
+      report: {
+        added: 1,
+        changed: 1,
+        removed: 0,
+        paths: { added: ["metrics/revenue.yaml"], changed: ["sales/domain.yaml"], removed: [] },
+        pulled_in: [],
+      },
+      applied: false,
+      requires_approval: false,
+    });
+    mockPreview.mockResolvedValueOnce({
+      report: {
+        added: 2,
+        changed: 0,
+        removed: 0,
+        paths: {
+          added: ["metrics/revenue.yaml", "sales/tables/Order.yaml"],
+          changed: [],
+          removed: [],
+        },
+        selection: ["metrics/revenue.yaml"],
+        pulled_in: ["sales/tables/Order.yaml"],
+      },
+      applied: false,
+      requires_approval: false,
+    });
+    mockMerge.mockResolvedValue({ applied: true, requires_approval: false });
+    render(<EnvironmentsTab />);
+    fireEvent.click(await screen.findByTestId("env-merge-dev"));
+    fireEvent.click(await screen.findByTestId("env-merge-preview-run"));
+    fireEvent.click(await screen.findByTestId("env-merge-select-metrics/revenue.yaml"));
+    fireEvent.click(screen.getByTestId("env-merge-preview-run"));
+    await waitFor(() =>
+      expect(mockPreview).toHaveBeenLastCalledWith("acme", "prod", "dev", false, [
+        "metrics/revenue.yaml",
+      ]),
+    );
+    expect(await screen.findByTestId("env-merge-pulled-in")).toHaveTextContent(
+      "sales/tables/Order.yaml",
+    );
+    // What the selection pulled in is named, not offered as a second thing to tick.
+    expect(screen.queryByTestId("env-merge-select-sales/tables/Order.yaml")).toBeNull();
+    fireEvent.change(screen.getByTestId("env-merge-message"), { target: { value: "fix revenue" } });
+    fireEvent.click(screen.getByTestId("env-merge-run"));
+    await waitFor(() =>
+      expect(mockMerge).toHaveBeenCalledWith(
+        "acme",
+        "prod",
+        expect.objectContaining({ selection: ["metrics/revenue.yaml"] }),
+      ),
     );
   });
 
@@ -530,6 +591,7 @@ describe("EnvironmentsTab", () => {
       expect(mockMerge).toHaveBeenCalledWith("acme", "prod", {
         from_env: "dev",
         removals: false,
+        selection: null,
         message: "ship it",
         retire_source: true,
         retire_remote: true,

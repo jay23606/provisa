@@ -29,9 +29,9 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel
 from sqlalchemy import func, select
 
@@ -41,7 +41,7 @@ from provisa.api.errors import ApiError
 from provisa.core import env_approvals, env_ci, env_remote
 from provisa.core.database import Database
 from provisa.core.env_authority import owns_environment
-from provisa.core.env_copy import MERGE, copy_model, plan_copy
+from provisa.core.env_merge import MergeSelectionError, merge_model, plan_merge
 from provisa.core.env_deploy import (
     DeployError,
     deploy_tree,
@@ -60,7 +60,6 @@ from provisa.core.env_classes import (
     REFUSED,
     TEST_FAKE,
     TEST_SYNTHETIC,
-    UNBOUND,
     UNBOUND_MODE,
 )
 from provisa.core.env_store import (
@@ -381,6 +380,10 @@ class MergeBody(BaseModel):
     # this sentence is the only account of what that range was. The generated provenance -- source
     # and sha -- cannot say it: it names where the work came from, not what the work does.
     message: str = ""
+    # REQ-1506: scope the merge to part of the model -- the objects to carry, by path
+    # (``metrics/revenue.yaml``). Absent means the whole model. What a selected object requires
+    # and the target lacks is carried with it and named in the report's ``pulled_in``.
+    selection: list[str] | None = None
 
 
 class DeployBody(BaseModel):
@@ -777,48 +780,55 @@ async def merge_into_environment(request: Request, org_id: str, name: str, body:
     protected = await env_approvals.is_protected(
         _admin_pool(), org_id, name, await _member_count(org_id)
     )
-    if protected and not body.dry_run:
-        merge_request = await env_approvals.request_merge(
-            _admin_pool(),
-            db,
-            org_id,
-            source_env=body.from_env,
-            target_env=name,
-            requested_by=actor or "anonymous",
-            message=body.message,
-            removals=body.removals,
-            retire_source=body.retire_source,
-            retire_remote=body.retire_remote,
-        )
-        await _audit(
-            org_id,
-            actor,
-            "environment.merge_requested",
-            name,
-            {"request_id": merge_request["id"], "from": body.from_env, **merge_request["report"]},
-        )
-        return {"request": _rendered(merge_request), "applied": False, "requires_approval": True}
+    try:
+        if protected and not body.dry_run:
+            merge_request = await env_approvals.request_merge(
+                _admin_pool(),
+                db,
+                org_id,
+                source_env=body.from_env,
+                target_env=name,
+                requested_by=actor or "anonymous",
+                message=body.message,
+                removals=body.removals,
+                selection=body.selection,
+                retire_source=body.retire_source,
+                retire_remote=body.retire_remote,
+            )
+            await _audit(
+                org_id,
+                actor,
+                "environment.merge_requested",
+                name,
+                {
+                    "request_id": merge_request["id"],
+                    "from": body.from_env,
+                    **merge_request["report"],
+                },
+            )
+            return {
+                "request": _rendered(merge_request),
+                "applied": False,
+                "requires_approval": True,
+            }
 
-    if body.dry_run:
-        report = await plan_copy(
-            db, org_id, body.from_env, name, mode=MERGE, removals=body.removals
+        # REQ-1548: the landing half of a merge is the ONE apply. ``merge_model`` decides what the
+        # target's model becomes and hands that tree to the same validation and the same write a
+        # deploy goes through; a row new to the target arrives unbound (REQ-1942).
+        run = plan_merge if body.dry_run else merge_model
+        report = await run(
+            db, org_id, body.from_env, name, removals=body.removals, selection=body.selection
         )
-    else:
-        report = await copy_model(
-            db,
-            org_id,
-            body.from_env,
-            name,
-            mode=MERGE,
-            removals=body.removals,
-            landing=UNBOUND,  # REQ-1942: a merge copies no connection
-        )
+    except (MergeSelectionError, DeployError) as exc:
+        raise _unmergeable(org_id, name, body.from_env, exc) from exc
     retired = None
     refreshed = None
     squashed = None
     if not body.dry_run:
         await _audit(org_id, actor, "environment.merge", name, report.as_dict())
-        squashed = await _squash(org_id, body.from_env, name, actor, body.message)
+        squashed = await _squash(
+            org_id, body.from_env, name, actor, body.message, whole=body.selection is None
+        )
         refreshed = await _refresh(org_id, name, connectivity=report.touches_connectivity)
         if body.retire_source:
             retired = await _retire(org_id, actor, body.from_env, remote=body.retire_remote)
@@ -832,8 +842,24 @@ async def merge_into_environment(request: Request, org_id: str, name: str, body:
     }
 
 
+def _unmergeable(org_id: str, name: str, source: str, exc: Exception) -> ApiError:
+    """The refusal of a merge that cannot land: a selection naming what cannot be carried
+    (REQ-1506), or a merged model that does not hold (REQ-1496) -- every reason named."""
+    if isinstance(exc, DeployError):
+        return ApiError(
+            422,
+            "environments.tree_does_not_hold",
+            str(exc),
+            org=org_id,
+            env=name,
+            ref=source,
+            problems=exc.problems,
+        )
+    return ApiError(400, "environments.selection_invalid", str(exc), org=org_id, env=name)
+
+
 async def _squash(
-    org_id: str, source: str, target: str, actor: str | None, message: str
+    org_id: str, source: str, target: str, actor: str | None, message: str, *, whole: bool
 ) -> str | None:
     """Record the merge as ONE commit on the target's branch (REQ-1545).
 
@@ -851,7 +877,7 @@ async def _squash(
     are how they find the range afterwards, and neither sentence can be written by the other.
     """
     from provisa.api.admin.orgs_router import _org_model_db
-    from provisa.core.env_repo import write_through
+    from provisa.core.env_repo import tip, write_through
     from provisa.core.environments import org_schema
 
     source_row = await _known(org_id, source)
@@ -861,7 +887,17 @@ async def _squash(
     db = await _org_model_db(org_id)
     async with db.acquire() as conn:
         return await write_through(
-            conn, _admin_pool(), org_id, target, org_schema(org_id, target), subject, actor
+            conn,
+            _admin_pool(),
+            org_id,
+            target,
+            org_schema(org_id, target),
+            subject,
+            actor,
+            # REQ-1555: a merge of the WHOLE model leaves the target holding everything the source
+            # did, so the source's commit is recorded as merged and the next merge is measured
+            # from it. A scoped merge (REQ-1506) carried part of it, and must not claim the rest.
+            merged_from=tip(org_id, source) if whole else None,
         )
 
 
@@ -1064,7 +1100,13 @@ async def deploy_into_environment(
         # REQ-1496: a tree that does not hold is refused WHOLE. Nothing partial has landed -- the
         # decomposition raises before a statement is issued -- so the environment is untouched.
         raise ApiError(
-            422, "environments.tree_does_not_hold", str(exc), org=org_id, env=name, ref=body.ref
+            422,
+            "environments.tree_does_not_hold",
+            str(exc),
+            org=org_id,
+            env=name,
+            ref=body.ref,
+            problems=exc.problems,
         ) from exc
     refreshed = None
     if not body.dry_run:
@@ -1183,7 +1225,13 @@ async def _move(request: Request, org_id: str, name: str, forward: bool) -> dict
         report = await deploy_tree(db, org_id, name, tree, ref=target)
     except DeployError as exc:
         raise ApiError(
-            422, "environments.tree_does_not_hold", str(exc), org=org_id, env=name, ref=target
+            422,
+            "environments.tree_does_not_hold",
+            str(exc),
+            org=org_id,
+            env=name,
+            ref=target,
+            problems=exc.problems,
         ) from exc
     # An undo or redo applies an earlier tree; the stamp it stands at is not known exactly here.
     await set_position(
@@ -1294,6 +1342,14 @@ async def decide_merge_request(
         raise ApiError(
             409, "environments.merge_request_undecidable", str(exc), org=org_id, request=request_id
         ) from exc
+    except (MergeSelectionError, DeployError) as exc:
+        # What was approved no longer lands: the apply refused it whole, and says why.
+        raise _unmergeable(
+            org_id,
+            decided_on["target_env"],
+            decided_on["source_env"] or decided_on["source_ref"],
+            exc,
+        ) from exc
     action = "environment.merge_approved" if body.approve else "environment.merge_rejected"
     await _audit(
         org_id,
@@ -1320,6 +1376,7 @@ async def decide_merge_request(
                 # REQ-1550: the REQUESTER's comment, carried on the request row since it was made.
                 # An approver decides whether the work lands, not what it is called.
                 decided["message"],
+                whole=decided["selection"] is None,
             )
         else:
             # REQ-1543: an approved deploy applied the tree at that sha, so that is where the
@@ -1359,7 +1416,12 @@ async def decide_merge_request(
 
 @router.get("/{name}/merge-preview")
 async def preview_merge(
-    request: Request, org_id: str, name: str, from_env: str, removals: bool = False
+    request: Request,
+    org_id: str,
+    name: str,
+    from_env: str,
+    removals: bool = False,
+    select: Annotated[list[str] | None, Query()] = None,
 ) -> dict:
     """What merging ``from_env`` into this environment WOULD do, applying none of it (REQ-1527).
 
@@ -1367,7 +1429,7 @@ async def preview_merge(
     reachable through ``POST /merge`` with ``dry_run``, but a CI job that got that flag wrong would
     APPLY the merge it meant to inspect. A method that cannot write is the one to hand a runner.
 
-    It runs ``plan_copy`` -- the same code path the merge itself runs, with ``apply`` off -- so a
+    It runs ``plan_merge`` -- the same code path the merge itself runs, with ``apply`` off -- so a
     check that passes describes the merge that follows rather than an approximation of it. The
     answer is advisory to Provisa: REQ-1504's approval is what actually holds a merge, and a
     deployment whose git host is unreachable still requests, approves and applies exactly as it did.
@@ -1387,7 +1449,11 @@ async def preview_merge(
             env=name,
         )
     db = await _org_model_db(org_id)
-    report = await plan_copy(db, org_id, from_env, name, mode=MERGE, removals=removals)
+    try:
+        # REQ-1506: ``select`` repeats, one path per object the merge is scoped to.
+        report = await plan_merge(db, org_id, from_env, name, removals=removals, selection=select)
+    except (MergeSelectionError, DeployError) as exc:
+        raise _unmergeable(org_id, name, from_env, exc) from exc
     return {
         "report": report.as_dict(),
         "applied": False,
@@ -1820,7 +1886,13 @@ async def pull_environment(request: Request, org_id: str, name: str) -> dict:
         report = await deploy_tree(db, org_id, name, tree, ref=sha, base_sha=base_sha)
     except DeployError as exc:
         raise ApiError(
-            422, "environments.tree_does_not_hold", str(exc), org=org_id, env=name, ref=sha
+            422,
+            "environments.tree_does_not_hold",
+            str(exc),
+            org=org_id,
+            env=name,
+            ref=sha,
+            problems=exc.problems,
         ) from exc
     await set_position(
         _admin_pool(), org_id, name, deployed_sha=sha, deployed_stamp=None, redo_sha=None

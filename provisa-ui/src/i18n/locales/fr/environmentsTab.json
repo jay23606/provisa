@@ -138,6 +138,9 @@
     "mergedOverwriting": "Fusionné dans {{env}}, écrasant {{count}} objet(s) modifié(s) à cet endroit.",
     "pulledOverwriting": "{{env}} récupéré depuis le dépôt distant, écrasant {{count}} objet(s) modifié(s) ici depuis la séparation de ces lignes :",
     "expiredKept": "expiré, conservé",
-    "expiredKeptHint": "Cet environnement a expiré et est conservé parce que quelque chose y fait encore référence ({{reasons}}). Retirez ces références et il sera retiré au prochain passage."
+    "expiredKeptHint": "Cet environnement a expiré et est conservé parce que quelque chose y fait encore référence ({{reasons}}). Retirez ces références et il sera retiré au prochain passage.",
+    "selectTitle": "Objets que cette fusion transporterait",
+    "selectHelp": "Cochez des objets pour ne fusionner que ceux-ci. Laissez toutes les cases décochées pour fusionner l'ensemble du modèle.",
+    "pulledIn": "Également transportés, car la sélection les requiert :"
   }
 }
