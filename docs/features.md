@@ -510,7 +510,7 @@ In strict mode, one chain turns the question into GraphQL, then SQL, then Cypher
 
 ### REST, JSON:API and OpenAPI
 
-**In development**
+**Available**
 
 Every registered table gets a plain REST endpoint and a JSON:API endpoint with no setup. Query-string parameters map to filters, ordering and paging. JSON:API uses the physical column and relationship names throughout, and its total count is computed by pushing a COUNT down to the source.
 { #rest-and-jsonapi-endpoints }
