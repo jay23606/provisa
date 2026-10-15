@@ -23,7 +23,7 @@
 #   term          a glossary term of config.yaml, by name: opened on the Glossary page
 #   role          a role of config.yaml (or "all"): picked in the SQL explorer's run-as picker on
 #                 Next, so a step with it is on the SQL explorer
-#   polly         a question for Polly (REQ-2012): answered once when the demo's template is
+#   polly         a question for Polly (REQ-2012): answered once when the demo's bundle is
 #                 built, and shown with that stored answer in the Polly panel; nothing is asked
 #                 live. A demo with no stored answer leaves the step out. The question is one of
 #                 the demo's own graded bake-off questions (QUESTIONS[<demo>] in

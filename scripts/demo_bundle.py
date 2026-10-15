@@ -74,6 +74,7 @@ import yaml
 _REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_REPO))
 
+from provisa.core import demo as demo_module  # noqa: E402
 from provisa.core import demo_bundles as bundles  # noqa: E402
 
 _NAMED = _REPO / "demo" / "named"
@@ -390,17 +391,94 @@ def _config(work: Path) -> Path:
     return path
 
 
+# Where a demo's stored tour answers are asked (REQ-2012): OpenRouter, whose key the build is given
+# as OPENROUTER_API_KEY, with the model a demo sandbox's Polly runs (the sandbox.ai_model setting).
+_ANSWERING_ENDPOINT = {
+    "id": "openrouter",
+    "style": "openai",
+    "base_url": "https://openrouter.ai/api/v1",
+    "api_key_env": "OPENROUTER_API_KEY",
+}
+
+
+def polly_steps(demo: Path) -> list[dict]:
+    """The steps of the demo's tour that ask Polly a question (REQ-2012); none without a tour."""
+    tour = demo / "tour.yaml"
+    if not tour.is_file():
+        return []
+    return [step for step in yaml.safe_load(tour.read_text())["steps"] if "polly" in step]
+
+
+def answering_config(work: Path, demo: Path) -> Path:
+    """The demo's config.yaml with Polly asked through OpenRouter on the sandbox's model: what the
+    build's server runs when the demo's tour asks Polly anything (REQ-2012)."""
+    from provisa.core.settings_registry import setting
+
+    config = yaml.safe_load((demo / "config.yaml").read_text())
+    config["ai_endpoints"] = [*(config.get("ai_endpoints") or []), _ANSWERING_ENDPOINT]
+    config["ai_models"] = {
+        **(config.get("ai_models") or {}),
+        "mcp_chat": {"vendor": "openrouter", "model": setting("sandbox.ai_model").default},
+    }
+    path = work / "answering.yaml"
+    path.write_text(yaml.safe_dump(config))
+    return path
+
+
+def answer_tour(base: str, demo: Path, steps: list[dict]) -> dict[str, dict[str, str]]:
+    """Each Polly step's question asked as the chat panel asks it (scripts/polly_turn), as org_admin:
+    ``{step key: {"question", "answer"}}``, the shape provisa.core.demo reads. A question Polly
+    does not answer fails the build, naming its step: the bundle would show the step with none."""
+    from scripts.polly_turn import ask
+
+    def stream(convo: list[dict]):
+        with httpx.stream(
+            "POST",
+            f"{base}/admin/mcp/chat",
+            json={"messages": convo},
+            headers={"X-Provisa-Role": "org_admin"},
+            timeout=300,
+        ) as resp:
+            if resp.status_code != 200:
+                raise SystemExit(
+                    f"{demo.name}: Polly's chat answered {resp.status_code}: {resp.read()}"
+                )
+            for line in resp.iter_lines():
+                if line.startswith("data:"):
+                    yield json.loads(line[5:].strip())
+
+    answers = {}
+    for step in steps:
+        turn = ask(stream, step["polly"])
+        if turn.error is not None or not turn.reply.strip():
+            raise SystemExit(
+                f"{demo.name}: tour step {step['key']}: Polly gave no answer to "
+                f"{step['polly']!r}: {turn.error or 'an empty reply'}"
+            )
+        answers[step["key"]] = {"question": step["polly"], "answer": turn.reply}
+    return answers
+
+
 def _set_up(work: Path, demo: Path, stores: Stores, timeout: float) -> None:
     """Run the demo's setup.yaml against its running stores (REQ-2016): a Provisa server on the
     demo's own config.yaml, with a throwaway control plane of its own, set up by
-    scripts/run_demo_setup.py -- what its commands write is then in the stores the build dumps."""
+    scripts/run_demo_setup.py -- what its commands write is then in the stores the build dumps.
+    When its tour asks Polly anything, the same server then asks it, and the answers are stored
+    beside the tour (REQ-2012): a visitor is shown them, and nothing is asked live."""
+    asked = polly_steps(demo)
+    if asked and not os.environ.get("OPENROUTER_API_KEY"):
+        raise SystemExit(
+            f"{demo.name}: its tour asks Polly {len(asked)} question(s), answered at the build "
+            "through OpenRouter, and OPENROUTER_API_KEY is not set"
+        )
     host, port = _control_plane(work, "setup-cp")
     url = f"postgresql+psycopg://provisa:provisa@/provisa?host={host}&port={port}"
     http_port = _free_port()
     server_env = {
         **_config_env(demo),
         **stores.env,
-        "PROVISA_CONFIG": str(demo / "config.yaml"),
+        **({"OPENROUTER_API_KEY": os.environ["OPENROUTER_API_KEY"]} if asked else {}),
+        "PROVISA_CONFIG": str(answering_config(work, demo) if asked else demo / "config.yaml"),
         "PROVISA_ENGINE": "duckdb",
         "PROVISA_DATA_DIR": str(work / "setup-data"),
         "PROVISA_REDIS_EMBEDDED": "1",
@@ -443,6 +521,9 @@ def _set_up(work: Path, demo: Path, stores: Stores, timeout: float) -> None:
             + ["--url", base],
             check=True,
         )
+        if asked:
+            answers = answer_tour(base, demo, asked)
+            Path(demo_module.tour_answers_path(str(demo))).write_text(json.dumps(answers, indent=2))
     finally:
         server.terminate()
         server.wait(timeout=60)
@@ -544,7 +625,7 @@ def build(args: argparse.Namespace) -> int:
         stores = Stores(demo)
         try:
             stores.up()
-            if (demo / "setup.yaml").exists():
+            if (demo / "setup.yaml").exists() or polly_steps(demo):
                 _set_up(work, demo, stores, args.timeout)
             if _replicates(demo, stores):
                 _seed(work, demo, stores, args.timeout)

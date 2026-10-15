@@ -44,7 +44,7 @@ import pytest
 import yaml
 
 from tests.integration.polly_bakeoff_questions import WEBLOGS, Question
-from tests.integration.polly_bakeoff_turn import Turn, ask
+from scripts.polly_turn import Turn, ask
 from tests.integration.test_weblogs_demo import (
     _DEMO,
     WeblogsStack,
@@ -96,7 +96,7 @@ class Answer:
 
 
 def _ask(server: Any, question: str) -> tuple[Turn, float]:
-    """One question as its own conversation, as the chat panel asks it (polly_bakeoff_turn), and
+    """One question as its own conversation, as the chat panel asks it (scripts/polly_turn), and
     how long it took."""
 
     def stream(convo: list[dict[str, Any]]) -> Iterator[dict[str, Any]]:

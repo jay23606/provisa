@@ -333,3 +333,89 @@ def test_the_bundle_job_carries_the_key_a_demo_lands_a_govdata_table_with():
     assert workflow["jobs"]["bundle"]["env"] == {
         "ASKAMERICA_API_KEY": "${{ secrets.ASKAMERICA_API_KEY }}"
     }
+
+
+# --- REQ-2012: a tour's Polly answers are asked at the bundle build and stored beside it ---------
+
+
+def _toured(tmp_path: Path, steps: list[dict]) -> Path:
+    demo = tmp_path / "insider"
+    demo.mkdir()
+    (demo / "config.yaml").write_text(yaml.safe_dump({"domains": [{"id": "bank"}], "sources": []}))
+    (demo / "tour.yaml").write_text(yaml.safe_dump({"steps": steps}))
+    return demo
+
+
+_ASKING = [
+    {"key": "insiderIntro", "route": "/sources", "source": "bank"},
+    {"key": "insiderWhy", "polly": "Why was the top message flagged?"},
+]
+
+
+def test_the_steps_asking_polly_are_found(tmp_path):
+    assert builder.polly_steps(_toured(tmp_path, _ASKING)) == [_ASKING[1]]
+    assert builder.polly_steps(tmp_path) == []  # no tour
+
+
+def test_the_answering_config_asks_polly_through_openrouter_on_the_sandbox_model(tmp_path):
+    from provisa.core.settings_registry import setting
+
+    config = yaml.safe_load(
+        builder.answering_config(tmp_path, _toured(tmp_path, _ASKING)).read_text()
+    )
+    assert config["ai_endpoints"] == [builder._ANSWERING_ENDPOINT]
+    assert config["ai_models"]["mcp_chat"] == {
+        "vendor": "openrouter",
+        "model": setting("sandbox.ai_model").default,
+    }
+    assert config["domains"] == [{"id": "bank"}]  # the demo's own config, kept
+
+
+_encode = json.dumps  # the stream below takes a json= keyword, as httpx.stream does
+
+
+class _Chat:
+    """/admin/mcp/chat as a server streams it: the reply to each question, as text events."""
+
+    def __init__(self, replies: dict[str, str]) -> None:
+        self.replies = replies
+
+    @contextlib.contextmanager
+    def __call__(self, method, url, *, json, headers, timeout):
+        assert url.endswith("/admin/mcp/chat") and headers == {"X-Provisa-Role": "org_admin"}
+        reply = self.replies[json["messages"][-1]["content"]]
+        events = (
+            [{"type": "text", "text": reply}, {"type": "done"}] if reply else [{"type": "done"}]
+        )
+        body = "".join(f"data: {_encode(e)}\n\n" for e in events)
+        yield httpx.Response(200, text=body, request=httpx.Request(method, url))
+
+
+def test_each_polly_step_is_answered_and_stored_in_the_shape_the_tour_reads(tmp_path, monkeypatch):
+    from provisa.core import demo as demo_module
+
+    demo = _toured(tmp_path, _ASKING)
+    monkeypatch.setattr(
+        builder.httpx, "stream", _Chat({"Why was the top message flagged?": "It names Falcon."})
+    )
+    answers = builder.answer_tour("http://provisa.test", demo, builder.polly_steps(demo))
+    assert answers == {
+        "insiderWhy": {"question": "Why was the top message flagged?", "answer": "It names Falcon."}
+    }
+    demo_module.tour_answers_path(str(demo)).write_text(json.dumps(answers))
+    monkeypatch.setattr(demo_module, "tour_answers_path", lambda named: demo / "tour_answers.json")
+    [_, asked] = demo_module.demo_tour(demo)
+    assert asked["answer"] == "It names Falcon."
+
+
+def test_a_question_polly_does_not_answer_fails_the_build_naming_its_step(tmp_path, monkeypatch):
+    demo = _toured(tmp_path, _ASKING)
+    monkeypatch.setattr(builder.httpx, "stream", _Chat({"Why was the top message flagged?": ""}))
+    with pytest.raises(SystemExit, match="insiderWhy"):
+        builder.answer_tour("http://provisa.test", demo, builder.polly_steps(demo))
+
+
+def test_a_tour_asking_polly_needs_the_openrouter_key(tmp_path, monkeypatch):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    with pytest.raises(SystemExit, match="OPENROUTER_API_KEY is not set"):
+        builder._set_up(tmp_path, _toured(tmp_path, _ASKING), None, timeout=1)
