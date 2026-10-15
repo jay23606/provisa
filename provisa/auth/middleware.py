@@ -172,6 +172,37 @@ def _loaded_roles() -> dict[str, dict]:  # REQ-1337
     return getattr(state, "roles", {})
 
 
+def _loaded_user_attributes(user_id: str) -> dict[str, str]:  # REQ-1382
+    """What the bound org records for ``user_id``, from its runtime build. A member nobody
+    recorded anything for has no attributes."""
+    from provisa.api.app import state
+
+    return dict(state.user_attributes.get(user_id, {}))
+
+
+# REQ-1383: (org, environment, user) -> what this process last recorded of the user's provider
+# attributes there. A user's requests after the first cost a dictionary lookup.
+_recorded_idp: dict[tuple[str | None, str | None, str], dict[str, str]] = {}
+
+
+async def _record_idp_attributes(db_pool, identity: AuthIdentity) -> None:  # REQ-1383
+    """Keep what the identity provider supplies for this user in the bound org's model store, so
+    an administrator can see an attribute's source for a user who is not the caller. Written
+    only when it differs from what this process last wrote, and then only if it differs from
+    what is stored."""
+    from provisa.auth.attributes import recorded_idp_attributes
+    from provisa.core.repositories import user_attribute as attr_repo
+    from provisa.core.request_context import current_env, current_org
+
+    supplied = recorded_idp_attributes(identity.raw_claims)
+    key = (current_org.get(), current_env.get(), identity.user_id)
+    if _recorded_idp.get(key) == supplied:
+        return
+    async with db_pool.acquire() as conn:
+        await attr_repo.record_idp(conn, identity.user_id, supplied)
+    _recorded_idp[key] = supplied
+
+
 def _platform_roles() -> dict[str, dict]:  # REQ-1327, REQ-1337
     """The role definitions the platform plane's rights (cross_org) are read from, named as such:
     the deployment org's, where the platform grants live (AppState.platform_roles)."""
@@ -254,19 +285,16 @@ def request_session_vars(  # REQ-1682
     deployment with no auth provider, which has no claims — any ``x-provisa-session-<name>``
     header as ``<name>``. With an auth provider the headers are ignored: a client-chosen value
     must never stand where a row filter reads the verified identity."""
-    out: dict[str, str] = {}
+    from provisa.auth.attributes import effective, idp_attributes
 
-    def _name(key: str) -> str:
-        name = key.lower()
-        if name.startswith("x-hasura-"):
-            name = name[len("x-hasura-") :]
-        return name.replace("-", "_")
-
-    for key, val in (getattr(identity, "raw_claims", None) or {}).items():
-        if isinstance(val, bool):
-            out[_name(str(key))] = "true" if val else "false"
-        elif isinstance(val, (str, int, float)):
-            out[_name(str(key))] = str(val)
+    org = identity.org_attributes
+    if org is None:
+        raise RuntimeError(
+            f"identity {identity.user_id!r} has no org attributes bound: the auth middleware binds "
+            "them with the acting roles"
+        )
+    # REQ-1382: the provider's scalar claims, overlaid by what the org records for the user.
+    out: dict[str, str] = effective(idp_attributes(getattr(identity, "raw_claims", None)), org)
     if honor_session_headers:
         for key, val in headers.items():
             lk = key.lower()
@@ -402,6 +430,7 @@ class AuthMiddleware:  # REQ-120, REQ-125, REQ-273
                 index_elements=["user_id"],
                 update_columns=["email", "display_name", "updated_at"],
             )
+        await _record_idp_attributes(self._db_pool, identity)
 
     async def _read_assignments(self, identity: AuthIdentity) -> list[RoleAssignment]:
         """Read the user's role assignments from the tenant control plane scoped to the currently
@@ -555,6 +584,8 @@ class AuthMiddleware:  # REQ-120, REQ-125, REQ-273
                 roles=unsecured_roles,
                 raw_claims={},
                 acting_roles=list(unsecured_roles),
+                # No member to have a record of: the session headers are this deployment's context.
+                org_attributes={},
             )
             request.state.role = unsecured_role
             request.state.assignments = [
@@ -607,6 +638,8 @@ class AuthMiddleware:  # REQ-120, REQ-125, REQ-273
                 # platform_admin is the special case: break-glass acts as both of its roles, on
                 # both planes, whatever a request names.
                 su_identity.acting_roles = list(su_identity.roles)
+                # Break-glass is no org's member, so no org records anything of it.
+                su_identity.org_attributes = {}
                 request.state.identity = su_identity
                 # REQ-1618: break-glass holds platform_admin, so it IS the control plane, and this
                 # branch returns before the platform read below that publishes the same fact for
@@ -773,6 +806,7 @@ class AuthMiddleware:  # REQ-120, REQ-125, REQ-273
         if not self._multitenancy:
             active_org_id = self._default_org_id
             assignments = platform_assignments
+            org_attributes = _loaded_user_attributes(identity.user_id)
         else:
             # REQ-1327: EVERYONE is confined to orgs they belong to — including platform admins.
             # platform_admin is a control-plane role (org lifecycle, infra, audited recovery
@@ -961,12 +995,14 @@ class AuthMiddleware:  # REQ-120, REQ-125, REQ-273
                     assignments = await self._read_assignments(identity)
                     # The org's own role definitions decide what its assignments carry (below).
                     tenant_roles = _loaded_roles()
+                    org_attributes = _loaded_user_attributes(identity.user_id)
                 finally:
                     if env_token is not None:
                         reset_current_env(env_token)
                     reset_current_org(org_token)
             else:
                 assignments = platform_assignments
+                org_attributes = _loaded_user_attributes(identity.user_id)
 
             # REQ-1297: platform_admin is actively ignored in a tenant org. The role is seeded into
             # every org schema (it is the FK target for the retired-id rewrite), so a tenant schema
@@ -990,6 +1026,7 @@ class AuthMiddleware:  # REQ-120, REQ-125, REQ-273
                     a for a in assignments if not _carries_platform_right(a.role_id, tenant_roles)
                 ]
 
+        identity.org_attributes = org_attributes
         role = resolve_role(identity, self._mapping_rules, self._default_role)
         # REQ-1338: the acting role must be one the caller actually holds. resolve_role answers from
         # the IdP claims and falls back to the deployment's default_role, which in assignments_source

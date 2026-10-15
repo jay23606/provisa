@@ -421,3 +421,79 @@ async def remove_assignment(user_id: str, assignment_id: int, request: Request):
     if row is None:
         raise ApiError(404, "users.assignment_not_found", "Assignment not found")
     return {"deleted": row[0]}
+
+
+class AttributeBody(BaseModel):
+    value: str
+
+
+async def _attributes_of(conn, user_id: str) -> list[dict]:
+    from provisa.auth.attributes import resolve
+    from provisa.core.repositories import user_attribute as attr_repo
+
+    resolved = resolve(
+        await attr_repo.idp_for_user(conn, user_id), await attr_repo.org_for_user(conn, user_id)
+    )
+    return [
+        {"name": a.name, "value": a.value, "source": a.source, "overridden": a.overridden}
+        for a in resolved
+    ]
+
+
+async def _reload_attributes(conn) -> None:
+    """Make this worker resolve requests against what was just written. The write also advances
+    the org's config stamp (``config_stamp.TENANT_TABLES``), which reloads every other worker."""
+    from provisa.api.app import state
+    from provisa.core.repositories import user_attribute as attr_repo
+
+    state.user_attributes = await attr_repo.org_by_user(conn)
+
+
+@router.get("/{user_id}/attributes")
+async def list_attributes(user_id: str, request: Request):  # REQ-1382, REQ-1383
+    """Every attribute of the user with its source: the org's record, and what the user's identity
+    provider supplied at their last sign-in to this org. Where both name an attribute, the org's
+    value is in force and the provider's is reported as overridden."""
+    _require_user_management(request)
+    async with _pool(request).acquire() as conn:
+        return await _attributes_of(conn, user_id)
+
+
+@router.put("/{user_id}/attributes/{name}")
+async def set_attribute(user_id: str, name: str, body: AttributeBody, request: Request):
+    """Record an attribute for the user, replacing its value (REQ-1382)."""
+    from provisa.auth.attributes import ORG, attribute_name_problem, normalize_name
+    from provisa.core.repositories import user_attribute as attr_repo
+
+    _require_user_management(request)
+    problem = attribute_name_problem(name)
+    if problem is not None:
+        code, message = problem
+        # The reserved names are named as they are bound; any other problem names what was sent.
+        shown = normalize_name(name) if code == "name_reserved" else name
+        raise ApiError(422, f"users.attribute_{code}", message, name=shown)
+    async with _pool(request).acquire() as conn:
+        stored = await attr_repo.upsert(conn, user_id, name, body.value)
+        await _reload_attributes(conn)
+        resolved = await _attributes_of(conn, user_id)
+    return next(a for a in resolved if a["name"] == stored and a["source"] == ORG)
+
+
+@router.delete("/{user_id}/attributes/{name}")
+async def delete_attribute(user_id: str, name: str, request: Request):
+    from provisa.auth.attributes import normalize_name
+    from provisa.core.repositories import user_attribute as attr_repo
+
+    _require_user_management(request)
+    async with _pool(request).acquire() as conn:
+        removed = await attr_repo.delete(conn, user_id, name)
+        if not removed:
+            raise ApiError(
+                404,
+                "users.attribute_not_found",
+                f"User '{user_id}' has no attribute '{normalize_name(name)}'",
+                user=user_id,
+                name=normalize_name(name),
+            )
+        await _reload_attributes(conn)
+    return {"deleted": normalize_name(name)}

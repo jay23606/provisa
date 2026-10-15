@@ -45,6 +45,10 @@ vi.mock("../api/admin", () => ({
   fetchOrgSettings: () =>
     Promise.resolve({ id: "acme", email_rule: null, auto_join: false, auto_join_role: null }),
   updateOrgSettings: vi.fn(),
+  fetchMemberAttributes: () =>
+    Promise.resolve([{ name: "region", value: "eu", source: "org", overridden: false }]),
+  setMemberAttribute: vi.fn(),
+  deleteMemberAttribute: vi.fn(),
   OrgError: class OrgError extends Error {},
 }));
 
@@ -199,5 +203,17 @@ describe("TeamPage offboarding", () => {
 
     await screen.findByTestId("team-page");
     expect(screen.queryByTestId("team-delete-org")).not.toBeInTheDocument();
+  });
+});
+
+describe("TeamPage member attributes", () => {
+  it("opens the selected member's attributes beside the list, and a row's own buttons do not", async () => {
+    mockMembers = [member({ user_id: "uid-a", email: "a@example.test" })];
+    renderTeamPage();
+    const row = await screen.findByTestId("team-member-uid-a");
+    fireEvent.click(screen.getByTestId("team-toggle-admin-uid-a"));
+    expect(screen.queryByTestId("member-attributes")).toBeNull();
+    fireEvent.click(row);
+    expect(await screen.findByTestId("member-attr-org-region")).toBeInTheDocument();
   });
 });

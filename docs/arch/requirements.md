@@ -14036,15 +14036,15 @@ Config exports carry JSON Pointer refs for internal cross-references plus compos
 
 ### REQ-1365 · URI Dereferencing API {#REQ-1365}
 
-**Status:** ✓ accepted · **Priority:** SHOULD · **Type:** behavioral
+**Status:** ✅ complete · **Priority:** SHOULD · **Type:** behavioral
 
 Governed dereference API for semantic data-location URIs: REST and MCP tool `resolve(uri, as_of?)` that takes a Provisa semantic-address URI and returns the governed value(s) it addresses, optionally at a point in time. For relational sources, the canonical address shape is `<table>/pk=<value>/<column>`, addressing a single value as table → primary-key predicate → column. Only semantic addresses (provisa://<org>/<domain_schema>/...) are dereferenceable; physical URIs are refused.
 
 **Use case:** Exported documents, lineage nodes, audit records, and agent citations carry resolvable links to live or historical governed values — dereferenceable provenance. Complements [REQ-1364](#REQ-1364) (export addressing).
 
-**Code:** `provisa/api/`
+**Code:** `provisa/api/data/resolve.py`, `provisa/api/data/endpoint.py`, `provisa/api/rest/generator.py`, `provisa/api/mcp/server.py`, `provisa/compiler/schema_gen.py`
 
-**Tests:** —
+**Tests:** `tests/unit/test_resolve_address.py`, `tests/integration/test_resolve_address_e2e.py`
 
 ## 6. Execution, Routing, Caching & Performance
 

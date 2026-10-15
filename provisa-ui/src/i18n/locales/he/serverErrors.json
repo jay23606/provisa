@@ -122,7 +122,10 @@
       "viewer_column_unknown": "'{{column}}' אינה עמודה של הטבלה '{{table}}'",
       "viewer_filter_unknown": "'{{operator}}' אינו מסנן של העמודה '{{column}}'",
       "viewer_value_invalid": "המסנן על '{{column}}' אינו יכול להשתמש בערך '{{value}}'",
-      "replica_building": "העותק של {{replica}} עדיין נבנה. הבנייה נמשכת; פתחו שוב את התצוגה המקדימה לאחר שתסתיים."
+      "replica_building": "העותק של {{replica}} עדיין נבנה. הבנייה נמשכת; פתחו שוב את התצוגה המקדימה לאחר שתסתיים.",
+      "address_invalid": "לא ניתן לפענח את הכתובת: {{reason}}",
+      "address_not_found": "אין מה לפענח: {{reason}}",
+      "mixed_resolve_and_other_fields": "לא ניתן לשלב את resolve עם שדות שורש אחרים באותה פעולה"
     },
     "discovery": {
       "adapter_missing_discover_schema": "המתאם עבור '{{source_type}}' אינו מממש discover_schema",
@@ -143,7 +146,8 @@
       "in_use": "{{count}} פריטים עדיין מפנים אל {{env}}. יש להסיר או לשנות כל אחד מהם ואז למחוק שוב."
     },
     "front_door": {
-      "coordinator_waking": "הסביבה מופעלת. היא תהיה מוכנה בעוד כשתי דקות."
+      "coordinator_waking": "הסביבה מופעלת. היא תהיה מוכנה בעוד כשתי דקות.",
+      "coordinator_updating": "הסביבה מתעדכנת. היא תחזור בקרוב."
     },
     "functions": {
       "approval_denied": "האישור נדחה עבור '{{name}}': {{reason}}",
@@ -483,6 +487,10 @@
     },
     "users": {
       "assignment_not_found": "ההקצאה לא נמצאה",
+      "attribute_name_invalid": "שם המאפיין '{{name}}' חייב להכיל אותיות, ספרות וקווים תחתונים בלבד, ואסור שיתחיל בספרה",
+      "attribute_name_missing": "מאפיין צריך שם",
+      "attribute_name_reserved": "'{{name}}' נקבע מהזהות הפועלת בכל בקשה ולא ניתן לרשום אותו כמאפיין",
+      "attribute_not_found": "למשתמש '{{user}}' אין מאפיין '{{name}}'",
       "last_org_admin": "{{user}} הוא מנהל הארגון האחרון של: {{orgs}}. יש לקדם תחילה מנהל ארגון נוסף בכל אחד מהם, או למחוק את הארגון.",
       "last_platform_admin": "{{user}} הוא מנהל הפלטפורמה האחרון של פריסה זו. יש להעניק תחילה את התפקיד למשתמש אחר.",
       "no_active_org": "אין ארגון המקושר לבקשה זו. יש להתחבר תחילה לארגון.",

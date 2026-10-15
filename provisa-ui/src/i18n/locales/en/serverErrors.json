@@ -122,7 +122,10 @@
       "viewer_column_unknown": "'{{column}}' is not a column of table '{{table}}'",
       "viewer_filter_unknown": "'{{operator}}' is not a filter of column '{{column}}'",
       "viewer_value_invalid": "The filter on '{{column}}' cannot use the value '{{value}}'",
-      "replica_building": "The copy of {{replica}} is still being built. The build continues; open the preview again once it has finished."
+      "replica_building": "The copy of {{replica}} is still being built. The build continues; open the preview again once it has finished.",
+      "address_invalid": "The address cannot be resolved: {{reason}}",
+      "address_not_found": "Nothing to resolve: {{reason}}",
+      "mixed_resolve_and_other_fields": "resolve cannot be combined with other root fields in one operation"
     },
     "discovery": {
       "adapter_missing_discover_schema": "Adapter for '{{source_type}}' does not implement discover_schema",
@@ -143,7 +146,8 @@
       "in_use": "{{env}} is still referred to by {{count}} item(s). Remove or change each one, then delete it again."
     },
     "front_door": {
-      "coordinator_waking": "The environment is starting. It will be ready in about two minutes."
+      "coordinator_waking": "The environment is starting. It will be ready in about two minutes.",
+      "coordinator_updating": "The environment is being updated. It will be back shortly."
     },
     "functions": {
       "approval_denied": "Approval denied for '{{name}}': {{reason}}",
@@ -483,6 +487,10 @@
     },
     "users": {
       "assignment_not_found": "Assignment not found",
+      "attribute_name_invalid": "Attribute name '{{name}}' must be letters, digits and underscores, and must not start with a digit",
+      "attribute_name_missing": "An attribute needs a name",
+      "attribute_name_reserved": "'{{name}}' is bound from the acting identity on every request and cannot be recorded as an attribute",
+      "attribute_not_found": "User '{{user}}' has no attribute '{{name}}'",
       "last_org_admin": "{{user}} is the last org admin of: {{orgs}}. Promote another org admin in each, or delete the organization, first.",
       "last_platform_admin": "{{user}} is the last platform admin of this deployment. Grant the platform admin role to another user first.",
       "no_active_org": "No organization is bound to this request. Sign in to an organization first.",

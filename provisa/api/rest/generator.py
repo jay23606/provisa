@@ -509,6 +509,31 @@ def create_rest_router(state: Any) -> APIRouter:  # REQ-222, REQ-256, REQ-266, R
 
         return HTMLResponse(content=swagger_ui_html(theme))
 
+    @rest_router.get("/resolve")
+    async def rest_resolve_endpoint(  # pyright: ignore[reportUnusedFunction]  # REQ-1365
+        request: Request,
+        uri: str = Query(...),
+        as_of: str | None = Query(None),
+    ):
+        """Dereference a semantic address: the REST form of the GraphQL ``resolve`` field
+        (REQ-1929). ``as_of`` may also arrive as the ``X-Provisa-As-Of`` header."""
+        from provisa.api.data.resolve import AddressError, AddressNotFound, resolve
+        from provisa.core.request_context import require_current_org
+
+        role_id = getattr(request.state, "role", None)
+        if not role_id:
+            raise HTTPException(status_code=401, detail="authenticated role required")
+        point = as_of or request.headers.get("x-provisa-as-of")
+        try:
+            result = await resolve(state, role_id, uri, org_id=require_current_org(), as_of=point)
+        except AddressNotFound as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except AddressError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except PermissionError as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+        return OrjsonResponse(content=result)
+
     @rest_router.get("/{domain_id}/{table_name}")
     async def rest_table_endpoint(  # pyright: ignore[reportUnusedFunction]
         request: Request,

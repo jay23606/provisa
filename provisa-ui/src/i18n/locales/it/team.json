@@ -67,6 +67,29 @@
     "colEnvironment": "Ambiente",
     "envPerVisitorBadge": "Per visitatore, {{ttl}}",
     "envSharedBadge": "Condiviso: {{name}}",
-    "spentStatus": "Completamente riscattato"
+    "spentStatus": "Completamente riscattato",
+    "memberPanel": "Dettagli del membro",
+    "resizeMemberPanel": "Ridimensiona il pannello del membro",
+    "expandMemberPanel": "Espandi il pannello del membro",
+    "restoreMemberPanel": "Ripristina il pannello del membro",
+    "closeMemberPanel": "Chiudi il pannello del membro",
+    "backToMembers": "Torna ai membri",
+    "attributes": {
+      "help": "Attributi che una regola di riga può leggere per questo membro. Ciò che l'organizzazione registra qui prevale sullo stesso attributo del suo provider di identità.",
+      "colName": "Attributo",
+      "colValue": "Valore",
+      "colSource": "Origine",
+      "empty": "Nessun attributo.",
+      "nameLabel": "Attributo",
+      "valueLabel": "Valore",
+      "add": "Aggiungi",
+      "sourceOrg": "Organizzazione",
+      "sourceIdp": "Provider di identità",
+      "overriddenHint": "Sostituito dal valore dell'organizzazione",
+      "edit": "Modifica {{name}}",
+      "saveEdit": "Salva {{name}}",
+      "cancelEdit": "Annulla la modifica",
+      "remove": "Rimuovi {{name}}"
+    }
   }
 }

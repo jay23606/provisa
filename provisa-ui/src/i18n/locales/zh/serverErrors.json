@@ -122,7 +122,10 @@
       "viewer_column_unknown": "“{{column}}”不是表“{{table}}”的列",
       "viewer_filter_unknown": "“{{operator}}”不是列“{{column}}”的筛选器",
       "viewer_value_invalid": "对“{{column}}”的筛选不能使用值“{{value}}”",
-      "replica_building": "{{replica}} 的副本仍在构建中。构建会继续；完成后请再次打开预览。"
+      "replica_building": "{{replica}} 的副本仍在构建中。构建会继续；完成后请再次打开预览。",
+      "address_invalid": "无法解析该地址：{{reason}}",
+      "address_not_found": "没有可解析的内容：{{reason}}",
+      "mixed_resolve_and_other_fields": "resolve 不能在同一操作中与其他根字段组合使用"
     },
     "discovery": {
       "adapter_missing_discover_schema": "'{{source_type}}' 的适配器未实现 discover_schema",
@@ -143,7 +146,8 @@
       "in_use": "仍有 {{count}} 项引用 {{env}}。请移除或更改每一项，然后再次删除。"
     },
     "front_door": {
-      "coordinator_waking": "环境正在启动，大约两分钟后就绪。"
+      "coordinator_waking": "环境正在启动，大约两分钟后就绪。",
+      "coordinator_updating": "环境正在更新，很快就会恢复。"
     },
     "functions": {
       "approval_denied": "'{{name}}' 的审批被拒绝：{{reason}}",
@@ -483,6 +487,10 @@
     },
     "users": {
       "assignment_not_found": "未找到分配",
+      "attribute_name_invalid": "属性名 '{{name}}' 只能包含字母、数字和下划线，且不能以数字开头",
+      "attribute_name_missing": "属性需要名称",
+      "attribute_name_reserved": "'{{name}}' 在每个请求中由当前操作的身份绑定，不能记录为属性",
+      "attribute_not_found": "用户 '{{user}}' 没有属性 '{{name}}'",
       "last_org_admin": "{{user}} 是以下组织的最后一位组织管理员：{{orgs}}。请先在每个组织中提升另一位组织管理员，或删除该组织。",
       "last_platform_admin": "{{user}} 是此部署的最后一位平台管理员。请先将该角色授予其他用户。",
       "no_active_org": "此请求未绑定任何组织。请先登录某个组织。",

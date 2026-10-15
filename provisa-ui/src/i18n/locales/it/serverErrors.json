@@ -122,7 +122,10 @@
       "viewer_column_unknown": "'{{column}}' non è una colonna della tabella '{{table}}'",
       "viewer_filter_unknown": "'{{operator}}' non è un filtro della colonna '{{column}}'",
       "viewer_value_invalid": "Il filtro su '{{column}}' non può usare il valore '{{value}}'",
-      "replica_building": "La copia di {{replica}} è ancora in fase di creazione. La creazione continua; riapri l'anteprima al termine."
+      "replica_building": "La copia di {{replica}} è ancora in fase di creazione. La creazione continua; riapri l'anteprima al termine.",
+      "address_invalid": "L'indirizzo non può essere risolto: {{reason}}",
+      "address_not_found": "Niente da risolvere: {{reason}}",
+      "mixed_resolve_and_other_fields": "resolve non può essere combinato con altri campi radice nella stessa operazione"
     },
     "discovery": {
       "adapter_missing_discover_schema": "L'adattatore per '{{source_type}}' non implementa discover_schema",
@@ -143,7 +146,8 @@
       "in_use": "{{env}} è ancora riferito da {{count}} elemento/i. Rimuovi o modifica ciascuno, poi elimina di nuovo."
     },
     "front_door": {
-      "coordinator_waking": "L'ambiente si sta avviando. Sarà pronto tra circa due minuti."
+      "coordinator_waking": "L'ambiente si sta avviando. Sarà pronto tra circa due minuti.",
+      "coordinator_updating": "L'ambiente è in fase di aggiornamento. Sarà di nuovo disponibile a breve."
     },
     "functions": {
       "approval_denied": "Approvazione negata per '{{name}}': {{reason}}",
@@ -483,6 +487,10 @@
     },
     "users": {
       "assignment_not_found": "Assegnazione non trovata",
+      "attribute_name_invalid": "Il nome dell'attributo '{{name}}' deve contenere solo lettere, cifre e trattini bassi e non può iniziare con una cifra",
+      "attribute_name_missing": "Un attributo deve avere un nome",
+      "attribute_name_reserved": "'{{name}}' viene impostato dall'identità che agisce a ogni richiesta e non può essere registrato come attributo",
+      "attribute_not_found": "L'utente '{{user}}' non ha l'attributo '{{name}}'",
       "last_org_admin": "{{user}} è l'ultimo amministratore dell'organizzazione di: {{orgs}}. Promuovi prima un altro amministratore in ciascuna, oppure elimina l'organizzazione.",
       "last_platform_admin": "{{user}} è l'ultimo amministratore della piattaforma di questa installazione. Assegna prima il ruolo a un altro utente.",
       "no_active_org": "Nessuna organizzazione è associata a questa richiesta. Accedi prima a un'organizzazione.",

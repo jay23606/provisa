@@ -67,6 +67,29 @@
     "colEnvironment": "Entorno",
     "envPerVisitorBadge": "Por visitante, {{ttl}}",
     "envSharedBadge": "Compartido: {{name}}",
-    "spentStatus": "Canjeado por completo"
+    "spentStatus": "Canjeado por completo",
+    "memberPanel": "Detalles del miembro",
+    "resizeMemberPanel": "Cambiar el tamaño del panel del miembro",
+    "expandMemberPanel": "Expandir el panel del miembro",
+    "restoreMemberPanel": "Restaurar el panel del miembro",
+    "closeMemberPanel": "Cerrar el panel del miembro",
+    "backToMembers": "Volver a los miembros",
+    "attributes": {
+      "help": "Atributos que una regla de filas puede leer para este miembro. Lo que la organización registra aquí prevalece sobre el mismo atributo de su proveedor de identidades.",
+      "colName": "Atributo",
+      "colValue": "Valor",
+      "colSource": "Origen",
+      "empty": "Aún no hay atributos.",
+      "nameLabel": "Atributo",
+      "valueLabel": "Valor",
+      "add": "Agregar",
+      "sourceOrg": "Organización",
+      "sourceIdp": "Proveedor de identidades",
+      "overriddenHint": "Reemplazado por el valor de la organización",
+      "edit": "Editar {{name}}",
+      "saveEdit": "Guardar {{name}}",
+      "cancelEdit": "Cancelar la edición",
+      "remove": "Quitar {{name}}"
+    }
   }
 }

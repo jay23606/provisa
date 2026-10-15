@@ -23,8 +23,8 @@ from provisa.core.request_context import (
 from provisa.pgwire._pipeline import _resolve_session_settings
 
 
-def _identity(user_id="u-7", claims=None):
-    return SimpleNamespace(user_id=user_id, raw_claims=claims or {})
+def _identity(user_id="u-7", claims=None, org=None):
+    return SimpleNamespace(user_id=user_id, raw_claims=claims or {}, org_attributes=org or {})
 
 
 class TestRequestSessionVars:

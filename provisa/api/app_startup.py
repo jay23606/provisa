@@ -739,10 +739,17 @@ async def _seed_demo_templates(_log: logging.Logger) -> None:  # REQ-2006
     """On the sandbox tier: the template org of every published demo, built at deploy time so a
     visitor's sandbox is a copy of data landed before they arrived."""
     from provisa.api.app import state  # lazy: avoid app<->app_startup cycle
-    from provisa.api.demo_templates import ensure_demo_templates
+    import threading
+
+    from provisa.api.demo_templates import ensure_demo_templates, prefetch_connector_bundles
 
     if state.admin_db is None:
         raise RuntimeError("The demo templates need the control-plane registry, which is not bound")
+    # The demos' connector bundles are fetched beside the template builds, on a thread of their
+    # own: hundreds of megabytes that no request should wait for.
+    threading.Thread(
+        target=prefetch_connector_bundles, daemon=True, name="demo-connector-bundles"
+    ).start()
     for demo, outcome in (await ensure_demo_templates(state.admin_db)).items():
         _log.info("demo template %s: %s", demo, outcome)
 

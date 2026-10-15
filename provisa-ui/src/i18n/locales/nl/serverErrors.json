@@ -122,7 +122,10 @@
       "viewer_column_unknown": "'{{column}}' is geen kolom van tabel '{{table}}'",
       "viewer_filter_unknown": "'{{operator}}' is geen filter van kolom '{{column}}'",
       "viewer_value_invalid": "Het filter op '{{column}}' kan de waarde '{{value}}' niet gebruiken",
-      "replica_building": "De kopie van {{replica}} wordt nog opgebouwd. De opbouw gaat door; open het voorbeeld opnieuw zodra deze klaar is."
+      "replica_building": "De kopie van {{replica}} wordt nog opgebouwd. De opbouw gaat door; open het voorbeeld opnieuw zodra deze klaar is.",
+      "address_invalid": "Het adres kan niet worden opgelost: {{reason}}",
+      "address_not_found": "Niets op te lossen: {{reason}}",
+      "mixed_resolve_and_other_fields": "resolve kan in één bewerking niet met andere rootvelden worden gecombineerd"
     },
     "discovery": {
       "adapter_missing_discover_schema": "Adapter voor '{{source_type}}' implementeert discover_schema niet",
@@ -143,7 +146,8 @@
       "in_use": "Naar {{env}} wordt nog verwezen door {{count}} item(s). Verwijder of wijzig elk daarvan en verwijder daarna opnieuw."
     },
     "front_door": {
-      "coordinator_waking": "De omgeving wordt gestart. Deze is over ongeveer twee minuten gereed."
+      "coordinator_waking": "De omgeving wordt gestart. Deze is over ongeveer twee minuten gereed.",
+      "coordinator_updating": "De omgeving wordt bijgewerkt. Deze is binnenkort weer beschikbaar."
     },
     "functions": {
       "approval_denied": "Goedkeuring geweigerd voor '{{name}}': {{reason}}",
@@ -483,6 +487,10 @@
     },
     "users": {
       "assignment_not_found": "Toewijzing niet gevonden",
+      "attribute_name_invalid": "Kenmerknaam '{{name}}' mag alleen letters, cijfers en underscores bevatten en mag niet met een cijfer beginnen",
+      "attribute_name_missing": "Een kenmerk heeft een naam nodig",
+      "attribute_name_reserved": "'{{name}}' wordt bij elk verzoek ingesteld vanuit de handelende identiteit en kan niet als kenmerk worden vastgelegd",
+      "attribute_not_found": "Gebruiker '{{user}}' heeft geen kenmerk '{{name}}'",
       "last_org_admin": "{{user}} is de laatste organisatiebeheerder van: {{orgs}}. Bevorder eerst in elk daarvan een andere organisatiebeheerder, of verwijder de organisatie.",
       "last_platform_admin": "{{user}} is de laatste platformbeheerder van deze installatie. Ken de rol eerst aan een andere gebruiker toe.",
       "no_active_org": "Er is geen organisatie aan dit verzoek gekoppeld. Meld u eerst aan bij een organisatie.",

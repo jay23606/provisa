@@ -1296,6 +1296,28 @@ CREATE TABLE IF NOT EXISTS user_directory (
     updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- REQ-1382: attributes the org records for a member, beside what their identity provider
+-- supplies. Bound as session variables (current_setting('provisa.<name>')); where the provider
+-- supplies the same name, the org's record wins (provisa.auth.attributes).
+CREATE TABLE IF NOT EXISTS user_attributes (
+    id         SERIAL PRIMARY KEY,
+    user_id    TEXT NOT NULL,
+    name       TEXT NOT NULL,
+    value      TEXT NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (user_id, name)
+);
+
+-- REQ-1383: the scalar claims each user's identity provider supplied at their last sign-in, so
+-- an administrator can see an attribute's source for a user who is not the caller.
+CREATE TABLE IF NOT EXISTS user_idp_attributes (
+    user_id TEXT NOT NULL,
+    name    TEXT NOT NULL,
+    value   TEXT NOT NULL,
+    seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (user_id, name)
+);
+
 CREATE TABLE IF NOT EXISTS email_send_authority_audit (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email_address   TEXT NOT NULL,

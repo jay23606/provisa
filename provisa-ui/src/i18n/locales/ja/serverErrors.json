@@ -122,7 +122,10 @@
       "viewer_column_unknown": "'{{column}}' はテーブル '{{table}}' の列ではありません",
       "viewer_filter_unknown": "'{{operator}}' は列 '{{column}}' のフィルターではありません",
       "viewer_value_invalid": "'{{column}}' のフィルターでは値 '{{value}}' を使用できません",
-      "replica_building": "{{replica}} のコピーはまだ作成中です。作成は続行されます。完了後にもう一度プレビューを開いてください。"
+      "replica_building": "{{replica}} のコピーはまだ作成中です。作成は続行されます。完了後にもう一度プレビューを開いてください。",
+      "address_invalid": "アドレスを解決できません: {{reason}}",
+      "address_not_found": "解決する対象がありません: {{reason}}",
+      "mixed_resolve_and_other_fields": "resolve は 1 つの操作で他のルートフィールドと組み合わせることはできません"
     },
     "discovery": {
       "adapter_missing_discover_schema": "「{{source_type}}」のアダプターは discover_schema を実装していません",
@@ -143,7 +146,8 @@
       "in_use": "{{env}} はまだ {{count}} 件から参照されています。それぞれを削除または変更してから、もう一度削除してください。"
     },
     "front_door": {
-      "coordinator_waking": "環境を起動しています。約 2 分で準備が整います。"
+      "coordinator_waking": "環境を起動しています。約 2 分で準備が整います。",
+      "coordinator_updating": "環境を更新しています。まもなく利用できるようになります。"
     },
     "functions": {
       "approval_denied": "'{{name}}' の承認が拒否されました: {{reason}}",
@@ -483,6 +487,10 @@
     },
     "users": {
       "assignment_not_found": "割り当てが見つかりません",
+      "attribute_name_invalid": "属性名 '{{name}}' には英字、数字、アンダースコアのみ使用でき、数字で始めることはできません",
+      "attribute_name_missing": "属性には名前が必要です",
+      "attribute_name_reserved": "'{{name}}' は各リクエストで操作中の ID から設定されるため、属性として記録できません",
+      "attribute_not_found": "ユーザー '{{user}}' には属性 '{{name}}' がありません",
       "last_org_admin": "{{user}} は次の組織の最後の組織管理者です: {{orgs}}。先にそれぞれで別の組織管理者を任命するか、組織を削除してください。",
       "last_platform_admin": "{{user}} はこのデプロイメントの最後のプラットフォーム管理者です。先に別のユーザーにそのロールを付与してください。",
       "no_active_org": "このリクエストに組織が関連付けられていません。先に組織にサインインしてください。",

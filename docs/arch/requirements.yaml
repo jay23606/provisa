@@ -45070,7 +45070,7 @@
     + catalog.schema.table, e.g., postgresql://host:5432/db/schema/table#column).'
   notes: Accepted by the maintainer 2026-10-03 for the feature-complete line.
 - id: REQ-1365
-  status: accepted
+  status: complete
   since: 2026-08
   group: 8. Client Access & Protocols
   category: URI Dereferencing API
@@ -45085,7 +45085,14 @@
   use_case: Exported documents, lineage nodes, audit records, and agent citations carry resolvable links
     to live or historical governed values — dereferenceable provenance. Complements REQ-1364 (export addressing).
   code:
-  - provisa/api/
+  - provisa/api/data/resolve.py
+  - provisa/api/data/endpoint.py
+  - provisa/api/rest/generator.py
+  - provisa/api/mcp/server.py
+  - provisa/compiler/schema_gen.py
+  tests:
+  - tests/unit/test_resolve_address.py
+  - tests/integration/test_resolve_address_e2e.py
   design_notes: 'Execution routes through the single settled query pipeline (_govern_and_route/_execute_plan),
     never a second pipeline. Dereferencing is automatically role-scoped, RLS-filtered, masked, row-capped,
     and audited. Row selection uses primary-key-based predicates validated against the model''s key metadata

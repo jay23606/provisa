@@ -122,7 +122,10 @@
       "viewer_column_unknown": "'{{column}}' ist keine Spalte der Tabelle '{{table}}'",
       "viewer_filter_unknown": "'{{operator}}' ist kein Filter der Spalte '{{column}}'",
       "viewer_value_invalid": "Der Filter auf '{{column}}' kann den Wert '{{value}}' nicht verwenden",
-      "replica_building": "Die Kopie von {{replica}} wird noch erstellt. Der Aufbau läuft weiter; öffnen Sie die Vorschau erneut, sobald er abgeschlossen ist."
+      "replica_building": "Die Kopie von {{replica}} wird noch erstellt. Der Aufbau läuft weiter; öffnen Sie die Vorschau erneut, sobald er abgeschlossen ist.",
+      "address_invalid": "Die Adresse kann nicht aufgelöst werden: {{reason}}",
+      "address_not_found": "Nichts aufzulösen: {{reason}}",
+      "mixed_resolve_and_other_fields": "resolve kann in einer Operation nicht mit anderen Wurzelfeldern kombiniert werden"
     },
     "discovery": {
       "adapter_missing_discover_schema": "Adapter für '{{source_type}}' implementiert discover_schema nicht",
@@ -143,7 +146,8 @@
       "in_use": "Auf {{env}} verweisen noch {{count}} Element(e). Entfernen oder ändern Sie jedes davon und löschen Sie dann erneut."
     },
     "front_door": {
-      "coordinator_waking": "Die Umgebung wird gestartet. Sie ist in etwa zwei Minuten bereit."
+      "coordinator_waking": "Die Umgebung wird gestartet. Sie ist in etwa zwei Minuten bereit.",
+      "coordinator_updating": "Die Umgebung wird aktualisiert. Sie ist in Kürze wieder verfügbar."
     },
     "functions": {
       "approval_denied": "Genehmigung für '{{name}}' verweigert: {{reason}}",
@@ -483,6 +487,10 @@
     },
     "users": {
       "assignment_not_found": "Zuweisung nicht gefunden",
+      "attribute_name_invalid": "Der Attributname '{{name}}' darf nur Buchstaben, Ziffern und Unterstriche enthalten und nicht mit einer Ziffer beginnen",
+      "attribute_name_missing": "Ein Attribut braucht einen Namen",
+      "attribute_name_reserved": "'{{name}}' wird bei jeder Anfrage aus der handelnden Identität gesetzt und kann nicht als Attribut erfasst werden",
+      "attribute_not_found": "Benutzer '{{user}}' hat kein Attribut '{{name}}'",
       "last_org_admin": "{{user}} ist der letzte Organisationsadministrator von: {{orgs}}. Befördern Sie dort jeweils einen weiteren Organisationsadministrator oder löschen Sie die Organisation zuerst.",
       "last_platform_admin": "{{user}} ist der letzte Plattformadministrator dieser Bereitstellung. Weisen Sie die Rolle zuerst einem anderen Benutzer zu.",
       "no_active_org": "An diese Anfrage ist keine Organisation gebunden. Melden Sie sich zuerst bei einer Organisation an.",

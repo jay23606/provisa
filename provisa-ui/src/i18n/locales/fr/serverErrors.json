@@ -122,7 +122,10 @@
       "viewer_column_unknown": "'{{column}}' n'est pas une colonne de la table '{{table}}'",
       "viewer_filter_unknown": "'{{operator}}' n'est pas un filtre de la colonne '{{column}}'",
       "viewer_value_invalid": "Le filtre sur '{{column}}' ne peut pas utiliser la valeur '{{value}}'",
-      "replica_building": "La copie de {{replica}} est encore en cours de création. La création se poursuit ; rouvrez l'aperçu une fois qu'elle est terminée."
+      "replica_building": "La copie de {{replica}} est encore en cours de création. La création se poursuit ; rouvrez l'aperçu une fois qu'elle est terminée.",
+      "address_invalid": "L'adresse ne peut pas être résolue : {{reason}}",
+      "address_not_found": "Rien à résoudre : {{reason}}",
+      "mixed_resolve_and_other_fields": "resolve ne peut pas être combiné avec d'autres champs racine dans une même opération"
     },
     "discovery": {
       "adapter_missing_discover_schema": "L'adaptateur pour « {{source_type}} » n'implémente pas discover_schema",
@@ -143,7 +146,8 @@
       "in_use": "{{env}} est encore référencé par {{count}} élément(s). Retirez ou modifiez chacun, puis supprimez de nouveau."
     },
     "front_door": {
-      "coordinator_waking": "L'environnement démarre. Il sera prêt dans environ deux minutes."
+      "coordinator_waking": "L'environnement démarre. Il sera prêt dans environ deux minutes.",
+      "coordinator_updating": "L'environnement est en cours de mise à jour. Il sera de retour sous peu."
     },
     "functions": {
       "approval_denied": "Approbation refusée pour '{{name}}' : {{reason}}",
@@ -483,6 +487,10 @@
     },
     "users": {
       "assignment_not_found": "Affectation introuvable",
+      "attribute_name_invalid": "Le nom d'attribut '{{name}}' ne doit contenir que des lettres, des chiffres et des traits de soulignement, et ne doit pas commencer par un chiffre",
+      "attribute_name_missing": "Un attribut doit avoir un nom",
+      "attribute_name_reserved": "'{{name}}' est défini à partir de l'identité agissante à chaque requête et ne peut pas être enregistré comme attribut",
+      "attribute_not_found": "L'utilisateur '{{user}}' n'a pas d'attribut '{{name}}'",
       "last_org_admin": "{{user}} est le dernier administrateur d'organisation de : {{orgs}}. Promouvez d'abord un autre administrateur dans chacune, ou supprimez l'organisation.",
       "last_platform_admin": "{{user}} est le dernier administrateur de plateforme de ce déploiement. Accordez d'abord ce rôle à un autre utilisateur.",
       "no_active_org": "Aucune organisation n'est liée à cette requête. Connectez-vous d'abord à une organisation.",

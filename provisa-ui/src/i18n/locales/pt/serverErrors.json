@@ -122,7 +122,10 @@
       "viewer_column_unknown": "'{{column}}' não é uma coluna da tabela '{{table}}'",
       "viewer_filter_unknown": "'{{operator}}' não é um filtro da coluna '{{column}}'",
       "viewer_value_invalid": "O filtro em '{{column}}' não pode usar o valor '{{value}}'",
-      "replica_building": "A cópia de {{replica}} ainda está sendo criada. A criação continua; abra a pré-visualização novamente quando terminar."
+      "replica_building": "A cópia de {{replica}} ainda está sendo criada. A criação continua; abra a pré-visualização novamente quando terminar.",
+      "address_invalid": "O endereço não pode ser resolvido: {{reason}}",
+      "address_not_found": "Nada a resolver: {{reason}}",
+      "mixed_resolve_and_other_fields": "resolve não pode ser combinado com outros campos raiz na mesma operação"
     },
     "discovery": {
       "adapter_missing_discover_schema": "O adaptador para '{{source_type}}' não implementa discover_schema",
@@ -143,7 +146,8 @@
       "in_use": "{{env}} ainda é referenciado por {{count}} item(ns). Remova ou altere cada um e exclua novamente."
     },
     "front_door": {
-      "coordinator_waking": "O ambiente está a iniciar. Estará pronto dentro de cerca de dois minutos."
+      "coordinator_waking": "O ambiente está a iniciar. Estará pronto dentro de cerca de dois minutos.",
+      "coordinator_updating": "O ambiente está a ser atualizado. Estará disponível novamente em breve."
     },
     "functions": {
       "approval_denied": "Aprovação negada para '{{name}}': {{reason}}",
@@ -483,6 +487,10 @@
     },
     "users": {
       "assignment_not_found": "Atribuição não encontrada",
+      "attribute_name_invalid": "O nome de atributo '{{name}}' deve conter apenas letras, dígitos e sublinhados, e não pode começar com um dígito",
+      "attribute_name_missing": "Um atributo precisa de um nome",
+      "attribute_name_reserved": "'{{name}}' é definido a partir da identidade atuante em cada solicitação e não pode ser registrado como atributo",
+      "attribute_not_found": "O usuário '{{user}}' não tem o atributo '{{name}}'",
       "last_org_admin": "{{user}} é o último administrador de organização de: {{orgs}}. Promova primeiro outro administrador em cada uma, ou exclua a organização.",
       "last_platform_admin": "{{user}} é o último administrador de plataforma desta implantação. Conceda primeiro o papel a outro usuário.",
       "no_active_org": "Nenhuma organização está vinculada a esta solicitação. Entre primeiro em uma organização.",

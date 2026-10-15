@@ -195,6 +195,46 @@ async def write_declared_vector_models(model_db: Any, seed: Any) -> None:  # REQ
     await write_org_overrides(model_db, {"vector_models": models or None}, updated_by="platform")
 
 
+def connector_bundles() -> list[Any]:  # list[BundleSpec]
+    """The connector bundle of every source the published demos read through one (the files
+    demo's file connector), once each."""
+    from provisa.federation.pgwire_replica import _source_type
+    from provisa.runtime_deps.pgwire_bundles import BUNDLE_CONNECTOR, bundle_spec_for
+
+    types = {
+        _source_type(source)
+        for demo in published_demos().values()
+        for source in template_seed(demo.template_org).sources
+    }
+    return [bundle_spec_for(t) for t in sorted(types) if t in BUNDLE_CONNECTOR]
+
+
+def prefetch_connector_bundles() -> None:
+    """Download the demos' connector bundles into the runtime-deps cache now, outside any request,
+    so a visitor's first query finds them. A bundle is hundreds of megabytes: fetched inside a
+    request it was cut off by the request's deadline every time. A bundle that cannot be fetched
+    is logged by name; the request that needs it then starts its download again
+    (``BundleResolver.resolve``)."""
+    import logging
+
+    from provisa.runtime_deps.pgwire_bundles import BundleResolver, BundleUnavailable
+
+    log = logging.getLogger(__name__)
+    resolver = BundleResolver()
+    for spec in connector_bundles():
+        try:
+            log.info(
+                "connector bundle %s %s: %s",
+                spec.artifact_name,
+                spec.version,
+                resolver.resolve(spec),
+            )
+        except BundleUnavailable:
+            log.exception(
+                "connector bundle %s %s was not fetched", spec.artifact_name, spec.version
+            )
+
+
 _ENV_REF = re.compile(r"\$\{env:([A-Za-z_][A-Za-z0-9_]*)(?::-[^}]*)?\}")
 
 

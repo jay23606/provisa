@@ -67,6 +67,29 @@
     "colEnvironment": "環境",
     "envPerVisitorBadge": "訪問者ごと、{{ttl}}",
     "envSharedBadge": "共有: {{name}}",
-    "spentStatus": "利用済み"
+    "spentStatus": "利用済み",
+    "memberPanel": "メンバーの詳細",
+    "resizeMemberPanel": "メンバーパネルのサイズを変更",
+    "expandMemberPanel": "メンバーパネルを展開",
+    "restoreMemberPanel": "メンバーパネルを元に戻す",
+    "closeMemberPanel": "メンバーパネルを閉じる",
+    "backToMembers": "メンバー一覧に戻る",
+    "attributes": {
+      "help": "行ルールがこのメンバーについて読み取れる属性です。組織がここで記録した値は、ID プロバイダーの同じ属性より優先されます。",
+      "colName": "属性",
+      "colValue": "値",
+      "colSource": "ソース",
+      "empty": "属性はまだありません。",
+      "nameLabel": "属性",
+      "valueLabel": "値",
+      "add": "追加",
+      "sourceOrg": "組織",
+      "sourceIdp": "ID プロバイダー",
+      "overriddenHint": "組織の値で上書きされています",
+      "edit": "{{name}} を編集",
+      "saveEdit": "{{name}} を保存",
+      "cancelEdit": "編集をキャンセル",
+      "remove": "{{name}} を削除"
+    }
   }
 }
