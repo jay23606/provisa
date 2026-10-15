@@ -3667,6 +3667,15 @@ def create_app() -> FastAPI:
             },
         )
 
+    from provisa.vector.registry import VectorModelError as _VectorModelError
+
+    @app.exception_handler(_VectorModelError)
+    async def _vector_model_handler(_req: _Request, exc: _VectorModelError):  # noqa: F841  # pyright: ignore[reportUnusedFunction, reportUnusedVariable]
+        # A statement naming a vector model the org does not register, has disabled, or whose
+        # vectors do not fit it: the caller's 400 naming the model, as /data/sql answers it --
+        # never the catch-all's 500 (GraphQL lets it through to here).
+        return _JSONResponse(status_code=400, content={"detail": str(exc)})
+
     @app.exception_handler(_OperatorFloorError)
     async def _operator_floor_handler(_req: _Request, exc: _OperatorFloorError):  # noqa: F841  # pyright: ignore[reportUnusedFunction, reportUnusedVariable]
         # REQ-030: a request below the operator's floor is refused, naming the setting.
