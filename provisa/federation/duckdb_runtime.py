@@ -95,6 +95,11 @@ def _sql_text(value: str) -> str:
     return value.replace("'", "''")
 
 
+def _quoted(name: str) -> str:
+    """``name`` as a double-quoted SQL identifier."""
+    return '"' + name.replace('"', '""') + '"'
+
+
 class _CatalogGate(ReadersWriterGate):
     """Readers-writer gate over the shared DuckDB connection's catalog.
 
@@ -238,6 +243,9 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         # arguments). Their view is re-pointed before every statement that names one
         # (_refresh_databricks_relations), never left on an old snapshot or expired credentials.
         self._dbx_relations: dict[str, tuple[Any, str]] = {}
+        # #266: each attached view's columns named apart from their source fields, by its physical
+        # name, as the attach walk gave them (native_backend._mongo_column_fields).
+        self._column_fields: dict[str, list[tuple[str, str]]] = {}
         self._dbx_lock = threading.Lock()
         self._raw_attached: set[str] = set()  # source ids whose remote DB is already ATTACHed
         # REQ-1529: the ATTACH each raw alias was made with, so an environment reaching the same
@@ -328,7 +336,17 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
             raw_alias = self._attach_raw(source, details)
             remote_schema = details.get("remote_schema", source.schema_name)
             remote = f'"{raw_alias}"."{remote_schema}"."{source.table_name}"'
-            self._con.execute(f"CREATE OR REPLACE VIEW {phys} AS SELECT * FROM {remote}")
+            # #266: a column named apart from the field it reads (a MongoDB column's path) is
+            # exposed under its own name beside the source's.
+            # An attach from no table model (the introspection seam's) carries none and keeps
+            # those the walk gave, so it never re-creates the view without them.
+            fields = getattr(source, "column_fields", None)
+            if fields is None:
+                fields = self._column_fields.get(phys, [])
+            else:
+                self._column_fields[phys] = fields
+            renamed = "".join(f", {_quoted(field)} AS {_quoted(name)}" for field, name in fields)
+            self._con.execute(f"CREATE OR REPLACE VIEW {phys} AS SELECT *{renamed} FROM {remote}")
 
     def detach_source(self, source: Any) -> None:
         """Remove the live exposure of ``source``'s table from this engine: the view at its

@@ -159,7 +159,7 @@ def test_a_product_s_nested_specs_are_its_columns(server):
     rows = query(
         server,
         'SELECT COUNT(*) AS n FROM "store"."products" '
-        "WHERE category = 'power bank' AND specs_battery_hours IS NULL AND specs_weight_g > 0",
+        "WHERE category = 'power bank' AND battery_hours IS NULL AND weight_g > 0",
     )
     assert rows[0]["n"] > 0
 
@@ -238,3 +238,13 @@ def test_each_tour_statement_answers_rows(server, step):
     )
     assert resp.status_code == 200, resp.text
     assert resp.json(), step["key"]
+
+
+def test_a_purchase_s_date_is_a_date(stack, server):
+    """#267: the Cypher table's bought_on is typed date, compared as one."""
+    rows = query(
+        server,
+        'SELECT COUNT(*) AS n, MIN(bought_on) AS first FROM "store"."purchases" '
+        "WHERE bought_on >= DATE '2026-01-01'",
+    )
+    assert rows == [{"n": stack.written()["purchases"], "first": "2026-01-01"}]

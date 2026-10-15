@@ -123,6 +123,27 @@ def _file_glob_tables(tables: list[Any]) -> dict[str, list[dict]]:  # REQ-788
     return by_source
 
 
+def _mongo_column_fields(tables: list[Any]) -> dict[tuple[str, str, str], list[tuple[str, str]]]:
+    """{(source_id, schema, table): [(field, column), ...]} for every registered table's column
+    whose ``path`` names a document field other than its name -- a config Table or a
+    registered-table row. The field is as DuckDB's mongo extension names it, a nested path joined
+    with ``_`` (``specs.battery_hours`` is ``specs_battery_hours``); the attach exposes it under
+    the column's name (#266). Only a MongoDB table's attach reads it."""
+    fields: dict[tuple[str, str, str], list[tuple[str, str]]] = {}
+    for table in tables:
+        row = table if isinstance(table, dict) else vars(table)
+        renamed = []
+        for column in row.get("columns") or []:
+            col = column if isinstance(column, dict) else vars(column)
+            name = col.get("column_name") or col.get("name")
+            path = col.get("path")
+            if path and name and path.replace(".", "_") != name:
+                renamed.append((path.replace(".", "_"), name))
+        if renamed:
+            fields[(row["source_id"], row["schema_name"], row["table_name"])] = renamed
+    return fields
+
+
 class NativeEngineBackend(EngineBackend):
     """In-process execution terminal shared by all native engines. ``is_connected`` is inherited True
     — a native engine is live once built. Subclasses supply ``_new_runtime`` and, if the runtime
@@ -158,6 +179,8 @@ class NativeEngineBackend(EngineBackend):
         # ``schema.table``, and each has its own attach; and one engine serves several org
         # environments, each attaching the same source under its own catalog (REQ-1266, REQ-1529).
         self._attached: set[tuple[str, str, str, str]] = set()
+        # #266: the renamed columns (native_backend._mongo_column_fields) each attach was made with.
+        self._attached_fields: dict[tuple[str, str, str, str], list[tuple[str, str]]] = {}
         # Tables whose live attach this process has removed because their reads moved to the
         # replica (REQ-1912) — removed once, whichever process created it.
         self._detached: set[tuple[str, str, str, str]] = set()
@@ -411,6 +434,10 @@ class NativeEngineBackend(EngineBackend):
         # REQ-788: each files source's file_glob tables, read off the registered tables (the model
         # the store holds, REQ-1919): the attach builds the adapter's merged glob table from them.
         glob_tables = _file_glob_tables([*config.tables, *(getattr(state, "tables", None) or [])])
+        # #266: a MongoDB table's columns named apart from their document fields.
+        mongo_fields = _mongo_column_fields(
+            [*config.tables, *(getattr(state, "tables", None) or [])]
+        )
 
         def _attach_tbl(src: Any, schema_name: str, table_name: str) -> None:
             """Attach one table into the runtime; skip if already attached or attach fails."""
@@ -441,7 +468,16 @@ class NativeEngineBackend(EngineBackend):
                     self._attached.discard(key)
                     self._detached.add(key)
                 return
-            if key in self._attached or key in self._refused:
+            fields = (
+                mongo_fields.get((src.id, schema_name, table_name), [])
+                if src.type.value == "mongodb"
+                else []
+            )
+            # An attach made before the table's columns were known (a walk at startup, before the
+            # registry is loaded) is made again once they rename one (#266).
+            if key in self._refused or (
+                key in self._attached and self._attached_fields.get(key, []) == fields
+            ):
                 return
             tried.add(key)
             if getattr(src, "id", None) in _NO_REMOTE_SOURCE_IDS:
@@ -500,10 +536,12 @@ class NativeEngineBackend(EngineBackend):
                 max_live_concurrency=src.max_live_concurrency,
                 schema_name=schema_name,
                 table_name=table_name,
+                column_fields=fields,
             )
             try:
                 self._runtime.attach_source(merged)
                 self._attached.add(key)
+                self._attached_fields[key] = fields
                 self._detached.discard(key)
             except self._attach_errors as _ae:
                 if isinstance(_ae, _DECLARED_REFUSALS):

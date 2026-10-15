@@ -83,13 +83,13 @@ tables:
   table: products
   description: What the shop sells, one MongoDB document a product
   columns:
-  - {name: product_id, data_type: integer, is_primary_key: true, description: The product's id, visible_to: [org_admin, analyst]}
+  - {name: product_id, data_type: integer, path: _id, is_primary_key: true, description: The product's id, visible_to: [org_admin, analyst]}
   - {name: name, data_type: varchar, description: The product's name, visible_to: [org_admin, analyst]}
   - {name: category, data_type: varchar, description: 'Its category: headphones, phone, laptop, power bank and so on', visible_to: [org_admin, analyst]}
   - {name: brand, data_type: varchar, description: The brand, visible_to: [org_admin, analyst]}
   - {name: price, data_type: double, description: The price in USD, visible_to: [org_admin, analyst]}
-  - {name: specs_battery_hours, data_type: integer, path: specs.battery_hours, description: 'Hours on a charge, as the maker states it (nested: specs.battery_hours)', visible_to: [org_admin, analyst]}
-  - {name: specs_weight_g, data_type: integer, path: specs.weight_g, description: 'Its weight in grams (nested: specs.weight_g)', visible_to: [org_admin, analyst]}
+  - {name: battery_hours, data_type: integer, path: specs.battery_hours, description: 'Hours on a charge, as the maker states it (nested: specs.battery_hours)', visible_to: [org_admin, analyst]}
+  - {name: weight_g, data_type: integer, path: specs.weight_g, description: 'Its weight in grams (nested: specs.weight_g)', visible_to: [org_admin, analyst]}
 - source_id: catalog
   domain_id: store
   schema: catalog
@@ -161,7 +161,7 @@ tables:
   columns:
   - {name: customer_id, data_type: integer, description: The customer who bought it, visible_to: [org_admin, analyst]}
   - {name: product_id, data_type: integer, description: The product bought, visible_to: [org_admin, analyst]}
-  - {name: bought_on, data_type: varchar, description: 'When it was bought, as YYYY-MM-DD', visible_to: [org_admin, analyst]}
+  - {name: bought_on, data_type: date, description: When it was bought, visible_to: [org_admin, analyst]}
 - source_id: purchases
   domain_id: store
   schema: neo4j
