@@ -3,6 +3,16 @@
 All notable changes to Provisa are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## v0.1.0-alpha.487
+
+Released 2026-10-15.
+
+### Changes
+
+#### image
+
+- The app image carries Java 21, so a files source's connector server runs wherever it does
+
 ## v0.1.0-alpha.486
 
 Released 2026-10-15.

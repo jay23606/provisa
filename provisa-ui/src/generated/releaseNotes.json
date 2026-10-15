@@ -1,39 +1,13 @@
 {
-  "version": "v0.1.0-alpha.486",
-  "previous": "v0.1.0-alpha.485",
+  "version": "v0.1.0-alpha.487",
+  "previous": "v0.1.0-alpha.486",
   "date": "2026-10-15",
   "features": [],
   "changes": [
     {
-      "scope": "boot",
+      "scope": "image",
       "entries": [
-        "The platform fake key is held before the engine is woken"
-      ]
-    },
-    {
-      "scope": "deploy",
-      "entries": [
-        "The cloud sandbox tier runs the deployed app tree and offers weblogs and files"
-      ]
-    },
-    {
-      "scope": "deps",
-      "entries": [
-        "Bound sqlglot to 30.23, and run on it (scope set_operation_scopes, lineage schema)"
-      ]
-    },
-    {
-      "scope": "federation",
-      "entries": [
-        "An org on its own engine is walked by its own registry, not the deployment's file"
-      ]
-    },
-    {
-      "scope": "sandbox",
-      "entries": [
-        "A sandbox's AI uses the tier's one endpoint and model, its key from the deployment org's vault",
-        "A visitor cannot choose the model the deployment's AI endpoint runs",
-        "The sandbox tier never provisions an engine"
+        "The app image carries Java 21, so a files source's connector server runs wherever it does"
       ]
     }
   ]
