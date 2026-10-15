@@ -236,3 +236,54 @@ async def test_a_deployment_without_the_commercial_plugin_gates_no_lane():
     assert commerce.load() is None
     assert await commerce.lane_entitled(state, "acme", "isolated") is True
     await commerce.require_lane_entitlement(state, "acme", "isolated")
+
+
+def test_an_org_on_its_own_engine_is_walked_by_its_own_registry_not_the_deployment_file(
+    monkeypatch,
+):
+    """REQ-2006: ``state.config`` is the deployment's configuration file whatever org is bound; an
+    org on an engine of its own (a demo template or sandbox) has its own catalog names, so walking
+    that file's sources against them named catalogs it never registered -- KeyError: 'dq-checker'
+    on cloud.provisa.dev, failing the weblogs template's every replica build."""
+    import threading
+    from types import SimpleNamespace
+
+    from provisa.core.request_context import current_org
+    from provisa.federation import native_backend
+
+    backend = object.__new__(native_backend.NativeEngineBackend)
+    backend._runtime = object()
+    backend._walk_lock = threading.Lock()
+    backend._walked = None
+    backend._refused = set()
+    backend._refused_in = None
+    walked = []
+    monkeypatch.setattr(
+        backend, "_walk_registry", lambda state, config: walked.append(config) or True
+    )
+    deployment = SimpleNamespace(sources=["dq-checker"], tables=["pets_quality"])
+
+    def state(org_id):
+        return SimpleNamespace(
+            config=deployment,
+            org_id="default",
+            active_isolated_org=org_id,
+            runtime_sources={},
+            tables=[],
+            model_db=None,
+        )
+
+    token = current_org.set("sbxtplweblogs")
+    try:
+        backend._attach_registered(state("sbxtplweblogs"))
+    finally:
+        current_org.reset(token)
+    assert (walked[-1].sources, walked[-1].tables) == ([], [])
+
+    backend._walked = None
+    token = current_org.set("default")
+    try:
+        backend._attach_registered(state(None))
+    finally:
+        current_org.reset(token)
+    assert walked[-1] is deployment  # the deployment org: its own file

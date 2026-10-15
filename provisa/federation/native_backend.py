@@ -305,7 +305,18 @@ class NativeEngineBackend(EngineBackend):
             if not _same_registry(self._refused_in, registry):
                 self._refused.clear()  # a new registry state: each refused attach gets one retry
                 self._refused_in = registry
-            self._walked = registry if self._walk_registry(state, config) else None
+            # An org on an engine of its own (a demo template or sandbox, REQ-2006; an isolated
+            # lane) is described by its own registry -- runtime_sources and tables, read from its
+            # store -- never by the deployment's configuration file, which ``state.config`` holds
+            # whatever org is bound. Walked against the org's catalog names, that file's sources
+            # named catalogs the org never registered (KeyError: 'dq-checker' on cloud.provisa.dev,
+            # failing every replica build of the weblogs template).
+            walked_config = (
+                SimpleNamespace(sources=[], tables=[])
+                if _active_org is not None and _owns_engine and _active_org != _default_org
+                else config
+            )
+            self._walked = registry if self._walk_registry(state, walked_config) else None
 
     def _covers(self, registry: tuple[Any, Any, Any, Any]) -> bool:
         return _same_registry(self._walked, registry)

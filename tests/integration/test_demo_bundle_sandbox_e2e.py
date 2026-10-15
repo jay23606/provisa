@@ -72,11 +72,57 @@ def _synced(work, registry) -> str:
     return (work / "data" / "demo-bundles" / "alpha" / "ready").read_text().strip()
 
 
+def _with_a_source_of_its_own(config, work) -> None:
+    """The tier's deployment configuration with a source and table of its own, as cloud.provisa.dev's
+    has (provisa-install.yaml's dq-checker and pet store): a demo org on the tier is described by its
+    own registry, never by this file -- a template's replica build once walked this file's sources
+    against the template's catalog names and failed (KeyError: 'dq-checker')."""
+    import sqlite3
+
+    import yaml
+
+    db = sqlite3.connect(work / "deployment.sqlite")
+    db.execute("CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY, body TEXT)")
+    db.commit()
+    db.close()
+    raw = yaml.safe_load(config.read_text())
+    raw["sources"] = [
+        {"id": "deploy-db", "type": "sqlite", "path": str(work / "deployment.sqlite")},
+        {
+            # The demo deployment's quality-scan source (provisa-install.yaml), of a type a store
+            # registers without an engine catalog.
+            "id": "dq-checker",
+            "type": "great_expectations",
+            "mapping": {
+                "database": "provisa",
+                "host": "localhost",
+                "password": "provisa",
+                "port": 5439,
+                "user": "org_admin",
+            },
+        },
+    ]
+    raw["tables"] = [
+        {
+            "source_id": "deploy-db",
+            "domain_id": "ops",
+            "schema": "main",
+            "table": "notes",
+            "columns": [
+                {"name": "id", "data_type": "integer", "visible_to": ["org_admin"]},
+                {"name": "body", "data_type": "varchar", "visible_to": ["org_admin"]},
+            ],
+        }
+    ]
+    config.write_text(yaml.safe_dump(raw))
+
+
 def _tier(work, registry):
     from tests.integration.isolated_server import IsolatedServer
 
     config = work / "config.yaml"
     _deployment_config(config)
+    _with_a_source_of_its_own(config, work)
     return IsolatedServer(
         _ORG,
         engine="duckdb",
