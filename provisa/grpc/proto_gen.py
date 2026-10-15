@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any
 
 from provisa.compiler.aggregate_gen import _classify_columns
 from provisa.compiler.schema_gen import (
+    RESOLVE_FIELD,
     SchemaInput,
     _IMPLICIT_TRAVERSAL_DOMAINS,
     _assign_names,
@@ -122,6 +123,11 @@ _ARG_PROTO_TYPE: dict[str, str] = {"int": "int64", "float": "double", "boolean":
 
 def _arg_proto_type(arg_type: str) -> str:
     return _ARG_PROTO_TYPE.get((arg_type or "").lower(), "string")
+
+
+#: REQ-1365: the RPC that dereferences a semantic address -- the GraphQL ``resolve`` root field,
+#: which every role's schema carries, so every role's service carries it too (REQ-1929).
+RESOLVE_RPC = RESOLVE_FIELD.capitalize()
 
 
 def command_rpc_name(fn_name: str) -> str:
@@ -541,6 +547,18 @@ def generate_proto(
     lines.append("}")
     lines.append("")
 
+    # --- resolve(uri, as_of) (REQ-1365): the GraphQL field's arguments; the answer, whose shape
+    # is the addressed row's, as JSON (as a command's rows are).
+    lines.append(f"message {RESOLVE_RPC}AddressRequest {{")
+    lines.append("  string uri = 1;")
+    lines.append("  string as_of = 2;")
+    lines.append("}")
+    lines.append("")
+    lines.append(f"message {RESOLVE_RPC}AddressResponse {{")
+    lines.append("  string result_json = 1;")
+    lines.append("}")
+    lines.append("")
+
     # --- Per-command request messages (REQ-1156) ---
     # Beyond the generic CallCommand, every command visible to the role gets a typed request message
     # + its own RPC, so a gRPC client discovers commands by name with typed arguments via reflection
@@ -559,6 +577,9 @@ def generate_proto(
     # --- Service ---
     lines.append("service ProvisaService {")
     lines.append("  rpc CallCommand(CommandRequest) returns (CommandResponse);")
+    lines.append(
+        f"  rpc {RESOLVE_RPC}({RESOLVE_RPC}AddressRequest) returns ({RESOLVE_RPC}AddressResponse);"
+    )
     for fn in commands:
         cmd = command_rpc_name(fn["name"])
         resp = "MutationResponse" if fn.get("kind") == "mutation" else "CommandResponse"

@@ -596,6 +596,10 @@ class ProvisaServicer:  # REQ-045, REQ-143
             return self._unary_rpc(
                 name, lambda request, context: self._handle_insert(request, context, type_name)
             )
+        if name == "Resolve":  # REQ-1365 -- proto_gen.RESOLVE_RPC
+            return self._unary_rpc(
+                name, lambda request, context: self._handle_resolve(request, context)
+            )
         if name == "CallCommand":  # REQ-1156
             return self._unary_rpc(
                 name, lambda request, context: self._handle_call_command(request, context)
@@ -759,6 +763,53 @@ class ProvisaServicer:  # REQ-045, REQ-143
                 return self._meter_msg(self._pb2.MutationResponse(affected_rows=len(rows)))
             return self._meter_msg(
                 self._pb2.CommandResponse(rows_json=json.dumps(rows, default=str))
+            )
+        finally:
+            if _org_token is not None:
+                from provisa.core.request_context import reset_current_org
+
+                reset_current_org(_org_token)
+
+    async def _handle_resolve(self, request, context):
+        """Dereference a semantic address through the one resolve function (REQ-1365): the
+        GraphQL ``resolve`` field's, answered as JSON."""
+        import json
+
+        from provisa.api.data.resolve import AddressError, AddressNotFound, resolve
+
+        metadata = dict(context.invocation_metadata())
+        role_id = _rpc_role(metadata)
+        if not role_id:
+            await context.abort(grpc.StatusCode.UNAUTHENTICATED, "Missing x-provisa-role metadata")
+            return
+        try:
+            _org_token = await self._bind_org(metadata)  # REQ-1266
+        except ValueError as exc:
+            await context.abort(grpc.StatusCode.UNAUTHENTICATED, str(exc))
+            return
+        try:
+            from provisa.core.request_context import require_current_org
+
+            try:
+                result = await resolve(
+                    self._state,
+                    role_id,
+                    request.uri,
+                    org_id=require_current_org(),
+                    # proto3 has no unset string: as_of not given reads "".
+                    as_of=request.as_of or None,
+                )
+            except AddressNotFound as exc:
+                await context.abort(grpc.StatusCode.NOT_FOUND, str(exc))
+                return
+            except AddressError as exc:
+                await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))
+                return
+            except PermissionError as exc:
+                await context.abort(grpc.StatusCode.PERMISSION_DENIED, str(exc))
+                return
+            return self._meter_msg(
+                self._pb2.ResolveAddressResponse(result_json=json.dumps(result, default=str))
             )
         finally:
             if _org_token is not None:
