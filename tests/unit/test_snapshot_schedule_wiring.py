@@ -26,6 +26,8 @@ def _table_input(**overrides):
         load_protected=None,
         off_peak_window=None,
         off_peak_tz=None,
+        arguments=None,  # REQ-2061
+        landing_filter=None,  # REQ-2062
         view_sql=None,
         dq_contract=None,  # REQ-1443
         profiler_source_id=None,  # REQ-1934

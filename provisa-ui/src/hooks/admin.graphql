@@ -251,6 +251,8 @@ query TablesQuery {
     queryTemplate
     fileGlob
     sourceFileColumn
+    arguments
+    landingFilter
     viewMetrics {
       metrics
       dimensions

@@ -39,6 +39,7 @@ import { FieldLabel } from "./FieldLabel";
 import { MaterializedViewPanels } from "./MaterializedViewPanels";
 import { LiveDeliveryFieldset } from "./LiveDeliveryFieldset";
 import { DeltaFieldset } from "./DeltaFieldset";
+import { LandingScopeFields } from "./LandingScopeFields";
 import { DataQualityPanel } from "./DataQualityPanel";
 import { ProfilerPanel } from "./ProfilerPanel";
 import { useLivePolicyPreview } from "./useLivePolicyPreview";
@@ -659,6 +660,13 @@ export function TableEditForm({
                 editingTable={editingTable}
                 setEditingTable={setEditingTable}
               />
+              {!isView && (
+                <LandingScopeFields
+                  editingTable={editingTable}
+                  setEditingTable={setEditingTable}
+                  source={editSource}
+                />
+              )}
             </FormLayout>
           </>
         ))}

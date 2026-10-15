@@ -1,0 +1,13 @@
+{
+  "landingScope": {
+    "filterLabel": "ランディングフィルター",
+    "filterHelp": "このテーブル自身の列に対する SQL 条件です。レプリカには条件を満たす行だけが保持されます。すべての行をロードするには空のままにしてください。",
+    "filterPlaceholder": "cve_id IN ('CVE-2021-44228')",
+    "argumentsLabel": "固定引数",
+    "argumentsHelp": "API が名前で受け取る引数で、このテーブルの読み取りごとに送信されます（JSON オブジェクト）。すべての引数が固定されたテーブルは全体がロードされます。",
+    "argumentsNotJson": "有効な JSON ではありません",
+    "argumentsNotObject": "引数名と値の JSON オブジェクトを指定してください",
+    "readFilter": "ランディングフィルター",
+    "readArguments": "固定引数"
+  }
+}

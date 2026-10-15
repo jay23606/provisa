@@ -355,6 +355,8 @@ export interface RegisteredTable {
   profilerSourceId?: string | null; // REQ-1934: the Data Profiler source this table is a member of
   queryTemplate?: string | null; // REQ-1670: the Cypher a neo4j table runs (neo4j tables only)
   fileGlob?: string | null; // REQ-788: one logical table over a glob of files (files sources only)
+  arguments?: Record<string, unknown> | null; // REQ-2061: an API's arguments fixed for every read
+  landingFilter?: string | null; // REQ-2062: the predicate its replica's rows pass
   sourceFileColumn?: string | null; // REQ-788: optional column carrying each row's file path
   materialize: boolean;
   mvRefreshInterval: number;

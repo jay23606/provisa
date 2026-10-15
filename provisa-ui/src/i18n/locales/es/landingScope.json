@@ -1,0 +1,13 @@
+{
+  "landingScope": {
+    "filterLabel": "Filtro de carga",
+    "filterHelp": "Una condición SQL sobre las columnas propias de esta tabla. Su réplica contiene solo las filas que la cumplen; déjelo vacío para cargar todas las filas.",
+    "filterPlaceholder": "cve_id IN ('CVE-2021-44228')",
+    "argumentsLabel": "Argumentos fijos",
+    "argumentsHelp": "Argumentos que la API acepta por nombre, enviados en cada lectura de esta tabla, como objeto JSON. Una tabla con todos sus argumentos fijos se carga completa.",
+    "argumentsNotJson": "JSON no válido",
+    "argumentsNotObject": "Indique un objeto JSON de nombres y valores de argumentos",
+    "readFilter": "Filtro de carga",
+    "readArguments": "Argumentos fijos"
+  }
+}

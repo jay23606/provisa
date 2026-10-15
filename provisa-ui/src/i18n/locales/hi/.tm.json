@@ -6427,5 +6427,14 @@
   "registerTableForm.json::registerTableForm.dqScanIntervalHint": "Each scan adds its results to the table; earlier scans are kept.",
   "registerTableForm.json::registerTableForm.dqScanIntervalLabel": "Scan every (seconds)",
   "registerTableForm.json::registerTableForm.errorDqScanInterval": "Set how often the table is scanned, in seconds.",
-  "hi/serverErrors.json::serverErrors.front_door.coordinator_updating": "The environment is being updated. It will be back shortly."
+  "hi/serverErrors.json::serverErrors.front_door.coordinator_updating": "The environment is being updated. It will be back shortly.",
+  "hi/landingScope.json::landingScope.filterLabel": "Landing filter",
+  "hi/landingScope.json::landingScope.filterHelp": "A SQL condition on this table's own columns. Its replica holds only the rows that pass it; leave empty to land every row.",
+  "hi/landingScope.json::landingScope.filterPlaceholder": "cve_id IN ('CVE-2021-44228')",
+  "hi/landingScope.json::landingScope.argumentsLabel": "Fixed arguments",
+  "hi/landingScope.json::landingScope.argumentsHelp": "Arguments the API takes by name, sent on every read of this table, as a JSON object. A table whose arguments are all fixed lands whole.",
+  "hi/landingScope.json::landingScope.argumentsNotJson": "Not valid JSON",
+  "hi/landingScope.json::landingScope.argumentsNotObject": "Give a JSON object of argument names and values",
+  "hi/landingScope.json::landingScope.readFilter": "Landing filter",
+  "hi/landingScope.json::landingScope.readArguments": "Fixed arguments"
 }

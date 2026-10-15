@@ -65,6 +65,8 @@ def table_model_from_input(inp, columns, presets, alias):  # REQ-929, REQ-982
         file_glob=getattr(inp, "file_glob", None) or None,  # REQ-788
         source_file_column=getattr(inp, "source_file_column", None) or None,  # REQ-788
         import_set=getattr(inp, "import_set", None) or None,  # REQ-1954
+        arguments=dict(inp.arguments or {}),  # REQ-2061
+        landing_filter=inp.landing_filter or None,  # REQ-2062
         view_metrics=view_metrics,  # REQ-1318
         materialize=inp.materialize,
         mv_refresh_interval=inp.mv_refresh_interval,

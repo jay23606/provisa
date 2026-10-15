@@ -1,0 +1,13 @@
+{
+  "landingScope": {
+    "filterLabel": "Landefilter",
+    "filterHelp": "Eine SQL-Bedingung auf den eigenen Spalten dieser Tabelle. Ihr Replikat enthält nur die Zeilen, die sie erfüllen; leer lassen, um jede Zeile zu laden.",
+    "filterPlaceholder": "cve_id IN ('CVE-2021-44228')",
+    "argumentsLabel": "Feste Argumente",
+    "argumentsHelp": "Argumente, die die API namentlich annimmt und die bei jedem Lesen dieser Tabelle gesendet werden, als JSON-Objekt. Eine Tabelle, deren Argumente alle fest sind, wird vollständig geladen.",
+    "argumentsNotJson": "Kein gültiges JSON",
+    "argumentsNotObject": "Geben Sie ein JSON-Objekt aus Argumentnamen und Werten an",
+    "readFilter": "Landefilter",
+    "readArguments": "Feste Argumente"
+  }
+}

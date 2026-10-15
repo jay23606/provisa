@@ -3292,6 +3292,11 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
             _import_set_refusal = await table_import_set_refusal(_conn, model)  # REQ-1954
             if _import_set_refusal is not None:
                 return _import_set_refusal
+            from provisa.api.admin._import_set import table_arguments_refusal
+
+            _arguments_refusal = await table_arguments_refusal(_conn, model)  # REQ-2061
+            if _arguments_refusal is not None:
+                return _arguments_refusal
             from provisa.api.admin._fake_guard import table_fake_refusal
 
             _fake_refusal = await table_fake_refusal(_conn, model)  # REQ-1494

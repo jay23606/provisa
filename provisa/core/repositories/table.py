@@ -661,8 +661,6 @@ async def _upsert(conn: "Connection", table: Table) -> int | None:
 #: column. An edit through the form keeps each as the store holds it.
 KEPT_ON_FORM_EDIT: tuple[str, ...] = (
     "approval_hook",
-    "arguments",  # REQ-2061
-    "landing_filter",  # REQ-2062
     "hot",
     "kafka_sink",
     "promotions",
@@ -706,7 +704,6 @@ async def keep_unedited(conn: "Connection", table: Table) -> Table:
     if kept["kafka_sink"] is not None:
         kept["kafka_sink"] = KafkaSinkAttachment.model_validate(kept["kafka_sink"])
     kept["promotions"] = list(kept["promotions"])
-    kept["arguments"] = dict(kept["arguments"] or {})  # REQ-2061: NULL is none
     return table.model_copy(update={**kept, "columns": columns})
 
 

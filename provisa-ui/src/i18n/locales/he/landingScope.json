@@ -1,0 +1,13 @@
+{
+  "landingScope": {
+    "filterLabel": "מסנן טעינה",
+    "filterHelp": "תנאי SQL על העמודות של טבלה זו. הרפליקה שלה מכילה רק את השורות שעומדות בו; יש להשאיר ריק כדי לטעון כל שורה.",
+    "filterPlaceholder": "cve_id IN ('CVE-2021-44228')",
+    "argumentsLabel": "ארגומנטים קבועים",
+    "argumentsHelp": "ארגומנטים שה-API מקבל לפי שם, הנשלחים בכל קריאה של טבלה זו, כאובייקט JSON. טבלה שכל הארגומנטים שלה קבועים נטענת במלואה.",
+    "argumentsNotJson": "JSON לא תקין",
+    "argumentsNotObject": "יש לציין אובייקט JSON של שמות וערכי ארגומנטים",
+    "readFilter": "מסנן טעינה",
+    "readArguments": "ארגומנטים קבועים"
+  }
+}

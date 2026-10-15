@@ -176,3 +176,41 @@ async def test_the_filter_is_stored_with_the_table_and_read_back_by_the_build(co
     assert rows[0]["landing_filter"] == "cvss >= 9"
     (registered,) = _build_registered_tables(rows)
     assert registered.landing_filter == "cvss >= 9"
+
+
+async def test_the_table_form_sets_both_and_an_edit_saves_what_it_sends(control_plane):
+    """The admin table form carries the landing filter and the fixed arguments, so an edit
+    through it saves the values it sends rather than keeping the stored ones (REQ-1919)."""
+    from sqlalchemy import insert
+
+    from provisa.core.repositories import table as table_repo
+    from provisa.core.schema_org import domains, sources
+
+    assert "landing_filter" not in table_repo.KEPT_ON_FORM_EDIT
+    assert "arguments" not in table_repo.KEPT_ON_FORM_EDIT
+    db = control_plane.org()
+    async with db.acquire() as conn:
+        await conn.execute_core(insert(domains).values(id="d"))
+        await conn.execute_core(insert(sources).values(id="govdata", type="govdata"))
+        await table_repo.upsert(conn, _table("cvss >= 7"))
+        edited = await table_repo.keep_unedited(conn, _table("cvss >= 9"))
+    assert edited.landing_filter == "cvss >= 9"
+
+
+async def test_the_admin_refuses_fixed_arguments_on_a_source_that_takes_none(control_plane):
+    from sqlalchemy import insert
+
+    from provisa.api.admin._import_set import table_arguments_refusal
+    from provisa.core.schema_org import sources
+
+    db = control_plane.org()
+    async with db.acquire() as conn:
+        await conn.execute_core(insert(sources).values(id="pg", type="postgresql"))
+        await conn.execute_core(insert(sources).values(id="gh", type="openapi"))
+        on_pg = SimpleNamespace(source_id="pg", table_name="t", arguments={"x": 1})
+        on_api = SimpleNamespace(source_id="gh", table_name="t", arguments={"org": "acme"})
+        none = SimpleNamespace(source_id="pg", table_name="t", arguments={})
+        refused = await table_arguments_refusal(conn, on_pg)
+        assert await table_arguments_refusal(conn, on_api) is None
+        assert await table_arguments_refusal(conn, none) is None
+    assert refused is not None and refused.code == "schema.arguments_not_an_api"

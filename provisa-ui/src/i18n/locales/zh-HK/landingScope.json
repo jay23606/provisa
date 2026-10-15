@@ -1,0 +1,13 @@
+{
+  "landingScope": {
+    "filterLabel": "落地篩選條件",
+    "filterHelp": "針對此表自身欄位的 SQL 條件。其複本只保留符合該條件的列；留空則載入所有列。",
+    "filterPlaceholder": "cve_id IN ('CVE-2021-44228')",
+    "argumentsLabel": "固定參數",
+    "argumentsHelp": "API 按名稱接受的參數，以 JSON 物件形式在每次讀取此表時傳送。所有參數均固定的表會整體載入。",
+    "argumentsNotJson": "不是有效的 JSON",
+    "argumentsNotObject": "請提供由參數名稱和值組成的 JSON 物件",
+    "readFilter": "落地篩選條件",
+    "readArguments": "固定參數"
+  }
+}
