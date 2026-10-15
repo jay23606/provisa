@@ -321,18 +321,24 @@ def _parse_directives(query: str) -> tuple[Any, str]:
     return directives, sql_comment_prefix
 
 
-def _apply_pipeline_transforms(  # REQ-040, REQ-041, REQ-134, REQ-198, REQ-262, REQ-263, REQ-554
-    compiled, ctx, rls, role_id: str, role, fresh_mvs, state
+async def _apply_pipeline_transforms(  # REQ-040, REQ-041, REQ-134, REQ-198, REQ-262, REQ-263
+    compiled, ctx, role_id: str, fresh_mvs, state
 ) -> tuple[Any, bool]:
-    """Apply RLS, masking, MV rewrite, Kafka filters, and the row cap. Returns (compiled, mv_applied)."""
-    from provisa.compiler.mask_inject import inject_masking
-    from provisa.compiler.rls import inject_rls
-    from provisa.compiler.stage2 import apply_row_cap, resolve_row_cap
-    from provisa.compiler.sql_rewrite import lower_to_catalog_physical
-    from provisa.mv.view_reinject import reinject
+    """Govern, then the MV rewrite and Kafka filters. Returns (compiled, mv_applied).
 
-    compiled = inject_rls(compiled, ctx, rls)
-    compiled = inject_masking(compiled, ctx, state.masking_rules, role_id)
+    Governed by the compiled pipeline's own stage (pgwire._pipeline ``_govern_compiled``), the one
+    the statement runs through: its views expanded, its validation, then row filters, masks
+    wherever a column is referenced (a join on a masked key included, REQ-740), hidden columns and
+    the row cap -- so the SQL shown is the SQL that runs, refused where the run would be."""
+    from provisa.compiler.sql_rewrite import lower_to_catalog_physical
+    from provisa.core.request_context import current_session_vars
+    from provisa.mv.view_reinject import reinject
+    from provisa.pgwire._pipeline import _govern_compiled
+
+    governed = await _govern_compiled(
+        compiled.sql, role_id, state, current_session_vars.get(), sdl_joins=True
+    )
+    compiled.sql = governed.governed_sql
 
     # The view the pipeline's optimize stage would read in place of the governed statement
     # (pgwire._pipeline._view_answering): shown as the view's catalog among the sources.
@@ -347,8 +353,6 @@ def _apply_pipeline_transforms(  # REQ-040, REQ-041, REQ-134, REQ-198, REQ-262, 
         compiled = inject_kafka_filters(
             compiled, ctx, state.source_types, state.kafka_table_configs
         )
-
-    compiled.sql = apply_row_cap(compiled.sql, resolve_row_cap(role))
 
     return compiled, mv_applied
 
@@ -559,8 +563,8 @@ async def compile_query(  # REQ-001, REQ-002, REQ-007, REQ-009, REQ-038, REQ-039
 
     for _compiled_orig in compiled_queries:
         pre_mv_sources = set(_compiled_orig.sources)
-        compiled, mv_applied = _apply_pipeline_transforms(
-            _compiled_orig, ctx, rls, role_id, role, fresh_mvs, state
+        compiled, mv_applied = await _apply_pipeline_transforms(
+            _compiled_orig, ctx, role_id, fresh_mvs, state
         )
 
         sampling = not has_capability(role, Capability.FULL_RESULTS) if role else True
