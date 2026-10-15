@@ -136,7 +136,8 @@ def decide_route(  # REQ-027, REQ-028, REQ-030, REQ-031, REQ-066, REQ-067, REQ-1
         source_dialects: {source_id: sqlglot_dialect} e.g. {"sales-pg": "postgres"}.
         steward_hint: Optional "direct" or "engine" override from steward.
         has_json_extract: Query uses json_extract_scalar (path columns).
-        is_mutation: True for mutations — always route direct (never the engine).
+        is_mutation: True for mutations — the source's own driver when it has one, else the engine
+            through its connector (REQ-910); ``engine`` decides the latter.
         cache_hit: True when the result cache (keyed per REQ-864/REQ-544 on the
             governance-normalized IR) holds an entry for this query.
         cache_opt_in: True only when the request opted into the response cache (GraphQL
@@ -164,14 +165,24 @@ def decide_route(  # REQ-027, REQ-028, REQ-030, REQ-031, REQ-066, REQ-067, REQ-1
             reason="result cache hit",
         )
 
-    # Mutations always route direct — the engine terminal doesn't take writes
-    if is_mutation and len(sources) >= 1:  # REQ-031
+    # A write goes to its source's own driver when there is one, otherwise through the engine's
+    # connector to it (REQ-031 as amended, REQ-910: executor/writable.resolve_write_path).
+    if is_mutation and len(sources) >= 1:  # REQ-031, REQ-910
+        from provisa.executor.writable import WritePath, resolve_write_path
+
         sid = next(iter(sources))
+        if resolve_write_path(source_types.get(sid, ""), engine) is WritePath.ENGINE:
+            return RouteDecision(
+                route=Route.ENGINE,
+                source_id=None,
+                dialect=None,
+                reason="mutation through the engine's connector (no direct driver)",
+            )
         return RouteDecision(
             route=Route.DIRECT,
             source_id=sid,
             dialect=source_dialects.get(sid),
-            reason="mutation (always direct)",
+            reason="mutation (direct driver)",
         )
 
     # The operator's floor (REQ-030, amended 2026-09-30). A floored source is read from the

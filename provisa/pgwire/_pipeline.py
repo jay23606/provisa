@@ -324,6 +324,16 @@ def require_governed_plan(plan: "_Plan") -> None:
 _NON_FTE_SOURCE_TYPES = frozenset({"kafka"})
 
 
+def _no_retry(state: Any, sources: Any, *, writes: bool) -> bool:
+    """Whether an ENGINE plan runs with fault-tolerant retries off: it touches a non-replayable
+    connector (kafka, whose splits stall that exchange), or it is a write -- a write the engine
+    makes through a source's connector (REQ-910) is not replayed, and a connector that does not
+    support query retries refuses it under fault-tolerant execution."""
+    return writes or any(
+        state.source_types.get(s) in _NON_FTE_SOURCE_TYPES for s in (sources or ())
+    )
+
+
 async def _optimize_and_route(
     exec_sql: str,
     governed_sql: str,
@@ -450,6 +460,9 @@ async def _optimize_and_route(
         operator_floor=operator_floor(state, table_ids),
         steward_hint=steward_hint,  # the request's route hint (REQ-1203); the floor still binds
         reads_fakes=reads_fakes(governed_sql),  # REQ-1494
+        # The engine decides a write's route (its connector may be the only way to the source,
+        # REQ-910); a read's route does not depend on it here.
+        engine=state.federation_engine.engine if is_mutation else None,
     )
     if (
         decision.route == Route.DIRECT
@@ -2266,6 +2279,11 @@ async def route_governed(
             from provisa.compiler.sql_rewrite import fold_catalog_into_schema
 
             _qualified = fold_catalog_into_schema(_qualified)
+        # REQ-910: a write on this route (a source the engine writes through its connector) loses
+        # the target alias the engine's write grammar does not take.
+        from provisa.compiler.sql_rewrite import unalias_write_target
+
+        _qualified = unalias_write_target(_qualified)
         return state.federation_engine.transpile_physical(_qualified)
 
     _refuse_while_source_server_starts(decision, _sources, state)
@@ -2331,6 +2349,11 @@ async def route_governed(
             table_ids=_table_ids,  # REQ-1897
             cache_opt_in=_cache_hint.opt_in,  # REQ-544 (amended)
             cache_ttl=_cache_hint.ttl,
+            session_hints=(  # REQ-910
+                {"retry_policy": "NONE"}
+                if _no_retry(state, _sources, writes=_is_mutation)
+                else None
+            ),
         )
     else:
         dialect = decision.dialect or "postgres"
@@ -4552,12 +4575,17 @@ async def _govern_compiled(
 
 
 def _engine_session_hints(
-    state: Any, sources: Any, session_props: dict[str, str] | None, exec_sql: str
-) -> dict[str, str] | None:  # REQ-281
-    """The engine session properties one compiled read runs with: each source's federation hints
-    (translated from the ``@provisa`` vocabulary), then the request's own properties and the
-    statement's comment hints filling only what the operator left open — and, for a read of a
-    non-replayable connector (kafka), no fault-tolerant retry, whose splits stall that exchange."""
+    state: Any,
+    sources: Any,
+    session_props: dict[str, str] | None,
+    exec_sql: str,
+    *,
+    writes: bool,
+) -> dict[str, str] | None:  # REQ-281, REQ-910
+    """The engine session properties one compiled statement runs with: each source's federation
+    hints (translated from the ``@provisa`` vocabulary), then the request's own properties and the
+    statement's comment hints filling only what the operator left open — and no fault-tolerant
+    retry for a write or a read of a non-replayable connector (:func:`_no_retry`)."""
     from provisa.compiler.directives import merge_session_props, translate_federation_hints
     from provisa.compiler.hints import extract_hints
 
@@ -4568,7 +4596,7 @@ def _engine_session_hints(
             translate_federation_hints(getattr(state, "source_federation_hints", {}).get(sid, {}))
         )
     hints = merge_session_props(operator_hints, session_props or {}, comment_hints)
-    if any(state.source_types.get(s) in _NON_FTE_SOURCE_TYPES for s in (sources or ())):
+    if _no_retry(state, sources, writes=writes):
         hints = {**hints, "retry_policy": "NONE"}
     return hints or None
 
@@ -4811,7 +4839,7 @@ async def _route_compiled(
     _refuse_while_source_server_starts(decision, sources, state)
     if decision.route == Route.ENGINE:
         _exec_sql, physical_sql = await _engine_forms(_exec_sql)
-        _hints = _engine_session_hints(state, sources, session_props, _exec_sql)
+        _hints = _engine_session_hints(state, sources, session_props, _exec_sql, writes=_is_write)
         return _Plan(
             route=Route.ENGINE,
             sql=governed_sql,
