@@ -365,6 +365,14 @@ def built(monkeypatch):
         server.stop(grace=0).wait()
 
 
+def _table_fields(schema) -> list[str]:
+    """The root fields a role's Query type serves its tables through: every field but the
+    semantic-address resolver every schema carries (REQ-1365), which reads no one table."""
+    from provisa.compiler.schema_gen import RESOLVE_FIELD
+
+    return sorted(f for f in schema.query_type.fields if f != RESOLVE_FIELD)
+
+
 def _service(file: descriptor_pb2.FileDescriptorProto) -> tuple[set[str], dict[str, list[str]]]:
     methods = {m.name for s in file.service for m in s.method}
     return methods, {m.name: [f.name for f in m.field] for m in file.message_type}
@@ -391,7 +399,7 @@ def test_reflection_lists_exactly_what_the_roles_own_proto_lists(built, role, ha
     assert f"Query{has}" in methods and has in messages
     assert f"Query{has_not}" not in methods and has_not not in messages
     # The table its GraphQL schema offers is the one its service queries.
-    (field,) = state.schemas[role].query_type.fields
+    (field,) = _table_fields(state.schemas[role])
     assert f"Query{field.capitalize()}" in methods
     # The wire, which no caller is described, carries both.
     assert {"QueryOrders", "QueryLedger"} <= _service(
@@ -416,7 +424,7 @@ def test_a_meta_role_is_described_what_its_members_are_served_together(built, mo
     meta = ensure_meta_role(state, ["sales_reader", "finance_reader"])
     methods, messages = _service(_reflected(channel, (("x-provisa-role", meta),)))
     assert {"QueryOrders", "QueryLedger"} <= methods
-    assert sorted(state.schemas[meta].query_type.fields) == ["ledger", "orders"]
+    assert _table_fields(state.schemas[meta]) == ["ledger", "orders"]
     # Each member alone is still described its own.
     alone, _ = _service(_reflected(channel, (("x-provisa-role", "sales_reader"),)))
     assert "QueryLedger" not in alone
@@ -506,7 +514,7 @@ def test_a_model_edit_that_rebuilds_a_meta_role_is_described_by_the_next_call(bu
     after, messages = _service(_reflected(channel, as_meta))
     assert "QueryPurchases" in after and "QueryOrders" not in after
     assert "Purchases" in messages and "QueryLedger" in after
-    assert sorted(state.schemas[meta].query_type.fields) == ["ledger", "purchases"]
+    assert _table_fields(state.schemas[meta]) == ["ledger", "purchases"]
     # ... and so is the member that reads the table, while the other member is as it was.
     member, _ = _service(_reflected(channel, (("x-provisa-role", "sales_reader"),)))
     assert "QueryPurchases" in member and "QueryOrders" not in member
@@ -545,7 +553,7 @@ def test_a_table_only_traversed_to_has_no_rpc_as_it_has_no_root_field(meta_reach
     Query type -- and no RPC for them in its service, whose Query message already says so."""
     state = meta_reach
     without, with_reach = state.proto_files["sales_reader"], state.proto_files["cataloguer"]
-    assert sorted(state.schemas["sales_reader"].query_type.fields) == ["orders"]
+    assert _table_fields(state.schemas["sales_reader"]) == ["orders"]
     assert {r for r in _rpcs(without) if "Meta" in r} == set()
     assert {"QueryOrders", "QueryOrdersBatch"} <= _rpcs(without)
     assert "message RegisteredTablesMeta {" in without, "its message stays: it is traversed to"

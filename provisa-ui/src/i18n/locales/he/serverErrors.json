@@ -122,7 +122,10 @@
       "viewer_column_unknown": "'{{column}}' אינה עמודה של הטבלה '{{table}}'",
       "viewer_filter_unknown": "'{{operator}}' אינו מסנן של העמודה '{{column}}'",
       "viewer_value_invalid": "המסנן על '{{column}}' אינו יכול להשתמש בערך '{{value}}'",
-      "replica_building": "העותק של {{replica}} עדיין נבנה. הבנייה נמשכת; פתחו שוב את התצוגה המקדימה לאחר שתסתיים."
+      "replica_building": "העותק של {{replica}} עדיין נבנה. הבנייה נמשכת; פתחו שוב את התצוגה המקדימה לאחר שתסתיים.",
+      "address_invalid": "לא ניתן לפענח את הכתובת: {{reason}}",
+      "address_not_found": "אין מה לפענח: {{reason}}",
+      "mixed_resolve_and_other_fields": "לא ניתן לשלב את resolve עם שדות שורש אחרים באותה פעולה"
     },
     "discovery": {
       "adapter_missing_discover_schema": "המתאם עבור '{{source_type}}' אינו מממש discover_schema",

@@ -122,7 +122,10 @@
       "viewer_column_unknown": "“{{column}}”不是表“{{table}}”的列",
       "viewer_filter_unknown": "“{{operator}}”不是列“{{column}}”的筛选器",
       "viewer_value_invalid": "对“{{column}}”的筛选不能使用值“{{value}}”",
-      "replica_building": "{{replica}} 的副本仍在构建中。构建会继续；完成后请再次打开预览。"
+      "replica_building": "{{replica}} 的副本仍在构建中。构建会继续；完成后请再次打开预览。",
+      "address_invalid": "无法解析该地址：{{reason}}",
+      "address_not_found": "没有可解析的内容：{{reason}}",
+      "mixed_resolve_and_other_fields": "resolve 不能在同一操作中与其他根字段组合使用"
     },
     "discovery": {
       "adapter_missing_discover_schema": "'{{source_type}}' 的适配器未实现 discover_schema",

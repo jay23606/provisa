@@ -373,6 +373,15 @@ def build_mcp_server(state: Any):
         """List registered commands the role may invoke: name, domain, kind, arguments (REQ-1156)."""
         return tools.list_commands(state, _role(role))
 
+    @_tool
+    async def resolve(uri: str, as_of: str | None = None, role: str | None = None) -> dict:
+        """Dereference a semantic address (provisa://<org>/<domain>/tables/<table>/pk=<value>[/<column>]) to the governed value it names, optionally as of a point in time. Physical addresses are refused."""
+        # REQ-1365: the one resolve function.
+        from provisa.api.data.resolve import resolve as _resolve
+        from provisa.core.request_context import require_current_org
+
+        return await _resolve(state, _role(role), uri, org_id=require_current_org(), as_of=as_of)
+
     @mcp.tool()
     @_in_request_span(_tracer, "mcp.run_sql", transport="mcp")  # REQ-1910
     async def run_sql(

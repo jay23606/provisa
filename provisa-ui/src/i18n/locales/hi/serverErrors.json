@@ -122,7 +122,10 @@
       "viewer_column_unknown": "'{{column}}' तालिका '{{table}}' का कॉलम नहीं है",
       "viewer_filter_unknown": "'{{operator}}' कॉलम '{{column}}' का फ़िल्टर नहीं है",
       "viewer_value_invalid": "'{{column}}' पर फ़िल्टर मान '{{value}}' का उपयोग नहीं कर सकता",
-      "replica_building": "{{replica}} की प्रति अभी बनाई जा रही है। निर्माण जारी है; पूरा होने पर पूर्वावलोकन फिर से खोलें।"
+      "replica_building": "{{replica}} की प्रति अभी बनाई जा रही है। निर्माण जारी है; पूरा होने पर पूर्वावलोकन फिर से खोलें।",
+      "address_invalid": "पते को हल नहीं किया जा सकता: {{reason}}",
+      "address_not_found": "हल करने के लिए कुछ नहीं: {{reason}}",
+      "mixed_resolve_and_other_fields": "resolve को एक ऑपरेशन में अन्य रूट फ़ील्ड के साथ नहीं जोड़ा जा सकता"
     },
     "discovery": {
       "adapter_missing_discover_schema": "'{{source_type}}' का अडैप्टर discover_schema लागू नहीं करता",

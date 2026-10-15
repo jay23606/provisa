@@ -126,6 +126,8 @@ def test_multi_root_graphql_query_runs_its_fields_as_one_task_on_the_request_thr
     now runs them one after another: the same shared-connection work completes instead of
     deadlocking, every field executes on the request's thread, and no sibling task exists while a
     field runs."""
+    from graphql import parse
+
     from provisa.api.data import endpoint
 
     pool = _OneConnectionPool(timeout=2.0)
@@ -155,7 +157,7 @@ def test_multi_root_graphql_query_runs_its_fields_as_one_task_on_the_request_thr
         token = set_current_org(app_mod.state.org_id)
         try:
             return await endpoint._handle_query(
-                None,
+                parse("{ a b }"),  # two root fields; compiling them is stubbed below
                 None,
                 state,
                 {},
