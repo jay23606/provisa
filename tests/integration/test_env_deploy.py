@@ -30,6 +30,7 @@ from provisa.core.env_deploy import DeployError, deploy_tree, plan_deploy
 from provisa.core.env_project import project
 from provisa.core.environments import org_schema
 from provisa.core.schema_org import (
+    data_products,
     domains,
     registered_tables,
     relationships,
@@ -431,3 +432,72 @@ class TestATagOnACommandSurvivesTheTrip:
         assert "origin" not in tag
         await deploy_tree(org.db, org.id, ENV, tree, ref="deadbeef")
         assert await org.tree(ENV) == tree
+
+
+class TestADataProductSurvivesTheTrip:
+    """REQ-1526: the tree holds every carried class. A data product is carried, so it has a file,
+    and a tag on one is written in that file -- a class the tree left out is one every deploy,
+    undo, redo and pull deletes from the environment it lands in."""
+
+    async def _seed_product(self, org, env=None):
+        ids = await _seed(org, env)
+        await org.insert(
+            data_products,
+            env,
+            id="orders",
+            domain_id="sales",
+            name="Orders",
+            purpose="order analytics",
+        )
+        await org.update(registered_tables, ids["order"], env, product_id="orders")
+        await org.insert(
+            tag_assignments,
+            env,
+            tag_id="certified",
+            base_tag_id="certified",
+            object_type="product",
+            product_id="orders",
+            object_key="product:orders",
+        )
+        return ids
+
+    async def test_the_product_has_a_file(self, org):
+        await self._seed_product(org)
+        tree = await org.tree()
+        assert tree["data-products/orders.yaml"]["name"] == "Orders"
+        assert tree["data-products/orders.yaml"]["tags"] == [
+            {"tag_id": "certified", "base_tag_id": "certified"}
+        ]
+
+    async def test_it_arrives_with_its_members_and_its_tag(self, org):
+        await self._seed_product(org)
+        await deploy_tree(org.db, org.id, ENV, await org.tree(), ref="deadbeef")
+        (product,) = await org.rows(data_products, ENV)
+        assert (product["id"], product["domain_id"], product["purpose"]) == (
+            "orders",
+            "sales",
+            "order analytics",
+        )
+        members = [t for t in await org.rows(registered_tables, ENV) if t["product_id"]]
+        assert [t["alias"] for t in members] == ["Order"]
+        (tag,) = await org.rows(tag_assignments, ENV)
+        assert (tag["object_type"], tag["product_id"], tag["object_key"]) == (
+            "product",
+            "orders",
+            "product:orders",
+        )
+
+    async def test_a_load_of_its_own_tree_keeps_what_the_environment_holds(self, org):
+        """The undo/redo/pull case: applying a tree to the environment it describes loses nothing."""
+        await self._seed_product(org)
+        before = await org.tree()
+        await deploy_tree(org.db, org.id, None, before, ref="deadbeef")
+        assert len(await org.rows(data_products)) == 1
+        assert len(await org.rows(tag_assignments)) == 1
+        assert await org.tree() == before
+
+    async def test_the_round_trip_is_identical(self, org):
+        await self._seed_product(org)
+        prod = await org.tree()
+        await deploy_tree(org.db, org.id, ENV, prod, ref="deadbeef")
+        assert await org.tree(ENV) == prod

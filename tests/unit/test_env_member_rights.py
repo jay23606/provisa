@@ -64,7 +64,9 @@ def wired(monkeypatch):
 
 
 def _request(roles: list[str] | None, user_id: str = "u1"):
-    identity = None if roles is None else SimpleNamespace(user_id=user_id, roles=roles)
+    identity = (
+        None if roles is None else SimpleNamespace(user_id=user_id, roles=roles, acting_roles=roles)
+    )
     return SimpleNamespace(state=SimpleNamespace(identity=identity))
 
 
@@ -87,7 +89,7 @@ class TestMemberRights:
 
     async def test_either_right_opens_a_read_endpoint(self, wired):
         # The listing endpoints accept both: switching is reading which environments exist.
-        holder = SimpleNamespace(user_id="u2", roles=["developer"])
+        holder = SimpleNamespace(user_id="u2", roles=["developer"], acting_roles=["developer"])
         assert (
             await er._member_rights(
                 SimpleNamespace(state=SimpleNamespace(identity=holder)), "acme", MANAGE, SWITCH

@@ -209,9 +209,9 @@ async def _pool():
 def _caller(*roles: str, acting: str | None = None, anonymous: bool = False):
     """The GraphQL ``info`` of a signed-in caller holding ``roles``, acting as ``acting``."""
     if anonymous:
-        identity = types.SimpleNamespace(user_id="anonymous", roles=[])
+        identity = types.SimpleNamespace(user_id="anonymous", roles=[], acting_roles=[])
     else:
-        identity = types.SimpleNamespace(user_id="u1", roles=list(roles))
+        identity = types.SimpleNamespace(user_id="u1", roles=list(roles), acting_roles=list(roles))
     state = types.SimpleNamespace(identity=identity, role=acting or (roles[0] if roles else None))
     return types.SimpleNamespace(context={"request": types.SimpleNamespace(state=state)})
 

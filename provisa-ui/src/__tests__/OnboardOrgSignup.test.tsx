@@ -48,6 +48,7 @@ const mockAuth = {
   email: "ks@example.com",
   selectOrg: vi.fn(),
   refresh: vi.fn(),
+  rebind: vi.fn(),
 };
 vi.mock("../context/AuthContext", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../context/AuthContext")>()),

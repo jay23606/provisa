@@ -31,6 +31,7 @@ const LIVE = {
   token_hash: "hash-live",
   prefix: "provisa_pat_abcd1234",
   name: "laptop",
+  env_name: "dev",
   role_id: null,
   scopes: [],
   created_at: "2026-01-01T00:00:00Z",
@@ -58,6 +59,15 @@ describe("PersonalAccessTokens", () => {
     render(<PersonalAccessTokens />);
     expect(await screen.findByTestId(`profile-pat-row-${LIVE.prefix}`)).toHaveTextContent("laptop");
     expect(screen.queryByTestId("profile-pat-minted")).not.toBeInTheDocument();
+  });
+
+  it("says which environment each token addresses, and which a new one will", async () => {
+    // REQ-1503: a token works in the environment it was issued into and no other.
+    render(<PersonalAccessTokens />);
+    expect(await screen.findByTestId(`pat-env-${LIVE.token_hash}`)).toHaveTextContent("dev");
+    expect(screen.getByTestId("profile-pat-env-help")).toHaveTextContent(
+      "A new token will work in prod",
+    );
   });
 
   it("shows the minted secret once, and only after issuance", async () => {

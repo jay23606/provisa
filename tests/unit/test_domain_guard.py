@@ -20,6 +20,7 @@ from provisa.security.rights import domain_access_for_claims
 class _Identity:
     def __init__(self, roles, user_id="u1"):
         self.roles = roles
+        self.acting_roles = roles  # a request acting as every role it holds
         self.user_id = user_id
 
 

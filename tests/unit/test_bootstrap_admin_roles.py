@@ -174,7 +174,7 @@ def _gate(roles_held: list[str], monkeypatch) -> None:
     from provisa.api.admin._platform_guard import require_deployment_settings
 
     monkeypatch.setattr(app_mod, "state", types.SimpleNamespace(roles=SINGLE_TENANT_ROLES))
-    identity = types.SimpleNamespace(user_id="u1", roles=roles_held)
+    identity = types.SimpleNamespace(user_id="u1", roles=roles_held, acting_roles=roles_held)
     request = types.SimpleNamespace(state=types.SimpleNamespace(identity=identity))
     require_deployment_settings(request)  # pyright: ignore[reportArgumentType]
 

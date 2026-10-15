@@ -58,7 +58,9 @@ if TYPE_CHECKING:
 WRITE_OPS: tuple[str, ...] = ("insert", "update", "delete")
 #: REQ-1981: an Athena table's format (``registered_tables.table_format``) that takes every write.
 ICEBERG = "iceberg"
-_INSERT_ONLY = frozenset({"clickhouse", "iceberg", "delta_lake", "kafka", "ingest"})
+# Sources that take new rows only. Cassandra through the engine (REQ-910): Trino's connector
+# inserts, has no UPDATE, and deletes only by whole partition key.
+_INSERT_ONLY = frozenset({"cassandra", "clickhouse", "iceberg", "delta_lake", "kafka", "ingest"})
 _REMOTE_API = frozenset({"graphql_remote", "openapi", "grpc_remote"})
 #: REQ-1997: the file databases, which a remote location attaches read-only.
 _FILE_DATABASES = frozenset({"sqlite", "duckdb"})

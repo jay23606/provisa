@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 
-from tests.integration.polly_bakeoff_turn import ask
+from scripts.polly_turn import ask
 
 _NAVIGATE = {
     "id": "c1",

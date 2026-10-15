@@ -58,7 +58,7 @@ def state(monkeypatch):
 
 
 def _developer():
-    return SimpleNamespace(user_id="u1", roles=["developer"])
+    return SimpleNamespace(user_id="u1", roles=["developer"], acting_roles=["developer"])
 
 
 async def test_the_env_gate_reads_the_named_orgs_own_prod_definitions(state):

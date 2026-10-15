@@ -337,6 +337,17 @@ def _cmd_metadata_export(args: argparse.Namespace) -> int:
     return 0 if ok else 1
 
 
+class ApiRefused(SystemExit):
+    """The API answered a call with an error status. Still a ``SystemExit`` -- a command that does
+    not catch it exits non-zero with the message -- and it carries the status and the body, so a
+    command that reports refusals itself (``provisa env``, REQ-1498) can name the rule."""
+
+    def __init__(self, method: str, path: str, status: int, body: str) -> None:
+        super().__init__(f"{method} {path} failed: HTTP {status} — {body}")
+        self.status = status
+        self.body = body
+
+
 def _api_call(args: argparse.Namespace, method: str, path: str, body: dict | None = None) -> dict:
     """One authenticated call to the Provisa API, returning the decoded JSON.
 
@@ -364,67 +375,9 @@ def _api_call(args: argparse.Namespace, method: str, path: str, body: dict | Non
         with urllib.request.urlopen(req, timeout=args.timeout) as resp:  # nosec B310
             return json.load(resp)
     except urllib.error.HTTPError as exc:
-        raise SystemExit(
-            f"{method} {path} failed: HTTP {exc.code} — {exc.read().decode(errors='replace')}"
-        ) from exc
+        raise ApiRefused(method, path, exc.code, exc.read().decode(errors="replace")) from exc
     except urllib.error.URLError as exc:
         raise SystemExit(f"cannot reach the Provisa API at {api}: {exc.reason}") from exc
-
-
-def _print_deploy(result: dict) -> None:
-    """The REQ-1490 report as a deploy log reads it: what would change, by path."""
-    if result.get("requires_approval") and not result["applied"]:
-        request = result["request"]
-        report = request["report"]
-        print(f"Deploy PROPOSED as request {request['id']} — {request['target_env']} is protected.")
-    else:
-        report = result["report"]
-        print(f"Deploy {'APPLIED to' if result['applied'] else 'PLANNED for'} {report['env']}")
-    print(f"  ref       {report['ref']}")
-    for kind in ("added", "changed", "removed"):
-        for path in report[kind]:
-            print(f"  {kind[0].upper()} {path}")
-    print(f"  unchanged {report['unchanged']}")
-
-
-def _cmd_env_deploy(args: argparse.Namespace) -> int:
-    """`provisa env deploy` — make the tree at a ref an environment's model (REQ-1496).
-
-    This is the command a deployment pipeline runs, and the rule it obeys is the one the UI obeys:
-    a deploy is an invocation CARRYING AN IDENTITY against a NAMED control plane. Nothing inside a
-    Provisa deployment applies a merged branch on its own; the pipeline holding a credential is
-    what makes the deploy happen, and revoking that credential is what stops it.
-    """
-    result = _api_call(
-        args,
-        "POST",
-        f"/admin/orgs/{args.org}/environments/{args.env}/deploy",
-        {
-            "ref": args.ref,
-            "dry_run": args.dry_run,
-            "seed": args.seed,
-            "message": args.message or "",
-        },
-    )
-    _print_deploy(result)
-    # A proposal is not a deployment. A pipeline that treated a pending approval as success would
-    # report a release that has not happened, so the exit code says so.
-    return 0 if result["applied"] or args.dry_run else 2
-
-
-def _cmd_env_fetch(args: argparse.Namespace) -> int:
-    """`provisa env fetch` — bring the org's remote branches back (REQ-1541).
-
-    The step BEFORE a deploy in the ordinary flow: the pipeline that just saw a pull request merge
-    on the org's git host runs this, and then deploys ``origin/<branch>``. Provisa never runs it on
-    a timer, so the branch a deploy names is one somebody fetched deliberately.
-    """
-    result = _api_call(
-        args, "POST", f"/admin/orgs/{args.org}/environments/-/repo-integration/fetch", {}
-    )
-    for name, sha in sorted(result["branches"].items()):
-        print(f"origin/{name}  {sha[:12]}")
-    return 0
 
 
 def _maintenance_request(args: argparse.Namespace, body: dict | None) -> dict:
@@ -735,65 +688,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     pgext_install.set_defaults(func=_cmd_pg_ext_install)
 
-    env = sub.add_parser("env", help="Environment operations against a running Provisa")
-    env_sub = env.add_subparsers(dest="env_command", required=True)
-    env_deploy = env_sub.add_parser(
-        "deploy", help="Deploy the model at a ref into an environment, making it that environment's"
-    )
-    env_deploy.add_argument("--org", required=True, help="Organization holding the environment")
-    env_deploy.add_argument("--env", required=True, help="Environment that will hold the result")
-    env_deploy.add_argument(
-        "--ref", required=True, help="Branch or commit in the org's repository to deploy"
-    )
-    env_deploy.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Report what the deploy would do and apply none of it",
-    )
-    env_deploy.add_argument(
-        "--seed",
-        action="store_true",
-        help="Also apply the creation-only classes (roles). Only correct when this deploy is what "
-        "creates the environment: a tree carries the roles of whatever control plane projected it",
-    )
-    env_deploy.add_argument("--message", default=None, help="Note carried onto an approval request")
-    env_deploy.add_argument(
-        "--api",
-        default=None,
-        help="Provisa API base URL (default: $PROVISA_API_URL or http://127.0.0.1:8000)",
-    )
-    env_deploy.add_argument(
-        "--token",
-        default=None,
-        help="Bearer token for an identity that may write the environment "
-        "(default: $PROVISA_API_TOKEN)",
-    )
-    env_deploy.add_argument(
-        "--timeout", type=int, default=300, help="Request timeout in seconds (default: 300)"
-    )
-    env_deploy.set_defaults(func=_cmd_env_deploy)
+    # REQ-1498: every environment operation, each a call to the API the UI calls.
+    from provisa.cli_envs import register as register_env
 
-    # REQ-1541: the other direction. The projection is pushed out, the review and the merge happen
-    # on the org's own git host, and this is what brings the result back as ``origin/<branch>`` for
-    # a deploy to name.
-    env_fetch = env_sub.add_parser(
-        "fetch", help="Fetch the org's remote branches into its Provisa repository"
-    )
-    env_fetch.add_argument("--org", required=True, help="Organization whose remote is fetched")
-    env_fetch.add_argument(
-        "--api",
-        default=None,
-        help="Provisa API base URL (default: $PROVISA_API_URL or http://127.0.0.1:8000)",
-    )
-    env_fetch.add_argument(
-        "--token",
-        default=None,
-        help="Bearer token for an org administrator (default: $PROVISA_API_TOKEN)",
-    )
-    env_fetch.add_argument(
-        "--timeout", type=int, default=300, help="Request timeout in seconds (default: 300)"
-    )
-    env_fetch.set_defaults(func=_cmd_env_fetch)
+    register_env(sub)
 
     # REQ-1466: the same on/off control the platform admin has in the UI, runnable from a deploy
     # script — the banner goes up before the engine-cluster switch (REQ-1465) and down after it,

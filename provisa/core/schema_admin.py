@@ -336,6 +336,11 @@ personal_access_tokens = Table(
     # Revocation is a tombstone rather than a DELETE so an audit of a compromised token still
     # resolves its owner and issuance time after the credential stops working.
     Column("revoked_at", DateTime(timezone=True)),
+    # REQ-1503: the ONE environment of that org the token addresses. Issued into it and carried by
+    # it, so a request presenting the token is served by this environment whatever header it
+    # sends, and a header naming another is refused. No default: a token addresses an environment
+    # because somebody issued it into one.
+    Column("env_name", Text, nullable=False),
 )
 
 # REQ-2006: the demo sandboxes. Each is an org of its own (``orgs``, id ``sbx<hex>``) cloned from

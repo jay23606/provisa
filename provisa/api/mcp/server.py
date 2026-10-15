@@ -339,9 +339,18 @@ def build_mcp_server(state: Any):
             # the pinned role's own capability list (capabilities_for_claims keys on role id,
             # not on anything else the identity carries), so a synthetic identity naming just
             # that one role resolves correctly.
-            identity = SimpleNamespace(user_id="mcp-stdio", roles=[resolved_role])
+            identity = SimpleNamespace(
+                user_id="mcp-stdio", roles=[resolved_role], acting_roles=[resolved_role]
+            )
             # The loopback request's org, bound by _wrap_role_auth (REQ-1266).
             org_id = require_current_org()
+        else:
+            # A remote call's identity is the transport's, never bound by the HTTP middleware:
+            # it acts as the role the call resolved to (a set's meta-role is a role too), and its
+            # rights are read from that role alone, as an HTTP request's are.
+            identity = SimpleNamespace(
+                user_id=identity.user_id, roles=list(identity.roles), acting_roles=[resolved_role]
+            )
         return SimpleNamespace(state=SimpleNamespace(identity=identity, active_org_id=org_id))
 
     @_tool

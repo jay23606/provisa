@@ -42,6 +42,8 @@
     "deleteAccountHeading": "מחיקת חשבון",
     "deleteAccountHelp": "פעולה זו מסירה את חשבון Provisa שלך ואת החברות שלך בכל ארגון. הארגונים שאתה חבר בהם, וכל מה שרשום בהם, נשמרים.",
     "deleteAccountConfirmLabel": "יש להקליד {{userId}} לאישור",
-    "deleteAccountButton": "מחיקת החשבון שלי"
+    "deleteAccountButton": "מחיקת החשבון שלי",
+    "patEnvironment": "סביבה",
+    "patEnvironmentHelp": "אסימון פועל בסביבה אחת: זו שבה צפיתם כשהנפקתם אותו. אסימון חדש יפעל ב-{{env}}."
   }
 }

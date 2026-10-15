@@ -10780,12 +10780,26 @@
   feature: writes-governed-mutations
   priority: MUST
   type: constraint
-  description: 'DB mutations ALWAYS route to direct RDBMS connection — Trino never involved in mutation
-    execution. Webhook mutations are NOT DB mutations: they reference an external HTTP endpoint that presumably
-    changes underlying data. Provisa cannot verify whether anything changed, so this is the steward''s
-    responsibility to define (see REQ-209).'
-  use_case: DB mutations always bypass Trino, ensuring writes are atomic and target the correct source
-    directly.
+  description: '[SUPERSEDED by REQ-031 amendment, 2026-10-04 -- a mutation goes to the source''s own driver
+    when it has one, otherwise through the engine''s connector to it (REQ-910). Kept here for history; do
+    not implement against it.] DB mutations ALWAYS route to direct RDBMS connection — Trino never involved
+    in mutation execution. [END SUPERSEDED BLOCK] Webhook mutations are NOT DB mutations: they reference
+    an external HTTP endpoint that presumably changes underlying data. Provisa cannot verify whether anything
+    changed, so this is the steward''s responsibility to define (see REQ-209). (Amended 2026-10-04, A WRITE
+    TAKES THE SOURCE''S OWN DRIVER, ELSE THE ENGINE:) A DB mutation is executed on the source''s own driver
+    (native or SQLAlchemy) whenever the source has one. A source with no direct driver whose engine connector
+    writes it upstream (a live read-write attach declaring write support) takes its mutations through the
+    engine, per REQ-910: routed to the engine, lowered to the engine''s write grammar, run with query retries
+    off, and admitted by the same write admission as every write (REQ-1925). What such a source takes is
+    what its connector carries: Cassandra through Trino takes INSERT only. A mutation for a source with
+    neither route is refused; it is never run on any other connection (in particular never on the org''s
+    model store, which serves provisa-admin alone).'
+  use_case: '[SUPERSEDED by REQ-031 amendment, 2026-10-04 -- a source with no direct driver is written
+    through the engine. Kept here for history; do not implement against it.] DB mutations always bypass
+    Trino, ensuring writes are atomic and target the correct source directly. [END SUPERSEDED BLOCK] (Amended
+    2026-10-04:) A write reaches its source directly when Provisa holds a driver for it, and through the
+    engine''s connector otherwise, so a connector-only source (Cassandra) is writable without a driver of
+    its own.'
   code:
   - provisa/executor/
   - provisa/transpiler/
@@ -74249,7 +74263,7 @@
     truncated copy. (Amended 2026-10-03, NO WHOLE COPY, NO WHOLE BUILD:) A table that has no whole copy
     (parameterized or row-level) is never built whole, by convergence, by the runner or by the read backstop.
     Its parameter-set fills live in the store''s API cache schema, not in the control plane, and call
-    the remote through `call_api`. (Amended 2026-10-05, ANY FILTER) A read of a table replicated row by row (row_materialize, on an engine that cannot attach its source) that the engine federates must filter it -- a key bound (=, IN, or an OR of key equalities), a key a join supplies, or any predicate on the table''s own columns with literals or bound parameters (= <> < <= > >= IN BETWEEN LIKE, IS [NOT] NULL, AND/OR/NOT); with none it is refused at planning, data.row_level_filter_required naming the table. The filter is translated into the source''s own query and pushed down; matching rows are streamed and replace that filter''s rows in the copy in one transaction; each fetch is recorded by the filter''s exact hash and served from the copy within the reader''s TTL. A filter a source type cannot evaluate natively is refused by name, data.row_level_filter_not_pushable naming the table, source type and reason, and is never answered by a whole fetch. Per source type -- SQL drivers, a WHERE in the source dialect; clickhouse, pinot, druid, hive_s3 and pgwire-served sources, SQL in their dialect; delta_lake, iceberg, hive, csv, parquet and motherduck, an in-process DuckDB scan with the WHERE; sqlite, firebird and airport, their own connectors; elasticsearch, a bool query; mongodb, a find filter; neo4j, a WHERE on the properties the table projects; cassandra, CQL restrictions only, never ALLOW FILTERING; sparql, FILTER; prometheus, label matchers; redis, kafka, ingest, websocket, rss, google_sheets, soda and great_expectations, the key only. Registration refuses row_materialize on API sources (filtered by their own parameters), on govdata (read live) and on types no connector reaches. A single-source read through the source''s own driver (DIRECT, maintainer 2026-10-05) reads the source live -- no filter required, nothing fetched into the copy; the copy serves only federated reads, and a statement that filters such a table neither way is never answered from the response cache.'
+    the remote through `call_api`. (Amended 2026-10-05, ANY FILTER) A read of a table replicated row by row (row_materialize, on an engine that cannot attach its source) that the engine federates must filter it -- a key bound (=, IN, or an OR of key equalities), a key a join supplies, or any predicate on the table''s own columns with literals or bound parameters (= <> < <= > >= IN BETWEEN LIKE, IS [NOT] NULL, AND/OR/NOT); with none it is refused at planning, data.row_level_filter_required naming the table. The filter is translated into the source''s own query and pushed down; matching rows are streamed and replace that filter''s rows in the copy in one transaction; each fetch is recorded by the filter''s exact hash and served from the copy within the reader''s TTL. A filter a source type cannot evaluate natively is refused by name, data.row_level_filter_not_pushable naming the table, source type and reason, and is never answered by a whole fetch. (Amended 2026-10-15, lead ruling: scope of the pushdown) The filter is pushed down for a source read through a SQL direct driver, as a WHERE in the source''s dialect, with the region''s row rule pushed beside it where it reads only the table''s columns. Every other source type is refused by name for a filter, data.row_level_filter_not_pushable (its key still reads it); per-type translations (bool queries, find filters, CQL restrictions, label matchers and the like) are not part of this requirement. This requirement is complete for that scope. Registration refuses row_materialize on API sources (filtered by their own parameters), on govdata (read live) and on types no connector reaches. A single-source read through the source''s own driver (DIRECT, maintainer 2026-10-05) reads the source live -- no filter required, nothing fetched into the copy; the copy serves only federated reads, and a statement that filters such a table neither way is never answered from the response cache.'
   use_case: An operator can set a large table to be replicated without taking the server down, and a reader
     either gets a complete answer from the replica or a clear statement that it is not ready yet.
   related_reqs:
@@ -81837,7 +81851,7 @@
   feature: chat-assistant-models
   priority: SHOULD
   type: behavioral
-  description: 'Polly''s spend is metered and, in demo sandboxes, capped. Every model call marks the repeated prefix (the tool definitions, the system prompt and the conversation so far) for the prompt cache, on Anthropic''s API and, for an Anthropic model, through an OpenAI-wire gateway such as OpenRouter; other vendors cache a repeated prefix by themselves. Each turn ends with a usage event: its fresh input, output, cache-read and cache-write tokens summed over every call, tool round trips included, and its cost at the model''s price in polly.model_prices, an operator setting holding a price table the operator sees and edits (USD per million tokens, one entry a model; an entry that does not read is refused when it is saved). When the gateway is OpenRouter the event also carries what OpenRouter billed. A model with no price reports tokens and no cost. In a demo sandbox org, Polly runs the model polly.sandbox_model (default claude-haiku-5-5), its spend is metered from that cost, and it refuses by name when the sandbox''s budget (polly.sandbox_budget_usd, default $0.50) or the daily budget of every sandbox together (polly.daily_budget_usd, default $10) is used up: "this demo''s assistant budget is used up" or "... for today"; the rest of the sandbox keeps working, and there is no fallback model. Polly''s panel in a sandbox shows what is left. A tour step that asks Polly a fixed question is answered once, when the demo''s template is built, and the stored answer is served to visitors at no cost. A bake-off (.github/workflows/polly-bakeoff.yml, manual dispatch) asks a list of models eleven weblogs questions with known answers, the weblogs demo''s own question among them, and reports accuracy, cost per question (median and p90), questions per $0.50 and latency.'
+  description: 'Polly''s spend is metered and, in demo sandboxes, capped. Every model call marks the repeated prefix (the tool definitions, the system prompt and the conversation so far) for the prompt cache, on Anthropic''s API and, for an Anthropic model, through an OpenAI-wire gateway such as OpenRouter; other vendors cache a repeated prefix by themselves. Each turn ends with a usage event: its fresh input, output, cache-read and cache-write tokens summed over every call, tool round trips included, and its cost at the model''s price in polly.model_prices, an operator setting holding a price table the operator sees and edits (USD per million tokens, one entry a model; an entry that does not read is refused when it is saved). When the gateway is OpenRouter the event also carries what OpenRouter billed. A model with no price reports tokens and no cost. In a demo sandbox org, Polly runs the model polly.sandbox_model (default claude-haiku-5-5), its spend is metered from that cost, and it refuses by name when the sandbox''s budget (polly.sandbox_budget_usd, default $0.50) or the daily budget of every sandbox together (polly.daily_budget_usd, default $10) is used up: "this demo''s assistant budget is used up" or "... for today"; the rest of the sandbox keeps working, and there is no fallback model. Polly''s panel in a sandbox shows what is left. A tour step that asks Polly a fixed question is answered once, when the demo''s bundle is built (Polly asked through OpenRouter on the sandbox''s model, the build given OPENROUTER_API_KEY; scripts/demo_bundle.py), and the stored answer is served to visitors at no cost; a question it does not answer fails the build. A tour step''s question is one of its own demo''s bake-off questions, each graded by SQL over that demo''s tables. A bake-off (.github/workflows/polly-bakeoff.yml, manual dispatch) asks a list of models eleven weblogs questions with known answers, the weblogs demo''s own question among them, and reports accuracy, cost per question (median and p90), questions per $0.50 and latency.'
   use_case: A visitor to a demo asks Polly a handful of questions on the house, the operator knows what each costs and what the day will cost at most, and the maintainer picks the sandbox's model from measured cost and accuracy.
   scenario: 'Given a demo sandbox whose Polly budget is $0.50
 
@@ -82927,8 +82941,7 @@
   feature: product-tour-and-demos-named-demos
   priority: SHOULD
   type: behavioral
-  description: 'A named demo, GDPR at an international retail group (one group, EU and US subsidiaries): two regions,
-    EU and US, each with its own engine and replica store; each subsidiary''s own sources with their home region --
+  description: 'A named demo, GDPR at an international retail group (one group, EU and US subsidiaries): two regions, EU and US, defined in one model so that every cross-border data movement rule is coordinated and enforced in one place; the visitor stays on one node (the US node) and the EU region''s setup is shown in tour screenshots or explained; EU-homed data is landed and EU-named views, including the in-region message scoring, are built in the EU region''s own store at bundle build, and the US node reads them in place from that store, the per-request record naming eu as the serving region, or refuses naming eu when that store is absent; each subsidiary''s own sources with their home region --
     loyalty-programme customers with their marketing consent, orders, stores and staff -- plus shared reference data
     (products, stores), all generated; users with a region attribute and row rules on it. It shows: residency, EU
     customer rows stored and computed only in the EU region, and group reporting that reads EU data only as aggregates
@@ -82937,8 +82950,7 @@
     about one EU customer across every subsidiary''s sources (right of access), and the view that drives its erasure;
     an insider review in retail form, staff with access to customer data who then mail customer lists outside the
     group, their messages scored in their own region so no message body leaves it, one group review queue carrying
-    only the score, the signals and a pseudonymised sender, and the sender revealed only to a reviewer of the employee''s
-    own region; and one audit record across both regions of who saw which customer''s data, where. The same query
+    only the score, the signals and a pseudonymised sender, and the sender revealed only to a reviewer acting with the employee''s region pseudo-role (region__eu, REQ-2057) through the column''s ordered mask list (REQ-2059); and one audit record across both regions of who saw which customer''s data, where. The same query
     returns different rows per reader, the per-request record shows serving region and rules, no copy of EU rows
     exists outside the EU, and a cross-region read is served from the home region''s replica or refused naming it.
     Its tour states that legal requirements can be met with these features, but meeting them takes active design
@@ -83977,3 +83989,101 @@
     data; PII is straightforward, sensitive references (a merger, strategy) are harder and warrant post-review; an
     investment bank compares its list of entities in discussion (mergers, acquisitions, loans, underwriting) to the
     emails for a match score. One demo, framed as investment-bank compliance.'
+- id: REQ-2060
+  status: proposed
+  since: 2026-10
+  group: 1. Access Governance & Security
+  category: Security
+  feature: roles-and-capabilities-capabilities
+  priority: MUST
+  type: behavioral
+  description: 'Rights follow the request. A request''s data access AND its capabilities come only from the roles it names (X-Provisa-Role, or the session''s acting role), never from every role the user holds; each named role must be held, and one that is not is refused by name, as X-Provisa-Role already is. Administrative work therefore needs the acting role to hold the right: the admin UI acts as, or switches to, a role holding it before an admin action.'
+  use_case: 'An analyst who also holds org_admin acts as analyst and gets only analyst''s capabilities and data; to administer, they act as org_admin.'
+  scenario: 'Given a user holding analyst and org_admin
+
+
+When a request names only analyst
+
+
+Then an admin capability is refused and the data is analyst''s
+
+
+And a request naming a role the user does not hold is refused by name'
+  related_reqs:
+  - REQ-2035
+  - REQ-2057
+  notes: 'Maintainer 2026-10-15: "what''s the point of an acting role, if you get all rights anyway"; "the user could just have to be explicit in their request, if they claim a role, it must exist". Built first, as step 0 of REQ-2035 (ui).'
+- id: REQ-2057
+  status: proposed
+  since: 2026-10
+  group: 1. Access Governance & Security
+  category: Security
+  feature: roles-and-capabilities-capabilities
+  priority: SHOULD
+  type: behavioral
+  description: 'Pseudo-roles: roles derived from identity claims, which turn an attribute-conditioned (ABAC) column rule into an ordinary role grant (RBAC). For each claim type in the org''s declared list (an org setting with a UI surface), there is an implicit parent role named by the claim type (e.g. region) and, for each value, a child sub-role named <claim type>__<value> (e.g. region__eu), the double underscore as in GraphQL paths. A user holds a sub-role exactly when their claim has that value; the value comes from the org''s own user record, and the identity provider''s claim fills in only where the record has none. Pseudo-roles carry no capabilities, no domain access, no row-filter term and no mask vote; they are never assigned by hand and never self-granted; they act only as grant qualifiers, so existing grant points use them unchanged (visible_to, writable_by, masks, meta-roles). Like every role they count only when the request names them (REQ-2060): a request acts as analyst,region__eu to get EU reveals; the role picker offers the pseudo-roles a user holds. The node''s own region is never taken as the user''s. Row rules naming pseudo-roles are not part of this. Role inheritance stays additive: a child holds its parent''s rights plus its own, and nothing subtracts an inherited right; restriction comes from composition (REQ-2058), not from denials. A role''s properties are different from its rights: each property (rate_limit, max_rows) is set by the nearest role in the chain that declares it, the role itself first, so a child may raise or lower its parent''s. docs/security.md explains meta-roles and pseudo-roles and why each is useful, led by the rationale that pseudo-roles simplify a traditional ABAC column problem into a simpler RBAC solution, with guidance on hierarchy versus composition (inheritance within one axis, composition across independent axes, a small role catalogue).'
+  use_case: 'An EU reviewer acting as reviewer,region__eu sees a sender column that is masked for every other reader, without any attribute evaluated at query time.'
+  scenario: 'Given region declared as a claim type and a user whose org record says region eu
+
+
+When the user acts as reviewer,region__eu
+
+
+Then a column unmasked to region__eu is shown unmasked
+
+
+And a user whose record says us cannot act as region__eu'
+  related_reqs:
+  - REQ-2035
+  - REQ-2060
+  - REQ-1382
+  - REQ-1383
+  notes: 'Maintainer 2026-10-15, in conversation with ui: "a parent role for the claim type and then a sub role for its stringified value"; "region would have to be injected as a claim"; "org record should win"; double-underscore naming "like graphql paths"; "pseudo-roles must be named too"; "mainly it simplifies a traditional ABAC column issue into a simpler RBAC solution"; docs explain meta-roles and pseudo-roles; no subtraction of parent rights ("it gets really complicated"). Built as part of REQ-2035 (ui), with the user-attributes port.'
+- id: REQ-2058
+  status: proposed
+  since: 2026-10
+  group: 1. Access Governance & Security
+  category: Security
+  feature: row-security-and-masking-masking
+  priority: SHOULD
+  type: behavioral
+  description: 'Composite grant entries: an entry in a grant list (visible_to, writable_by, a mask entry''s to) may be a+b, meaning the reader holds all of the named roles. Meta-roles are a union of their members'' rights; in a grant entry the same + means all-of. The column editor composes them as chips joined by "and".'
+  use_case: 'A column is shown only to readers acting as both analyst and region__eu.'
+  scenario: 'Given a column visible_to analyst+region__eu
+
+
+When a request acts as analyst alone
+
+
+Then the column is not visible
+
+
+And acting as analyst,region__eu it is'
+  related_reqs:
+  - REQ-2057
+  - REQ-2059
+  notes: 'Maintainer 2026-10-15: "yes to composites"; "meta-roles are a union, but in rights they become ANDs". Built as part of REQ-2035 (ui).'
+- id: REQ-2059
+  status: proposed
+  since: 2026-10
+  group: 1. Access Governance & Security
+  category: Security
+  feature: row-security-and-masking-masking
+  priority: SHOULD
+  type: behavioral
+  description: 'Per-reader masks: a column''s masking is one ordered list of entries, each {to: a grant list (composites allowed), a mask or unmasked}; the first entry matching the request''s roles applies, and an entry for everyone last is the default. The enumeration is the precedence, shown and checked in the column editor''s Access tab. It replaces today''s single mask plus unmasked_to (no back-compat): the column model, table_columns, the masking rules loader, the admin column types and mutations, config export and the UI.'
+  use_case: 'A sender column is unmasked for EU reviewers, pseudonymised for other reviewers and fully masked for everyone else.'
+  scenario: 'Given a column with entries [to region__eu: unmasked; to reviewer: pseudonymised; everyone: masked]
+
+
+When a reviewer acting with region__eu reads it
+
+
+Then it is unmasked
+
+
+And a reviewer without it sees the pseudonym, and anyone else the mask'
+  related_reqs:
+  - REQ-2057
+  - REQ-2058
+  notes: 'Maintainer 2026-10-15: "just list the masks in an enumerated list and the enumeration is the precedence". Built as part of REQ-2035 (ui).'

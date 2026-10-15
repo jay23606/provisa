@@ -411,6 +411,11 @@ class OrgRegistry:
     def all_org_ids(self) -> list[str]:
         return list(self._runtimes.keys())
 
+    def runtimes(self) -> list["OrgRuntime"]:
+        """Every runtime this process holds, each an org environment (REQ-1926: a worker's
+        keeper of temporary tables walks them)."""
+        return list(self._runtimes.values())
+
     async def get_or_build(
         self, org_id: str, builder: Callable[[str], Awaitable[OrgRuntime]]
     ) -> OrgRuntime:

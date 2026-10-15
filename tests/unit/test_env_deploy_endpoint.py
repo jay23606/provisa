@@ -213,24 +213,32 @@ class TestAProtectedTargetIsProposedTo:
 
 
 class TestSeeding:
-    async def test_seeding_is_off_unless_asked_for(self, wired):
-        # REQ-1539: a tree carries the roles of whatever control plane projected it, and a desktop's
+    """REQ-1539: roles are seeded by the load that CREATES an environment and by no other. This
+    door loads into an environment that already exists, so it never seeds -- for anybody."""
+
+    async def test_a_load_never_seeds(self, wired):
+        # A tree carries the roles of whatever control plane projected it, and a desktop's
         # self-granted rights must not arrive with it.
         await er.deploy_into_environment(_Request(), ORG, "dev", er.DeployBody(ref="dev"))
         assert wired["deploy"] == [(ORG, "dev", SHA, False)]
 
-    async def test_seeding_is_carried_to_the_load(self, wired):
-        await er.deploy_into_environment(
-            _Request(), ORG, "dev", er.DeployBody(ref="dev", seed=True)
-        )
-        assert wired["deploy"] == [(ORG, "dev", SHA, True)]
+    async def test_asking_to_seed_an_existing_environment_is_refused_by_name(self, wired):
+        with pytest.raises(ApiError) as exc:
+            await er.deploy_into_environment(
+                _Request(), ORG, "dev", er.DeployBody(ref="dev", seed=True)
+            )
+        assert exc.value.status_code == 400
+        assert exc.value.code == "environments.seed_only_at_creation"
+        assert wired["deploy"] == [] and wired["plan"] == [] and wired["request"] == []
 
-    async def test_seeding_is_carried_onto_a_request(self, wired):
-        # An approver approves a specific operation, and whether roles arrive is part of it.
-        await er.deploy_into_environment(
-            _Request(), ORG, "prod", er.DeployBody(ref="dev", seed=True)
-        )
-        assert wired["request"][0]["seed"] is True
+    async def test_a_request_never_carries_a_seed_either(self, wired):
+        # An approver approves a specific operation, and roles arriving is never part of a load.
+        with pytest.raises(ApiError):
+            await er.deploy_into_environment(
+                _Request(), ORG, "prod", er.DeployBody(ref="dev", seed=True)
+            )
+        await er.deploy_into_environment(_Request(), ORG, "prod", er.DeployBody(ref="dev"))
+        assert wired["request"][0]["seed"] is False
 
 
 class TestATreeThatDoesNotHold:

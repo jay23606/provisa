@@ -42,6 +42,8 @@
     "deleteAccountHeading": "Account verwijderen",
     "deleteAccountHelp": "Dit verwijdert het Provisa-account en het lidmaatschap van elke organisatie. Organisaties waartoe het account behoort, en alles wat daarin is geregistreerd, blijven bewaard.",
     "deleteAccountConfirmLabel": "Typ {{userId}} ter bevestiging",
-    "deleteAccountButton": "Mijn account verwijderen"
+    "deleteAccountButton": "Mijn account verwijderen",
+    "patEnvironment": "Omgeving",
+    "patEnvironmentHelp": "Een token werkt in één omgeving: de omgeving die u bekeek toen u het uitgaf. Een nieuw token werkt in {{env}}."
   }
 }

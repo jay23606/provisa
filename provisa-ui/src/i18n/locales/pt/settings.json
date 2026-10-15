@@ -793,6 +793,16 @@
         "label": "Chave de IA do sandbox",
         "help": "Uma referência ${secret:NAME} à chave do endpoint, guardada na organização desta implantação; todo sandbox a usa. Não definida: sem IA nos sandboxes."
       }
+    },
+    "temp_tables": {
+      "max_per_session": {
+        "label": "Tabelas temporárias por sessão",
+        "help": "O máximo de tabelas temporárias que uma sessão (uma conexão pgwire ou uma solicitação SQL) pode manter ao mesmo tempo. Uma tabela além disso é recusada; exclua uma primeiro. 0 não permite nenhuma."
+      },
+      "max_rows": {
+        "label": "Linhas por tabela temporária",
+        "help": "O máximo de linhas que uma tabela temporária pode conter. Uma tabela temporária é uma tabela real no armazenamento do mecanismo que uma função sem direito de gravação pode preencher, por isso é limitada. Uma tabela que ultrapassaria o limite é recusada; nada é cortado."
+      }
     }
   }
 }

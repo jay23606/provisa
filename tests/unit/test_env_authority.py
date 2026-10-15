@@ -120,3 +120,68 @@ def test_a_credential_is_the_privilege_the_grant_does_not_hand_over():
     # carries — the owner must reconstruct the URIs and supply the credentials themselves.
     assert "org_secrets" in ec.NEVER_SENSITIVE
     assert "org_secrets" not in ec.CARRIED | ec.IDENTITY_ONLY
+
+
+class TestTheGrantReachesTheCapabilityCheck:
+    """REQ-1528: the grant is derived from ``created_by`` when the environment is bound to the
+    request, and the capability check reads it there -- so an owner whose roles carry no
+    model-editing right holds one inside the environment they created and nowhere else."""
+
+    @staticmethod
+    def _identity(user_id: str = "uid-owner"):
+        from provisa.auth.models import AuthIdentity
+
+        return AuthIdentity(user_id=user_id, email=None, display_name=None, roles=["analyst"])
+
+    @staticmethod
+    def _owned_by(monkeypatch, owner: str | None):
+        async def environment_owner(admin_db, org_id, env):
+            return owner
+
+        monkeypatch.setattr(auth, "environment_owner", environment_owner)
+
+    @pytest.mark.asyncio
+    async def test_the_owner_holds_the_grant_in_the_environment_they_created(self, monkeypatch):
+        from provisa.api.admin.capabilities import _resolved_capabilities
+        from provisa.api.env_routing import bind_owner_capabilities
+
+        self._owned_by(monkeypatch, "uid-owner")
+        identity = self._identity()
+        state = type("S", (), {"roles": {"analyst": {"capabilities": ["query"]}}})()
+        assert "relationship_registration" not in _resolved_capabilities(identity, state)
+        await bind_owner_capabilities("admin-db", "acme", "feature", identity)
+        held = _resolved_capabilities(identity, state)
+        assert auth.ENVIRONMENT_OWNER_CAPABILITIES <= held
+        assert "query" in held
+
+    @pytest.mark.asyncio
+    async def test_somebody_elses_environment_confers_nothing(self, monkeypatch):
+        from provisa.api.env_routing import bind_owner_capabilities
+
+        self._owned_by(monkeypatch, "uid-somebody-else")
+        identity = self._identity()
+        await bind_owner_capabilities("admin-db", "acme", "feature", identity)
+        assert identity.env_capabilities == frozenset()
+
+    @pytest.mark.asyncio
+    async def test_prod_has_no_owner_and_is_never_asked(self, monkeypatch):
+        from provisa.api.env_routing import bind_owner_capabilities
+
+        async def environment_owner(admin_db, org_id, env):
+            raise AssertionError("prod's rights are the org's own; nobody owns it")
+
+        monkeypatch.setattr(auth, "environment_owner", environment_owner)
+        identity = self._identity()
+        await bind_owner_capabilities("admin-db", "acme", "prod", identity)
+        assert identity.env_capabilities == frozenset()
+
+    @pytest.mark.asyncio
+    async def test_the_grant_does_not_follow_the_owner_to_another_environment(self, monkeypatch):
+        from provisa.api.env_routing import bind_owner_capabilities
+
+        identity = self._identity()
+        self._owned_by(monkeypatch, "uid-owner")
+        await bind_owner_capabilities("admin-db", "acme", "feature", identity)
+        self._owned_by(monkeypatch, "uid-somebody-else")
+        await bind_owner_capabilities("admin-db", "acme", "other", identity)
+        assert identity.env_capabilities == frozenset()

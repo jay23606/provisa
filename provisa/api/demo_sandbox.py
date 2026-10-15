@@ -249,7 +249,11 @@ async def _build(demo: PublishedDemo, org_id: str, person: str, kind: str) -> st
     if kind != VISITOR:
         return None
     secret, _row = await PersonalAccessTokenStore(_admin_pool()).issue(
-        user_id=person, org_id=org_id, name=_TOKEN_NAME, role_id=SANDBOX_ROLE
+        user_id=person,
+        org_id=org_id,
+        name=_TOKEN_NAME,
+        role_id=SANDBOX_ROLE,
+        env_name=PROD,  # REQ-1503: a sandbox is served from its one environment
     )
     return secret
 

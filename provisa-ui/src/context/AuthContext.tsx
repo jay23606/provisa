@@ -18,6 +18,7 @@ import { unionDemonstrated } from "../lib/capabilities";
 import { normalizeRole, type RawRole } from "../lib/roles";
 import { clearOrgSelectionRequired } from "../lib/orgSelection";
 import { getStored, removeStored, setStored } from "../lib/browserStorage";
+import { actingRoleHeader, setActingRoles } from "../lib/actingRole";
 
 // REQ-1297: dev/no-auth mirrors what the server grants an unsecured caller, and that is now
 // org_admin — the DATA-plane administrator — not platform_admin. The no-auth configs' single
@@ -107,6 +108,9 @@ interface AuthContextValue extends AuthState {
   // Re-run the identity bootstrap (fetchMe + roles/domains). REQ-1266: after self-service org
   // creation the new membership must be reflected without a full page reload.
   refresh: () => Promise<void>;
+  // REQ-1528: re-read the identity for the environment now selected, without the loading gate --
+  // roles and the owner's rights are per environment, so a switch changes what the caller holds.
+  rebind: () => Promise<void>;
   // REQ-1286: HTTP status of the last /auth/me failure (0 = the request never reached the server),
   // null when the identity resolved. The onboarding gate routes on this: 401/403 means the session
   // is not valid, anything else means the deployment is broken — two different screens.
@@ -164,6 +168,8 @@ export function AuthProvider({
   );
   const [wasSelectedOrgValid, setWasSelectedOrgValid] = useState(true);
   const [orgMemberships, setOrgMemberships] = useState<OrgMembership[]>([]);
+  // REQ-1528: what owning the environment being read confers, as the server reports it.
+  const [envCapabilities, setEnvCapabilities] = useState<Capability[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [identityErrorStatus, setIdentityErrorStatus] = useState<number | null>(null);
   const [email, setEmail] = useState<string | null>(null);
@@ -196,6 +202,7 @@ export function AuthProvider({
         setBilling(me.billing);
         setControlPlaneId(me.control_plane_id);
         userAssignments = me.assignments;
+        setEnvCapabilities(me.env_capabilities as Capability[]);
         setOrgMemberships(me.org_memberships);
         setUserId(me.user_id);
         setIdentityErrorStatus(null);
@@ -360,7 +367,12 @@ export function AuthProvider({
     () => (selectedRole === "all" ? availableRoles : [selectedRole as Role]),
     [selectedRole, availableRoles],
   );
-  const capabilities = useMemo(() => unionCapabilities(activeRoles), [activeRoles]);
+  const capabilities = useMemo(
+    () => [...new Set([...unionCapabilities(activeRoles), ...envCapabilities])],
+    [activeRoles, envCapabilities],
+  );
+  // Every request acts as the selected roles: the server reads rights from them, as these gates do.
+  useEffect(() => setActingRoles(actingRoleHeader(activeRoles)), [activeRoles]);
   const demonstrated = useMemo(
     () => unionDemonstrated(activeRoles, capabilities),
     [activeRoles, capabilities],
@@ -438,6 +450,7 @@ export function AuthProvider({
         orgMemberships,
         selectOrg,
         refresh,
+        rebind: bootstrap,
         identityErrorStatus,
         userId,
         email,

@@ -87,6 +87,17 @@ def stage_bundled_pg_extensions(pginstall: str | Path) -> Path:
             f"rebuild the package with build-pg-extensions.yml covering {platform}."
         )
 
+    return stage_pg_extension_bundle(src, pginstall)
+
+
+def stage_pg_extension_bundle(bundle: str | Path, pginstall: str | Path) -> Path:
+    """Copy one platform's bundle tree (``lib/<name>.<suf>``, ``share/extension/*`` and
+    ``manifest.json``: what scripts/ci/build_pg_extensions.sh writes to its ``OUT``) into a
+    pgserver ``pginstall`` (idempotent) and return the ``pkglibdir`` the modules landed in. Every
+    module must have its manifest row (its sha256): a staged module that differs is replaced."""
+    src = Path(bundle)
+    platform = bundle_platform()
+    modules = sorted((src / "lib").glob(f"*.{_module_suffix(platform)}"))
     base = Path(pginstall)
     pkglibdir = base / "lib" / "postgresql"
     extdir = base / "share" / "postgresql" / "extension"

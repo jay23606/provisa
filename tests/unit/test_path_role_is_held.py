@@ -38,7 +38,9 @@ def _request(*held: str, user_id: str | None = "u1", body: dict | None = None) -
     ``user_id=None`` is a router mounted without the middleware (no identity at all)."""
     state = types.SimpleNamespace()
     if user_id is not None:
-        state.identity = types.SimpleNamespace(user_id=user_id, roles=list(held))
+        state.identity = types.SimpleNamespace(
+            user_id=user_id, roles=list(held), acting_roles=list(held)
+        )
         state.assignments = [RoleAssignment(role_id=r, domain_id="*") for r in held]
 
     async def _json():
@@ -321,7 +323,9 @@ def test_a_remote_mcp_caller_may_name_only_a_role_it_holds():
     from provisa.api.mcp import server
 
     r1 = server._request_role.set(A)  # the role the bearer token maps to
-    r2 = server._request_identity.set(types.SimpleNamespace(user_id="u1", roles=[A, "role_c"]))
+    r2 = server._request_identity.set(
+        types.SimpleNamespace(user_id="u1", roles=[A, "role_c"], acting_roles=[A, "role_c"])
+    )
     try:
         assert server.named_role(A, None) == A
         assert server.named_role("role_c", None) == "role_c"  # another role the principal holds
@@ -337,7 +341,9 @@ def test_the_tokens_own_mapped_role_qualifies_even_when_no_claim_names_it():
 
     # A mapping rule can resolve a token to a role its roles claim does not list.
     r1 = server._request_role.set(A)
-    r2 = server._request_identity.set(types.SimpleNamespace(user_id="u1", roles=[]))
+    r2 = server._request_identity.set(
+        types.SimpleNamespace(user_id="u1", roles=[], acting_roles=[])
+    )
     try:
         assert server.named_role(A, None) == A
         with pytest.raises(PermissionError):
@@ -486,7 +492,9 @@ def test_a_remote_mcp_caller_names_a_set_of_held_roles(monkeypatch):
 
     monkeypatch.setattr(meta_role, "ensure_meta_role", lambda st, m: meta_role.meta_role_id(m))
     r1 = server._request_role.set(A)
-    r2 = server._request_identity.set(types.SimpleNamespace(user_id="u1", roles=["role_c"]))
+    r2 = server._request_identity.set(
+        types.SimpleNamespace(user_id="u1", roles=["role_c"], acting_roles=["role_c"])
+    )
     try:
         assert server.named_role(f"role_c,{A}", None) == meta_role.meta_role_id([A, "role_c"])
         with pytest.raises(PermissionError, match=f"'{B}' is not assigned"):

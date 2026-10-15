@@ -37,7 +37,6 @@ request naming nothing is served by, and refusing it would refuse every request.
 
 from __future__ import annotations
 
-import hashlib
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
@@ -46,6 +45,7 @@ from provisa.core.env_reaper import utcnow
 from provisa.core.environments import PROD, is_env_name
 
 if TYPE_CHECKING:
+    from provisa.auth.models import AuthIdentity
     from provisa.core.database import Database
 
 #: The header carrying the selection (REQ-1487). An environment is not a DNS label and not a path
@@ -146,32 +146,32 @@ async def resolve_selected_env(
     identity,
     requested: str | None,
     capabilities: set[str] | None,
-    *,
-    is_control_plane: bool,
 ) -> str:
-    """The environment ``org_id`` serves this request from (REQ-1602, REQ-1596).
+    """The environment ``org_id`` serves this request from (REQ-1596).
 
     Single source of truth for both the role read (:mod:`provisa.auth.middleware`) and the
     request binding (:class:`provisa.api.app._OrgRoutingMiddleware`) -- the two must agree or a
-    role granted in one environment is invisible to the request bound to another. Folds in the
-    sandbox ephemeral auto-select (REQ-1602: a sandbox visitor names no environment, so one is
-    derived from their user id) and the membership pin (REQ-1596) before deferring to
-    :func:`select_environment` for the existence/expiry/right checks.
+    role granted in one environment is invisible to the request bound to another. Reads the
+    membership pin (REQ-1596) and defers to :func:`select_environment` for the existence, expiry
+    and right checks.
 
-    ``is_control_plane`` is the PLATFORM-plane fact, decided by the caller and never re-derived
-    here (REQ-1618). It cannot be read off ``identity.roles``: those are claim STRINGS, so probing
-    them for a ``capabilities`` attribute answered "not control plane" for everyone, and it cannot
-    be read off ``capabilities`` either -- inside a tenant org the control-plane roles are stripped
-    from the acting set (REQ-1327), so the right is absent there by design. The result was that a
-    platform admin acting in sandbox was auto-selected into a visitor's ephemeral environment,
-    where they hold no assignment, and every capability gate then refused them in their own
-    deployment.
+    A SANDBOX VISITOR IS SERVED THEIR OWN ENVIRONMENT BECAUSE THEIR MEMBERSHIP IS PINNED TO IT
+    (redemption writes the pin), not because a name is derived from who they are. So a member of
+    the sandbox org with no pin -- its administrators, the platform's -- is served what they name,
+    and a visitor whose environment is gone or expired is refused like anybody else whose
+    environment is: there is no other environment a refusal could quietly become (REQ-1487).
     """
-    if org_id == "sandbox" and identity is not None and not is_control_plane:
-        user_id = getattr(identity, "user_id", None)
-        if user_id and user_id != "anonymous":
-            user_hash = hashlib.md5(user_id.encode(), usedforsecurity=False).hexdigest()[:8]
-            requested = f"ephemeral_{user_hash}"
+    # REQ-1503: a non-interactive credential addresses exactly one environment, and the
+    # environment comes FROM the credential. A header naming another is refused rather than
+    # resolved in favour of either, and naming none is served by the credential's own.
+    credential_env = getattr(identity, "credential_env", None)
+    if credential_env is not None:
+        if requested is not None and requested != credential_env:
+            raise EnvironmentRightError(
+                f"this credential addresses environment {credential_env!r} and cannot be served "
+                f"by {requested!r}"
+            )
+        return await _existing_env(admin_db, org_id, credential_env)
 
     pinned_env = None
     if identity is not None and admin_db is not None:
@@ -190,14 +190,30 @@ async def resolve_selected_env(
                 if row is not None:
                     pinned_env = row[0]
 
-    try:
-        return await select_environment(admin_db, org_id, requested, capabilities, pinned_env)
-    except EnvironmentSelectionError:
-        # REQ-1602: an ephemeral sandbox environment that does not exist yet (or expired) falls
-        # back to prod rather than 404ing a visitor mid-redemption.
-        if org_id == "sandbox" and requested and requested.startswith("ephemeral_"):
-            return PROD
-        raise
+    return await select_environment(admin_db, org_id, requested, capabilities, pinned_env)
+
+
+async def bind_owner_capabilities(
+    admin_db: "Database | None", org_id: str, env: str, identity: "AuthIdentity"
+) -> None:
+    """Settle what ``identity`` holds by OWNING ``env``, the environment being bound (REQ-1528).
+
+    Asked here because this is where the environment is bound: the grant is derived from
+    ``environments.created_by`` at authorization time, for this environment and no other, so every
+    capability gate behind the binding reads one answer. Set on every binding, so an owner who
+    moves to somebody else's environment leaves the grant behind.
+
+    prod is never asked about: the row provisioning writes has no creator, and its rights are the
+    org's own, held the ordinary way.
+    """
+    if env == PROD or admin_db is None or identity.user_id == "anonymous":
+        identity.env_capabilities = frozenset()
+        return
+    from provisa.core import env_authority
+
+    identity.env_capabilities = await env_authority.capabilities_within(
+        admin_db, org_id, env, identity.user_id
+    )
 
 
 async def _existing_env(admin_db: "Database | None", org_id: str, name: str) -> str:

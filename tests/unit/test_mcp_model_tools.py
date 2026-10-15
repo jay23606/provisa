@@ -121,7 +121,7 @@ def _use_db(monkeypatch, app_state, by_table: dict[str, list[dict]]) -> _Conn:
 
 
 def _request(role: str, org: str = "acme"):
-    identity = SimpleNamespace(user_id="u1", roles=[role])
+    identity = SimpleNamespace(user_id="u1", roles=[role], acting_roles=[role])
     return SimpleNamespace(state=SimpleNamespace(identity=identity, active_org_id=org, role=role))
 
 

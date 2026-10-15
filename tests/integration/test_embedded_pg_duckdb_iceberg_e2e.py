@@ -6,37 +6,38 @@
 
 """E2E: pg_duckdb reads an Apache Iceberg table IN PLACE inside a stock embedded PG (REQ-908).
 
-No docker. Provisions a pgserver embedded PG 16.2 with the pg_duckdb the product ships: the
-provisa-pg-ext wheel's bundle for this platform (darwin-arm64, linux-x64), staged the way the
-embedded tier stages it (stage_bundled_pg_extensions). That pg_duckdb is built (via vcpkg) to include
+No docker. Runs an embedded PG 16.2 from a private pginstall (tests/embedded_pg.py) with the
+pg_duckdb the product ships: the provisa-pg-ext wheel's bundle for this platform (darwin-arm64,
+linux-x64), staged the way the embedded tier stages it. That pg_duckdb is built (via vcpkg) to include
 the DuckDB iceberg extension — aws-sdk-cpp[sso,sts,identity-management] + avro-c + roaring are
 static-linked into libduckdb, so there is no extra runtime library. Generates a real Iceberg table
 with pyiceberg, then drives the REAL PgDuckdbIcebergConnector's iceberg_scan through a named-column
 view and asserts on rows.
-
-A platform the wheel ships no bundle for fails loudly (BundledPgExtensionsMissing), and so does a
-bundle whose pg_duckdb lacks iceberg — never a skip.
 """
 
 from __future__ import annotations
 
 import glob
 import shutil
-import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
-pytestmark = [pytest.mark.integration, pytest.mark.asyncio(loop_scope="session")]
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.local_platform,
+    pytest.mark.asyncio(loop_scope="session"),
+]
 
 asyncpg = pytest.importorskip("asyncpg")
-pgserver = pytest.importorskip("pgserver")
 pytest.importorskip("pyiceberg")
 pytest.importorskip("pyarrow")
 
+import psycopg  # noqa: E402
+
 from provisa.federation.connector_duckdb import PgDuckdbIcebergConnector  # noqa: E402
-from provisa.pg_extensions.staging import stage_bundled_pg_extensions  # noqa: E402
+from tests.embedded_pg import start_local_postgres  # noqa: E402
 
 
 def _make_iceberg_table(wh: Path) -> str:
@@ -63,18 +64,14 @@ def _make_iceberg_table(wh: Path) -> str:
 
 @pytest.fixture(scope="session")
 def embedded_pg_duckdb_iceberg():
-    stage_bundled_pg_extensions(Path(pgserver.__file__).parent / "pginstall")
-    base = tempfile.mkdtemp(prefix="provisa_iceberg_")
-    server = pgserver.get_server(base)
-    server.psql("ALTER SYSTEM SET shared_preload_libraries = 'pg_duckdb';")
-    server.cleanup()
-    server = pgserver.get_server(base)
-    server.psql("CREATE EXTENSION pg_duckdb;")
-    # The shipped pg_duckdb carries the iceberg extension; one without it is a packaging defect.
-    assert "iceberg_scan" in server.psql(
-        "SELECT proname FROM pg_proc WHERE proname = 'iceberg_scan'"
-    ), "the bundled pg_duckdb has no iceberg_scan: it was built without the iceberg extension"
-    yield server
+    pg = start_local_postgres(preload=("pg_duckdb",), fdws=True)
+    with psycopg.connect(pg.dsn(), autocommit=True) as c:
+        c.execute("CREATE EXTENSION pg_duckdb")
+        # The platform's pg_duckdb is built with the iceberg extension (scripts/build_pg_duckdb.sh).
+        found = c.execute("SELECT 1 FROM pg_proc WHERE proname = 'iceberg_scan'").fetchall()
+    assert found, "the platform's pg_duckdb lacks iceberg_scan"
+    yield pg
+    pg.stop()
 
 
 def _view_ddl(scan: str, schema: str, table: str, cols: list[tuple[str, str]]) -> str:
@@ -88,7 +85,7 @@ async def test_pg_duckdb_iceberg_connector_reads_in_place(embedded_pg_duckdb_ice
     scan = PgDuckdbIcebergConnector().details(SimpleNamespace(id="ord", path=root))["scan"]
     assert "iceberg_scan(" in scan and "allow_moved_paths" in scan  # the connector emits the reader
 
-    conn = await asyncpg.connect(dsn=embedded_pg_duckdb_iceberg.get_uri())
+    conn = await asyncpg.connect(dsn=embedded_pg_duckdb_iceberg.dsn())
     try:
         await conn.execute("CREATE SCHEMA IF NOT EXISTS e2e_ice")
         await conn.execute(

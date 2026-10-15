@@ -167,6 +167,32 @@ def _batch(columns: list[tuple[str, str]], rows: list[tuple]) -> Any:
     return pa.RecordBatch.from_pydict(arrays)
 
 
+def _within_tables(session: TempSession, name: str) -> None:
+    """A new table past ``temp_tables.max_per_session`` is refused by name (REQ-1926)."""
+    from provisa.core import settings_registry
+
+    limit = int(settings_registry.value("temp_tables.max_per_session"))
+    if len(session.tables) >= limit:
+        raise ValueError(
+            f"temporary table {name!r}: this session holds {len(session.tables)} temporary "
+            f"table(s), the most one may hold (temp_tables.max_per_session = {limit}); drop one "
+            f"first"
+        )
+
+
+def _within_rows(name: str, rows: int) -> None:
+    """A table that would hold more than ``temp_tables.max_rows`` is refused, not cut (REQ-1926):
+    a temporary table is a real table of the store that a role with no write right may fill."""
+    from provisa.core import settings_registry
+
+    limit = int(settings_registry.value("temp_tables.max_rows"))
+    if rows > limit:
+        raise ValueError(
+            f"temporary table {name!r} would hold {rows} rows, more than one may "
+            f"(temp_tables.max_rows = {limit})"
+        )
+
+
 async def _land(state: Any, session: TempSession, name: str, batch: Any, columns: list) -> None:
     from provisa.federation.data_replicator import data_replicator
     from provisa.federation.replica_address import ReplicaAddress
@@ -189,6 +215,12 @@ async def _land(state: Any, session: TempSession, name: str, batch: Any, columns
     async def progress(rows: int) -> None:
         del rows  # a session's own table reports nothing
 
+    if not session.stored:
+        # Recorded before anything is written, so a schema the store holds is one the keeper
+        # can drop when the session is gone without ending (provisa.pgwire.temp_keeper).
+        from provisa.pgwire.temp_keeper import note_stored
+
+        await note_stored(state, session, _schema(session))
     await data_replicator(_LandedRows(batch), target, party, batch_rows=BATCH_ROWS).run(progress)
     session.stored = True
 
@@ -211,6 +243,7 @@ async def apply(
         session.generation += 1
         return QueryResult(rows=[], column_names=[], rowcount=0)
     if action.kind == "create":
+        _within_tables(session, name)
         if action.columns is not None:
             columns = [(c, landed_type(c, declared)) for c, declared in action.columns]
             rows: list[tuple] = []
@@ -220,6 +253,7 @@ async def apply(
                 (c, inferred_type(c, [r[i] for r in rows]))
                 for i, c in enumerate(result.column_names)
             ]
+        _within_rows(name, len(rows))
         await _land(state, session, name, _batch(columns, rows), columns)
         session.tables[name] = TempTable(name, columns)
         session.generation += 1
@@ -240,6 +274,7 @@ async def apply(
             tuple(r[position[c]] if c in position else None for c, _ in table.columns)
             for r in result.rows
         ]
+        _within_rows(name, len(held) + len(added))
         await _land(state, session, name, _batch(table.columns, [*held, *added]), table.columns)
         return QueryResult(rows=[], column_names=[], rowcount=len(added))
     assert action.kind == "rewrite" and action.rewrite is not None
@@ -247,6 +282,7 @@ async def apply(
     _, after = await asyncio.to_thread(
         _system_rows, state, action.rewrite.format(table=f"{at} AS {_quoted(name)}"), name
     )
+    _within_rows(name, len(after))
     await _land(state, session, name, _batch(table.columns, after), table.columns)
     # A DELETE removes the rows that are gone; an UPDATE keeps every row, changed or not.
     return QueryResult(rows=[], column_names=[], rowcount=len(before) - len(after))
@@ -256,7 +292,10 @@ async def end(session: TempSession, state: Any) -> None:
     """The session is over: its temporary tables go with it."""
     if session.stored:
         from provisa.federation.store_scope import drop_temp_schema
+        from provisa.pgwire.temp_keeper import note_ended
 
-        await drop_temp_schema(state.federation_engine.engine.materialize_store(), _schema(session))
+        schema = _schema(session)
+        await drop_temp_schema(state.federation_engine.engine.materialize_store(), schema)
+        await note_ended(state, session, schema)
     session.tables.clear()
     session.stored = False

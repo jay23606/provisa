@@ -186,3 +186,101 @@ class TestWhatARefusedPullSays:
             await er.pull_environment(_Request(), ORG, "dev")
         assert raised.value.params["base"] == "base123"
         assert diverged["collisions"] == (ORG, "dev", "base123", "b" * 40)
+
+
+class TestAPullLandsOnTheCommitItApplied:
+    """REQ-1547: a pull applies the fetched commit, and the branch moves onto it. Without that the
+    tip never moves, the answer still reads "behind", and a second pull applies the same commit
+    again."""
+
+    @pytest.fixture
+    def behind(self, repo, monkeypatch):
+        from provisa.api.admin import orgs_router
+        from provisa.core import env_files, env_store
+
+        landed: list[tuple] = []
+
+        async def _guard_within(request, org_id, name):
+            return "uid-admin"
+
+        async def _known(org_id, name):
+            return None
+
+        async def _remote_of(org_id):
+            return "https://git.example/acme.git"
+
+        @asynccontextmanager
+        async def _bound(_admin_db, _org_id, *, user_id=None):
+            yield
+
+        class _Delta:
+            touches_connectivity = False
+
+        class _Report:
+            delta = _Delta()
+
+            def as_dict(self):
+                return {}
+
+        async def deploy_tree(db, org_id, name, tree, *, ref, base_sha):
+            return _Report()
+
+        async def set_position(*args, **kwargs):
+            return None
+
+        async def _land(org_id, name, sha, actor):
+            landed.append((name, sha, actor))
+            return sha
+
+        async def _audit(*args, **kwargs):
+            return None
+
+        async def _refresh(org_id, env, *, connectivity):
+            return "uncached"
+
+        async def _org_model_db(org_id):
+            return "model-db"
+
+        async def _member_count(org_id):
+            return 1
+
+        async def is_protected(admin_db, org_id, name, member_count):
+            return False  # REQ-1504: a protected environment is proposed to instead
+
+        from provisa.core import env_approvals
+
+        monkeypatch.setattr(er, "_member_count", _member_count)
+        monkeypatch.setattr(env_approvals, "is_protected", is_protected)
+        monkeypatch.setattr(secrets_store, "bound", _bound)
+        monkeypatch.setattr(er, "_guard_within", _guard_within)
+        monkeypatch.setattr(er, "_known", _known)
+        monkeypatch.setattr(er, "_remote_of", _remote_of)
+        monkeypatch.setattr(er, "deploy_tree", deploy_tree)
+        monkeypatch.setattr(er, "_land", _land)
+        monkeypatch.setattr(er, "_audit", _audit)
+        monkeypatch.setattr(er, "_refresh", _refresh)
+        monkeypatch.setattr(er, "_admin_pool", lambda: "admin-db")
+        monkeypatch.setattr(orgs_router, "_org_model_db", _org_model_db)
+        monkeypatch.setattr(env_store, "set_position", set_position)
+        monkeypatch.setattr(env_files, "load", lambda files: files)
+        monkeypatch.setattr(env_ci, "fetch", lambda org_id, remote: None)
+        monkeypatch.setattr(env_repo, "files_at", lambda org_id, sha: {})
+        monkeypatch.setattr(env_repo, "merge_base", lambda org_id, a, b: "a" * 40)
+        monkeypatch.setattr(
+            env_repo,
+            "sync_state",
+            lambda org_id, env: {
+                "local": "a" * 40,
+                "remote": "b" * 40,
+                "ahead": 0,
+                "behind": 1,
+                "diverged": False,
+                "unsynced": False,
+            },
+        )
+        return landed
+
+    async def test_the_branch_moves_onto_the_fetched_commit(self, behind):
+        out = await er.pull_environment(_Request(), ORG, "dev")
+        assert out["applied"] is True
+        assert behind == [("dev", "b" * 40, "uid-admin")]

@@ -793,6 +793,16 @@
         "label": "Clave de IA del sandbox",
         "help": "Una referencia ${secret:NAME} a la clave del endpoint, guardada en la organización de este despliegue; la usa cada sandbox. Sin definir: sin IA en los sandboxes."
       }
+    },
+    "temp_tables": {
+      "max_per_session": {
+        "label": "Tablas temporales por sesión",
+        "help": "El máximo de tablas temporales que una sesión (una conexión pgwire o una solicitud SQL) puede tener a la vez. Una tabla más se rechaza; elimine una primero. 0 no permite ninguna."
+      },
+      "max_rows": {
+        "label": "Filas por tabla temporal",
+        "help": "El máximo de filas que puede contener una tabla temporal. Una tabla temporal es una tabla real en el almacén del motor que un rol sin derecho de escritura puede llenar, por eso está limitada. Una tabla que superaría el límite se rechaza; no se recorta nada."
+      }
     }
   }
 }

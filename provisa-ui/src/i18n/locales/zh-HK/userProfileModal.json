@@ -42,6 +42,8 @@
     "deleteAccountHeading": "刪除帳戶",
     "deleteAccountHelp": "此操作會移除您的 Provisa 帳戶及您在所有機構的成員資格。您所屬的機構及其中註冊的一切均會保留。",
     "deleteAccountConfirmLabel": "輸入 {{userId}} 以確認",
-    "deleteAccountButton": "刪除我的帳戶"
+    "deleteAccountButton": "刪除我的帳戶",
+    "patEnvironment": "環境",
+    "patEnvironmentHelp": "權杖只在一個環境中有效：即簽發時您正在檢視的環境。新權杖將在 {{env}} 中有效。"
   }
 }

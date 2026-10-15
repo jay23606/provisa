@@ -531,6 +531,33 @@ def strip_catalog(sql: str) -> str:  # REQ-863
     return tree.sql(dialect="postgres")
 
 
+def unalias_write_target(sql: str) -> str:  # REQ-910
+    """A write's target without the alias the pipeline names it by, where that alias is just the
+    table's own name: ``INSERT INTO "c"."s"."t" AS "t" (...)`` -> ``INSERT INTO "c"."s"."t" (...)``.
+
+    PostgreSQL takes a target alias, so the DIRECT route keeps it. An engine's write grammar
+    (Trino's INSERT) has none, and a statement routed to the engine is refused as a syntax error
+    with it. Dropping an alias equal to the table name leaves every reference valid, since a
+    column qualified by the table name still names the target. A read is returned unchanged."""
+    import sqlglot
+    import sqlglot.expressions as exp
+
+    tree = sqlglot.parse_one(sql, read="postgres")
+    if not isinstance(tree, (exp.Insert, exp.Update, exp.Delete)):
+        return sql
+    target = tree.this.this if isinstance(tree.this, exp.Schema) else tree.this
+    if not isinstance(target, exp.Table) or target.alias != target.name:
+        return sql
+    alias = target.args["alias"]
+    # PostgreSQL's ``t AS t (a, b)`` parses as an alias that carries the column list; the list is
+    # the INSERT's own, so it stays on the target.
+    columns = list(alias.args.get("columns") or [])
+    target.set("alias", None)
+    if columns and isinstance(tree, exp.Insert) and not isinstance(tree.this, exp.Schema):
+        tree.set("this", exp.Schema(this=target, expressions=columns))
+    return tree.sql(dialect="postgres")
+
+
 def fold_catalog_into_schema(sql: str) -> str:  # REQ-1730
     """Merge the catalog segment into the schema name: "cat"."schema"."table" -> "cat_schema".
     "table" — for an engine whose SQL dialect cannot express a catalog-qualified reference at all

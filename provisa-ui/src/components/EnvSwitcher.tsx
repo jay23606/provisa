@@ -47,7 +47,7 @@ const DEFAULT_ENV = "prod";
  */
 export function EnvSwitcher() {
   const { t } = useTranslation();
-  const { activeOrgId, loading, orgMemberships } = useAuth();
+  const { activeOrgId, loading, orgMemberships, rebind } = useAuth();
   // REQ-1573: being served by an environment other than prod is its own right. An analyst holds
   // neither it nor `environment_management`, and the server answers 403 `env.switch_forbidden` to a
   // request naming one — so the menu that names them is not shown to a caller who cannot be served.
@@ -161,6 +161,8 @@ export function EnvSwitcher() {
     if (name === DEFAULT_ENV) removeStored(ENV_STORAGE_KEY, { global: true });
     else setStored(ENV_STORAGE_KEY, name, { global: true });
     await modelReplaced();
+    // REQ-1528: what the caller may do is per environment, so it is re-read with the model.
+    await rebind();
     notifications.show({ color: "green", message: t("envSwitcher.switched", { env: name }) });
   }
 
@@ -203,6 +205,18 @@ export function EnvSwitcher() {
       const answer = back
         ? await undoEnvironment(orgId, active)
         : await redoEnvironment(orgId, active);
+      if ("requires_approval" in answer) {
+        // REQ-1504: a protected environment is proposed to. Nothing was applied, so the model on
+        // screen is still this environment's and the store is left alone.
+        notifications.show({
+          color: "blue",
+          message: t("envSwitcher.proposed", {
+            env: active,
+            sha: (answer.request.source_sha ?? "").slice(0, 7),
+          }),
+        });
+        return;
+      }
       notifications.show({
         color: "green",
         message: t(back ? "envSwitcher.undone" : "envSwitcher.redone", {

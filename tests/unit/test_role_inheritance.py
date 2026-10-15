@@ -91,6 +91,15 @@ class TestFlattenDicts:
         roles = [_role("p", rate_limit={"rps": 5}), _role("c", parent="p", rate_limit={"rps": 1})]
         assert flatten_role_dicts(roles)[1]["rate_limit"] == {"rps": 1}
 
+    def test_max_rows_inherited_when_unset(self):
+        roles = [{**_role("p"), "max_rows": 100}, {**_role("c", parent="p"), "max_rows": None}]
+        assert flatten_role_dicts(roles)[1]["max_rows"] == 100
+
+    def test_own_max_rows_wins_even_above_the_parent(self):
+        # A property is set by the nearest role that declares it; a child may raise it.
+        roles = [{**_role("p"), "max_rows": 100}, {**_role("c", parent="p"), "max_rows": 1000}]
+        assert flatten_role_dicts(roles)[1]["max_rows"] == 1000
+
     def test_input_unmodified(self):
         flatten_role_dicts(ROLES)
         assert ROLES[2]["capabilities"] == []

@@ -12,16 +12,14 @@ pg_duckdb, against MotherDuck itself.
 
 pg_duckdb exposes MotherDuck tables through its sync worker, which creates each as a table in a
 schema of its own naming some seconds after the engine is signed in -- not by importing a foreign
-schema. The engine is a pgserver Postgres with pg_duckdb staged into it, as the embedded tier does
-(test_embedded_pg_duckdb_engine_e2e). Read-only: MotherDuck's sample_data database, which every
+schema. The engine is an embedded Postgres from a private pginstall with the product's pg_duckdb
+staged into it, as the embedded tier does (tests/embedded_pg.py; test_embedded_pg_duckdb_engine_e2e). Read-only: MotherDuck's sample_data database, which every
 account holds; nothing is written to the account. Needs MOTHERDUCK_API_TOKEN (tests/env_creds
 loads it locally; the warehouse lane's secret in CI)."""
 
 from __future__ import annotations
 
 import os
-import tempfile
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -30,24 +28,20 @@ from provisa.core.models import SourceType
 
 pytestmark = [pytest.mark.integration, pytest.mark.requires_warehouse]
 
-pgserver = pytest.importorskip("pgserver")
-
 
 @pytest.fixture(scope="module")
 def engine_dsn():
-    from provisa.pg_extensions.staging import stage_bundled_pg_extensions
+    import psycopg
 
-    stage_bundled_pg_extensions(Path(pgserver.__file__).parent / "pginstall")
-    base = tempfile.mkdtemp(prefix="provisa_pgduckdb_md_")
-    server = pgserver.get_server(base)
-    server.psql("ALTER SYSTEM SET shared_preload_libraries = 'pg_duckdb';")
-    server.cleanup()  # a restart picks up the preload
-    server = pgserver.get_server(base)
-    server.psql("CREATE EXTENSION pg_duckdb;")
+    from tests.embedded_pg import start_local_postgres
+
+    pg = start_local_postgres(preload=("pg_duckdb",), fdws=True)
     try:
-        yield server.get_uri()
+        with psycopg.connect(pg.dsn(), autocommit=True) as conn:
+            conn.execute("CREATE EXTENSION pg_duckdb")
+        yield pg.dsn()
     finally:
-        server.cleanup()
+        pg.stop()
 
 
 @pytest.fixture

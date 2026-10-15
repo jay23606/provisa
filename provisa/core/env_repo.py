@@ -215,7 +215,12 @@ def start_branch(repo: Repo, env: str, from_env: str) -> str | None:
 
 
 def commit_files(
-    repo: Repo, env: str, files: dict[str, str], message: str, actor: str | None
+    repo: Repo,
+    env: str,
+    files: dict[str, str],
+    message: str,
+    actor: str | None,
+    onto: str | None = None,
 ) -> str | None:
     """Commit ``files`` as the whole content of ``env``'s branch. ``None`` when nothing changed.
 
@@ -226,11 +231,29 @@ def commit_files(
     An unchanged tree makes NO commit. A change that the projection does not express -- editing a
     binding, which REQ-1489 excludes -- would otherwise write an empty commit to every environment
     every time, and a history of them is a history nobody can read.
+
+    ``onto`` names a commit that came from ELSEWHERE and that the model was just made from -- the
+    fetched commit a pull applied (REQ-1547). The branch then lands on it: when the files are that
+    commit's own tree the branch simply moves onto it and it is returned, and when they differ
+    (what a load never applies stays as this environment had it) they are committed on top of it.
+    Either way the branch now CONTAINS that commit, so the two lines are reconciled rather than
+    left diverged by the act that reconciled them. Refused unless the branch is behind it: moving
+    a branch onto a commit that is not ahead of it would drop the commits it holds.
     """
     tree_id = _build_tree(repo, files)
     ref = _branch_ref(env)
     parents: list[ObjectID] = []
     head = repo.refs.read_ref(ref)
+    if onto is not None:
+        target = ObjectID(onto.encode())
+        if head is not None and not _is_ancestor(repo, ObjectID(head), target):
+            raise RepositoryError(
+                f"{env!r} holds commits {onto[:12]} does not: the two lines have diverged"
+            )
+        if _object(repo, target, Commit).tree == tree_id:
+            repo.refs[ref] = target
+            return onto
+        head = target
     if head is not None:
         parent = _object(repo, ObjectID(head), Commit)
         if parent.tree == tree_id:
@@ -250,6 +273,36 @@ def commit_files(
     return commit.id.decode()
 
 
+def _is_ancestor(repo: Repo, ancestor: ObjectID, sha: ObjectID) -> bool:
+    """Whether ``ancestor`` is ``sha`` or is behind it along first parents -- the line a branch is
+    written along, which is the only line a fast-forward moves on."""
+    walk: ObjectID | None = sha
+    while walk is not None:
+        if walk == ancestor:
+            return True
+        parents = _object(repo, walk, Commit).parents
+        walk = parents[0] if parents else None
+    return False
+
+
+def mark_pushed(org_id: str, env: str, sha: str) -> None:
+    """Record that the remote now holds ``sha`` on ``env``, so the status stops saying unsynced.
+
+    A push that returned is a push the remote accepted, so the tracking ref is written from what we
+    sent rather than from a second round trip. Outside a fetch this is the one writer of a tracking
+    ref, and it never touches ``refs/heads``: what the remote holds and what an environment holds
+    stay separate namespaces (REQ-1541, REQ-1546).
+    """
+    ensure_repo(org_id).refs[remote_ref(env)] = ObjectID(sha.encode())
+
+
+def forget_pushed(org_id: str, env: str) -> None:
+    """Drop the tracking ref for a branch that is gone from the remote, so no status claims it."""
+    repo = ensure_repo(org_id)
+    if repo.refs.read_ref(remote_ref(env)) is not None:
+        del repo.refs[remote_ref(env)]
+
+
 async def write_through(
     conn: "Connection",
     admin_db: "Database",
@@ -258,8 +311,11 @@ async def write_through(
     schema: str,
     message: str,
     actor: str | None,
+    onto: str | None = None,
 ) -> str | None:
     """Project ``schema`` into ``env``'s branch and commit it. Never raises.
+
+    ``onto``: the fetched commit the model was just made from (see :func:`commit_files`).
 
     THE RETURN IS THE SHA, and ``None`` means either nothing changed or the projection did not land
     -- the caller cannot act differently on those two anyway, because neither is a reason to undo the
@@ -284,7 +340,7 @@ async def write_through(
         files = dump(await project(conn, schema))
         exact_stamp = before if await model_stamp(conn, schema) == before else None
         repo = ensure_repo(org_id)
-        sha = commit_files(repo, env, files, message, actor)
+        sha = commit_files(repo, env, files, message, actor, onto)
     except Exception:  # noqa: BLE001 — REQ-1524: the projection never fails the change it observes
         import logging
 

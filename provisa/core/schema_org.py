@@ -1586,6 +1586,19 @@ replica_state = Table(
     ),
 )
 
+# REQ-1926: STATE, not model -- the store schema each session holds its temporary tables in,
+# with the last time the worker that owns the session said it is alive. It is how a worker finds
+# the schemas a session that is gone left behind (its worker was killed, the store was
+# unreachable as it closed), and drops them. Read and written only by
+# ``provisa.pgwire.temp_keeper``; never copied to another environment (``env_classes``).
+session_temp_schemas = Table(
+    "session_temp_schemas",
+    metadata,
+    Column("store_schema", Text, primary_key=True),
+    Column("session_id", Text, nullable=False),
+    Column("beat_at", DateTime(timezone=True), nullable=False),
+)
+
 # The replica builds that ended: one row a build that completed or failed, appended as its
 # replica_state record is written. Bounded per replica: its last REPLICA_BUILD_LOG_KEEP builds
 # (federation/replica_state.py), pruned as each is written. V1: schema-defined, no migration.

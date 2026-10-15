@@ -92,7 +92,9 @@ DATA_RIGHTS = [
 
 
 def _request(*role_ids: str, user_id: str = "u1", org: str = ROOT_ORG) -> Any:
-    identity = types.SimpleNamespace(user_id=user_id, roles=list(role_ids))
+    identity = types.SimpleNamespace(
+        user_id=user_id, roles=list(role_ids), acting_roles=list(role_ids)
+    )
     return types.SimpleNamespace(state=types.SimpleNamespace(identity=identity, active_org_id=org))
 
 

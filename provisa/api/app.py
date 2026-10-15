@@ -234,6 +234,7 @@ class AppState:
     hot_manager: HotTableManager | None = None
     _hot_refresh_task: LongLived | None = None
     _replica_hot_task: LongLived | None = None  # REQ-826: the Hot promotion evaluation
+    _temp_keeper_task: LongLived | None = None  # REQ-1926: the keeper of sessions' temp tables
     # Readiness (REQ /ready): False until the boot warmup probe has primed the lazy per-request paths
     # (materialize-store attach + a warm engine terminal). /ready returns 503 while this is False so a
     # launcher/orchestrator holds traffic — and the browser open — until the first interaction is warm.
@@ -3282,6 +3283,8 @@ async def lifespan(_app: FastAPI):  # pyright: ignore[reportUnusedParameter, rep
     # Stop the Hot promotion evaluation (REQ-826)
     if state._replica_hot_task:
         await _stop_long_lived(state._replica_hot_task)
+    if state._temp_keeper_task:
+        await _stop_long_lived(state._temp_keeper_task)
     if state.hot_manager is not None:
         from provisa.cache.hot_tables import HotTableManager
 
@@ -3769,7 +3772,7 @@ def create_app() -> FastAPI:
             from provisa.auth.middleware import org_env_capabilities
 
             env_caps = await org_env_capabilities(identity, env_org)
-            # REQ-1602/REQ-1596: sandbox ephemeral auto-select and the membership pin both live in
+            # REQ-1596: the membership pin lives in
             # resolve_selected_env, shared with AuthMiddleware's role read (provisa.auth.middleware)
             # so the two always agree on which environment's schema a request is served from.
             from provisa.api.env_routing import resolve_selected_env
@@ -3781,11 +3784,6 @@ def create_app() -> FastAPI:
                     identity,
                     requested_env,
                     env_caps,
-                    # REQ-1618: AuthMiddleware settles this on the platform plane and publishes it
-                    # here; it is not derivable from ``env_caps``, which inside a tenant org has
-                    # already had the control-plane roles stripped out of it (REQ-1327). Absent for
-                    # a request that resolved no identity at all, which is not the control plane.
-                    is_control_plane=bool(request_state.get("can_cross_org")),
                 )
                 _log.info(f"resolve_selected_env returned: {selected_env}")
             except EnvironmentSelectionError as exc:
@@ -3806,6 +3804,14 @@ def create_app() -> FastAPI:
                     status_code=403,
                 )(scope, receive, send)
                 return
+
+            # REQ-1528: the environment is settled, so what owning it confers is settled with it.
+            from provisa.auth.models import AuthIdentity
+
+            if isinstance(identity, AuthIdentity):
+                from provisa.api.env_routing import bind_owner_capabilities
+
+                await bind_owner_capabilities(state.admin_db, env_org, selected_env, identity)
 
             # Keep existing tenant cache-key call sites (which read request.state.tenant_id)
             # pointed at the same id space as the org router.

@@ -452,9 +452,12 @@ Each step has:
 | `role` | role name (or `all`) | SQL explorer's run-as picker |
 | `polly` | a natural-language question | Polly panel |
 
-A `polly` step is answered once when the demo's template is built; what the sandbox shows is
-that stored answer. Nothing is asked live. The question must be one of the Polly bake-off's
-graded questions (`tests/integration/polly_bakeoff_questions.py`). A demo with no stored answer
+A `polly` step is answered once when the demo's bundle is built (Polly asked through OpenRouter on
+the sandbox's model, `OPENROUTER_API_KEY` given to the build; the answers are stored beside the
+tour as `tour_answers.json`); what the sandbox shows is
+that stored answer. Nothing is asked live. The question must be one of the demo's own graded
+bake-off questions: `QUESTIONS["<demo>"]` in `tests/integration/polly_bakeoff_questions.py`, each
+with the SQL over the demo's tables whose rows are its right answers. A demo with no stored answer
 leaves the step out.
 
 ### Track

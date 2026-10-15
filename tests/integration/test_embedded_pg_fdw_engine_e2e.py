@@ -6,10 +6,9 @@
 
 """E2E: the Postgres FDW connectors work on a STOCK embedded PG once core-contrib FDWs are installed.
 
-No docker. Provisions a pgserver embedded PG 16.2, installs file_fdw + postgres_fdw built from PG
-source (cached under ~/.cache/provisa-fdw; the route proven by scripts/prove_embedded_fdw.sh), then
-drives the REAL connectors — FileFdwConnector and PostgresFdwConnector — and the REAL compiler pipeline
-(compile -> apply_governance -> rewrite_semantic_to_physical -> transpile("postgres")) against the
+No docker. Runs the embedded PG 16.2 from the test platform's private pginstall, with the
+provisa-pg-ext bundle's FDW set staged (tests/embedded_pg.py), then drives the REAL connectors — FileFdwConnector and
+PostgresFdwConnector — and the REAL compiler pipeline (compile -> apply_governance -> rewrite_semantic_to_physical -> transpile("postgres")) against the
 FDW-attached demo sources, asserting on returned rows:
 
   - customers  <- customers.csv        attached via FileFdwConnector (file_fdw)
@@ -22,21 +21,18 @@ connectors themselves function on the embedded engine. REQ-893.
 from __future__ import annotations
 
 import json
-import os
-import shutil
-import subprocess
-import sys
-import tempfile
 from pathlib import Path
 from types import SimpleNamespace
-from urllib.parse import parse_qs, urlparse
 
 import pytest
 
-pytestmark = [pytest.mark.integration, pytest.mark.asyncio(loop_scope="session")]
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.local_platform,
+    pytest.mark.asyncio(loop_scope="session"),
+]
 
 asyncpg = pytest.importorskip("asyncpg")
-pgserver = pytest.importorskip("pgserver")
 
 from provisa.compiler.introspect import ColumnMetadata  # noqa: E402
 from provisa.compiler.parser import parse_query  # noqa: E402
@@ -48,13 +44,11 @@ from provisa.compiler.sql_rewrite import rewrite_semantic_to_physical  # noqa: E
 from provisa.compiler.stage2 import apply_governance, build_governance_context  # noqa: E402
 from provisa.federation.connector_duckdb import FileFdwConnector, PostgresFdwConnector  # noqa: E402
 from provisa.transpiler.transpile import transpile  # noqa: E402
+from tests.embedded_pg import DATABASE, ROLE, LocalPostgres, start_local_postgres  # noqa: E402
 from tests.helpers import ALL_DATA_CAPABILITIES  # noqa: E402
 
 _FILES = Path(__file__).parent.parent.parent / "demo" / "files"
 _ADMIN = {"id": "admin", "capabilities": ALL_DATA_CAPABILITIES, "domain_access": ["*"]}
-_PG_VERSION = "16.2"  # must match the embedded PG major; minor is ABI-compatible within 16
-_FDWS = ("file_fdw", "postgres_fdw")  # core contrib — no external deps
-_CACHE = Path(os.environ.get("PROVISA_FDW_CACHE", Path.home() / ".cache" / "provisa-fdw"))
 
 # All CSV columns in file order (file_fdw is positional — the foreign table must list every column).
 _CSV_COLS = [
@@ -63,81 +57,16 @@ _CSV_COLS = [
 ]  # fmt: skip
 
 
-def _have_build_tools() -> bool:
-    tools = all(shutil.which(t) for t in ("cc", "make", "tar"))
-    fetch = shutil.which("curl") or shutil.which("wget")
-    return bool(tools and fetch)
-
-
-def _build_fdw_artifacts() -> Path:
-    """Build core-contrib FDWs from PG source once (cached, restart-safe); return the prefix dir."""
-    prefix = _CACHE / f"pg{_PG_VERSION.replace('.', '')}"
-    if (prefix / "bin" / "pg_config").exists():
-        return prefix
-    _CACHE.mkdir(parents=True, exist_ok=True)
-    src = _CACHE / f"postgresql-{_PG_VERSION}"
-    if not src.exists():
-        tarball = _CACHE / f"postgresql-{_PG_VERSION}.tar.bz2"
-        url = (
-            f"https://ftp.postgresql.org/pub/source/v{_PG_VERSION}/postgresql-{_PG_VERSION}.tar.bz2"
-        )
-        if shutil.which("curl"):
-            subprocess.run(["curl", "-fsSL", "-o", str(tarball), url], check=True)
-        else:
-            subprocess.run(["wget", "-qO", str(tarball), url], check=True)
-        subprocess.run(["tar", "xj", "-C", str(_CACHE), "-f", str(tarball)], check=True)
-    log = open(_CACHE / "build.log", "w")
-    run = lambda cmd, cwd=src: subprocess.run(cmd, cwd=cwd, check=True, stdout=log, stderr=log)  # noqa: E731
-    run(["./configure", "--without-icu", "--without-readline", "--without-zlib",
-         "--without-gssapi", f"--prefix={prefix}"])  # fmt: skip
-    run(["make", f"-j{os.cpu_count() or 2}"])
-    run(["make", "install"])
-    for fdw in _FDWS:
-        run(["make", "-C", f"contrib/{fdw}", "install"])
-    log.close()
-    return prefix
-
-
-def _install_fdws_into_pgserver() -> None:
-    """Copy built FDW artifacts into the pgserver install, matching the server's DLSUFFIX."""
-    prefix = _build_fdw_artifacts()
-    pgc = str(prefix / "bin" / "pg_config")
-    src_lib = Path(subprocess.check_output([pgc, "--pkglibdir"]).decode().strip())
-    src_ext = Path(subprocess.check_output([pgc, "--sharedir"]).decode().strip()) / "extension"
-    pginstall = Path(pgserver.__file__).parent / "pginstall"
-    dst_lib = pginstall / "lib" / "postgresql"
-    dst_ext = pginstall / "share" / "postgresql" / "extension"
-    suffix = "dylib" if (dst_lib / "plpgsql.dylib").exists() else "so"
-    for fdw in _FDWS:
-        built = src_lib / f"{fdw}.dylib"
-        if not built.exists():
-            built = src_lib / f"{fdw}.so"
-        shutil.copy(built, dst_lib / f"{fdw}.{suffix}")  # rename to the server's expected suffix
-        shutil.copy(src_ext / f"{fdw}.control", dst_ext / f"{fdw}.control")
-        for sql in src_ext.glob(f"{fdw}--*.sql"):
-            shutil.copy(sql, dst_ext / sql.name)
-
-
 @pytest.fixture(scope="session")
 def embedded_pg_with_fdw():
-    if sys.platform not in ("darwin", "linux") or not _have_build_tools():
-        pytest.skip("needs a C toolchain (cc/make/tar + curl/wget) to build the contrib FDWs")
-    base = tempfile.mkdtemp(prefix="provisa_embedded_fdw_")
-    server = pgserver.get_server(base)
-    _install_fdws_into_pgserver()
-    yield server
+    pg = start_local_postgres(fdws=True)
+    yield pg
+    pg.stop()
 
 
-def _loopback_source_params(server) -> dict:
-    """host/port/dbname/user for postgres_fdw to reach this same embedded PG (unix socket)."""
-    u = urlparse(server.get_uri())
-    q = parse_qs(u.query)
-    return {
-        "host": q["host"][0] if "host" in q else (u.hostname or "localhost"),
-        "port": u.port or 5432,
-        "database": (u.path.lstrip("/") or "postgres"),
-        "username": u.username or "postgres",
-    }
+def _loopback_source_params(pg: LocalPostgres) -> dict:
+    """host/port/dbname/user for postgres_fdw to reach this same embedded PG."""
+    return {"host": "127.0.0.1", "port": pg.port, "database": DATABASE, "username": ROLE}
 
 
 def _col(n: str, d: str = "varchar", nl: bool = True) -> ColumnMetadata:
@@ -213,7 +142,7 @@ def _compile(si: SchemaInput, gql: str, rls: RLSContext) -> str:
 async def test_embedded_pg_fdw_connectors_federate(embedded_pg_with_fdw):
     """FileFdwConnector + PostgresFdwConnector DDL, executed verbatim on the embedded PG, federate."""
     server = embedded_pg_with_fdw
-    conn = await asyncpg.connect(dsn=server.get_uri())
+    conn = await asyncpg.connect(dsn=server.dsn())
     try:
         # ---- loopback "remote" that postgres_fdw will attach: orders in demo_remote ----
         await conn.execute("CREATE SCHEMA IF NOT EXISTS demo_remote")
