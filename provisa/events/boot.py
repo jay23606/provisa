@@ -142,6 +142,18 @@ def _resolve_mv_deadline(
     return source, expected_events_of(mv), freshness_of, 0.0, None
 
 
+# The change signals a table read in place may declare to have its views follow its changes.
+WATCHED_SIGNALS = frozenset({"probe", "ttl_probe"})
+
+
+def watched_live(tbl: Any, src: Any) -> bool:
+    """Whether a table read where it lies is watched for the views over it: it declares a probing
+    change signal, its own else its source's. A live table that declares none (the default ttl)
+    has no node: it is current at every read, and the views over it refresh on their own cadence."""
+    signal = getattr(tbl, "change_signal", None) or getattr(src, "change_signal", None)
+    return signal in WATCHED_SIGNALS
+
+
 def build_source_node_spec(
     tbl: Any,
     src: Any,
@@ -154,8 +166,11 @@ def build_source_node_spec(
     replica_build: Callable[[tuple[str, str, str]], Any] | None = None,
     write_lock: Callable[[tuple[str, str, str]], Any] | None = None,
 ) -> NodeSpec | None:
-    """One source table's :class:`NodeSpec` (REQ-941), or ``None`` when it doesn't federate
-    MATERIALIZED, is parameterized (no snapshot), or a column's type isn't resolved yet.
+    """One source table's :class:`NodeSpec` (REQ-941), or ``None`` when it is parameterized (no
+    snapshot), a column's type isn't resolved yet, or it is read where it lies (doesn't federate
+    MATERIALIZED) with no probing change signal declared. A live table that declares one
+    (:func:`watched_live`) is a signal-only node: its probe runs and its change is posted to the
+    views over it, and nothing lands.
 
     Factored out of :func:`specs_from_config`'s per-table loop so a scoped, single-node rewire
     (``wire_new_poll_jobs``, provisa/events/app_wiring.py) can build exactly the ONE new node's spec
@@ -181,10 +196,11 @@ def build_source_node_spec(
         # (replica_converge); nothing probes, polls or re-lands it, so it has no node.
         return None
     try:
-        if federate(src, engine) is not Strategy.MATERIALIZED:
-            return None  # live/scan federates in place — not landed, not a source processor
+        live = federate(src, engine) is not Strategy.MATERIALIZED
     except UnreachableSource:
         return None
+    if live and not watched_live(tbl, src):
+        return None  # live/scan federates in place — not landed, not a source processor
     # REQ-1865 constraint 2 ("never eagerly, never a background pre-fetch of a key nothing has
     # queried") rules out an ordinary PERIODIC/TTL-triggered whole-table land for a row_materialize
     # table specifically -- the queue-driven scheduler this NodeSpec feeds runs on ITS OWN clock,
@@ -217,7 +233,12 @@ def build_source_node_spec(
     from provisa.core.change_signal import REPLACE as _REPLACE
 
     whole_copy = probe_shape(args.probe_type) == _REPLACE
-    if replica_build is not None and whole_copy:
+    if live:
+        # Read where it lies: nothing lands; its probe's change is posted to the views over it.
+        from provisa.events.handlers import make_source_signal
+
+        handle = make_source_signal()
+    elif replica_build is not None and whole_copy:
         # REQ-1915: a whole copy of a source table is the data replicator's. The node asks for
         # the build and re-posts the change when the build has completed; no row passes here.
         # REQ-1165: a table that declares a preflight check is checked by the build, over the

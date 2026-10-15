@@ -83724,3 +83724,40 @@
   - REQ-2049
   notes: 'Maintainer 2026-10-14, via the lead: test data as a feature demo, perhaps inside the existing environments;
     the lead placed it with the environments (git branches) demo.'
+- id: REQ-2055
+  status: complete
+  since: 2026-10
+  group: 9. Live Data & Events
+  category: Change Signals
+  feature: replicas-and-freshness-freshness-gate
+  priority: SHOULD
+  type: behavioral
+  description: 'A table read where it lies (not replicated) that declares a probing change signal -- probe or
+    ttl_probe, its own else its source''s -- is a signal-only node of the event loop: its probe (MAX of its
+    watermark column, a count, or its probe_query) runs on its cache TTL, and a change is posted to the
+    materialized views that read it, which recompute and ripple on to theirs. Nothing is landed or replicated;
+    reads of the table stay live. The boot seed asks the views over it for their first build. A live table
+    on the default ttl signal has no node: it is current at every read, and the views over it refresh on
+    their own cadence.'
+  use_case: 'A landing into a table read live refreshes the views over it without replicating the table: the
+    data quality demo lands a batch into bronze, and its checks, silver and gold follow.'
+  scenario: 'Given a Postgres table read live, with change_signal probe and a watermark column, and a
+    materialized view over it
+
+
+    When rows land in the table
+
+
+    Then within the table''s cache TTL the view is recomputed and read as fresh, and the table is never
+    replicated'
+  related_reqs:
+  - REQ-929
+  - REQ-941
+  - REQ-2051
+  notes: 'Maintainer 2026-10-15: "go with signal-only nodes" -- the views follow the signals already tracked
+    for a source, without requiring CDC of every live source.'
+  code:
+  - provisa/events/boot.py
+  - provisa/events/handlers.py
+  tests:
+  - tests/unit/test_live_table_signal_node.py
