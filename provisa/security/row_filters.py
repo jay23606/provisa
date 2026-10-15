@@ -16,6 +16,8 @@ role's RLS context is built, rather than consulted at every request:
 
 - the table's own rule, or failing that the rule on the table's domain (REQ-402), is the base
   predicate — role inheritance has already been folded into these by ``materialize_rls``;
+- the rule on every domain above the table's domain is AND-ed onto it (REQ-1363): a child
+  domain only narrows what its ancestors allow;
 - every rule on a tag the table carries is AND-ed onto it. There are no precedence tiers: a
   tag only ever adds restriction. The acting role's tag rules and those of every ancestor all
   contribute, nearest role first, so a child role cannot shed an ancestor's tag rule.
@@ -24,7 +26,7 @@ A rule names a tag by its base id and covers every parameter value the tag is as
 ("entity" covers "entity:customer").
 """
 
-# Requirements: REQ-1384, REQ-402, REQ-1677
+# Requirements: REQ-1384, REQ-402, REQ-1677, REQ-1363
 
 from __future__ import annotations
 
@@ -52,13 +54,16 @@ def resolve_table_rules(
     tables: Iterable[dict],
     chains: dict[str, list[str]],
     tag_assignments: Iterable[dict],
+    parents: dict[str, str | None],
 ) -> list[dict]:
     """The rule list with every (role, table) pair's filters folded into one table-level rule.
 
     ``rls_rules`` is the list ``materialize_rls`` returns. Domain and action rules pass through
     unchanged (an action still resolves its own); table rules are replaced by the folded ones;
-    tag rules are consumed.
+    tag rules are consumed. ``parents`` is the domain tree (``domain_tree.parent_map``).
     """
+    from provisa.security.domain_tree import ancestors
+
     table_rules: dict[tuple[str, int], str] = {}
     domain_rules: dict[tuple[str, str], str] = {}
     tag_rules: dict[tuple[str, str], str] = {}
@@ -88,6 +93,10 @@ def resolve_table_rules(
                 base = domain_rules.get((rid, t.get("domain_id") or ""))
             if base is not None:
                 predicates.append(base)
+            for above in ancestors(t.get("domain_id") or "", parents):
+                inherited = domain_rules.get((rid, above))
+                if inherited is not None:
+                    predicates.append(inherited)
             for tag_id in sorted(tags_by_table.get(tid, ())):
                 for anc in chain:
                     tagged = tag_rules.get((anc, tag_id))

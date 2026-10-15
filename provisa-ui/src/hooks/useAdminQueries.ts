@@ -442,9 +442,14 @@ export function useCreateDomain() {
     refetchQueries: [{ query: DOMAINS_QUERY }],
   });
   return {
-    createDomain: async (id: string, description: string, graphqlAlias?: string | null) => {
+    createDomain: async (
+      id: string,
+      description: string,
+      graphqlAlias: string | null,
+      parentDomainId: string | null,
+    ) => {
       const result = await createDomain({
-        variables: { id, description, graphqlAlias: graphqlAlias ?? null },
+        variables: { id, description, graphqlAlias, parentDomainId },
       });
       return (result.data?.createDomain ?? { success: false, message: "" }) as MutationResult;
     },

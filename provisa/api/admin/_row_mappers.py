@@ -144,7 +144,9 @@ def _source_from_row(row, *, connection: bool) -> SourceType:
     )
 
 
-def _domain_from_row(row) -> DomainType:
+def _domain_from_row(row, effective_steward: str | None) -> DomainType:
+    """``effective_steward``: the steward up the domain tree (``domain_tree.effective_steward``),
+    which the caller reads off every domain at once."""
     from provisa.core.domain_policy import system_domain_ids
 
     return DomainType(
@@ -152,6 +154,8 @@ def _domain_from_row(row) -> DomainType:
         description=row["description"],
         steward=row["steward"],  # REQ-609
         graphql_alias=row["graphql_alias"],
+        parent_domain_id=row["parent_domain_id"],  # REQ-1363
+        effective_steward=effective_steward,
         is_system=row["id"] in system_domain_ids(),
     )
 

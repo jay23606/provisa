@@ -70,6 +70,10 @@ export interface Domain {
   description: string;
   graphqlAlias?: string | null;
   steward?: string | null; // REQ-609: role or user id; null means PENDING
+  // REQ-1363: the domain this one sits under; a role that lists the parent reaches this one too.
+  parentDomainId?: string | null;
+  // REQ-1363: its own steward, else its nearest ancestor's; null when none up the tree has one.
+  effectiveSteward?: string | null;
   isSystem: boolean; // domain_policy.system_domain_ids() (meta/ops/"") -- never end-user-picked
 }
 

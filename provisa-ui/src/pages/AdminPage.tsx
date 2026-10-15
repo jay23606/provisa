@@ -19,6 +19,7 @@ import {
   Card,
   Group,
   Pagination,
+  Select,
   SimpleGrid,
   Stack,
   Table,
@@ -140,6 +141,8 @@ export function AdminPage() {
   const [newDomainId, setNewDomainId] = useState("");
   const [newDomainDesc, setNewDomainDesc] = useState("");
   const [newDomainAlias, setNewDomainAlias] = useState("");
+  // REQ-1363: the domain the new one sits under; "" = none.
+  const [newDomainParent, setNewDomainParent] = useState("");
   // The last domain change's outcome: done (green), or the server's refusal or error (red).
   const [domainMsg, setDomainMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -219,6 +222,12 @@ export function AdminPage() {
     },
     { key: "alias", label: t("adminPage.colGqlAlias"), sortValue: (d) => domainGqlAlias(d) },
     {
+      key: "parent",
+      label: t("adminPage.colParentDomain"),
+      sortValue: (d) => d.parentDomainId ?? "",
+      groupValue: (d) => d.parentDomainId ?? "",
+    },
+    {
       key: "steward",
       label: t("adminPage.colSteward"),
       sortValue: (d) => d.steward ?? "",
@@ -232,6 +241,7 @@ export function AdminPage() {
     setNewDomainId("");
     setNewDomainDesc("");
     setNewDomainAlias("");
+    setNewDomainParent("");
   };
 
   const handleAddDomain = async () => {
@@ -243,6 +253,7 @@ export function AdminPage() {
         newDomainId.trim(),
         newDomainDesc.trim(),
         newDomainAlias.trim() || null,
+        newDomainParent || null,
       );
     } catch (e) {
       setDomainMsg({ text: e instanceof Error ? e.message : String(e), ok: false });
@@ -373,6 +384,19 @@ export function AdminPage() {
                     />
                   </FormField>
                   <FormField size="medium">
+                    <Select
+                      label={t("adminPage.colParentDomain")}
+                      description={t("adminPage.parentDomainHint")}
+                      data-testid="new-domain-parent"
+                      data={userDomains.map((d) => d.id)}
+                      value={newDomainParent || null}
+                      onChange={(v) => setNewDomainParent(v ?? "")}
+                      placeholder={t("adminPage.noParentDomain")}
+                      clearable
+                      searchable
+                    />
+                  </FormField>
+                  <FormField size="medium">
                     <TextInput
                       label={t("adminPage.colGqlAlias")}
                       data-testid="new-domain-alias"
@@ -416,18 +440,19 @@ export function AdminPage() {
                           { col: "id" },
                           { col: "description" },
                           { col: "alias" },
+                          { col: "parent" },
                           { col: "steward" },
                           t("adminPage.colActions"),
                         ]}
                       />
                       <Table.Tbody>
                         {userDomains.length === 0 && (
-                          <ListEmpty colSpan={5}>{t("adminPage.noDomains")}</ListEmpty>
+                          <ListEmpty colSpan={6}>{t("adminPage.noDomains")}</ListEmpty>
                         )}
                         <ListItems
                           state={domainSortGroup}
                           items={pageItems(domainSortGroup, domainPage, PAGE_SIZE)}
-                          colSpan={5}
+                          colSpan={6}
                           rowKey={(d) => d.id}
                           render={(d) => (
                             <ListRow>
@@ -438,12 +463,19 @@ export function AdminPage() {
                                   {domainGqlAlias(d)}
                                 </Text>
                               </Table.Td>
+                              <Table.Td>{d.parentDomainId || "—"}</Table.Td>
                               <Table.Td>
                                 <Group gap={4} wrap="nowrap">
-                                  <Text fz="sm">{d.steward || "—"}</Text>
-                                  {d.steward && (
+                                  <Text fz="sm">{d.effectiveSteward || "—"}</Text>
+                                  {/* REQ-1363: no steward of its own -- it answers to an ancestor's. */}
+                                  {!d.steward && d.effectiveSteward && (
+                                    <Text fz="xs" c="dimmed" data-testid="steward-inherited">
+                                      {t("adminPage.stewardInherited")}
+                                    </Text>
+                                  )}
+                                  {d.effectiveSteward && (
                                     <OwnerResolutionIcon
-                                      refs={[d.steward]}
+                                      refs={[d.effectiveSteward]}
                                       ariaLabel={t("adminPage.resolveSteward", { id: d.id })}
                                     />
                                   )}

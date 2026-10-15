@@ -2589,7 +2589,10 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
             description=input.description,
             steward=input.steward or None,  # REQ-609
             graphql_alias=input.graphql_alias or None,
+            parent_domain_id=input.parent_domain_id or None,  # REQ-1363
         )
+        from provisa.security.domain_tree import parent_map, parent_problem
+
         async with pool.acquire() as conn:
             # A create makes a new domain: an existing id is refused by name, nothing written.
             if await domain_repo.get(cast("Connection", conn), input.id) is not None:
@@ -2599,7 +2602,21 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                     code="schema.domain_id_taken",
                     params={"domain": input.id},
                 )
+            # REQ-1363: the parent is a domain that exists. Refused by name, before the write.
+            held = parent_map(await domain_repo.list_all(cast("Connection", conn)))
+            problem = parent_problem(input.id, model.parent_domain_id, held)
+            if problem is not None:
+                return MutationResult(
+                    success=False,
+                    message=problem,
+                    code="schema.domain_parent_invalid",
+                    params={"domain": input.id, "parent": model.parent_domain_id},
+                )
             await domain_repo.upsert(cast("Connection", conn), model)
+        if model.parent_domain_id is not None:
+            # REQ-1363: a role that lists the parent reaches the new domain now -- a member scoped
+            # to the business unit registers into its new organization without a role edit.
+            await _rebuild_schemas()
         return MutationResult(
             success=True,
             message=f"Domain {input.id!r} created",

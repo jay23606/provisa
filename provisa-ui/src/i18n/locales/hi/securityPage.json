@@ -80,6 +80,7 @@
     "tagPrefix": "टैग:",
     "labelTag": "टैग:",
     "tagTableCount_one": "{{count}} टेबल पर",
-    "tagTableCount_other": "{{count}} टेबलों पर"
+    "tagTableCount_other": "{{count}} टेबलों पर",
+    "alsoReaches": "इनके नीचे के डोमेन तक भी पहुँचती है: {{domains}}"
   }
 }

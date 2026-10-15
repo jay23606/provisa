@@ -80,6 +80,7 @@
     "tagPrefix": "תגית:",
     "labelTag": "תגית:",
     "tagTableCount_one": "על טבלה {{count}}",
-    "tagTableCount_other": "על {{count}} טבלאות"
+    "tagTableCount_other": "על {{count}} טבלאות",
+    "alsoReaches": "מגיע גם לדומיינים שמתחתיהם: {{domains}}"
   }
 }

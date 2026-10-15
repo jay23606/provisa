@@ -197,6 +197,10 @@
     "policyApplyFailed": "No se pudo aplicar la política de dominio",
     "settingsPanel": "Configuración",
     "deleteDomainTitle": "¿Eliminar el dominio \"{{id}}\"?",
-    "deleteDomainConsequence": "El dominio se elimina. No se puede eliminar un dominio que sigue en uso."
+    "deleteDomainConsequence": "El dominio se elimina. No se puede eliminar un dominio que sigue en uso.",
+    "colParentDomain": "Dominio padre",
+    "parentDomainHint": "Un rol con acceso al dominio padre también llega a este.",
+    "noParentDomain": "Sin padre",
+    "stewardInherited": "heredado"
   }
 }

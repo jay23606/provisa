@@ -80,6 +80,7 @@
     "tagPrefix": "etiqueta:",
     "labelTag": "Etiqueta:",
     "tagTableCount_one": "en {{count}} tabla",
-    "tagTableCount_other": "en {{count}} tablas"
+    "tagTableCount_other": "en {{count}} tablas",
+    "alsoReaches": "También llega a los dominios que tienen debajo: {{domains}}"
   }
 }

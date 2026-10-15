@@ -145,6 +145,12 @@ class DomainType:  # REQ-533, REQ-609
     description: str
     steward: str | None = None  # REQ-609: None = pending, no designated steward
     graphql_alias: str | None = None
+    # REQ-1363: the domain this one sits under; None = no parent. A role that lists the parent
+    # reaches this domain too.
+    parent_domain_id: str | None = None
+    # REQ-1363: the steward the domain answers to -- its own, else its nearest ancestor's; None
+    # when no domain up the tree has one.
+    effective_steward: str | None = None
     # domain_policy.system_domain_ids() (meta/ops/"") -- auto-generated, preserved across
     # config replace-mode reloads, never a target an end user picks for their own tables. Was
     # entirely absent from this type, so every domain picker in the UI (KaggleFormSection's
@@ -877,6 +883,7 @@ class DomainInput:  # REQ-533, REQ-609
     description: str = ""
     steward: str | None = None  # REQ-609
     graphql_alias: str | None = None
+    parent_domain_id: str | None = None  # REQ-1363
 
 
 @strawberry.input

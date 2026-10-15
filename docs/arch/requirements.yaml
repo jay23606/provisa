@@ -44998,7 +44998,7 @@
   e2e_reason: Tour step display timing relative to destination page rendering is only verifiable through
     full end-to-end UI interaction with the tour system navigating between pages.
 - id: REQ-1363
-  status: accepted
+  status: in-progress
   since: 2026-08
   group: 3. Source Registration & Data Modeling
   category: Domain Hierarchy
@@ -45018,8 +45018,27 @@
   use_case: Enable organizations to structure domains hierarchically for governance metadata and organization,
     while maintaining a single flat execution model and addressing scheme.
   code:
+  - provisa/security/domain_tree.py
+  - provisa/security/row_filters.py
+  - provisa/api/app.py
   - provisa/core/models.py
-  - provisa/federation/duckdb_runtime.py
+  - provisa/core/schema_org.py
+  - provisa/core/repositories/domain.py
+  - provisa/core/repositories/integrity.py
+  - provisa/core/env_deploy.py
+  - provisa/api/admin/schema_mutation.py
+  - provisa/api/admin/schema_query.py
+  - provisa/api/metadata_export/builder.py
+  - provisa/api/_meta_views.py
+  - provisa-ui/src/pages/AdminPage.tsx
+  - provisa-ui/src/pages/security/RoleFormParts.tsx
+  tests:
+  - tests/unit/test_domain_tree.py
+  - tests/unit/test_domain_tree_model_store.py
+  - tests/integration/test_domain_tree_every_transport.py
+  - provisa-ui/src/__tests__/domainTree.test.ts
+  - provisa-ui/src/pages/__tests__/AdminPage.domainTree.test.tsx
+  - provisa-ui/src/pages/__tests__/RoleFormParts.subtree.test.tsx
   scenario: 'Given a domain hierarchy with parent-child relationships
 
     When a role grants access to a parent domain
@@ -45043,7 +45062,7 @@
   target: 2026-Q4
   notes: 'Kept by the maintainer 2026-10-03 after review of its use cases. Audit 2026-10-03: not built
     (no parent pointer on the Domain model, provisa/core/models.py:382-389). Accepted by the maintainer
-    2026-10-03 for the feature-complete line; audit found it not built.'
+    2026-10-03 for the feature-complete line; audit found it not built. Built 2026-10-15: a domain names its parent when it is created (admin API and Domains page) or in the model files and config, each refusing an unknown parent or a cycle by name; a domain with children is not deleted. The runtime build flattens the tree: role reach and a source''s allowed domains expand down it, every ancestor domain''s row filter is AND-ed onto a table''s own rule or its own domain''s, and a domain with no steward reports its nearest ancestor''s (admin API, metadata export, ops.stale_metadata).'
 - id: REQ-1364
   status: accepted
   target: 2026-Q4

@@ -80,6 +80,7 @@
     "tagPrefix": "tag:",
     "labelTag": "Tag:",
     "tagTableCount_one": "op {{count}} tabel",
-    "tagTableCount_other": "op {{count}} tabellen"
+    "tagTableCount_other": "op {{count}} tabellen",
+    "alsoReaches": "Bereikt ook de domeinen eronder: {{domains}}"
   }
 }

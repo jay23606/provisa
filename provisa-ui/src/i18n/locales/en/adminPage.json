@@ -197,6 +197,10 @@
     "policyApplyFailed": "Failed to apply domain policy",
     "settingsPanel": "Settings",
     "deleteDomainTitle": "Delete domain \"{{id}}\"?",
-    "deleteDomainConsequence": "The domain is removed. A domain that is still in use cannot be deleted."
+    "deleteDomainConsequence": "The domain is removed. A domain that is still in use cannot be deleted.",
+    "colParentDomain": "Parent domain",
+    "parentDomainHint": "A role granted the parent domain reaches this one too.",
+    "noParentDomain": "No parent",
+    "stewardInherited": "inherited"
   }
 }

@@ -197,6 +197,10 @@
     "policyApplyFailed": "Anwenden der Domänenrichtlinie fehlgeschlagen",
     "settingsPanel": "Einstellungen",
     "deleteDomainTitle": "Domäne „{{id}}“ löschen?",
-    "deleteDomainConsequence": "Die Domäne wird entfernt. Eine Domäne, die noch verwendet wird, kann nicht gelöscht werden."
+    "deleteDomainConsequence": "Die Domäne wird entfernt. Eine Domäne, die noch verwendet wird, kann nicht gelöscht werden.",
+    "colParentDomain": "Übergeordnete Domäne",
+    "parentDomainHint": "Eine Rolle mit Zugriff auf die übergeordnete Domäne erreicht auch diese.",
+    "noParentDomain": "Keine übergeordnete",
+    "stewardInherited": "geerbt"
   }
 }

@@ -130,6 +130,8 @@ query DomainsQuery {
     description
     graphqlAlias
     steward
+    parentDomainId
+    effectiveSteward
     isSystem
   }
 }
@@ -885,8 +887,20 @@ query ScheduledTasks {
 
 # Mutations
 
-mutation CreateDomain($id: String!, $description: String!, $graphqlAlias: String) {
-  createDomain(input: { id: $id, description: $description, graphqlAlias: $graphqlAlias }) {
+mutation CreateDomain(
+  $id: String!
+  $description: String!
+  $graphqlAlias: String
+  $parentDomainId: String
+) {
+  createDomain(
+    input: {
+      id: $id
+      description: $description
+      graphqlAlias: $graphqlAlias
+      parentDomainId: $parentDomainId
+    }
+  ) {
     ...MutationResult
   }
 }

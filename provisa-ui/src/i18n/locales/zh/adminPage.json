@@ -197,6 +197,10 @@
     "policyApplyFailed": "应用域策略失败",
     "settingsPanel": "设置",
     "deleteDomainTitle": "删除域“{{id}}”？",
-    "deleteDomainConsequence": "该域将被移除。仍在使用中的域无法删除。"
+    "deleteDomainConsequence": "该域将被移除。仍在使用中的域无法删除。",
+    "colParentDomain": "父域",
+    "parentDomainHint": "被授予父域的角色也能访问此域。",
+    "noParentDomain": "无父域",
+    "stewardInherited": "继承"
   }
 }

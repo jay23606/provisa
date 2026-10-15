@@ -648,14 +648,21 @@ class Query:  # REQ-021, REQ-042
             _res = await conn.execute_core(
                 select(domains).where(domains.c.id != "").order_by(domains.c.id)
             )
+            rows = [dict(r._mapping) for r in _res.fetchall()]
             # REQ-1958: the domains the caller's roles reach, and any holding a table it is
             # answered (a table reached through its own grant names its domain).
             scope = catalog_scope(info)
             holding = {d for _id, d in await _listed_tables(conn, scope)}
+            # REQ-1363: a domain with no steward answers to its nearest ancestor's, read off the
+            # whole tree -- an ancestor the caller is not listed may still steward its domain.
+            from provisa.security.domain_tree import effective_steward, parent_map
+
+            parents = parent_map(rows)
+            stewards = {r["id"]: r["steward"] for r in rows}
             return [
-                _domain_from_row(dict(r._mapping))
-                for r in _res.fetchall()
-                if scope.lists_domain(r.id, r.id in holding)
+                _domain_from_row(r, effective_steward(r["id"], stewards, parents))
+                for r in rows
+                if scope.lists_domain(r["id"], r["id"] in holding)
             ]
 
     @strawberry.field
