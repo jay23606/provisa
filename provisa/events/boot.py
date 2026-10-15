@@ -65,6 +65,9 @@ class NodeSpec:
     subscribers_of: Callable[[str, str], list[str]] | None = None
     # REQ-957: compiled preprocess(rows, ctx) hook, run after produce and before land. None = identity.
     preprocess: Callable[..., Any] | None = None
+    # An MV's committed refresh, told to what a read asks whether the view is fresh
+    # (MVTableProcessor.on_refreshed). None for a source node.
+    on_refreshed: Callable[[tuple[str, dict] | None], None] | None = None
 
 
 def _probe_factory(
@@ -303,6 +306,7 @@ def specs_from_config(
     write_lock: Callable[[tuple[str, str, str]], Any] | None = None,
     expected_events_of: Callable[[Any], list[str]] | None = None,
     mv_admit_deltas: Callable[[Any], Callable[[list[dict]], list[dict]]] | None = None,
+    mv_refreshed: Callable[[Any], Callable[[tuple[str, dict] | None], None]] | None = None,
 ) -> list[NodeSpec]:
     """Bind the config to :class:`NodeSpec`s (REQ-941). A MATERIALIZED source table (``federate`` ==
     MATERIALIZED) becomes a source spec — its landing args resolved from config, its ``fetch`` the
@@ -436,6 +440,7 @@ def specs_from_config(
                 emit_outcomes=emit_set,  # REQ-965 (None → default single-shape fan-out)
                 subscribers_of=subscribers_of if emit_set is not None else None,
                 preprocess=preprocess,  # REQ-957
+                on_refreshed=mv_refreshed(mv) if mv_refreshed is not None else None,
             )
         )
 
@@ -470,6 +475,7 @@ def build_processors(
                 MVTableProcessor(
                     spec.node,
                     generate=spec.handle,
+                    on_refreshed=spec.on_refreshed,
                     emit_outcomes=spec.emit_outcomes,  # REQ-965
                     subscribers_of=spec.subscribers_of,  # REQ-965 demand routing
                     **common,

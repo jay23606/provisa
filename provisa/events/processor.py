@@ -399,8 +399,8 @@ class TableProcessor(ABC):
         # REQ-959: each complete is an ownership CAS (processor_name = self); a lost CAS raises
         # OwnershipLost → the whole commit rolls back (a peer took over → no double effect).
         try:
-            async with conn.transaction():
-                if result is None:
+            if result is None:
+                async with conn.transaction():
                     # Gate hit / preprocess []-no-op (content unchanged / nothing landed): no ripple,
                     # but advisory warns still emit and the claimed events are completed. A clean
                     # no-change refresh IS fresh (REQ-961) — stamp the observed refresh state so a
@@ -408,8 +408,10 @@ class TableProcessor(ABC):
                     await queue.record_refresh(conn, self.node, at=now, ok=True)
                     await self._emit_warns(conn, ctx, now)
                     await self._complete_all(conn, claimed, now)
-                    return None
-                event_type, payload, new_hash = result
+                self._refreshed(None)
+                return None
+            event_type, payload, new_hash = result
+            async with conn.transaction():
                 if new_hash is not None:
                     await queue.set_node_state(conn, self.node, content_hash=new_hash)
                 # REQ-961: a successful land is fresh-through now — record it for the freshness contract.
@@ -417,9 +419,16 @@ class TableProcessor(ABC):
                 my_event = await self._post_and_route(conn, event_type, payload)
                 await self._emit_warns(conn, ctx, now)
                 await self._complete_all(conn, claimed, now)
+            self._refreshed((event_type, payload))
         except OwnershipLost:
             return None
         return my_event
+
+    def _refreshed(self, change: tuple[str, dict] | None) -> None:
+        """What a committed refresh of this node tells, after its commit: ``change`` the node's
+        event -- its change, or ``("error", payload)`` when it failed -- or None when its content
+        was unchanged. Nothing, for a node no read path serves from by its refresh state."""
+        return None
 
     async def post_landed(self, conn: Any, event_type: str, payload: dict) -> int | None:
         """A landing into this node's table that its processor did not run (a push listener's batch,
@@ -479,6 +488,7 @@ class TableProcessor(ABC):
                 await self._complete_all(conn, claimed, now)
         except OwnershipLost:
             return None
+        self._refreshed(("error", payload))
         return event_id
 
     async def _emit_quarantine(
@@ -651,11 +661,24 @@ class MVTableProcessor(TableProcessor):
 
     kind = "mv"
 
-    def __init__(self, *args: Any, generate: Callable[..., Any], **kwargs: Any) -> None:
+    def __init__(
+        self,
+        *args: Any,
+        generate: Callable[..., Any],
+        on_refreshed: Callable[[tuple[str, dict] | None], None] | None = None,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(*args, **kwargs)
         self._generate = (
             generate  # async (pending, *, prior_hash) -> (event_type, payload, hash) | None
         )
+        # What the read path serves this view by: its refresh recorded where a read asks whether
+        # the view is fresh (the MV registry), wired by the app. None where nothing reads that.
+        self._on_refreshed = on_refreshed
+
+    def _refreshed(self, change: tuple[str, dict] | None) -> None:
+        if self._on_refreshed is not None:
+            self._on_refreshed(change)
 
     async def inject(self, probe: injector.Probe) -> int | None:
         """A view's own cadence (its poll job): a request to recompute THE VIEW. The tick is fanned
