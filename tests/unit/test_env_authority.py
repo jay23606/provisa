@@ -131,7 +131,13 @@ class TestTheGrantReachesTheCapabilityCheck:
     def _identity(user_id: str = "uid-owner"):
         from provisa.auth.models import AuthIdentity
 
-        return AuthIdentity(user_id=user_id, email=None, display_name=None, roles=["analyst"])
+        return AuthIdentity(
+            user_id=user_id,
+            email=None,
+            display_name=None,
+            roles=["analyst"],
+            acting_roles=["analyst"],
+        )
 
     @staticmethod
     def _owned_by(monkeypatch, owner: str | None):

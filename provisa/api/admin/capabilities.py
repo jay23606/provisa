@@ -72,10 +72,16 @@ def env_gate_capabilities(identity, state) -> set[str] | None:
 
 def env_gate_capabilities_for(identity, roles: dict) -> set[str] | None:  # REQ-1573
     """``env_gate_capabilities`` judged by the role definitions ``roles`` -- those of the org whose
-    environment is being selected (REQ-1266)."""
+    environment is being selected (REQ-1266).
+
+    REQ-2060: every other right follows the roles a request acts as; this one is judged by every
+    role the identity holds. An environment is selected BEFORE the request's acting roles exist
+    -- a member's role assignments may be read from the environment's own schema, so they can be
+    known only once it is chosen (auth middleware) -- and the same question asked later (org
+    routing, a token naming an environment) must get the same answer."""
     if identity is None or getattr(identity, "user_id", _ANONYMOUS) == _ANONYMOUS:
         return None
-    return capabilities_for_claims(acting_claims(identity), roles)
+    return capabilities_for_claims(getattr(identity, "roles", []), roles)
 
 
 def _domain_access(identity, state) -> set[str]:
