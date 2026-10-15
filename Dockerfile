@@ -16,9 +16,20 @@ COPY vendor/ ./vendor/
 # adding [soda] to the default would put an Elastic-License-2.0 component into the hosted service,
 # which its terms forbid. A self-hosted build opts in explicitly:
 #   docker build --build-arg PROVISA_EXTRAS=firebase,vector,soda .
+# Every package at the version uv.lock pins — the versions the tests ran on — never pip's newest
+# (an unpinned install shipped sqlglot 30.23 while the suite ran 30.9). torch comes from the CPU
+# index at the locked version; its CUDA-only dependencies (triton, nvidia-*, cuda-*) are left out.
 ARG PROVISA_EXTRAS=firebase,vector
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
- && pip install --no-cache-dir ".[${PROVISA_EXTRAS}]"
+COPY uv.lock .
+COPY --from=ghcr.io/astral-sh/uv:0.11.19 /uv /usr/local/bin/uv
+RUN uv export --frozen --no-dev --no-emit-project --no-hashes --no-annotate --no-header \
+      $(echo "${PROVISA_EXTRAS}" | tr ',' '\n' | sed 's/^/--extra /') -o /tmp/locked.txt \
+ && grep -vE '^(torch|triton|nvidia-|cuda-)' /tmp/locked.txt > /tmp/requirements.txt \
+ && pip install --no-cache-dir "$(grep '^torch==' /tmp/locked.txt | cut -d' ' -f1)" \
+      --index-url https://download.pytorch.org/whl/cpu \
+ && pip install --no-cache-dir --no-deps -r /tmp/requirements.txt \
+ && pip install --no-cache-dir --no-deps . \
+ && rm /usr/local/bin/uv /tmp/locked.txt /tmp/requirements.txt
 
 # Stage 2: render_graph's renderer (REQ-1990) — the UI's own Cytoscape stylesheet and layouts,
 # bundled with the packages provisa-ui/graph-render's lockfile pins, drawn by Node into a PNG.
