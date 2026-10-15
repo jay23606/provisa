@@ -817,6 +817,14 @@ query ReplicaBuilds {
       deltaSkipped
       deltaCursor
       buildNotes
+      indexes {
+        name
+        columns
+        primary
+        state
+        error
+        errorCode
+      }
     }
     convergenceError
     convergenceErrorAt

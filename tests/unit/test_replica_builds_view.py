@@ -49,6 +49,7 @@ def _record(**kw):
         build_wait=None,
         build_progress=None,
         partial=False,
+        index_state=None,
     )
     base.update(kw)
     return SimpleNamespace(**base)
@@ -198,3 +199,35 @@ def test_a_build_that_lands_a_part_at_a_time_says_how_far_it_has_got():
     # Once it has ended, and for any other build, there is nothing to say.
     done = build_view(_record(build_state="idle", build_progress=progress, completed_at=now), now)
     assert done["progress"] is None and done["partial"] is False
+
+
+def test_a_replica_shows_each_index_its_landing_asked_for_and_how_it_stands():  # REQ-2015
+    state = {
+        "for": "2026-10-15T00:00:00+00:00",
+        "wanted": [
+            {"name": "ix_pk", "columns": ["id"], "primary": True},
+            {"name": "ix_cust", "columns": ["customer_id"], "primary": False},
+            {"name": "ix_region", "columns": ["region"], "primary": False},
+        ],
+        "built": ["ix_cust"],
+        "failed": {
+            "ix_pk": {
+                "error": "the replica's rows repeat the key (id)",
+                "code": "replica.index_duplicate_key",
+                "columns": ["id"],
+            }
+        },
+    }
+    view = build_view(_record(index_state=state), datetime.now(UTC))
+    assert [(i["name"], i["state"]) for i in view["indexes"]] == [
+        ("ix_pk", "failed"),
+        ("ix_cust", "built"),
+        ("ix_region", "pending"),
+    ]
+    failed = view["indexes"][0]
+    assert failed["primary"] is True and failed["error_code"] == "replica.index_duplicate_key"
+    assert failed["error"].startswith("the replica's rows repeat")
+
+
+def test_a_replica_whose_landing_asked_for_no_index_shows_none():
+    assert build_view(_record(), datetime.now(UTC))["indexes"] == []

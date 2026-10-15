@@ -57,6 +57,12 @@
     },
     "progressFiles": "{{done}} of {{total}} files read",
     "buildingPartialFiles": "Replica building and already readable. Partial: {{done}} of {{total}} files read ({{how}}).",
-    "buildingPartsFiles": "Replica being brought up to date: {{done}} of {{total}} files checked ({{how}})."
+    "buildingPartsFiles": "Replica being brought up to date: {{done}} of {{total}} files checked ({{how}}).",
+    "index": {
+      "summary": "Indexes: {{built}} of {{total}} built.",
+      "summaryPending": "Indexes: {{built}} of {{total}} built; {{pending}} being built.",
+      "duplicateKey": "The key ({{columns}}) could not be built: the source repeats its values.",
+      "failed": "The index on ({{columns}}) could not be built: {{error}}"
+    }
   }
 }

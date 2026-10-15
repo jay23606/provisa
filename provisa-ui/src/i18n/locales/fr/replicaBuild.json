@@ -57,6 +57,12 @@
     },
     "progressFiles": "{{done}} fichiers lus sur {{total}}",
     "buildingPartialFiles": "Réplica en cours de création et déjà lisible. Partiel : {{done}} fichiers lus sur {{total}} ({{how}}).",
-    "buildingPartsFiles": "Réplica en cours de mise à jour : {{done}} fichiers vérifiés sur {{total}} ({{how}})."
+    "buildingPartsFiles": "Réplica en cours de mise à jour : {{done}} fichiers vérifiés sur {{total}} ({{how}}).",
+    "index": {
+      "summary": "Index : {{built}} sur {{total}} construits.",
+      "summaryPending": "Index : {{built}} sur {{total}} construits ; {{pending}} en cours.",
+      "duplicateKey": "La clé ({{columns}}) n'a pas pu être construite : la source en répète les valeurs.",
+      "failed": "L'index sur ({{columns}}) n'a pas pu être construit : {{error}}"
+    }
   }
 }

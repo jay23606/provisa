@@ -57,6 +57,12 @@
     },
     "progressFiles": "{{total}} में से {{done}} फ़ाइलें पढ़ी गईं",
     "buildingPartialFiles": "रेप्लिका बन रही है और अभी से पढ़ी जा सकती है। आंशिक: {{total}} में से {{done}} फ़ाइलें पढ़ी गईं ({{how}})।",
-    "buildingPartsFiles": "रेप्लिका अद्यतन की जा रही है: {{total}} में से {{done}} फ़ाइलें जाँची गईं ({{how}})।"
+    "buildingPartsFiles": "रेप्लिका अद्यतन की जा रही है: {{total}} में से {{done}} फ़ाइलें जाँची गईं ({{how}})।",
+    "index": {
+      "summary": "इंडेक्स: {{total}} में से {{built}} बने।",
+      "summaryPending": "इंडेक्स: {{total}} में से {{built}} बने; {{pending}} बन रहे हैं।",
+      "duplicateKey": "कुंजी ({{columns}}) नहीं बन सकी: स्रोत इसके मान दोहराता है।",
+      "failed": "({{columns}}) पर इंडेक्स नहीं बन सका: {{error}}"
+    }
   }
 }

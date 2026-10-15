@@ -57,6 +57,12 @@
     },
     "progressFiles": "{{done}} de {{total}} archivos leídos",
     "buildingPartialFiles": "La réplica se está creando y ya se puede leer. Parcial: {{done}} de {{total}} archivos leídos ({{how}}).",
-    "buildingPartsFiles": "La réplica se está actualizando: {{done}} de {{total}} archivos comprobados ({{how}})."
+    "buildingPartsFiles": "La réplica se está actualizando: {{done}} de {{total}} archivos comprobados ({{how}}).",
+    "index": {
+      "summary": "Índices: {{built}} de {{total}} creados.",
+      "summaryPending": "Índices: {{built}} de {{total}} creados; {{pending}} en creación.",
+      "duplicateKey": "No se pudo crear la clave ({{columns}}): el origen repite sus valores.",
+      "failed": "No se pudo crear el índice sobre ({{columns}}): {{error}}"
+    }
   }
 }

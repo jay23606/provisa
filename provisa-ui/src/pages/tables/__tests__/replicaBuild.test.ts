@@ -17,6 +17,7 @@ import {
   replicaBuildLine,
   replicaDeltaLine,
   replicaFeedLine,
+  replicaIndexLines,
   replicaNoteLines,
 } from "../replicaBuild";
 
@@ -63,6 +64,7 @@ function build(over: Partial<ReplicaBuild>): ReplicaBuild {
     deltaSkipped: null,
     deltaCursor: null,
     buildNotes: [],
+    indexes: [],
     ...over,
   };
 }
@@ -444,6 +446,55 @@ describe("replicaNoteLines", () => {
     expect(replicaNoteLines(noted, t)).toEqual([
       'replicaBuild.note.unreadable_messages {"total":1,"ids":"m1"}',
       'replicaBuild.note.other {"code":"replication.something_new"}',
+    ]);
+  });
+});
+
+describe("replicaIndexLines (REQ-2015)", () => {
+  const index = (name: string, state: "built" | "pending" | "failed", over = {}) => ({
+    name,
+    columns: [name],
+    primary: false,
+    state,
+    error: null,
+    errorCode: null,
+    ...over,
+  });
+
+  it("says nothing for a replica whose landing asked for no index", () => {
+    expect(replicaIndexLines(undefined, t)).toEqual({ summary: null, failed: [] });
+    expect(replicaIndexLines(build({}), t)).toEqual({ summary: null, failed: [] });
+  });
+
+  it("counts the built ones, and the ones still being built", () => {
+    const lines = replicaIndexLines(
+      build({ indexes: [index("id", "built"), index("customer_id", "pending")] }),
+      t,
+    );
+    expect(lines.summary).toBe(
+      'replicaBuild.index.summaryPending {"built":1,"total":2,"pending":1}',
+    );
+    expect(lines.failed).toEqual([]);
+  });
+
+  it("words each failed one from its code: a repeated key, or any other failure", () => {
+    const lines = replicaIndexLines(
+      build({
+        indexes: [
+          index("id", "failed", {
+            columns: ["id", "region"],
+            error: "duplicates",
+            errorCode: "replica.index_duplicate_key",
+          }),
+          index("customer_id", "failed", { error: "disk full", errorCode: "replica.index_failed" }),
+        ],
+      }),
+      t,
+    );
+    expect(lines.summary).toBe('replicaBuild.index.summary {"built":0,"total":2,"pending":0}');
+    expect(lines.failed).toEqual([
+      'replicaBuild.index.duplicateKey {"columns":"id, region"}',
+      'replicaBuild.index.failed {"columns":"customer_id","error":"disk full"}',
     ]);
   });
 });

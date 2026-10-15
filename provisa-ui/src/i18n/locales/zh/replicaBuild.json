@@ -57,6 +57,12 @@
     },
     "progressFiles": "已读取 {{total}} 个文件中的 {{done}} 个",
     "buildingPartialFiles": "副本正在构建，并且已经可以读取。不完整：已读取 {{total}} 个文件中的 {{done}} 个（{{how}}）。",
-    "buildingPartsFiles": "副本正在更新：已检查 {{total}} 个文件中的 {{done}} 个（{{how}}）。"
+    "buildingPartsFiles": "副本正在更新：已检查 {{total}} 个文件中的 {{done}} 个（{{how}}）。",
+    "index": {
+      "summary": "索引：已建 {{built}} / {{total}}。",
+      "summaryPending": "索引：已建 {{built}} / {{total}}；{{pending}} 个正在构建。",
+      "duplicateKey": "无法建立键 ({{columns}})：数据源中其值有重复。",
+      "failed": "无法在 ({{columns}}) 上建立索引：{{error}}"
+    }
   }
 }

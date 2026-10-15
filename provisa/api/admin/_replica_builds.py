@@ -90,4 +90,33 @@ def build_view(record: Any, now: datetime) -> dict:
         # What the last completed build had to say of the copy it made: each a code and its
         # particulars, worded by the UI; empty when it had nothing to say.
         "build_notes": record.build_notes,
+        # REQ-2015: each index the standing landing asked for, and how it stands.
+        "indexes": index_view(record.index_state),
     }
+
+
+def index_view(state: dict | None) -> list[dict]:
+    """The indexes a replica's standing landing asked for, each with its columns and how it
+    stands: ``built``, ``failed`` (with the failure's English text, and its code for the UI to
+    word), or ``pending`` -- asked for and not yet built. Empty when it asked for none."""
+    if state is None:
+        return []
+    out: list[dict] = []
+    for wanted in state["wanted"]:
+        name = wanted["name"]
+        failure = state["failed"].get(name)
+        out.append(
+            {
+                "name": name,
+                "columns": list(wanted["columns"]),
+                "primary": bool(wanted["primary"]),
+                "state": "failed"
+                if failure is not None
+                else "built"
+                if name in state["built"]
+                else "pending",
+                "error": failure["error"] if failure is not None else None,
+                "error_code": failure["code"] if failure is not None else None,
+            }
+        )
+    return out

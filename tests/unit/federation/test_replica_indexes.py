@@ -32,6 +32,7 @@ from provisa.core.schema_org import (
     sources,
 )
 from provisa.federation import replica_indexes as ri
+from provisa.federation import replica_state as replica_state_reads
 from provisa.federation import replica_state as build_state
 from provisa.federation.replica_locks import BuildLocks
 from provisa.federation.replica_runner import BuildOutcome, ReplicaRunner
@@ -232,6 +233,10 @@ async def test_a_failed_index_is_kept_with_its_cause_and_the_rest_are_built(cont
         assert await ri.due(conn) == []
         record = await build_state.read(conn, ORDERS)
     assert record is not None and record.exists  # the landing stands
+    # The record an operator's view is built from carries it (REQ-2015).
+    async with db.acquire() as conn:
+        (shown,) = [r for r in await replica_state_reads.read_all(conn) if r.key == ORDERS]
+    assert shown.index_state["failed"][pk.name]["code"] == ri.DUPLICATE_KEY
 
 
 async def test_any_other_failure_is_kept_under_its_own_code(control_plane):

@@ -248,6 +248,10 @@ class ReplicaRecord:
     #: How far a running build that lands a part at a time has got: {"done", "total", "unit"}.
     #: None for any other build, and once the build has ended.
     build_progress: dict | None = None
+    #: REQ-2015: the indexes the standing landing asked for and how each stands:
+    #: {"for", "wanted": [{"name", "columns", "primary"}], "built": [name], "failed": {name:
+    #: {"error", "code", "columns"}}}. None: the landing asked for none.
+    index_state: dict | None = None
 
     @property
     def partial(self) -> bool:
@@ -316,6 +320,7 @@ _COLUMNS = (
     _t.completed_rows,
     _t.build_wait,
     _t.build_progress,
+    _t.index_state,
 )
 
 
@@ -362,6 +367,7 @@ def _record(row: Any) -> ReplicaRecord:
         completed_rows=row[31],
         build_wait=row[32],
         build_progress=row[33],
+        index_state=row[34],
     )
 
 

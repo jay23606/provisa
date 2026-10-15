@@ -1696,6 +1696,19 @@ export interface ReplicaBuild {
   /** What the last completed build had to say of the copy it made: a code and its particulars
    * (`replication.unreadable_messages`: count, ids, more). Null when it had nothing to say. */
   buildNotes: { code: string; params: Record<string, unknown> | null }[];
+  /** REQ-2015: each index the standing landing asked for, and how it stands. */
+  indexes: ReplicaIndex[];
+}
+
+/** One index a replica's standing landing asked for. A failed one carries its English text and
+ * the code the UI words (`replica.index_duplicate_key`, `replica.index_failed`). */
+export interface ReplicaIndex {
+  name: string;
+  columns: string[];
+  primary: boolean;
+  state: "built" | "pending" | "failed";
+  error: string | null;
+  errorCode: string | null;
 }
 
 export interface ReplicaBuilds {

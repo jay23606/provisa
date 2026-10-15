@@ -1469,6 +1469,20 @@ class HotTableStatType:
 
 
 @strawberry.type
+class ReplicaIndexType:  # REQ-2015
+    """One index a replica's standing landing asked for, and how it stands."""
+
+    name: str
+    columns: list[str]
+    primary: bool  # the table's declared key, enforced as a key
+    state: str  # built | pending | failed
+    # A failed one: its English text, and the code the UI words (replica.index_duplicate_key,
+    # replica.index_failed).
+    error: str | None
+    error_code: str | None
+
+
+@strawberry.type
 class ReplicaBuildType:  # REQ-1915
     """One replica and its build, as an operator sees it."""
 
@@ -1526,6 +1540,8 @@ class ReplicaBuildType:  # REQ-1915
     # each a code the UI words in its own language (``replication.unreadable_messages``) and
     # its particulars. Empty: nothing.
     build_notes: JsonScalar
+    # REQ-2015: each index the standing landing asked for, and how it stands.
+    indexes: list[ReplicaIndexType]
 
 
 @strawberry.type

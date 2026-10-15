@@ -926,7 +926,13 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
           </div>
         );
       }
-      if (editingTable?.id !== t.id) return readView({});
+      if (editingTable?.id !== t.id) {
+        return (
+          <ReplicaBuildsContext.Provider value={replicaBuilds}>
+            {readView({})}
+          </ReplicaBuildsContext.Provider>
+        );
+      }
       return (
         <>
           {/* While it is edited the panel's head holds the form's Save and Cancel in place

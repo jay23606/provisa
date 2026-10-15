@@ -57,6 +57,12 @@
     },
     "progressFiles": "{{total}} 件中 {{done}} 件のファイルを読み取り済み",
     "buildingPartialFiles": "レプリカは構築中で、すでに読み取れます。一部のみ: {{total}} 件中 {{done}} 件のファイルを読み取り済み（{{how}}）。",
-    "buildingPartsFiles": "レプリカを最新の状態に更新中: {{total}} 件中 {{done}} 件のファイルを確認済み（{{how}}）。"
+    "buildingPartsFiles": "レプリカを最新の状態に更新中: {{total}} 件中 {{done}} 件のファイルを確認済み（{{how}}）。",
+    "index": {
+      "summary": "インデックス: {{total}} 件中 {{built}} 件作成済み。",
+      "summaryPending": "インデックス: {{total}} 件中 {{built}} 件作成済み、{{pending}} 件作成中。",
+      "duplicateKey": "キー ({{columns}}) を作成できませんでした: ソースに値の重複があります。",
+      "failed": "({{columns}}) のインデックスを作成できませんでした: {{error}}"
+    }
   }
 }

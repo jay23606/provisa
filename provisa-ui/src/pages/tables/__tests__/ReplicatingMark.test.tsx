@@ -54,6 +54,7 @@ function build(over: Partial<ReplicaBuild>): ReplicaBuild {
     deltaSkipped: null,
     deltaCursor: null,
     buildNotes: [],
+    indexes: [],
     ...over,
   };
 }
