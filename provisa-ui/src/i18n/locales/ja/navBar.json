@@ -30,7 +30,7 @@
     "itemDomains": "ドメイン",
     "itemEnvironments": "環境",
     "itemCache": "キャッシュ",
-    "itemScheduler": "スケジューラー",
+    "itemScheduler": "トリガー",
     "itemFederation": "フェデレーション",
     "itemEmail": "メール",
     "itemMaintenance": "メンテナンス",

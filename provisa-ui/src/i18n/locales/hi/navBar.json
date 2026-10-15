@@ -30,7 +30,7 @@
     "itemDomains": "डोमेन",
     "itemEnvironments": "एनवायरनमेंट",
     "itemCache": "कैश",
-    "itemScheduler": "शेड्यूलर",
+    "itemScheduler": "ट्रिगर",
     "itemFederation": "फ़ेडरेशन",
     "itemEmail": "ईमेल",
     "itemMaintenance": "रखरखाव",

@@ -863,13 +863,20 @@ query ScheduledTasks {
   scheduledTasks {
     id
     name
+    firesOn
     cronExpression
+    onTable
+    onEvent
     webhookUrl
     kind
     sql
+    command
     role
     enabled
     lastRunAt
+    lastOutcome
+    lastError
+    lastFiredBy
     nextRunAt
   }
 }
@@ -1261,12 +1268,15 @@ mutation ToggleScheduledTask($taskId: String!, $enabled: Boolean!) {
 mutation CreateScheduledTask(
   $id: String!
   $name: String!
-  $cron: String!
+  $cron: String
   $kind: String!
   $webhookName: String
   $argsJson: String
   $sql: String
   $role: String
+  $onTable: String
+  $onEvent: String
+  $command: String
 ) {
   createScheduledTask(
     id: $id
@@ -1277,6 +1287,40 @@ mutation CreateScheduledTask(
     argsJson: $argsJson
     sql: $sql
     role: $role
+    onTable: $onTable
+    onEvent: $onEvent
+    command: $command
+  ) {
+    ...MutationResult
+  }
+}
+
+# REQ-2054: the same definition given to a trigger that exists; its enabled state stays.
+mutation UpdateScheduledTask(
+  $id: String!
+  $name: String!
+  $cron: String
+  $kind: String!
+  $webhookName: String
+  $argsJson: String
+  $sql: String
+  $role: String
+  $onTable: String
+  $onEvent: String
+  $command: String
+) {
+  updateScheduledTask(
+    id: $id
+    name: $name
+    cron: $cron
+    kind: $kind
+    webhookName: $webhookName
+    argsJson: $argsJson
+    sql: $sql
+    role: $role
+    onTable: $onTable
+    onEvent: $onEvent
+    command: $command
   ) {
     ...MutationResult
   }

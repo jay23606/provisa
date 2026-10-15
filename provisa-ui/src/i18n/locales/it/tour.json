@@ -257,8 +257,8 @@
         "description": "🗄️ Questi livelli sono separati. La cache delle risposte conserva i risultati delle query, e una richiesta vi partecipa con @cached o un commento SQL. Le piccole tabelle di consultazione vengono rispecchiate per velocizzare i join. Una replica di una tabella sorgente che non può essere collegata risiede nell'archivio durevole, accanto alle viste materializzate."
       },
       "stepScheduled": {
-        "title": "Attività pianificate",
-        "description": "⏱️ Esegui un webhook o un'istruzione SQL con una pianificazione cron. Un'attività SQL viene eseguita con un ruolo a tua scelta, quindi la governance si applica, e ogni attività mostra l'ultima e la prossima esecuzione."
+        "title": "Trigger",
+        "description": "⏱️ Esegui un webhook, un'istruzione SQL o un comando secondo una pianificazione cron, quando una tabella cambia, oppure su un errore o una quarantena di una tabella. Un trigger viene eseguito con il ruolo che scegli, quindi la governance si applica, e ognuno mostra come è terminata la sua ultima esecuzione."
       },
       "step23": {
         "title": "Operala",

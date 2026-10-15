@@ -257,8 +257,8 @@
         "description": "🗄️ Ces couches sont distinctes. Le cache de réponses conserve les résultats de requêtes, et une requête y participe avec @cached ou un commentaire SQL. Les petites tables de référence sont mises en miroir pour accélérer les jointures. Une réplique d'une table source impossible à attacher vit dans le stockage durable, à côté des vues matérialisées."
       },
       "stepScheduled": {
-        "title": "Tâches planifiées",
-        "description": "⏱️ Exécutez un webhook ou une instruction SQL selon un calendrier cron. Une tâche SQL s'exécute sous un rôle de votre choix, donc la gouvernance s'applique, et chaque tâche affiche sa dernière et sa prochaine exécution."
+        "title": "Déclencheurs",
+        "description": "⏱️ Exécutez un webhook, une instruction SQL ou une commande selon une planification cron, quand une table change, ou sur une erreur ou une quarantaine d'une table. Un déclencheur s'exécute avec le rôle que vous choisissez, la gouvernance s'applique donc, et chacun indique comment s'est terminée sa dernière exécution."
       },
       "step23": {
         "title": "Exploitez-le",

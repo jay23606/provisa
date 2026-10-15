@@ -1760,16 +1760,30 @@ export interface SystemHealth {
 
 // --- Admin: Scheduled Tasks ---
 
+/** A trigger: when it fires (a cron schedule, or a registered table's change or event), what it
+ * runs (a webhook, a SQL statement or a command) and as which role, and how its last run ended. */
 export interface ScheduledTask {
   id: string;
   name: string;
-  cronExpression: string;
+  /** "schedule" (cronExpression), or "change" / "event" (onTable, for onEvent). */
+  firesOn: "schedule" | "change" | "event";
+  cronExpression: string | null;
+  onTable: string | null;
+  /** change | error | quarantine. */
+  onEvent: string | null;
   webhookUrl: string | null;
-  kind: string;
+  kind: "webhook" | "sql" | "command";
   sql: string | null;
+  command: string | null;
   role: string | null;
   enabled: boolean;
   lastRunAt: string | null;
+  /** succeeded | refused | failed. */
+  lastOutcome: string | null;
+  lastError: string | null;
+  /** What fired the last run ("change:<table>"); null for a schedule. */
+  lastFiredBy: string | null;
+  /** A schedule's next firing; null for a trigger on a table. */
   nextRunAt: string | null;
 }
 

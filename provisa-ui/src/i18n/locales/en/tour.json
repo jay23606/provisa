@@ -257,8 +257,8 @@
         "description": "🗄️ These layers are separate. The response cache holds query results, and a request opts in with @cached or a SQL comment. Small lookup tables are mirrored to speed joins. A replica of a source table that cannot be attached lives in the durable store, beside materialized views."
       },
       "stepScheduled": {
-        "title": "Scheduled tasks",
-        "description": "⏱️ Run a webhook or a SQL statement on a cron schedule. A SQL task runs as a role you choose, so governance applies, and each task shows its last and next run."
+        "title": "Triggers",
+        "description": "⏱️ Run a webhook, a SQL statement or a command on a cron schedule, when a table changes, or on a table's error or quarantine. A trigger runs as a role you choose, so governance applies, and each shows how its last run ended."
       },
       "step23": {
         "title": "Operate it",

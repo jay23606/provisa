@@ -257,8 +257,8 @@
         "description": "🗄️ Diese Schichten sind getrennt. Der Antwort-Cache hält Abfrageergebnisse, und eine Anfrage nimmt per @cached oder SQL-Kommentar daran teil. Kleine Nachschlagetabellen werden gespiegelt, um Joins zu beschleunigen. Ein Replikat einer Quelltabelle, die sich nicht anbinden lässt, liegt im dauerhaften Speicher, neben materialisierten Sichten."
       },
       "stepScheduled": {
-        "title": "Geplante Aufgaben",
-        "description": "⏱️ Führen Sie einen Webhook oder eine SQL-Anweisung nach einem Cron-Zeitplan aus. Eine SQL-Aufgabe läuft als eine Rolle Ihrer Wahl, sodass die Governance greift, und jede Aufgabe zeigt ihren letzten und nächsten Lauf."
+        "title": "Trigger",
+        "description": "⏱️ Führen Sie einen Webhook, eine SQL-Anweisung oder einen Befehl nach Cron-Zeitplan aus, wenn sich eine Tabelle ändert oder bei einem Fehler oder einer Quarantäne einer Tabelle. Ein Trigger läuft als Rolle Ihrer Wahl, sodass die Governance greift, und jeder zeigt, wie seine letzte Ausführung endete."
       },
       "step23": {
         "title": "Betreiben",

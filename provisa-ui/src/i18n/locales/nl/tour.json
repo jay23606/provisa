@@ -257,8 +257,8 @@
         "description": "🗄️ Deze lagen staan los van elkaar. De responscache bewaart queryresultaten, en een verzoek doet mee via @cached of een SQL-commentaar. Kleine opzoektabellen worden gespiegeld om joins te versnellen. Een replica van een brontabel die niet kan worden gekoppeld, staat in de duurzame opslag, naast gematerialiseerde views."
       },
       "stepScheduled": {
-        "title": "Geplande taken",
-        "description": "⏱️ Voer een webhook of een SQL-instructie uit volgens een cron-schema. Een SQL-taak draait als een rol naar keuze, dus governance geldt, en elke taak toont zijn laatste en volgende uitvoering."
+        "title": "Triggers",
+        "description": "⏱️ Voer een webhook, een SQL-instructie of een opdracht uit volgens een cron-planning, wanneer een tabel verandert, of bij een fout of quarantaine van een tabel. Een trigger draait als de rol die u kiest, zodat governance geldt, en elke trigger toont hoe zijn laatste uitvoering eindigde."
       },
       "step23": {
         "title": "Beheer het",

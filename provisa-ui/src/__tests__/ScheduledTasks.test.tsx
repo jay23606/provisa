@@ -18,6 +18,7 @@ const t = i18n.getFixedT("en");
 const createSpy = vi.fn(async () => ({ success: true, message: "ok" }));
 const deleteSpy = vi.fn(async () => ({ success: true, message: "ok" }));
 const toggleSpy = vi.fn(async () => ({ success: true, message: "ok" }));
+const updateSpy = vi.fn(async () => ({ success: true, message: "ok" }));
 
 let mockTasks: unknown[] = [];
 
@@ -30,22 +31,63 @@ vi.mock("../hooks/useAdminOpsQueries", async (importOriginal) => ({
   useScheduledTasks: () => ({ scheduledTasks: mockTasks, loading: false }),
   useToggleScheduledTask: () => ({ toggleScheduledTask: toggleSpy }),
   useCreateScheduledTask: () => ({ createScheduledTask: createSpy }),
+  useUpdateScheduledTask: () => ({ updateScheduledTask: updateSpy }),
   useDeleteScheduledTask: () => ({ deleteScheduledTask: deleteSpy }),
 }));
 
 vi.mock("../hooks/useAdminQueries", () => ({
   useRoles: () => ({ roles: [{ id: "ops" }, { id: "analyst" }], loading: false }),
+  useTables: () => ({
+    tables: [{ sourceId: "shop", schemaName: "public", tableName: "orders" }],
+    loading: false,
+  }),
 }));
 
 vi.mock("../api/actions", () => ({
-  fetchActions: vi.fn(async () => ({ functions: [], webhooks: [] })),
+  fetchActions: vi.fn(async () => ({
+    functions: [{ name: "reconcile_orders", arguments: [] }],
+    webhooks: [],
+  })),
 }));
+
+/** A trigger as the list reads it; each test overrides what it is about. */
+function task(over: Record<string, unknown> = {}) {
+  return {
+    id: "nightly",
+    name: "Nightly Rollup",
+    firesOn: "schedule",
+    cronExpression: "0 2 * * *",
+    onTable: null,
+    onEvent: null,
+    webhookUrl: null,
+    kind: "sql",
+    sql: "INSERT INTO audit.d SELECT 1",
+    command: null,
+    role: "ops",
+    enabled: true,
+    lastRunAt: null,
+    lastOutcome: null,
+    lastError: null,
+    lastFiredBy: null,
+    nextRunAt: null,
+    ...over,
+  };
+}
+
+const pick = async (label: string, option: string) => {
+  fireEvent.click(screen.getByRole("textbox", { name: label }));
+  fireEvent.click(await screen.findByRole("option", { name: option, hidden: true }));
+};
+
+/** Open a trigger's detail: its row is selected and the right-hand panel shows it. */
+const openRow = (id: string) => fireEvent.click(screen.getByTestId(`scheduled-task-row-${id}`));
 
 describe("ScheduledTasks — SQL trigger", () => {
   beforeEach(() => {
     createSpy.mockClear();
     deleteSpy.mockClear();
     toggleSpy.mockClear();
+    updateSpy.mockClear();
     mockTasks = [];
   });
 
@@ -105,27 +147,17 @@ describe("ScheduledTasks — SQL trigger", () => {
     });
   });
 
-  it("lists an existing SQL trigger and can delete it", async () => {
-    mockTasks = [
-      {
-        id: "nightly",
-        name: "Nightly Rollup",
-        cronExpression: "0 2 * * *",
-        webhookUrl: null,
-        kind: "sql",
-        sql: "INSERT INTO audit.d SELECT 1",
-        role: "ops",
-        enabled: true,
-        lastRunAt: null,
-        nextRunAt: null,
-      },
-    ];
+  it("lists an existing SQL trigger and can delete it from its panel", async () => {
+    mockTasks = [task()];
     render(<ScheduledTasks />);
     expect(screen.getByText("INSERT INTO audit.d SELECT 1")).toBeTruthy();
-    expect(screen.getByText(t("scheduledTasks.runsAs", { role: "ops" }))).toBeTruthy();
+    openRow("nightly");
+    // The read view says what it runs and as which role.
+    const read = await screen.findByTestId("scheduled-task-read");
+    expect(within(read).getByText("ops")).toBeTruthy();
 
-    // The Delete button asks first, naming the task; nothing is deleted until it is confirmed.
-    fireEvent.click(screen.getByRole("button", { name: t("scheduledTasks.delete") }));
+    // Delete asks first, naming the trigger; nothing is deleted until it is confirmed.
+    fireEvent.click(screen.getByTestId("scheduled-task-delete"));
     const dialog = await screen.findByRole("dialog");
     expect(dialog.textContent).toContain(
       t("scheduledTasks.deleteTitle", { name: "Nightly Rollup" }),
@@ -139,24 +171,13 @@ describe("ScheduledTasks — SQL trigger", () => {
 // A mutation wrapper throws when the server answers with GraphQL errors: the action's busy state
 // ends, and what went wrong is said, never a button left spinning.
 describe("ScheduledTasks — a failed action", () => {
-  const TASK = {
-    id: "nightly",
-    name: "Nightly Rollup",
-    cronExpression: "0 2 * * *",
-    webhookUrl: null,
-    kind: "sql",
-    sql: "SELECT 1",
-    role: "ops",
-    enabled: true,
-    lastRunAt: null,
-    nextRunAt: null,
-  };
   beforeEach(() => {
-    mockTasks = [TASK];
+    mockTasks = [task({ sql: "SELECT 1" })];
   });
 
   const confirmDelete = async () => {
-    fireEvent.click(screen.getByRole("button", { name: t("scheduledTasks.delete") }));
+    openRow("nightly");
+    fireEvent.click(await screen.findByTestId("scheduled-task-delete"));
     await screen.findByRole("dialog");
     fireEvent.click(screen.getByRole("button", { name: t("common.confirm") }));
   };
@@ -170,9 +191,7 @@ describe("ScheduledTasks — a failed action", () => {
     expect((await screen.findByTestId("scheduled-tasks-action-error")).textContent).toBe(
       "scheduled task nightly is in use",
     );
-    expect(screen.getByRole("button", { name: t("scheduledTasks.delete") })).not.toHaveAttribute(
-      "data-loading",
-    );
+    expect(screen.getByTestId("scheduled-task-delete")).not.toBeDisabled();
   });
 
   it("says a refused delete, rather than taking it for done", async () => {
@@ -215,5 +234,99 @@ describe("ScheduledTasks — a failed action", () => {
     expect(await screen.findByText("id nightly is taken")).toBeTruthy();
     // The form stays open to correct, its save free again.
     expect(screen.getByTestId("scheduled-tasks-submit")).not.toHaveAttribute("data-loading");
+  });
+});
+
+describe("Triggers — on a table, edited, and how the last run ended", () => {
+  beforeEach(() => {
+    createSpy.mockClear();
+    updateSpy.mockClear();
+    mockTasks = [];
+  });
+
+  it("creates a command trigger fired when a table changes", async () => {
+    render(<ScheduledTasks />);
+    fireEvent.click(screen.getByTestId("scheduled-tasks-toggle-form"));
+    fireEvent.change(screen.getByLabelText(t("scheduledTasks.idLabel")), {
+      target: { value: "recon" },
+    });
+    fireEvent.change(screen.getByLabelText(t("scheduledTasks.nameLabel")), {
+      target: { value: "Reconcile orders" },
+    });
+    await pick(t("scheduledTasks.firesOnLabel"), t("scheduledTasks.firesChange"));
+    // A trigger on a table has no cron expression; it names the table instead.
+    expect(screen.queryByLabelText(t("scheduledTasks.cronLabel"))).toBeNull();
+    await pick(t("scheduledTasks.tableLabel"), "shop.public.orders");
+    await pick(t("scheduledTasks.kindLabel"), t("scheduledTasks.kindCommand"));
+    await pick(t("scheduledTasks.commandLabel"), "reconcile_orders");
+    await pick(t("scheduledTasks.roleLabel"), "ops");
+    fireEvent.click(screen.getByTestId("scheduled-tasks-submit"));
+    await waitFor(() => expect(createSpy).toHaveBeenCalledTimes(1));
+    expect(createSpy).toHaveBeenCalledWith({
+      id: "recon",
+      name: "Reconcile orders",
+      onTable: "shop.public.orders",
+      onEvent: "change",
+      kind: "command",
+      command: "reconcile_orders",
+      role: "ops",
+    });
+  });
+
+  it("edits a trigger in its panel, sending its new definition under the same id", async () => {
+    mockTasks = [task()];
+    render(<ScheduledTasks />);
+    openRow("nightly");
+    fireEvent.click(await screen.findByTestId("scheduled-task-edit"));
+    // The id names the trigger and is not changed by an edit.
+    expect(screen.getByLabelText(t("scheduledTasks.idLabel"))).toBeDisabled();
+    fireEvent.change(screen.getByLabelText(t("scheduledTasks.cronLabel")), {
+      target: { value: "30 4 * * 1" },
+    });
+    fireEvent.click(screen.getByTestId("scheduled-tasks-submit"));
+    await waitFor(() => expect(updateSpy).toHaveBeenCalledTimes(1));
+    expect(updateSpy).toHaveBeenCalledWith({
+      id: "nightly",
+      name: "Nightly Rollup",
+      cron: "30 4 * * 1",
+      kind: "sql",
+      sql: "INSERT INTO audit.d SELECT 1",
+      role: "ops",
+    });
+    expect(createSpy).not.toHaveBeenCalled();
+  });
+
+  it("shows how a table trigger's last run ended, its error and what fired it", async () => {
+    mockTasks = [
+      task({
+        id: "on-error",
+        name: "Page on error",
+        firesOn: "event",
+        cronExpression: null,
+        onTable: "shop.public.orders",
+        onEvent: "error",
+        kind: "command",
+        sql: null,
+        command: "reconcile_orders",
+        lastRunAt: "2026-10-15T12:00:00Z",
+        lastOutcome: "failed",
+        lastError: "the command refused the batch",
+        lastFiredBy: "event:shop.public.orders",
+      }),
+    ];
+    render(<ScheduledTasks />);
+    expect(
+      screen.getByText(
+        t("scheduledTasks.firesOnTable", {
+          table: "shop.public.orders",
+          event: t("scheduledTasks.eventError"),
+        }),
+      ),
+    ).toBeTruthy();
+    openRow("on-error");
+    const read = await screen.findByTestId("scheduled-task-read");
+    expect(within(read).getByText(t("scheduledTasks.outcomeFailed"))).toBeTruthy();
+    expect(within(read).getByText("the command refused the batch")).toBeTruthy();
+    expect(within(read).getByText("event:shop.public.orders")).toBeTruthy();
   });
 });

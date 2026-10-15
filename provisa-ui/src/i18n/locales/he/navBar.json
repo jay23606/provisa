@@ -30,7 +30,7 @@
     "itemDomains": "דומיינים",
     "itemEnvironments": "סביבות",
     "itemCache": "מטמון",
-    "itemScheduler": "מתזמן",
+    "itemScheduler": "טריגרים",
     "itemFederation": "פדרציה",
     "itemEmail": "דוא\"ל",
     "itemMaintenance": "תחזוקה",

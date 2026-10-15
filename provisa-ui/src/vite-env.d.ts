@@ -89,6 +89,7 @@ declare module "*.graphql" {
   export const ToggleMv: DocumentNode;
   export const ToggleScheduledTask: DocumentNode;
   export const CreateScheduledTask: DocumentNode;
+  export const UpdateScheduledTask: DocumentNode;
   export const DeleteScheduledTask: DocumentNode;
   export const PurgeCacheByTable: DocumentNode;
   export const PurgeCache: DocumentNode;
@@ -214,6 +215,7 @@ declare module "*.gql" {
   export const ToggleMv: DocumentNode;
   export const ToggleScheduledTask: DocumentNode;
   export const CreateScheduledTask: DocumentNode;
+  export const UpdateScheduledTask: DocumentNode;
   export const PurgeCacheByTable: DocumentNode;
   export const PurgeCache: DocumentNode;
   export const UpdateSourceCache: DocumentNode;

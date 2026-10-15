@@ -257,8 +257,8 @@
         "description": "🗄️ Estas capas son independientes. La caché de respuestas guarda resultados de consultas, y una solicitud participa con @cached o un comentario SQL. Las tablas de consulta pequeñas se reflejan para acelerar las uniones. Una réplica de una tabla de origen que no puede adjuntarse vive en el almacén duradero, junto a las vistas materializadas."
       },
       "stepScheduled": {
-        "title": "Tareas programadas",
-        "description": "⏱️ Ejecute un webhook o una sentencia SQL con un calendario cron. Una tarea SQL se ejecuta con un rol que usted elige, así que se aplica la gobernanza, y cada tarea muestra su última y su próxima ejecución."
+        "title": "Disparadores",
+        "description": "⏱️ Ejecute un webhook, una sentencia SQL o un comando según una programación cron, cuando cambia una tabla o ante un error o una cuarentena de una tabla. Un disparador se ejecuta como el rol que elija, así que se aplica la gobernanza, y cada uno muestra cómo terminó su última ejecución."
       },
       "step23": {
         "title": "Ponlo en operación",
