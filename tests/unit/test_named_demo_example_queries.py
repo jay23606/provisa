@@ -66,9 +66,10 @@ def _weblogs_views_schema():
     return _views_schema(_WEBLOGS, role)
 
 
-def _views_schema(home: Path, role: dict):
-    """The GraphQL schema ``role`` is served for a demo's views, built from the demo's own config
-    as the server builds it (the views' declared columns and types)."""
+def _views_schema(home: Path, role: dict, *, include_tables: bool = False):
+    """The GraphQL schema ``role`` is served for a demo's views (and, with ``include_tables``, its tables
+    too), built from the demo's own config as the server builds it (the declared columns and
+    types)."""
     from provisa.compiler import naming
     from provisa.compiler.introspect import ColumnMetadata
     from provisa.compiler.schema_gen import SchemaInput, generate_schema
@@ -83,7 +84,7 @@ def _views_schema(home: Path, role: dict):
         name: Table.model_fields[name].default for name in ("enable_aggregates", "enable_group_by")
     }
     config = views_as_tables(raw)
-    views = [t for t in config["tables"] if "view_sql" in t]
+    views = [t for t in config["tables"] if include_tables or "view_sql" in t]
     tables, column_types = [], {}
     for i, view in enumerate(views, start=1):
         tables.append(
@@ -93,7 +94,8 @@ def _views_schema(home: Path, role: dict):
                 "domain_id": view["domain_id"],
                 "schema_name": view["schema"],
                 "table_name": view["table"],
-                "view_sql": view["view_sql"],
+                "alias": view.get("alias"),
+                **({"view_sql": view["view_sql"]} if "view_sql" in view else {}),
                 **{name: view.get(name, default) for name, default in fields.items()},
                 "columns": [
                     {"column_name": c["name"], "visible_to": c["visible_to"]}
@@ -133,6 +135,21 @@ def test_the_weblogs_demo_ships_one_example_a_view():
 def test_each_weblogs_example_is_valid_against_the_demo_s_views(path):
     # That each runs and answers rows is tests/integration/test_weblogs_demo.py's, on the demo.
     errors = validate(_weblogs_views_schema(), parse(path.read_text()))
+    assert errors == [], [e.message for e in errors]
+
+
+EVERY_QUERY = sorted((_WEBLOGS.parent).glob("*/queries/*.graphql"))
+
+
+@pytest.mark.parametrize(
+    "path", EVERY_QUERY, ids=[f"{p.parents[1].name}/{p.stem}" for p in EVERY_QUERY]
+)
+def test_each_example_of_every_demo_is_valid_against_its_tables_and_views(path):
+    # As org_admin, who reads every table and view of the demo (scripts/check_demo.py's check).
+    admin = {"id": "org_admin", "capabilities": [], "domain_access": ["*"]}
+    errors = validate(
+        _views_schema(path.parents[1], admin, include_tables=True), parse(path.read_text())
+    )
     assert errors == [], [e.message for e in errors]
 
 
