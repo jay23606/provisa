@@ -383,10 +383,9 @@ export function AdminPage() {
                       onChange={(e) => setNewDomainDesc(e.currentTarget.value)}
                     />
                   </FormField>
-                  <FormField size="medium">
+                  <FormField size="medium" hint={t("adminPage.parentDomainHint")}>
                     <Select
                       label={t("adminPage.colParentDomain")}
-                      description={t("adminPage.parentDomainHint")}
                       data-testid="new-domain-parent"
                       data={userDomains.map((d) => d.id)}
                       value={newDomainParent || null}
