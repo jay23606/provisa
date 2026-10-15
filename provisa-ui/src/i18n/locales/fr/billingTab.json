@@ -33,7 +33,7 @@
     "trialLimitDays": "14 jours",
     "trialLimitHours": "40 heures actives — toute heure au cours de laquelle vous exécutez au moins une requête",
     "trialLimitEgress": "25 Go de trafic sortant",
-    "trialTerms": "Une carte est enregistrée à l'inscription par une autorisation de $0 et n'est pas débitée pendant l'essai. Les informations de carte sont saisies chez Lemon Squeezy, notre marchand officiel, et ne parviennent jamais à Provisa. À la fin de l'essai, l'abonnement passe à Starter payant — $1.30 par heure active avec un minimum mensuel de $25, 25 Go de trafic sortant inclus et $0.48 par Go au-delà. Vous pouvez annuler à tout moment avant la conversion.",
+    "trialTerms": "Une carte est enregistrée à l'inscription par une autorisation de 0 $ et n'est pas débitée pendant l'essai. Les données de carte sont saisies chez Lemon Squeezy, notre marchand officiel, et n'atteignent jamais Provisa. À la fin de l'essai, l'abonnement passe à l'offre Starter payante ; vous pouvez résilier à tout moment avant ce passage.",
     "startTrial": "Démarrer l'essai gratuit",
     "trialTitle": "Essai",
     "daysLeft": "{{days}} jours restants",
@@ -53,7 +53,7 @@
     "activeHoursMetered": "Heures actives mesurées : {{hours}}",
     "egressMetered": "Trafic sortant mesuré : {{amount}}",
     "transferTitle": "Transfert de données",
-    "transferIntro": "Le transfert de données est facturé par un abonnement distinct — 25 Go inclus chaque mois et $0.48 par Go au-delà. Cette organisation n'en a pas encore, donc le transfert qu'elle mesure n'est pas facturé.",
+    "transferIntro": "Le transfert de données est facturé par un abonnement distinct. Cette organisation n'en a pas encore, donc le transfert mesuré n'est pas facturé.",
     "addTransfer": "Ajouter le transfert de données",
     "nextChargeTitle": "Prochain prélèvement",
     "subCancelled": "Cet abonnement est annulé. Il n'y aura plus de prélèvement.",
@@ -65,6 +65,17 @@
     "renewPlus": "{{date}}, {{amount}} plus la consommation mesurée",
     "noRenewal": "Aucune date de renouvellement n'est définie pour cet abonnement.",
     "cardEnding": "{{brand}} se terminant par {{last4}}",
-    "portal": "Moyen de paiement et factures"
+    "portal": "Moyen de paiement et factures",
+    "trialRates": "Starter coûte {{hourly}} par heure active avec un minimum de {{minimum}}, {{includedGb}} Go de sortie inclus et {{perGb}} par Go au-delà.",
+    "transferRates": "Chaque mois, {{includedGb}} Go sont inclus et {{perGb}} est facturé par Go au-delà.",
+    "pricesUnavailable": "Les prix de Starter n'ont pas pu être lus auprès du marchand officiel, aucun tarif n'est donc indiqué ici : {{reason}}",
+    "noStarterOffer": "le serveur n'a envoyé aucune offre Starter",
+    "billTitle": "Facture en cours",
+    "billLineHours": "Heures actives : {{posted}} déclarées, {{included}} incluses, {{rate}} chacune au-delà : {{amount}}",
+    "billLineTransfer": "Transfert de données : {{posted}} Go déclarés, {{included}} inclus, {{rate}} chacun au-delà : {{amount}}",
+    "billTotal": "Jusqu'ici sur la période : {{amount}}",
+    "billUnavailable": "Le montant ne peut pas être établi à partir des prix du marchand officiel, aucun n'est donc affiché : {{reason}}",
+    "nextChargeAmount": "{{date}} : {{amount}} d'après l'utilisation déclarée jusqu'ici. L'utilisation déclarée avant cette date s'y ajoute.",
+    "nextChargeUnstated": "{{date}}. Le montant ne peut pas être établi : {{reason}}"
   }
 }

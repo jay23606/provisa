@@ -16,6 +16,12 @@ export function formatMoney(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
+/** A per-unit rate, which the store may state in fractions of a cent (REQ-1469). */
+export function formatRate(cents: number): string {
+  const dollars = cents / 100;
+  return Number.isInteger(cents) ? `$${dollars.toFixed(2)}` : `$${dollars}`;
+}
+
 const PLAN_NAMES: Record<string, string> = {
   trial: "Trial",
   starter: "Starter",

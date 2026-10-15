@@ -33,7 +33,7 @@
     "trialLimitDays": "14 日間",
     "trialLimitHours": "アクティブ時間 40 時間 — クエリを 1 回以上実行した時間帯",
     "trialLimitEgress": "エグレス 25 GB",
-    "trialTerms": "登録時にカードを $0のオーソリで登録しますが、トライアル中は請求されません。カード情報は当社の販売代行業者 Lemon Squeezy で入力され、Provisa には届きません。トライアル終了時にサブスクリプションは有料の Starter に切り替わります — アクティブ時間 1 時間あたり $1.30、月額最低 $25、エグレス 25 GB を含み、超過分は 1 GB あたり $0.48です。切り替え前であればいつでもキャンセルできます。",
+    "trialTerms": "登録時にカードを $0 のオーソリで登録し、試用期間中は請求しません。カード情報は当社の販売代行業者 Lemon Squeezy で入力され、Provisa に届くことはありません。試用期間の終了時にサブスクリプションは有料の Starter に切り替わります。切り替わる前ならいつでも解約できます。",
     "startTrial": "無料トライアルを開始",
     "trialTitle": "トライアル",
     "daysLeft": "残り {{days}} 日",
@@ -53,7 +53,7 @@
     "activeHoursMetered": "計測されたアクティブ時間: {{hours}}",
     "egressMetered": "計測されたエグレス: {{amount}}",
     "transferTitle": "データ転送",
-    "transferIntro": "データ転送は別のサブスクリプションで請求されます — 毎月 25 GB を含み、超過分は 1 GB あたり $0.48です。この組織にはまだないため、計測中の転送は請求されていません。",
+    "transferIntro": "データ転送は専用のサブスクリプションで請求されます。この組織はまだ契約していないため、計測中の転送は請求されていません。",
     "addTransfer": "データ転送を追加",
     "nextChargeTitle": "次回の請求",
     "subCancelled": "このサブスクリプションはキャンセル済みです。今後の請求はありません。",
@@ -65,6 +65,17 @@
     "renewPlus": "{{date}}、{{amount}} と従量課金分",
     "noRenewal": "このサブスクリプションには更新日が設定されていません。",
     "cardEnding": "{{brand}} 末尾 {{last4}}",
-    "portal": "支払い方法と請求書"
+    "portal": "支払い方法と請求書",
+    "trialRates": "Starter はアクティブ時間あたり {{hourly}}、最低料金 {{minimum}}、送信データ {{includedGb}} GB 込み、超過分は GB あたり {{perGb}} です。",
+    "transferRates": "毎月 {{includedGb}} GB が含まれ、超過分は GB あたり {{perGb}} が請求されます。",
+    "pricesUnavailable": "販売代行業者から Starter の価格を読み取れなかったため、ここでは料金を表示しません: {{reason}}",
+    "noStarterOffer": "サーバーから Starter プランが送られてきませんでした",
+    "billTitle": "現在の請求",
+    "billLineHours": "アクティブ時間: {{posted}} 計上、{{included}} 込み、超過分は 1 時間あたり {{rate}}: {{amount}}",
+    "billLineTransfer": "データ転送: {{posted}} GB 計上、{{included}} 込み、超過分は 1 GB あたり {{rate}}: {{amount}}",
+    "billTotal": "この期間の現時点まで: {{amount}}",
+    "billUnavailable": "販売代行業者の価格から金額を算出できないため、金額は表示しません: {{reason}}",
+    "nextChargeAmount": "{{date}}: これまでに計上された使用量で {{amount}}。その日までに計上される使用量が加算されます。",
+    "nextChargeUnstated": "{{date}}。金額を算出できません: {{reason}}"
   }
 }

@@ -42,7 +42,7 @@ import {
   type PlanOffers,
 } from "../../api/billing";
 import { useCheckoutAppearance } from "../../api/checkoutAppearance";
-import { formatMoney, planName } from "../../lib/planDisplay";
+import { formatMoney, formatRate, planName } from "../../lib/planDisplay";
 import { FormFooter } from "../form/FormLayout";
 
 const GIB = 1024 ** 3;
@@ -295,13 +295,29 @@ export function BillingTab() {
   const [summary, setSummary] = useState<BillingSummary | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  // REQ-1469: the rates the trial and transfer cards quote are the server's, from the merchant of
+  // record's own prices. When they cannot be read the cards say so; they never quote a rate
+  // written into this page.
+  const [starter, setStarter] = useState<PlanOffer | null>(null);
+  const [pricesError, setPricesError] = useState("");
 
   const load = useCallback(() => {
     if (!activeOrgId) return;
     fetchBillingSummary(activeOrgId)
       .then(setSummary)
       .catch((e: Error) => setError(e.message));
-  }, [activeOrgId]);
+    fetchPlans(activeOrgId)
+      .then((offers) => {
+        const offer = offers.plans.find((p) => p.plan === "starter");
+        if (offer === undefined) {
+          setPricesError(t("billingTab.noStarterOffer"));
+          return;
+        }
+        setStarter(offer);
+        setPricesError("");
+      })
+      .catch((e: Error) => setPricesError(e.message));
+  }, [activeOrgId, t]);
 
   useEffect(load, [load]);
 
@@ -397,7 +413,28 @@ export function BillingTab() {
               <List.Item>{t("billingTab.trialLimitHours")}</List.Item>
               <List.Item>{t("billingTab.trialLimitEgress")}</List.Item>
             </List>
-            <Text size="sm">{t("billingTab.trialTerms")}</Text>
+            <Text size="sm" data-testid="billing-trial-terms">
+              {t("billingTab.trialTerms")}
+              {starter !== null && starter.fixed_cents !== null && starter.fixed_interval && (
+                <>
+                  {" "}
+                  {t("billingTab.trialRates", {
+                    hourly: formatRate(starter.hourly_cents),
+                    minimum: t("billingTab.pricePer", {
+                      amount: formatMoney(starter.fixed_cents),
+                      interval: starter.fixed_interval,
+                    }),
+                    includedGb: starter.egress.included_gb,
+                    perGb: formatRate(starter.egress.per_gb_cents),
+                  })}
+                </>
+              )}
+            </Text>
+            {pricesError && (
+              <Alert color="yellow" data-testid="billing-prices-unavailable">
+                {t("billingTab.pricesUnavailable", { reason: pricesError })}
+              </Alert>
+            )}
             <Group>
               <Button onClick={begin} loading={busy} data-testid="billing-start-trial">
                 {t("billingTab.startTrial")}
@@ -511,13 +548,78 @@ export function BillingTab() {
         </Card>
       )}
 
+      {summary?.bill && (
+        <Card withBorder padding="lg" data-testid="billing-current-bill">
+          <Title order={4} mb="sm">
+            {t("billingTab.billTitle")}
+          </Title>
+          <Stack gap="xs">
+            <Text size="sm">
+              {t("billingTab.period", {
+                start: formatDate(summary.bill.period_start),
+                end: formatDate(summary.bill.period_end),
+              })}
+            </Text>
+            <Text size="sm">
+              {t(
+                summary.bill.fixed_kind === "minimum"
+                  ? "billingTab.planMinimum"
+                  : "billingTab.planFee",
+                { price: formatMoney(summary.bill.fixed_cents) },
+              )}
+            </Text>
+            {/* REQ-1469: each amount is the server's, priced by the merchant of record's own
+                price from the usage already posted to it. Nothing is multiplied out here. */}
+            {summary.bill.lines.map((line) => (
+              <Text size="sm" key={line.kind} data-testid={`billing-line-${line.kind}`}>
+                {t(
+                  line.kind === "active_hours"
+                    ? "billingTab.billLineHours"
+                    : "billingTab.billLineTransfer",
+                  {
+                    posted: line.posted,
+                    included: line.included,
+                    rate: formatRate(line.rate_cents),
+                    amount: formatMoney(line.cents),
+                  },
+                )}
+              </Text>
+            ))}
+            <Text size="sm" fw={600} data-testid="billing-bill-total">
+              {t("billingTab.billTotal", { amount: formatMoney(summary.bill.total_cents) })}
+            </Text>
+          </Stack>
+        </Card>
+      )}
+
+      {summary?.bill_unavailable && (
+        <Alert
+          color="yellow"
+          title={t("billingTab.billTitle")}
+          data-testid="billing-bill-unavailable"
+        >
+          {t("billingTab.billUnavailable", { reason: summary.bill_unavailable })}
+        </Alert>
+      )}
+
       {sub !== null && <PlanCards orgId={activeOrgId} onChanged={load} />}
 
       {summary && sub !== null && !summary.has_egress_subscription && (
         <Card withBorder padding="lg" data-testid="billing-add-transfer">
           <Stack gap="sm">
             <Title order={4}>{t("billingTab.transferTitle")}</Title>
-            <Text size="sm">{t("billingTab.transferIntro")}</Text>
+            <Text size="sm">
+              {t("billingTab.transferIntro")}
+              {starter !== null && (
+                <>
+                  {" "}
+                  {t("billingTab.transferRates", {
+                    includedGb: starter.egress.included_gb,
+                    perGb: formatRate(starter.egress.per_gb_cents),
+                  })}
+                </>
+              )}
+            </Text>
             <Group>
               <Button
                 onClick={addTransfer}
@@ -548,6 +650,20 @@ export function BillingTab() {
               </Text>
             ) : sub.status === "past_due" ? (
               <Text size="sm">{t("billingTab.paymentFailed")}</Text>
+            ) : summary?.next_charge ? (
+              <Text size="sm" data-testid="billing-next-charge-amount">
+                {t("billingTab.nextChargeAmount", {
+                  date: formatDate(summary.next_charge.date),
+                  amount: formatMoney(summary.next_charge.cents),
+                })}
+              </Text>
+            ) : sub.renews_at && summary?.bill_unavailable ? (
+              <Text size="sm">
+                {t("billingTab.nextChargeUnstated", {
+                  date: formatDate(sub.renews_at),
+                  reason: summary.bill_unavailable,
+                })}
+              </Text>
             ) : sub.renews_at ? (
               <Text size="sm">
                 {sub.fixed_cents == null
