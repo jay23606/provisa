@@ -1,0 +1,109 @@
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+#
+# The reviews demo where it runs from its bundle (start-ui-install.sh --demo reviews; REQ-2049):
+# its three stores, each loaded the first time it starts from what the bundle build dumped
+# (scripts/demo_bundle.py) and read live by config.yaml, read only:
+#
+#   mongodb        dump/mongodb.archive.gz, restored (db/mongo-restore.sh); Provisa reads as
+#                  reviews_reader (db/mongo-reader.js)
+#   elasticsearch  dump/elasticsearch/, a snapshot restored and closed to writes (db/es-restore.sh)
+#   neo4j          dump/neo4j/neo4j.dump, loaded (db/neo4j-load.sh); every database read only
+#
+# Ports: unset, those start-ui-install.sh --demo reviews reads; set empty (the node, which runs
+# several versions at once), ports docker picks. On the loopback only.
+
+x-demo-labels: &demo-labels
+  com.provisa.demo: reviews
+
+name: provisa-demo-reviews-run
+
+services:
+  mongodb:
+    image: mongo:7
+    restart: unless-stopped
+    labels:
+      <<: *demo-labels
+      com.provisa.demo.role: document
+      com.provisa.demo.host_env: REVIEWS_MONGO_HOST
+      com.provisa.demo.port_env: REVIEWS_MONGO_PORT
+      com.provisa.demo.port: "27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: ${REVIEWS_MONGO_ADMIN_PASSWORD:-reviews-admin}
+    ports:
+      - "127.0.0.1:${REVIEWS_MONGO_PORT-28617}:27017"
+    volumes:
+      - reviews_run_mongo:/data/db
+      - ./dump/mongodb.archive.gz:/dump/mongodb.archive.gz:ro
+      - ./db/mongo-restore.sh:/docker-entrypoint-initdb.d/10-restore.sh:ro
+      - ./db/mongo-reader.js:/docker-entrypoint-initdb.d/20-reader.js:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
+    restart: unless-stopped
+    labels:
+      <<: *demo-labels
+      com.provisa.demo.role: search
+      com.provisa.demo.host_env: REVIEWS_ES_HOST
+      com.provisa.demo.port_env: REVIEWS_ES_PORT
+      com.provisa.demo.port: "9200"
+    entrypoint: ["/bin/tini", "--", "bash", "/restore.sh"]
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+      path.repo: /snapshots
+    ports:
+      - "127.0.0.1:${REVIEWS_ES_PORT-28692}:9200"
+    volumes:
+      - reviews_run_es:/usr/share/elasticsearch/data
+      - ./dump/elasticsearch:/snapshots:ro
+      - ./db/es-restore.sh:/restore.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/restored && curl -sf http://localhost:9200/_cluster/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 60s
+  neo4j:
+    image: neo4j:5.19-community
+    restart: unless-stopped
+    labels:
+      <<: *demo-labels
+      com.provisa.demo.role: graph
+      com.provisa.demo.host_env: REVIEWS_NEO4J_HOST
+      com.provisa.demo.port_env: REVIEWS_NEO4J_HTTP_PORT
+      com.provisa.demo.port: "7474"
+    entrypoint: ["tini", "-g", "--", "bash", "/load.sh"]
+    environment:
+      NEO4J_AUTH: none
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_dbms_databases_default__to__read__only: "true"
+    ports:
+      - "127.0.0.1:${REVIEWS_NEO4J_HTTP_PORT-28674}:7474"
+    volumes:
+      - reviews_run_neo4j:/data
+      - ./dump/neo4j:/dumps:ro
+      - ./db/neo4j-load.sh:/load.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:7474 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 30s
+
+volumes:
+  reviews_run_mongo:
+  reviews_run_es:
+  reviews_run_neo4j:

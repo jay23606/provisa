@@ -160,3 +160,116 @@ def test_the_sonnets_run_time_compose_loads_what_its_build_saves():
     built = yaml.safe_load((_SONNETS / "docker-compose.yml").read_text())
     assert built["services"]["qdrant"]["image"] == qdrant["image"]
     assert built["services"]["qdrant"]["labels"]["com.provisa.demo.role"] == "vector"
+
+
+_REVIEWS = _REPO / "demo" / "named" / "reviews"
+
+
+def test_document_search_and_graph_stores_are_dumped_by_their_role(tmp_path, monkeypatch):
+    """REQ-2030: MongoDB as one archive, Elasticsearch as one snapshot copied out of its container,
+    Neo4j stopped and dumped -- last, after every store that is read while running."""
+    demo = tmp_path / "reviews"
+    demo.mkdir()
+    (demo / "docker-compose.yml").write_text("services: {}\n")
+    stores = builder.Stores(demo)
+    config = {
+        "services": {
+            "elasticsearch": {
+                "image": "docker.elastic.co/elasticsearch/elasticsearch:8.13.0",
+                "labels": {"com.provisa.demo.role": "search"},
+                "environment": {"path.repo": "/usr/share/elasticsearch/snapshots"},
+            },
+            "mongodb": {
+                "image": "mongo:7",
+                "labels": {"com.provisa.demo.role": "document"},
+                "environment": {
+                    "MONGO_INITDB_ROOT_USERNAME": "root",
+                    "MONGO_INITDB_ROOT_PASSWORD": "pw",
+                },
+            },
+            "neo4j": {
+                "image": "neo4j:5.19-community",
+                "labels": {"com.provisa.demo.role": "graph"},
+            },
+            "seeder": {"image": "seed:1", "labels": {"com.provisa.demo.role": "seeder"}},
+        }
+    }
+    ran: list[tuple] = []
+
+    def _compose(*args, **kw):
+        ran.append(args)
+        if args[0] == "config":
+            return type("Done", (), {"stdout": json.dumps(config)})()
+        if args[0] == "port":
+            return type("Done", (), {"stdout": "0.0.0.0:49200\n"})()
+        if "mongodump" in args:
+            kw["stdout"].write(b"archive bytes")
+        return type("Done", (), {"stdout": ""})()
+
+    asked: list[tuple] = []
+
+    def _put(url, **kw):
+        asked.append((url, kw.get("params"), kw.get("json")))
+        body = {"snapshot": {"state": "SUCCESS"}} if url.endswith("/data") else {}
+        return httpx.Response(200, json=body, request=httpx.Request("PUT", url))
+
+    monkeypatch.setattr(stores, "_compose", _compose)
+    monkeypatch.setattr(builder.httpx, "put", _put)
+
+    assert stores.dump() == ["elasticsearch/data", "mongodb", "neo4j/neo4j"]
+    assert (demo / "dump" / "mongodb.archive.gz").read_bytes() == b"archive bytes"
+    assert asked == [
+        (
+            "http://127.0.0.1:49200/_snapshot/bundle",
+            None,
+            {"type": "fs", "settings": {"location": "/usr/share/elasticsearch/snapshots"}},
+        ),
+        (
+            "http://127.0.0.1:49200/_snapshot/bundle/data",
+            {"wait_for_completion": "true"},
+            {"indices": "*,-.*", "include_global_state": False},
+        ),
+    ]
+    commands = [a for a in ran if a[0] != "config"]
+    assert commands == [
+        ("port", "elasticsearch", "9200"),
+        (
+            "cp",
+            "elasticsearch:/usr/share/elasticsearch/snapshots",
+            str(demo / "dump" / "elasticsearch"),
+        ),
+        (
+            "exec", "-T", "mongodb", "mongodump", "--quiet", "--archive", "--gzip",
+            "--username", "root", "--password", "pw", "--authenticationDatabase", "admin",
+        ),
+        ("stop", "neo4j"),
+        (
+            "run", "--rm", "--no-deps", "-v", f"{demo / 'dump' / 'neo4j'}:/dumps",
+            "--entrypoint", "neo4j-admin", "neo4j", "database", "dump", "neo4j",
+            "--to-path=/dumps",
+        ),
+    ]  # fmt: skip
+
+
+def test_the_reviews_run_time_compose_loads_what_its_build_saves():
+    run = yaml.safe_load((_REVIEWS / "docker-compose.run.yml").read_text())["services"]
+    built = yaml.safe_load((_REVIEWS / "docker-compose.yml").read_text())["services"]
+    for name, role in (("mongodb", "document"), ("elasticsearch", "search"), ("neo4j", "graph")):
+        assert run[name]["labels"]["com.provisa.demo.role"] == role
+        assert built[name]["labels"]["com.provisa.demo.role"] == role
+        assert built[name]["image"] == run[name]["image"]
+        assert all(str(p).startswith("127.0.0.1:") for p in run[name]["ports"])
+    assert "./dump/mongodb.archive.gz:/dump/mongodb.archive.gz:ro" in run["mongodb"]["volumes"]
+    assert "./dump/elasticsearch:/snapshots:ro" in run["elasticsearch"]["volumes"]
+    assert "./dump/neo4j:/dumps:ro" in run["neo4j"]["volumes"]
+    # The build snapshots to the path its own store names; the run restores from /snapshots.
+    assert built["elasticsearch"]["environment"]["path.repo"]
+    assert run["elasticsearch"]["environment"]["path.repo"] == "/snapshots"
+    assert run["neo4j"]["environment"]["NEO4J_dbms_databases_default__to__read__only"] == "true"
+    # The reader config.yaml connects as is the one the run-time store makes.
+    reader = (_REVIEWS / "db" / "mongo-reader.js").read_text()
+    catalog = next(
+        s for s in yaml.safe_load((_REVIEWS / "config.yaml").read_text())["sources"]
+        if s["id"] == "catalog"
+    )  # fmt: skip
+    assert f'user: "{catalog["username"]}"' in reader and f'pwd: "{catalog["password"]}"' in reader

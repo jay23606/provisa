@@ -138,10 +138,17 @@ services:
 `docker ps --filter label=com.provisa.demo=<name>` lists exactly those containers without
 needing the compose file open. `com.provisa.demo.role` identifies each service's part.
 
-The role value determines what the bundle build does with each store: [tool-verified: `scripts/demo_bundle.py:145-149`]
+The role value determines what the bundle build does with each store: [tool-verified: `scripts/demo_bundle.py` `Stores.dump`]
 
 - `rdb` — a Postgres service: dumped to `dump/<service>.sql` at build.
 - `vector` — a Qdrant service: each collection saved as `dump/<service>/<collection>.snapshot` at build.
+- `document` — a MongoDB service: every database dumped as one gzipped archive,
+  `dump/<service>.archive.gz`, read as the administrator its `MONGO_INITDB_ROOT_USERNAME` and
+  `MONGO_INITDB_ROOT_PASSWORD` name.
+- `search` — an Elasticsearch service: its indices snapshotted to the repository its `path.repo`
+  names, copied out to `dump/<service>/`.
+- `graph` — a Neo4j service: stopped, and its `neo4j` database dumped to
+  `dump/<service>/neo4j.dump`. It is dumped after every other store.
 - `seeder` — run once during the build (and during development starts); never in a bundle.
 
 ## config.yaml — the demo's whole config
@@ -335,6 +342,16 @@ Four things to get right:
   is shared by every sandbox of its version, so Provisa should never write to it. The sonnets
   demo's Qdrant store grants Provisa only its read-only key
   [tool-verified: `demo/named/sonnets/docker-compose.run.yml:QDRANT__SERVICE__READ_ONLY_API_KEY`].
+
+The reviews demo's run-time compose file loads its three stores the first time each starts
+[tool-verified: `demo/named/reviews/docker-compose.run.yml`, `demo/named/reviews/db/`]:
+
+- MongoDB restores the archive from an init script (`db/mongo-restore.sh` in
+  `/docker-entrypoint-initdb.d/`); Provisa reads as `reviews_reader`, whose role reads every database and writes none.
+- Elasticsearch starts through `db/es-restore.sh`, which registers the snapshot repository read
+  only at `/snapshots`, restores it, and blocks writes to every index.
+- Neo4j starts through `db/neo4j-load.sh`, which loads the dump when the data volume holds no
+  database yet; `NEO4J_dbms_databases_default__to__read__only` makes every database read only.
 
 A Qdrant store's run-time compose file recovers its collections from the build's snapshots at
 start [tool-verified: `demo/named/sonnets/docker-compose.run.yml`]:

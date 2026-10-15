@@ -50,7 +50,7 @@ NAMED = ROOT / "demo" / "named"
 LOCALES = ROOT / "provisa-ui" / "src" / "i18n" / "locales"
 _TESTS = ("tests/unit/test_named_demo_tour.py", "tests/unit/test_named_demo_columns.py")
 #: The store roles the sandbox tier's node finds by label (scripts/demo_stores_sync.sh).
-STORE_ROLES = ("rdb", "vector")
+STORE_ROLES = ("rdb", "vector", "document", "search", "graph")
 _STORE_LABELS = ("com.provisa.demo.host_env", "com.provisa.demo.port_env", "com.provisa.demo.port")
 
 
