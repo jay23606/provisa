@@ -324,15 +324,34 @@ def _parse_directives(query: str) -> tuple[Any, str]:
 def _apply_pipeline_transforms(  # REQ-040, REQ-041, REQ-134, REQ-198, REQ-262, REQ-263, REQ-554
     compiled, ctx, rls, role_id: str, role, fresh_mvs, state
 ) -> tuple[Any, bool]:
-    """Apply RLS, masking, MV rewrite, Kafka filters, and the row cap. Returns (compiled, mv_applied)."""
-    from provisa.compiler.mask_inject import inject_masking
-    from provisa.compiler.rls import inject_rls
-    from provisa.compiler.stage2 import apply_row_cap, resolve_row_cap
+    """Govern, then the MV rewrite and Kafka filters. Returns (compiled, mv_applied).
+
+    Governed as the compiled pipeline governs the statement it runs (pgwire._pipeline
+    ``_govern_compiled``): its views expanded, then ``apply_governance`` -- row filters, masks
+    wherever a column is referenced (a join on a masked key included, REQ-740), hidden columns and
+    the row cap -- so the SQL shown is the SQL that runs."""
+    from provisa.compiler.stage2 import apply_governance, build_governance_context
     from provisa.compiler.sql_rewrite import lower_to_catalog_physical
     from provisa.mv.view_reinject import reinject
 
-    compiled = inject_rls(compiled, ctx, rls)
-    compiled = inject_masking(compiled, ctx, state.masking_rules, role_id)
+    gov_ctx = build_governance_context(
+        role_id,
+        rls,
+        state.masking_rules,
+        ctx,
+        getattr(state, "tables", []),
+        role=role,
+        relationships=getattr(state, "relationships", None),
+        source_types=state.source_types,
+        engine=getattr(state, "federation_engine", None),
+    )
+    sql = compiled.sql
+    view_map = getattr(state, "view_sql_map", None)
+    if view_map:
+        from provisa.mv.view_read import semantic_statement
+
+        sql, _validated = semantic_statement(sql, view_map, state, gov_ctx)
+    compiled.sql = apply_governance(sql, gov_ctx)
 
     # The view the pipeline's optimize stage would read in place of the governed statement
     # (pgwire._pipeline._view_answering): shown as the view's catalog among the sources.
@@ -347,8 +366,6 @@ def _apply_pipeline_transforms(  # REQ-040, REQ-041, REQ-134, REQ-198, REQ-262, 
         compiled = inject_kafka_filters(
             compiled, ctx, state.source_types, state.kafka_table_configs
         )
-
-    compiled.sql = apply_row_cap(compiled.sql, resolve_row_cap(role))
 
     return compiled, mv_applied
 
