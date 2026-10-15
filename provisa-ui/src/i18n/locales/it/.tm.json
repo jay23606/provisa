@@ -5872,7 +5872,7 @@
   "it/tagsTab.json::tagsTab.expiresPolicyLabel": "Expiry date",
   "it/tagsTab.json::tagsTab.filterPlaceholder": "Filter tags…",
   "it/tagsTab.json::tagsTab.heading": "Tags",
-  "it/tagsTab.json::tagsTab.idDesc": "Unique identifier for the tag",
+  "it/tagsTab.json::tagsTab.idDesc": "Unique identifier for the tag. Lowercase letters, digits, _ and - only.",
   "it/tagsTab.json::tagsTab.idLabel": "Tag ID",
   "it/tagsTab.json::tagsTab.idPlaceholder": "e.g. pii",
   "it/tagsTab.json::tagsTab.newValueDescriptionLabel": "Description",

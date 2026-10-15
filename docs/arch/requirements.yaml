@@ -46787,8 +46787,8 @@
   - REQ-1377
   - REQ-1413
 - id: REQ-1415
-  status: accepted
-  target: 2026-Q4
+  status: complete
+  since: 2026-10
   group: 3. Source Registration & Data Modeling
   category: Tag Registry
   feature: glossary-tags-ontology-tags
@@ -46811,6 +46811,10 @@
   - provisa/compiler/schema_gen.py
   - provisa/api/flight/catalog.py
   - provisa/api/admin/schema_mutation.py
+  - provisa/compiler/schema_inputs.py
+  - provisa/api/app.py
+  tests:
+  - tests/unit/test_tag_comment_suffix.py
   scenario: 'Given a dimension column tagged entity and natural_language
 
     When its description is read from pg_description, GraphQL introspection or the Flight catalog

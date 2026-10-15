@@ -6568,9 +6568,9 @@ Table configuration persists `enable_aggregates` and `enable_group_by` boolean c
 
 **Status:** ✅ complete · **Priority:** MUST · **Type:** behavioral
 
-Masking SELECT expressions only; predicates that remain in the query (JOIN ON, RLS-injected filters) use physical unmasked columns unchanged — user-written WHERE/HAVING references to masked columns never reach this stage, rejected at validation time by V005 ([REQ-531](#REQ-531)). ORDER BY, LIMIT, GROUP BY, and all other clauses likewise remain unchanged, and masking returns a new immutable CompiledQuery, never mutating the input (absorbs [REQ-744](#REQ-744)). Masking injection operates on the SELECT projection list exclusively, preserving query filtering and join semantics.
+A masked column is its mask wherever the statement references it -- the select list, expressions, JOIN ON, GROUP BY, ORDER BY and window clauses -- and a hidden column is NULL; a user-written WHERE or HAVING reference to a masked column is refused at validation by V005 ([REQ-531](#REQ-531)). So a join on a masked key does not use the real value, and a role that may not see a key cannot recover it by joining on it. A demo or model that needs the join for a masked role exposes a non-sensitive surrogate key. RLS-injected filters read the physical columns. Masking returns a new immutable CompiledQuery, never mutating the input (absorbs [REQ-744](#REQ-744)).
 
-**Use case:** Separating masked SELECT projections from unmasked predicates ensures query filters remain executable while users see masked values.
+**Use case:** A role sees masked values everywhere it reads them, and cannot use a masked key in a join to reach the rows or values the mask withholds.
 
 **Code:** `provisa/compiler/mask_inject.py`, `provisa/compiler/stage2.py`
 
@@ -14602,15 +14602,15 @@ Tag assignments are readable as a queryable relation, not only through the admin
 
 ### REQ-1415 · Tag Registry {#REQ-1415}
 
-**Status:** ✓ accepted · **Priority:** MAY · **Type:** behavioral
+**Status:** ✅ complete · **Priority:** MAY · **Type:** behavioral
 
 Tag IDs are emitted into the bracketed comment suffix alongside the modeling role, so a catalog surface shows `[dimension, entity, natural_language]` where it shows `[fact, scd2]` today (append_modeling_tag, provisa/core/modeling_tags.py, [REQ-1320](#REQ-1320)) — reaching pg_description, GraphQL introspection and the Flight/MCP catalog description through the one shared formatter. The comment channel is a HUMAN-FACING MIRROR and is explicitly not the machine contract: the [REQ-1414](#REQ-1414) view is authoritative, and nothing derives behavior by parsing the comment. To keep the mirror unambiguous the constraint is enforced upstream at tag creation rather than at render time — user tag IDs are restricted to a slug charset ([a-z0-9_-]), so a tag can never contain a comma or bracket and no surface needs escaping rules that would drift between the three.
 
 **Use case:** Someone reading a column in DBeaver or a GraphQL schema sees its governance and semantic tags inline, without a second lookup against the admin API.
 
-**Code:** `provisa/core/modeling_tags.py`, `provisa/pgwire/catalog_populate.py`, `provisa/compiler/schema_gen.py`, `provisa/api/flight/catalog.py`, `provisa/api/admin/schema_mutation.py`
+**Code:** `provisa/core/modeling_tags.py`, `provisa/pgwire/catalog_populate.py`, `provisa/compiler/schema_gen.py`, `provisa/api/flight/catalog.py`, `provisa/api/admin/schema_mutation.py`, `provisa/compiler/schema_inputs.py`, `provisa/api/app.py`
 
-**Tests:** —
+**Tests:** `tests/unit/test_tag_comment_suffix.py`
 
 ## 13. Multi-Tenancy & Organizations
 

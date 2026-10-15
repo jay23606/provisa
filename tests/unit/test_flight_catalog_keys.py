@@ -76,6 +76,8 @@ class _Conn:
                 }
                 for table_id, (domain, name, _) in _TABLES.items()
             ]
+        if "FROM tag_assignments" in sql:
+            return []  # no tag assigned (REQ-1415)
         if "FROM relationships" in sql:
             # The statement itself excludes relationships with no target and the to-many side.
             assert "target_column IS NOT NULL" in sql and "'many-to-one', 'one-to-one'" in sql

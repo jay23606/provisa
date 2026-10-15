@@ -10,7 +10,7 @@
     "scope_relationship": "Relationship",
     "scope_command": "Command",
     "idLabel": "Tag ID",
-    "idDesc": "Unique identifier for the tag",
+    "idDesc": "Unique identifier for the tag. Lowercase letters, digits, _ and - only.",
     "idPlaceholder": "e.g. pii",
     "descriptionLabel": "Description",
     "descriptionPlaceholder": "What this tag marks",

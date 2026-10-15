@@ -10,7 +10,7 @@
     "scope_relationship": "रिलेशनशिप",
     "scope_command": "कमांड",
     "idLabel": "टैग ID",
-    "idDesc": "टैग का अद्वितीय पहचानकर्ता",
+    "idDesc": "टैग का अद्वितीय पहचानकर्ता। केवल छोटे अक्षर, अंक, _ और -।",
     "idPlaceholder": "जैसे pii",
     "descriptionLabel": "विवरण",
     "descriptionPlaceholder": "यह टैग क्या चिह्नित करता है",

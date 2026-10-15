@@ -10,7 +10,7 @@
     "scope_relationship": "Relazione",
     "scope_command": "Comando",
     "idLabel": "ID tag",
-    "idDesc": "Identificatore univoco del tag",
+    "idDesc": "Identificatore univoco del tag. Solo lettere minuscole, cifre, _ e -.",
     "idPlaceholder": "es. pii",
     "descriptionLabel": "Descrizione",
     "descriptionPlaceholder": "Cosa contrassegna questo tag",

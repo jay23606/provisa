@@ -10,7 +10,7 @@
     "scope_relationship": "關係",
     "scope_command": "命令",
     "idLabel": "標籤 ID",
-    "idDesc": "標籤的唯一識別碼",
+    "idDesc": "標籤的唯一識別碼。僅限小寫字母、數字、_ 和 -。",
     "idPlaceholder": "如 pii",
     "descriptionLabel": "描述",
     "descriptionPlaceholder": "此標籤標記的內容",

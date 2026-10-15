@@ -29,7 +29,7 @@ from dataclasses import dataclass
 import pyarrow as pa
 import pyarrow.flight as flight
 
-from provisa.core.modeling_tags import append_modeling_tag
+from provisa.core.modeling_tags import append_modeling_tag, column_comment, tags_by_object
 
 log = logging.getLogger(__name__)
 
@@ -124,6 +124,13 @@ async def _build_catalog_tables_async(state, role_id: str | None = None) -> list
             "WHERE target_table_id IS NOT NULL AND target_column IS NOT NULL "
             "AND cardinality IN ('many-to-one', 'one-to-one') ORDER BY id"
         )
+        # REQ-1415: the tag ids on each table and column, listed in the description suffix.
+        tag_rows = await conn.fetch(
+            "SELECT tag_id, object_type, table_id, column_name FROM tag_assignments"
+        )
+    table_tags, column_tags = tags_by_object(
+        (r["tag_id"], r["object_type"], r["table_id"], r["column_name"]) for r in tag_rows
+    )
 
     named = {row["id"]: (row["domain_id"], row["table_name"]) for row in rows}
     # A column is listed under the name SQL reads it by, so a name taken from the catalog can be
@@ -163,8 +170,12 @@ async def _build_catalog_tables_async(state, role_id: str | None = None) -> list
         table_name = row["table_name"]
         # REQ-1320: same "[fact]"/"[dimension, scd2]" suffix as GraphQL docs and
         # pg_description, so MCP/Flight callers see the star shape too.
+        # REQ-1415: the table's tag ids follow the role in the same suffix.
         description = append_modeling_tag(
-            row["description"], row["modeling_role"], row["modeling_history"]
+            row["description"],
+            row["modeling_role"],
+            row["modeling_history"],
+            table_tags.get(table_id, ()),
         )
 
         columns: list[CatalogColumn] = []
@@ -175,7 +186,9 @@ async def _build_catalog_tables_async(state, role_id: str | None = None) -> list
             col_name = cr["column_name"]
             if visible is not None and col_name not in visible[table_id]:
                 continue
-            col_description = cr["description"] or ""
+            col_description = column_comment(
+                cr["description"], row["modeling_role"], column_tags.get((table_id, col_name), ())
+            )
             columns.append(
                 CatalogColumn(
                     name=sql_names[(table_id, col_name)],
@@ -219,16 +232,23 @@ def build_catalog_tables_from_context(state) -> list[CatalogTable]:  # REQ-127, 
 
     ctx = state.contexts[best_role_id]
     table_map = getattr(ctx, "table_map", {})
+    # REQ-1415: the model's tag assignments, as the rebuild hydrated them into its config.
+    table_tags, column_tags = tags_by_object(
+        (a.tag_id, a.object_type, a.table_id, a.column_name) for a in state.config.tag_assignments
+    )
 
     tables: list[CatalogTable] = []
     for gql_name, tinfo in table_map.items():
         domain_id = getattr(tinfo, "domain_id", "default")
         # REQ-1320: same "[fact]"/"[dimension, scd2]" suffix as GraphQL docs and
         # pg_description, so MCP/Flight callers see the star shape too.
+        table_id = tinfo.table_id
+        role = getattr(tinfo, "modeling_role", None)
         description = append_modeling_tag(
             getattr(tinfo, "description", None),
-            getattr(tinfo, "modeling_role", None),
+            role,
             getattr(tinfo, "modeling_history", None),
+            table_tags.get(table_id, ()),  # REQ-1415
         )
         columns: list[CatalogColumn] = []
         col_metas = getattr(tinfo, "columns", [])
@@ -236,7 +256,9 @@ def build_catalog_tables_from_context(state) -> list[CatalogTable]:  # REQ-127, 
             col_name = getattr(cm, "column_name", "") or getattr(cm, "name", "")
             data_type = getattr(cm, "data_type", "varchar")
             is_nullable = getattr(cm, "is_nullable", True)
-            col_description = getattr(cm, "description", "") or ""
+            col_description = column_comment(
+                getattr(cm, "description", ""), role, column_tags.get((table_id, col_name), ())
+            )
             columns.append(
                 CatalogColumn(
                     name=col_name,

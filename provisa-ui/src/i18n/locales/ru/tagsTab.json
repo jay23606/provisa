@@ -10,7 +10,7 @@
     "scope_relationship": "Связь",
     "scope_command": "Команда",
     "idLabel": "ID тега",
-    "idDesc": "Уникальный идентификатор тега",
+    "idDesc": "Уникальный идентификатор тега. Только строчные латинские буквы, цифры, _ и -.",
     "idPlaceholder": "напр. pii",
     "descriptionLabel": "Описание",
     "descriptionPlaceholder": "Что отмечает этот тег",

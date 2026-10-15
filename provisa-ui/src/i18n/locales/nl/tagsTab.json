@@ -10,7 +10,7 @@
     "scope_relationship": "Relatie",
     "scope_command": "Opdracht",
     "idLabel": "Tag-ID",
-    "idDesc": "Unieke identificatie van de tag",
+    "idDesc": "Unieke identificatie van de tag. Alleen kleine letters, cijfers, _ en -.",
     "idPlaceholder": "bijv. pii",
     "descriptionLabel": "Beschrijving",
     "descriptionPlaceholder": "Wat deze tag markeert",

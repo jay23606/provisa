@@ -5871,7 +5871,7 @@
   "ja/tagsTab.json::tagsTab.expiresPolicyLabel": "Expiry date",
   "ja/tagsTab.json::tagsTab.filterPlaceholder": "Filter tags…",
   "ja/tagsTab.json::tagsTab.heading": "Tags",
-  "ja/tagsTab.json::tagsTab.idDesc": "Unique identifier for the tag",
+  "ja/tagsTab.json::tagsTab.idDesc": "Unique identifier for the tag. Lowercase letters, digits, _ and - only.",
   "ja/tagsTab.json::tagsTab.idLabel": "Tag ID",
   "ja/tagsTab.json::tagsTab.idPlaceholder": "e.g. pii",
   "ja/tagsTab.json::tagsTab.newValueDescriptionLabel": "Description",

@@ -10,7 +10,7 @@
     "scope_relationship": "Relación",
     "scope_command": "Comando",
     "idLabel": "ID de etiqueta",
-    "idDesc": "Identificador único de la etiqueta",
+    "idDesc": "Identificador único de la etiqueta. Solo letras minúsculas, dígitos, _ y -.",
     "idPlaceholder": "p. ej. pii",
     "descriptionLabel": "Descripción",
     "descriptionPlaceholder": "Qué marca esta etiqueta",

@@ -40,6 +40,7 @@ from provisa.compiler.type_map import (
     nested_column_graphql_type,
 )
 from provisa.compiler.schema_types import _TableInfo
+from provisa.core.modeling_tags import column_comment
 from provisa.compiler.schema_directives import (
     GraphQLBoolean,
     GraphQLFloat,
@@ -149,7 +150,13 @@ def _build_column_fields(  # REQ-008, REQ-010, REQ-039, REQ-155, REQ-156, REQ-22
         else:
             conv_alias = apply_gql_name(col_name, override)
             field_name = conv_alias if conv_alias else col_name
-        description = col.get("description")
+        # REQ-1415: a tagged column's description lists the table's role and the column's tags.
+        col_tags = col.get("tags") or ()
+        description = (
+            column_comment(col.get("description"), table.modeling_role, col_tags)
+            if col_tags
+            else col.get("description")
+        )
         fields[field_name] = GraphQLField(
             gql_type,
             description=description,
