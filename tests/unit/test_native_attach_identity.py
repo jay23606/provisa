@@ -140,6 +140,7 @@ def test_each_environments_connection_to_a_source_has_its_own_attach():
         _con=SimpleNamespace(execute=ran.append),
         _raw_attached=set(),
         _raw_attach_ddl={},
+        _unreachable={},
         _attach_source={},
         _ext_loaded=set(),
         _engine=SimpleNamespace(connector_for=lambda _type: SimpleNamespace(extension=None)),

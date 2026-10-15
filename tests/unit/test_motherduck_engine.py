@@ -156,7 +156,7 @@ def test_the_embedded_file_store_is_still_copied_per_statement():
 def test_the_attached_store_takes_the_embedded_stores_statements():
     con = duckdb.connect()
     con.execute("ATTACH ':memory:' AS mat_store")
-    store = EngineAttachedStore(con)
+    store = EngineAttachedStore(con, lambda run: run())
     columns = [("id", "INTEGER"), ("name", "VARCHAR")]
     store.reconcile("replicas", "orders", columns)
     store.land("replicas", "orders", columns, [{"id": 1, "name": "a"}], "none", None)

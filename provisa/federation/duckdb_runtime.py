@@ -32,9 +32,9 @@ import logging
 import os
 import re
 import threading
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from typing import Any
+from typing import Any, TypeVar
 
 import duckdb
 
@@ -45,6 +45,7 @@ from provisa.executor.result import QueryResult, ResultStream
 from provisa.federation import store_writer
 from provisa.federation.engine import build_duckdb_engine
 from provisa.core import request_deadline
+from provisa.core.read_refusal import ReadRefused
 from provisa.federation.land_guard import LandGuard
 from provisa.federation.replica_address import is_replicas_schema
 from provisa.federation.runtime_support import (
@@ -57,6 +58,8 @@ from provisa.federation.runtime_support import (
 from provisa.transpiler.transpile import transpile
 
 log = logging.getLogger(__name__)
+
+_T = TypeVar("_T")
 
 # Rows per Arrow record batch when lazily streaming the engine result (REQ-1214). Larger than the
 # DBAPI row-stream batch (1000) because Arrow batches carry columnar overhead per batch; still bounds
@@ -137,6 +140,22 @@ class WriteConflict(RuntimeError):
             f"Another change to the same data was written at the same time; retry. ({detail})"
         )
         self.params = {"detail": detail}
+
+
+class SourceUnreachable(ReadRefused):
+    """A read of a source whose server does not answer (#256): its attach was set aside so
+    nothing else fails with it, and attaching it again for this read failed too. Refused by the
+    source's name; the server's own error, which carries its connection string, stays in the
+    log."""
+
+    code = "query.source_unreachable"
+
+    def __init__(self, source_id: str) -> None:
+        self.params = {"source": source_id}
+        super().__init__(
+            f"source {source_id!r} cannot be reached; its reads are refused until its server "
+            f"answers."
+        )
 
 
 @contextmanager
@@ -224,6 +243,9 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         # REQ-1529: the ATTACH each raw alias was made with, so an environment reaching the same
         # source id through a different connection gets an attach of its own.
         self._raw_attach_ddl: dict[str, str] = {}
+        # Raw attaches set aside because their server stopped answering (_set_aside_unreachable):
+        # alias -> its ATTACH, run again by the next statement that reads the source.
+        self._unreachable: dict[str, str] = {}
         self._ext_loaded: set[str] = (
             set()
         )  # community/extension connectors LOADed on this connection
@@ -320,11 +342,13 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
             self._dbx_relations.pop(f'"{parts[0]}"."{parts[1]}"."{parts[2]}"', None)
         if parts[0] not in self._phys_catalogs:
             return  # nothing of this source was ever exposed on this connection
-        is_view = self._con.execute(
-            "SELECT 1 FROM duckdb_views() WHERE database_name = ? AND schema_name = ? "
-            "AND view_name = ?",
-            parts,
-        ).fetchone()
+        is_view = self._listing(
+            lambda: self._con.execute(
+                "SELECT 1 FROM duckdb_views() WHERE database_name = ? AND schema_name = ? "
+                "AND view_name = ?",
+                parts,
+            ).fetchone()
+        )
         if is_view is not None:
             self._con.execute(f'DROP VIEW "{parts[0]}"."{parts[1]}"."{parts[2]}"')
 
@@ -343,6 +367,58 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
                 self._raw_attach_ddl.pop(alias, None)
                 self._phys_catalogs.discard(alias)
                 self._let_file_go(alias)
+
+    def _listing(self, run: Callable[[], _T]) -> _T:
+        """``run`` -- a catalog listing on this connection -- with any raw attach whose server
+        has stopped answering set aside first. DuckDB reads every attached database for any
+        catalog listing, even one filtered to another database, so one unreachable server fails
+        them all (#256). Not to be called holding the catalogue gate."""
+        try:
+            return run()
+        except duckdb.IOException:
+            if not self._set_aside_unreachable():
+                raise
+        return run()
+
+    def _set_aside_unreachable(self) -> list[str]:
+        """DETACH each raw attach whose server does not answer, keeping its ATTACH to run again
+        (``_bring_back``); the aliases set aside. A missing schema binds in the one database
+        named, so the probe reaches no other: a live one answers that the schema does not
+        exist, an unreachable one fails to connect."""
+        gone: list[str] = []
+        with self._catalog_gate.write():
+            for alias in sorted(self._raw_attached):
+                try:
+                    self._con.execute(f'SELECT 1 FROM "{alias}"."__provisa_probe__"."x" LIMIT 0')
+                except duckdb.IOException as exc:
+                    self._con.execute(f'DETACH "{alias}"')
+                    self._raw_attached.discard(alias)
+                    self._unreachable[alias] = self._raw_attach_ddl[alias]
+                    gone.append(alias)
+                    log.warning(
+                        "source %s is unreachable; its attach is set aside until a read of it: %s",
+                        self._attach_source[alias],
+                        exc,
+                    )
+                except duckdb.Error:
+                    continue  # it answered
+        return gone
+
+    def _bring_back(self, duck_sql: str) -> None:
+        """ATTACH again each set-aside source ``duck_sql`` reads (by any catalog it is read
+        under); one whose server still does not answer refuses the statement by its name."""
+        for alias, attach in list(self._unreachable.items()):
+            source_id = self._attach_source[alias]
+            catalogs = [c for c, sid in self._attach_source.items() if sid == source_id]
+            if not any(f'"{c}"'.lower() in duck_sql.lower() for c in catalogs):
+                continue
+            try:
+                self._con.execute(attach)
+            except duckdb.IOException as exc:
+                log.warning("source %s is still unreachable: %s", source_id, exc)
+                raise SourceUnreachable(source_id) from exc
+            self._raw_attached.add(alias)
+            del self._unreachable[alias]
 
     def _attach_databricks(self, source: Any, scan_args: str, phys: str) -> None:
         """REQ-1867: register a Databricks table read in place, and point its view at the table's
@@ -400,7 +476,8 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
     def _prepare_sql(self, duck_sql: str) -> str:
         """The per-statement preparation every execution path runs: in-place Databricks views
         re-pointed (REQ-1867), then the store relations the statement reads rehydrated
-        (REQ-1901)."""
+        (REQ-1901). A source set aside as unreachable is attached again first."""
+        self._bring_back(duck_sql)
         self._refresh_databricks_relations(duck_sql)
         return self._refresh_store_relations(duck_sql)
 
@@ -590,6 +667,7 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
                     )
                 )
             self._raw_attached.add(raw_alias)
+            self._unreachable.pop(raw_alias, None)
             self._raw_attach_ddl[raw_alias] = attach
             self._attach_source[raw_alias] = source.id
             self._hold_file(source, raw_alias)
@@ -661,6 +739,9 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         alias = self._attached_alias(source)
         if alias is None:
             return []
+        return self._listing(lambda: self._schemas_of(alias))
+
+    def _schemas_of(self, alias: str) -> list[str]:
         cur = open_cursor(self._con)
         try:
             fast = cur.execute(
@@ -705,6 +786,9 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         alias = self._attached_alias(source)
         if alias is None:
             return []
+        return self._listing(lambda: self._tables_of(alias, schema_name))
+
+    def _tables_of(self, alias: str, schema_name: str) -> list[str]:
         cur = open_cursor(self._con)
         try:
             fast = cur.execute(
@@ -866,7 +950,7 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         self._sign_in_motherduck_as(token, "The materialize store")
         md = sql_literal("md:" + url.database, "duckdb")
         self._con.execute(f"ATTACH {md} AS {self._MAT_STORE}")
-        self._store_broker = EngineAttachedStore(self._con)
+        self._store_broker = EngineAttachedStore(self._con, self._listing)
 
     def region_table_address(self, name: str, schema: str, table: str) -> tuple[str, str, str]:
         """Where a statement reads ``schema.table`` of another region's store (REQ-1922): under

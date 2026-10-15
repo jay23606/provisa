@@ -76,6 +76,7 @@ def test_duckdb_run_arrow_interrupts_its_cursor(monkeypatch) -> None:
     monkeypatch.setattr(rt, "_refresh_store_relations", lambda sql: None)
     rt._dbx_relations = {}  # type: ignore[attr-defined]  # REQ-1867: no in-place Databricks relation
     rt._dbx_lock = threading.Lock()  # type: ignore[attr-defined]
+    rt._unreachable = {}  # type: ignore[attr-defined]  # no source set aside as unreachable
     # REQ-899: the statement names no ClickHouse relation.
     monkeypatch.setattr(rt, "_rewrite_clickhouse_relations", lambda sql, params, **_: (sql, False))
     _expect_deadline_cancel(lambda: rt.run_arrow("SELECT 1"), b)
