@@ -86,5 +86,35 @@ WEBLOGS = (
     ),
 )
 
+# The insider demo's post-review questions (REQ-2056): why the top case was flagged, who was over
+# the wall for its deal, and what the customer-data sender read before sending.
+_TOP_DEAL_CASE = (
+    'SELECT deal_id FROM "bank"."view_review_queue" WHERE deal_id IS NOT NULL '
+    "ORDER BY score DESC LIMIT 1"
+)
+INSIDER = (
+    Question(
+        "Who sent the highest-scoring deal message in the review queue, and which company is it "
+        "about?",
+        'SELECT sender AS a FROM "bank"."view_review_queue" WHERE deal_id IS NOT NULL AND score = '
+        '(SELECT MAX(score) FROM "bank"."view_review_queue" WHERE deal_id IS NOT NULL)',
+    ),
+    Question(
+        "Who was brought over the wall for the deal behind the highest-scoring deal message in "
+        "the review queue?",
+        'SELECT e.name AS a FROM "bank"."deal_team" AS t JOIN "bank"."employee" AS e '
+        f"ON e.employee_id = t.employee_id WHERE t.deal_id = ({_TOP_DEAL_CASE})",
+    ),
+    Question(
+        "How many customer records did the sender of the highest-scoring customer-data message "
+        "read in the week before sending it?",
+        'SELECT SUM(a.records_read) AS a FROM "bank"."customer_access" AS a '
+        'JOIN "bank"."message" AS m ON m.sender_id = a.employee_id '
+        'WHERE m.message_id = (SELECT message_id FROM "bank"."view_review_queue" '
+        "WHERE deal_id IS NULL ORDER BY score DESC LIMIT 1) "
+        "AND a.accessed_at BETWEEN m.sent_at - INTERVAL '7 days' AND m.sent_at",
+    ),
+)
+
 # Each named demo's questions, by its name (its directory under demo/named).
-QUESTIONS: dict[str, tuple[Question, ...]] = {"weblogs": WEBLOGS}
+QUESTIONS: dict[str, tuple[Question, ...]] = {"weblogs": WEBLOGS, "insider": INSIDER}

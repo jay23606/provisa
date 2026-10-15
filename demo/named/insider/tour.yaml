@@ -1,0 +1,71 @@
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+#
+# The insider demo's own tour (REQ-2010, REQ-2056): the scenario and its question; how it fits --
+# the bank's source, the watch list, the mail and what match_deals found in it -- each step on a real
+# row; then the answer: the review queue, the paraphrased leak above the deal team's expected mail,
+# customer data and the record of who read it; then governance: the same queue as a first-level
+# reviewer, who reads their own cases -- the flagged entity, never the watch list -- and the audit
+# record of every read; then Polly's post-review answers, stored; then a recap that names the
+# demo's limits. Step kinds and checks are as tour.yaml of the weblogs demo describes them.
+# Where the tour's "Look around on my own" leaves the visitor: the SQL page.
+landing:
+  route: /sql
+  capability: query_development
+steps:
+- key: insiderIntro
+  route: /sources
+  capability: source_registration
+  source: bank
+- key: insiderWatchList
+  route: /tables
+  capability: table_registration
+  table: bank.deal
+- key: insiderMail
+  table: bank.message
+- key: insiderMatch
+  table: bank.deal_match
+- key: insiderQueue
+  route: /sql
+  capability: query_development
+  sql: >-
+    SELECT message_id, flagged, sender, signals, outside_team, outside_bank, personal,
+    before_announcement, to_counterparty, score FROM "bank"."view_review_queue" ORDER BY score DESC LIMIT 10
+- key: insiderLeak
+  sql: >-
+    SELECT m.message_id, e.name AS sender, m.subject, m.body FROM "bank"."message" AS m
+    JOIN "bank"."employee" AS e ON e.employee_id = m.sender_id
+    WHERE m.message_id IN ('M0111', 'M0112') ORDER BY m.message_id
+- key: insiderCustomerData
+  sql: >-
+    SELECT customer_id, name, ssn, account_no FROM "bank"."customer" ORDER BY customer_id LIMIT 5
+- key: insiderPiiAccess
+  sql: >-
+    SELECT logged_at, role_id, table_name, pii_column FROM "ops"."pii_access"
+    ORDER BY logged_at DESC LIMIT 10
+- key: insiderAsReviewer
+  role: reviewer_ben
+- key: insiderReviewerQueue
+  sql: >-
+    SELECT message_id, deal_id, flagged, sender, signals, score FROM "bank"."view_review_queue"
+    ORDER BY score DESC
+- key: insiderAsControlRoom
+  role: all
+- key: insiderAudit
+  sql: >-
+    SELECT logged_at, role_id, table_name, row_count FROM "ops"."queries"
+    WHERE domain_id = 'bank' ORDER BY logged_at DESC LIMIT 20
+- key: insiderWhyFlagged
+  polly: Who sent the highest-scoring deal message in the review queue, and which company is it about?
+- key: insiderOverTheWall
+  polly: Who was brought over the wall for the deal behind the highest-scoring deal message in the review queue?
+- key: insiderDone
+  route: /sources
+  capability: source_registration
+  source: bank

@@ -421,3 +421,33 @@ def test_a_tour_asking_polly_needs_the_openrouter_key(tmp_path, monkeypatch):
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     with pytest.raises(SystemExit, match="OPENROUTER_API_KEY is not set"):
         builder._set_up(tmp_path, _toured(tmp_path, _ASKING), None, timeout=1)
+
+
+def _stores_up(tmp_path: Path, services: str) -> list[tuple]:
+    """What ``Stores.up`` asks docker compose, for a demo whose services are ``services``."""
+    demo = tmp_path / "demo"
+    demo.mkdir()
+    (demo / "docker-compose.yml").write_text("services: {}\n")
+    stores = builder.Stores(demo)
+    asked: list[tuple] = []
+
+    def _compose(*args, **_kw):
+        asked.append(args)
+        return type("Done", (), {"stdout": services})()
+
+    stores._compose = _compose
+    stores.up()
+    return asked
+
+
+def test_a_demo_with_a_seeder_brings_its_stores_up_then_runs_it(tmp_path):
+    asked = _stores_up(tmp_path, "postgres\nseeder\n")
+    assert asked[1] == ("up", "-d", "--build", "--wait", "--scale", "seeder=0")
+    assert asked[2] == ("run", "--rm", "--no-deps", "seeder")
+
+
+def test_a_demo_with_no_seeder_brings_its_stores_up(tmp_path):
+    """A demo whose data its init SQL loads has no seeder, and compose refuses to scale a service
+    it does not have."""
+    asked = _stores_up(tmp_path, "postgres\n")
+    assert asked[1:] == [("up", "-d", "--build", "--wait")]

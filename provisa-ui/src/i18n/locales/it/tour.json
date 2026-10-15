@@ -527,6 +527,66 @@
       "qualityDone": {
         "title": "Fiducia che si può interrogare",
         "description": "Depositare un lotto ha aggiornato i controlli, l'argento e l'oro, senza eseguire altro. Il lotto pulito è arrivato all'oro; quello difettoso si è fermato al bronzo, e il perché è una query."
+      },
+      "insiderIntro": {
+        "title": "Revisione insider in una banca",
+        "description": "Northgate Partners, una banca inventata, tiene una lista di sorveglianza delle operazioni su cui sta lavorando. La domanda: qualcuno sta inviando fuori dalla banca dati sensibili sulle operazioni o sui clienti? <strong>bank</strong> è il suo database: la lista di sorveglianza, i dipendenti e la loro posta, i clienti e chi ha letto i loro dati. Ogni nome e ogni record qui è generato."
+      },
+      "insiderWatchList": {
+        "title": "La lista di sorveglianza",
+        "description": "<strong>deal</strong> è la lista di sorveglianza del control room: per ogni operazione la società, i nomi con cui è nota, il suo ticker, il nome in codice del progetto e se è già pubblica. È la tabella più riservata: la legge il control room, un team di operazione solo la propria, un revisore di primo livello mai."
+      },
+      "insiderMail": {
+        "title": "La posta",
+        "description": "<strong>message</strong> contiene la posta in uscita dei dipendenti: chi l'ha inviata, quando e quanti destinatari erano fuori dalla banca o a un indirizzo personale."
+      },
+      "insiderMatch": {
+        "title": "Ogni messaggio contro ogni operazione",
+        "description": "<strong>deal_match</strong> è ciò che ha trovato il comando match_deals: per ogni messaggio e operazione, se nomina la società, un alias, il ticker o il nome in codice, e quanto è vicino alla descrizione dell'operazione secondo un modello di embedding locale. Una parafrasi che evita ogni nome ottiene comunque un punteggio."
+      },
+      "insiderQueue": {
+        "title": "La coda di revisione",
+        "description": "Una vista materializzata ordina ogni caso. La corrispondenza è pesata dal contesto: un mittente fuori dal team dell'operazione, un destinatario fuori dalla banca o a un indirizzo personale e un messaggio inviato prima dell'annuncio la alzano; un membro del team che scrive alle controparti dell'operazione stessa la abbassa."
+      },
+      "insiderLeak": {
+        "title": "Una parafrasi supera la posta attesa",
+        "description": "Due dei messaggi dietro la coda. Un trader che non è nell'operazione Falcon ne parla a un indirizzo personale con parole sue, senza nome, ticker né nome in codice, e finisce in cima. La posta del team ai legali dell'operazione nomina tutto, e finisce in basso."
+      },
+      "insiderCustomerData": {
+        "title": "Dati dei clienti",
+        "description": "La stessa posta è controllata per dati dei clienti con schemi SQL: numeri di previdenza sociale e di conto. Le colonne della tabella dei clienti sono marcate pii, quindi anche questa lettura è registrata."
+      },
+      "insiderPiiAccess": {
+        "title": "Chi ha letto i dati dei clienti",
+        "description": "<strong>ops.pii_access</strong> elenca ogni lettura di una tabella marcata pii: qui, la lettura che ha appena fatto. La coda fa lo stesso per il personale della banca dal registro degli accessi della banca stessa: il dipendente delle operations che quella settimana ha letto dati dei clienti e poi li ha inviati fuori è primo."
+      },
+      "insiderAsReviewer": {
+        "title": "Come revisore di primo livello",
+        "description": "Ora l'esploratore SQL esegue come reviewer_ben, il revisore di primo livello dei desk di trading, ricerca e operations."
+      },
+      "insiderReviewerQueue": {
+        "title": "Solo i propri casi",
+        "description": "La stessa coda, letta come il revisore: solo i casi dei desk che rivede, con l'entità segnalata visibile e l'operazione nascosta. Lo fanno regole di riga sulla posta e sulle sue corrispondenze; nulla viene copiato. La lista di sorveglianza stessa gli è negata."
+      },
+      "insiderAsControlRoom": {
+        "title": "Di nuovo al control room",
+        "description": "Ora l'esploratore SQL esegue di nuovo come tutti i ruoli."
+      },
+      "insiderAudit": {
+        "title": "Ogni lettura è registrata",
+        "description": "<strong>ops.queries</strong> registra ogni istruzione: chi l'ha eseguita, con quale ruolo, su quale tabella. Qui ci sono le letture del revisore della coda e della lista di sorveglianza, e anche le sue."
+      },
+      "insiderWhyFlagged": {
+        "title": "Perché è stato segnalato?",
+        "description": "Polly aiuta il revisore umano a posteriori. La sua risposta è stata prodotta quando la demo è stata costruita ed è mostrata come salvata."
+      },
+      "insiderOverTheWall": {
+        "title": "Il mittente era oltre il muro?",
+        "description": "Chi è stato portato oltre il muro per l'operazione, e quindi poteva saperne. Il mittente segnalato non è tra loro."
+      },
+      "insiderDone": {
+        "title": "Che cos'è e che cosa non è",
+        "description": "Le operazioni della lista di sorveglianza sono state confrontate con la posta in uscita per nome e per significato, ordinate per la revisione, e la lista non è mai stata mostrata al revisore. È analisi di revisione a posteriori dietro i controlli in tempo reale, non un sostituto della prevenzione della perdita di dati. Allegati, immagini, testo codificato e canali personali ne restano fuori. Il monitoraggio dei dipendenti richiede un'informativa e, in alcuni paesi, un accordo con le rappresentanze dei lavoratori."
       }
     },
     "status": {
@@ -563,6 +623,10 @@
       "quality": {
         "title": "Dati di cui fidarsi",
         "summary": "Il flusso di vendite di una catena di negozi, raffinato da bronzo ad argento e oro da viste materializzate controllate: basta depositare un lotto, e un lotto che fallisce un controllo non arriva mai all'argento."
+      },
+      "insider": {
+        "title": "Revisione insider",
+        "summary": "La posta in uscita di una banca confrontata con la sua lista di sorveglianza delle operazioni in corso e controllata per dati dei clienti, ordinata in un'unica coda di revisione che un revisore di primo livello legge senza mai vedere la lista."
       }
     }
   }

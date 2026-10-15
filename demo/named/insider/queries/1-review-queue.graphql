@@ -1,0 +1,16 @@
+# The review queue, highest score first: per message and the deal it was matched to (or customer
+# data), the signals that fired and the score.
+query ReviewQueue {
+  b__viewReviewQueue(order_by: [{ score: desc }], limit: 10) {
+    messageId
+    flagged
+    sender
+    signals
+    outsideTeam
+    outsideBank
+    personal
+    beforeAnnouncement
+    toCounterparty
+    score
+  }
+}

@@ -1,0 +1,46 @@
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+#
+# The named demo "insider" (start-ui-install.sh --demo insider; REQ-2056). This file is its one
+# start point: `docker compose up -d` brings up its database, Northgate Partners' watch list,
+# employees, customers and mailbox loaded from the generated db/*.tsv (db/init.sql). setup.yaml then
+# matches the mail to the watch list (the match_deals command).
+#
+#   postgres  the demo's database, with the role Provisa reads and writes it as.
+#
+# Port: 28232 the database; it can be moved by its variable.
+x-demo-labels: &demo-labels
+  com.provisa.demo: insider
+name: provisa-demo-insider
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    labels:
+      <<: *demo-labels
+      com.provisa.demo.role: rdb
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: insider
+    ports:
+      - "127.0.0.1:${INSIDER_PG_PORT:-28232}:5432"
+    volumes:
+      - insider_pg:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
+      # The generated data init.sql loads (generate.py); not .sql, so the entrypoint runs none.
+      - ./db:/docker-entrypoint-initdb.d/data:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d insider"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+
+volumes:
+  insider_pg:

@@ -1,0 +1,324 @@
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+#
+# The WHOLE config of the named demo "insider" (start-ui-install.sh --demo insider; REQ-2056): is
+# anyone sending deal-sensitive or customer data out of the bank? Northgate Partners, a fictional
+# bank, keeps a watch list of the deals in discussion. Every message its employees send is matched
+# to every deal (match_deals, setup.yaml) -- the company's names, its ticker, the code name, and the
+# deal in other words through the demo's own local embedding model -- and weighted by who sent it
+# and where it went; the same mail is checked for customer data. One materialized view is the
+# review queue.
+#
+#   bank  the bank's Postgres: the watch list, employees, customers and who read them, the mail,
+#         and the match signals (db/init.sql)
+#
+# Governance is half the demo: the watch list is read only by the control room (and a deal team,
+# its own deal's rows); a first-level reviewer reads only the queue's rows of their own desks -- the
+# flagged entity, the deal withheld -- and never a row of the list; the customer records are tagged
+# pii. A read of the queue is governed against the tables it reads, so the queue reads deal_match
+# (which match_deals writes the flagged entity into) and not the watch list.
+auth:
+  assignments_source: provisa
+  default_assignments:
+  - domain_id: '*'
+    role_id: org_admin
+  provider: none
+cache:
+  default_ttl: 300
+  enabled: true
+domains:
+- id: bank
+  description: Northgate Partners, a fictional bank -- its watch list of deals in discussion, its
+    employees and their mail, its customers -- reviewed for deal-sensitive and customer data sent out
+federation_engine: duckdb
+naming:
+  domain_prefix: true
+  rules: []
+roles:
+# The control room: the watch list and every case.
+- id: control_room
+  capabilities: [query_development]
+  domain_access: [bank]
+# First-level reviewers: their own desks' cases, the deal withheld; never the watch list.
+- id: reviewer_ana
+  capabilities: [query_development]
+  domain_access: [bank]
+- id: reviewer_ben
+  capabilities: [query_development]
+  domain_access: [bank]
+# A deal team: its own deal's rows of the watch list and of the queue.
+- id: deal_team_falcon
+  capabilities: [query_development]
+  domain_access: [bank]
+server:
+  limits:
+    default_row_limit: 100
+    request_timeout: 120
+    trino_query_timeout: 120
+vector_models:
+# A local sentence-transformers model: no key, no network once it is cached (provisa[vector],
+# which demo.yaml declares). match_deals reads each message close to a deal's description with it.
+- id: sentence-transformers/all-MiniLM-L6-v2
+  provider: huggingface
+  dimensions: 384
+  enabled: true
+sources:
+- id: bank
+  type: postgresql
+  host: ${env:INSIDER_PG_HOST:-localhost}
+  port: ${env:INSIDER_PG_PORT:-28232}
+  database: insider
+  username: provisa
+  password: provisa
+  description: Northgate Partners' database, read live
+tables:
+- source_id: bank
+  domain_id: bank
+  schema: bank
+  table: deal
+  enable_aggregates: true
+  enable_group_by: true
+  description: 'The control room''s watch list: each deal in discussion, its code name, the company, aliases and ticker, what kind of deal it is, and when it was announced'
+  columns:
+  - {name: deal_id, data_type: varchar, description: 'The deal', visible_to: [org_admin, control_room, deal_team_falcon], is_primary_key: true}
+  - {name: code_name, data_type: varchar, description: 'The project code name the deal team uses', visible_to: [org_admin, control_room, deal_team_falcon]}
+  - {name: legal_name, data_type: varchar, description: 'The company''''s legal name', visible_to: [org_admin, control_room, deal_team_falcon]}
+  - {name: aliases, data_type: varchar, description: 'Other names the company goes by, separated by semicolons', visible_to: [org_admin, control_room, deal_team_falcon]}
+  - {name: ticker, data_type: varchar, description: 'The company''''s ticker', visible_to: [org_admin, control_room, deal_team_falcon]}
+  - {name: deal_type, data_type: varchar, description: 'merger, acquisition, loan or underwriting', visible_to: [org_admin, control_room, deal_team_falcon]}
+  - {name: description, data_type: varchar, description: 'What the deal is, in a sentence', visible_to: [org_admin, control_room, deal_team_falcon]}
+  - {name: announced_on, data_type: date, description: 'When the deal was announced; empty while it is not public', visible_to: [org_admin, control_room, deal_team_falcon]}
+- source_id: bank
+  domain_id: bank
+  schema: bank
+  table: deal_team
+  enable_aggregates: true
+  enable_group_by: true
+  description: 'Who was brought over the wall for each deal, and when'
+  columns:
+  - {name: deal_id, data_type: varchar, description: 'The deal', visible_to: [org_admin, control_room, deal_team_falcon], is_primary_key: true}
+  - {name: employee_id, data_type: varchar, description: 'The employee brought over the wall', visible_to: [org_admin, control_room, deal_team_falcon], is_primary_key: true}
+  - {name: over_wall_at, data_type: timestamp, description: 'When they were brought over the wall', visible_to: [org_admin, control_room, deal_team_falcon]}
+- source_id: bank
+  domain_id: bank
+  schema: bank
+  table: deal_counterparty
+  enable_aggregates: true
+  enable_group_by: true
+  description: 'The mail domains of each deal''''s own counterparties: the company, its counsel'
+  columns:
+  - {name: deal_id, data_type: varchar, description: 'The deal', visible_to: [org_admin, control_room, deal_team_falcon], is_primary_key: true}
+  - {name: domain, data_type: varchar, description: 'A counterparty''''s mail domain', visible_to: [org_admin, control_room, deal_team_falcon], is_primary_key: true}
+- source_id: bank
+  domain_id: bank
+  schema: bank
+  table: deal_match
+  enable_aggregates: true
+  enable_group_by: true
+  description: 'Per message and deal it speaks of: how strongly it names the deal, how close it reads to
+    the deal, the signals, whether its sender is on the deal''s team, whether it went to one of the
+    deal''s counterparties and whether it was sent before the announcement; written by match_deals'
+  columns:
+  - {name: message_id, data_type: varchar, description: 'The message', visible_to: [org_admin, control_room, deal_team_falcon, reviewer_ana, reviewer_ben], is_primary_key: true, writable_by: [org_admin]}
+  - {name: deal_id, data_type: varchar, description: 'The deal', visible_to: [org_admin, control_room, deal_team_falcon, reviewer_ana, reviewer_ben], is_primary_key: true, writable_by: [org_admin]}
+  - {name: flagged_entity, data_type: varchar, description: 'The flagged entity: the company the deal is about', visible_to: [org_admin, control_room, deal_team_falcon, reviewer_ana, reviewer_ben], writable_by: [org_admin]}
+  - {name: name_match, data_type: double, description: 'The strongest match of the company''s names, its ticker or the code name, from 0 to 1', visible_to: [org_admin, control_room, deal_team_falcon, reviewer_ana, reviewer_ben], writable_by: [org_admin]}
+  - {name: meaning_match, data_type: double, description: 'How close the message reads to the deal''s description, from 0 to 1', visible_to: [org_admin, control_room, deal_team_falcon, reviewer_ana, reviewer_ben], writable_by: [org_admin]}
+  - {name: signals, data_type: varchar, description: 'The signals that fired: legal_name, alias, ticker, code_name, meaning', visible_to: [org_admin, control_room, deal_team_falcon, reviewer_ana, reviewer_ben], writable_by: [org_admin]}
+  - {name: sender_on_team, data_type: integer, description: '1 when its sender was brought over the wall for the deal', visible_to: [org_admin, control_room, deal_team_falcon, reviewer_ana, reviewer_ben], writable_by: [org_admin]}
+  - {name: to_counterparty, data_type: integer, description: '1 when it went to one of the deal''s own counterparties', visible_to: [org_admin, control_room, deal_team_falcon, reviewer_ana, reviewer_ben], writable_by: [org_admin]}
+  - {name: before_announcement, data_type: integer, description: '1 when it was sent before the deal was announced', visible_to: [org_admin, control_room, deal_team_falcon, reviewer_ana, reviewer_ben], writable_by: [org_admin]}
+- source_id: bank
+  domain_id: bank
+  schema: bank
+  table: employee
+  enable_aggregates: true
+  enable_group_by: true
+  description: 'The bank''''s employees and their desks'
+  columns:
+  - {name: employee_id, data_type: varchar, description: 'The employee', visible_to: [org_admin, control_room, deal_team_falcon, reviewer_ana, reviewer_ben], is_primary_key: true}
+  - {name: name, data_type: varchar, description: 'Their name', visible_to: [org_admin, control_room, deal_team_falcon, reviewer_ana, reviewer_ben]}
+  - {name: email, data_type: varchar, description: 'Their bank address', visible_to: [org_admin, control_room, deal_team_falcon, reviewer_ana, reviewer_ben]}
+  - {name: desk, data_type: varchar, description: 'Their desk', visible_to: [org_admin, control_room, deal_team_falcon, reviewer_ana, reviewer_ben]}
+- source_id: bank
+  domain_id: bank
+  schema: bank
+  table: desk_reviewer
+  enable_aggregates: true
+  enable_group_by: true
+  description: 'Which first-level reviewer each desk''''s mail goes to'
+  columns:
+  - {name: desk, data_type: varchar, description: 'The desk', visible_to: [org_admin, control_room, deal_team_falcon, reviewer_ana, reviewer_ben], is_primary_key: true}
+  - {name: reviewer, data_type: varchar, description: 'The reviewer''''s role', visible_to: [org_admin, control_room, deal_team_falcon, reviewer_ana, reviewer_ben]}
+- source_id: bank
+  domain_id: bank
+  schema: bank
+  table: customer
+  enable_aggregates: true
+  enable_group_by: true
+  description: 'The bank''''s customers'
+  columns:
+  - {name: customer_id, data_type: varchar, description: 'The customer', visible_to: [org_admin, control_room], is_primary_key: true}
+  - {name: name, data_type: varchar, description: 'Their name', visible_to: [org_admin, control_room]}
+  - {name: email, data_type: varchar, description: 'Their address', visible_to: [org_admin, control_room]}
+  - {name: ssn, data_type: varchar, description: 'Their social security number', visible_to: [org_admin, control_room]}
+  - {name: account_no, data_type: varchar, description: 'Their account number', visible_to: [org_admin, control_room]}
+- source_id: bank
+  domain_id: bank
+  schema: bank
+  table: customer_access
+  enable_aggregates: true
+  enable_group_by: true
+  description: 'The bank''''s own log of who read customer records, and when'
+  columns:
+  - {name: access_id, data_type: integer, description: 'The read', visible_to: [org_admin, control_room, reviewer_ana, reviewer_ben], is_primary_key: true}
+  - {name: employee_id, data_type: varchar, description: 'Who read', visible_to: [org_admin, control_room, reviewer_ana, reviewer_ben]}
+  - {name: accessed_at, data_type: timestamp, description: 'When', visible_to: [org_admin, control_room, reviewer_ana, reviewer_ben]}
+  - {name: table_name, data_type: varchar, description: 'What they read', visible_to: [org_admin, control_room, reviewer_ana, reviewer_ben]}
+  - {name: records_read, data_type: integer, description: 'How many records', visible_to: [org_admin, control_room, reviewer_ana, reviewer_ben]}
+- source_id: bank
+  domain_id: bank
+  schema: bank
+  table: message
+  enable_aggregates: true
+  enable_group_by: true
+  description: 'The employees'''' mail'
+  columns:
+  - {name: message_id, data_type: varchar, description: 'The message', visible_to: [org_admin, control_room, reviewer_ana, reviewer_ben], is_primary_key: true}
+  - {name: sender_id, data_type: varchar, description: 'Who sent it', visible_to: [org_admin, control_room, reviewer_ana, reviewer_ben]}
+  - {name: sent_at, data_type: timestamp, description: 'When it was sent', visible_to: [org_admin, control_room, reviewer_ana, reviewer_ben]}
+  - {name: subject, data_type: varchar, description: 'Its subject', visible_to: [org_admin, control_room, reviewer_ana, reviewer_ben]}
+  - {name: body, data_type: varchar, description: 'Its text', visible_to: [org_admin, control_room, reviewer_ana, reviewer_ben]}
+  - {name: outside_recipients, data_type: integer, description: 'How many of its recipients were outside the bank', visible_to: [org_admin, control_room, reviewer_ana, reviewer_ben]}
+  - {name: personal_recipients, data_type: integer, description: 'How many of its recipients were personal addresses', visible_to: [org_admin, control_room, reviewer_ana, reviewer_ben]}
+- source_id: bank
+  domain_id: bank
+  schema: bank
+  table: recipient
+  enable_aggregates: true
+  enable_group_by: true
+  description: 'Each message''''s recipients: internal, external, or a personal address'
+  columns:
+  - {name: message_id, data_type: varchar, description: 'The message', visible_to: [org_admin, control_room], is_primary_key: true}
+  - {name: address, data_type: varchar, description: 'The recipient''''s address', visible_to: [org_admin, control_room], is_primary_key: true}
+  - {name: domain, data_type: varchar, description: 'The address''''s domain', visible_to: [org_admin, control_room]}
+  - {name: kind, data_type: varchar, description: 'internal, external or personal', visible_to: [org_admin, control_room]}
+views:
+- id: review_queue
+  domain_id: bank
+  materialize: true
+  enable_aggregates: true
+  enable_group_by: true
+  description: 'The review queue: per message and deal, or per message carrying customer data, its
+    score and the signals that fired; a first-level reviewer reads their own desks'' cases, the deal withheld'
+  sql: >-
+    SELECT c.message_id, c.deal_id, c.flagged_entity AS flagged, e.name AS sender, e.desk, r.reviewer,
+      m.sent_at, m.subject, c.signals,
+      1 - c.sender_on_team AS outside_team,
+      CASE WHEN m.outside_recipients > 0 THEN 1 ELSE 0 END AS outside_bank,
+      CASE WHEN m.personal_recipients > 0 THEN 1 ELSE 0 END AS personal,
+      c.before_announcement, c.to_counterparty,
+      ROUND(CAST(GREATEST(c.name_match, c.meaning_match)
+        * (0.5 + 0.5 * (1 - c.sender_on_team)
+          + 0.5 * CASE WHEN m.outside_recipients > 0 THEN 1 ELSE 0 END
+          + 0.3 * CASE WHEN m.personal_recipients > 0 THEN 1 ELSE 0 END)
+        * CASE WHEN c.before_announcement = 1 THEN 1.3 ELSE 0.4 END
+        * CASE WHEN c.sender_on_team = 1 AND c.to_counterparty = 1 THEN 0.3 ELSE 1 END AS NUMERIC), 3) AS score
+    FROM "bank"."deal_match" AS c
+    JOIN "bank"."message" AS m ON m.message_id = c.message_id
+    JOIN "bank"."employee" AS e ON e.employee_id = m.sender_id
+    JOIN "bank"."desk_reviewer" AS r ON r.desk = e.desk
+    UNION ALL
+    SELECT m.message_id, CAST(NULL AS VARCHAR) AS deal_id, 'customer data' AS flagged,
+      e.name AS sender, e.desk, r.reviewer, m.sent_at, m.subject,
+      CONCAT_WS(', ',
+        CASE WHEN REGEXP_LIKE(m.body, '[0-9]{3}-[0-9]{2}-[0-9]{4}') THEN 'ssn' END,
+        CASE WHEN REGEXP_LIKE(m.body, 'ACCT-[0-9]{8}') THEN 'account number' END,
+        CASE WHEN SUM(CASE WHEN a.accessed_at BETWEEN m.sent_at - INTERVAL '7 days' AND m.sent_at
+          THEN a.records_read ELSE 0 END) > 0 THEN 'read customer records that week' END) AS signals,
+      0 AS outside_team,
+      CASE WHEN m.outside_recipients > 0 THEN 1 ELSE 0 END AS outside_bank,
+      CASE WHEN m.personal_recipients > 0 THEN 1 ELSE 0 END AS personal,
+      0 AS before_announcement, 0 AS to_counterparty,
+      ROUND(CAST(0.5 * (CASE WHEN REGEXP_LIKE(m.body, '[0-9]{3}-[0-9]{2}-[0-9]{4}') THEN 1 ELSE 0 END
+          + CASE WHEN REGEXP_LIKE(m.body, 'ACCT-[0-9]{8}') THEN 1 ELSE 0 END)
+        * (0.5 + 0.5 * CASE WHEN m.outside_recipients > 0 THEN 1 ELSE 0 END
+          + 0.3 * CASE WHEN m.personal_recipients > 0 THEN 1 ELSE 0 END)
+        * CASE WHEN SUM(CASE WHEN a.accessed_at BETWEEN m.sent_at - INTERVAL '7 days' AND m.sent_at
+          THEN a.records_read ELSE 0 END) > 0 THEN 2 ELSE 1 END AS NUMERIC), 3) AS score
+    FROM "bank"."message" AS m
+    JOIN "bank"."employee" AS e ON e.employee_id = m.sender_id
+    JOIN "bank"."desk_reviewer" AS r ON r.desk = e.desk
+    LEFT JOIN "bank"."customer_access" AS a ON a.employee_id = m.sender_id
+    WHERE REGEXP_LIKE(m.body, '[0-9]{3}-[0-9]{2}-[0-9]{4}') OR REGEXP_LIKE(m.body, 'ACCT-[0-9]{8}')
+    GROUP BY m.message_id, m.sent_at, m.subject, m.body, m.outside_recipients,
+      m.personal_recipients, e.name, e.desk, r.reviewer
+  columns:
+  - {name: message_id, data_type: varchar, description: The message, visible_to: [org_admin, control_room, reviewer_ana, reviewer_ben]}
+  - {name: deal_id, data_type: varchar, description: 'The deal it was matched to; withheld from a first-level reviewer', visible_to: [org_admin, control_room, reviewer_ana, reviewer_ben], unmasked_to: [org_admin, control_room], mask_type: constant, mask_value: withheld}
+  - {name: flagged, data_type: varchar, description: 'The flagged entity: the company the deal is about, or customer data', visible_to: [org_admin, control_room, reviewer_ana, reviewer_ben]}
+  - {name: sender, data_type: varchar, description: Who sent it, visible_to: [org_admin, control_room, reviewer_ana, reviewer_ben]}
+  - {name: desk, data_type: varchar, description: The sender''s desk, visible_to: [org_admin, control_room, reviewer_ana, reviewer_ben]}
+  - {name: reviewer, data_type: varchar, description: The first-level reviewer the case goes to, visible_to: [org_admin, control_room, reviewer_ana, reviewer_ben]}
+  - {name: sent_at, data_type: timestamp, description: When it was sent, visible_to: [org_admin, control_room, reviewer_ana, reviewer_ben]}
+  - {name: subject, data_type: varchar, description: Its subject, visible_to: [org_admin, control_room, reviewer_ana, reviewer_ben]}
+  - {name: signals, data_type: varchar, description: What it matched, visible_to: [org_admin, control_room, reviewer_ana, reviewer_ben]}
+  - {name: outside_team, data_type: integer, description: 1 when its sender was not on the deal''s team, visible_to: [org_admin, control_room, reviewer_ana, reviewer_ben]}
+  - {name: outside_bank, data_type: integer, description: 1 when a recipient was outside the bank, visible_to: [org_admin, control_room, reviewer_ana, reviewer_ben]}
+  - {name: personal, data_type: integer, description: 1 when a recipient was a personal address, visible_to: [org_admin, control_room, reviewer_ana, reviewer_ben]}
+  - {name: before_announcement, data_type: integer, description: 1 when it was sent before the deal was announced, visible_to: [org_admin, control_room, reviewer_ana, reviewer_ben]}
+  - {name: to_counterparty, data_type: integer, description: 1 when it went to one of the deal''s own counterparties, visible_to: [org_admin, control_room, reviewer_ana, reviewer_ben]}
+  - {name: score, data_type: double, description: 'The score: the match weighted by who sent it and where it went', visible_to: [org_admin, control_room, reviewer_ana, reviewer_ben]}
+functions:
+# Every message matched to every deal, as signals in deal_signal (matching.py).
+- name: match_deals
+  function_name: match_deals
+  impl_kind: python
+  kind: mutation
+  domain_id: bank
+  description: Match every message to every watch-list deal -- its names, ticker and code name, and its
+    description by meaning through the local embedding model -- and write each signal to deal_signal
+  source_id: ''
+  returns: ''
+  visible_to: [org_admin]
+  binding:
+    callable: demo.named.insider.matching:match_deals
+rls_rules:
+# A first-level reviewer reads only the mail of the desks they review and the matches of that mail
+# (the flagged entity among them); of the watch list itself, nothing: no grant names them.
+- {table_id: message, role_id: reviewer_ana, filter: "sender_id IN (SELECT own_e.employee_id FROM \"bank\".\"employee\" AS own_e JOIN \"bank\".\"desk_reviewer\" AS own_r ON own_r.desk = own_e.desk WHERE own_r.reviewer = current_setting('provisa.role'))"}
+- {table_id: customer_access, role_id: reviewer_ana, filter: "employee_id IN (SELECT own_e.employee_id FROM \"bank\".\"employee\" AS own_e JOIN \"bank\".\"desk_reviewer\" AS own_r ON own_r.desk = own_e.desk WHERE own_r.reviewer = current_setting('provisa.role'))"}
+- {table_id: deal_match, role_id: reviewer_ana, filter: "message_id IN (SELECT own_m.message_id FROM \"bank\".\"message\" AS own_m WHERE own_m.sender_id IN (SELECT own_e.employee_id FROM \"bank\".\"employee\" AS own_e JOIN \"bank\".\"desk_reviewer\" AS own_r ON own_r.desk = own_e.desk WHERE own_r.reviewer = current_setting('provisa.role')))"}
+- {table_id: message, role_id: reviewer_ben, filter: "sender_id IN (SELECT own_e.employee_id FROM \"bank\".\"employee\" AS own_e JOIN \"bank\".\"desk_reviewer\" AS own_r ON own_r.desk = own_e.desk WHERE own_r.reviewer = current_setting('provisa.role'))"}
+- {table_id: customer_access, role_id: reviewer_ben, filter: "employee_id IN (SELECT own_e.employee_id FROM \"bank\".\"employee\" AS own_e JOIN \"bank\".\"desk_reviewer\" AS own_r ON own_r.desk = own_e.desk WHERE own_r.reviewer = current_setting('provisa.role'))"}
+- {table_id: deal_match, role_id: reviewer_ben, filter: "message_id IN (SELECT own_m.message_id FROM \"bank\".\"message\" AS own_m WHERE own_m.sender_id IN (SELECT own_e.employee_id FROM \"bank\".\"employee\" AS own_e JOIN \"bank\".\"desk_reviewer\" AS own_r ON own_r.desk = own_e.desk WHERE own_r.reviewer = current_setting('provisa.role')))"}
+# A deal team reads only its own deal of the watch list.
+- {table_id: deal, role_id: deal_team_falcon, filter: "deal_id = 'D-01'"}
+- {table_id: deal_team, role_id: deal_team_falcon, filter: "deal_id = 'D-01'"}
+- {table_id: deal_counterparty, role_id: deal_team_falcon, filter: "deal_id = 'D-01'"}
+- {table_id: deal_match, role_id: deal_team_falcon, filter: "deal_id = 'D-01'"}
+tag_assignments:
+# The customer records are pii: every read of them is in the record (ops.pii_access).
+- {tag_id: pii, object_type: column, table_ref: bank.bank.customer, column_name: name}
+- {tag_id: pii, object_type: column, table_ref: bank.bank.customer, column_name: email}
+- {tag_id: pii, object_type: column, table_ref: bank.bank.customer, column_name: ssn}
+- {tag_id: pii, object_type: column, table_ref: bank.bank.customer, column_name: account_no}
+relationships:
+- {id: match-message, alias: MATCHED_MESSAGE, cardinality: many-to-one, source_table_id: deal_match, source_column: message_id, target_table_id: message, target_column: message_id}
+- {id: match-deal, alias: MATCHED_DEAL, cardinality: many-to-one, source_table_id: deal_match, source_column: deal_id, target_table_id: deal, target_column: deal_id}
+- {id: message-sender, alias: SENT_BY, cardinality: many-to-one, source_table_id: message, source_column: sender_id, target_table_id: employee, target_column: employee_id}
+- {id: employee-reviewer, alias: REVIEWED_BY, cardinality: many-to-one, source_table_id: employee, source_column: desk, target_table_id: desk_reviewer, target_column: desk}
+- {id: message-recipient, alias: SENT_TO, cardinality: one-to-many, source_table_id: message, source_column: message_id, target_table_id: recipient, target_column: message_id}
+- {id: message-access, alias: SENDER_READ, cardinality: one-to-many, source_table_id: message, source_column: sender_id, target_table_id: customer_access, target_column: employee_id}
+- {id: access-employee, alias: READ_BY, cardinality: many-to-one, source_table_id: customer_access, source_column: employee_id, target_table_id: employee, target_column: employee_id}
+- {id: deal-team, alias: OVER_THE_WALL, cardinality: one-to-many, source_table_id: deal, source_column: deal_id, target_table_id: deal_team, target_column: deal_id}
+- {id: team-employee, alias: TEAM_MEMBER, cardinality: many-to-one, source_table_id: deal_team, source_column: employee_id, target_table_id: employee, target_column: employee_id}
+- {id: deal-counterparty, alias: COUNTERPARTY, cardinality: one-to-many, source_table_id: deal, source_column: deal_id, target_table_id: deal_counterparty, target_column: deal_id}
+- {id: queue-message, alias: QUEUED, cardinality: many-to-one, source_table_id: view_review_queue, source_column: message_id, target_table_id: message, target_column: message_id}
+- {id: queue-checks, alias: CASE_MATCH, cardinality: one-to-many, source_table_id: view_review_queue, source_column: message_id, target_table_id: deal_match, target_column: message_id}

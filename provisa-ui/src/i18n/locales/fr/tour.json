@@ -527,6 +527,66 @@
       "qualityDone": {
         "title": "Une confiance que l'on peut interroger",
         "description": "Déposer un lot a actualisé les contrôles, l'argent et l'or, sans rien exécuter d'autre. Le lot propre a atteint l'or ; le mauvais s'est arrêté au bronze, et pourquoi, c'est une requête."
+      },
+      "insiderIntro": {
+        "title": "Revue d'initiés dans une banque",
+        "description": "Northgate Partners, une banque inventée, tient une liste de surveillance des opérations sur lesquelles elle travaille. La question : quelqu'un envoie-t-il des données sensibles d'opérations ou de clients hors de la banque ? <strong>bank</strong> est sa base de données : la liste de surveillance, les employés et leur courrier, les clients et qui a lu leurs dossiers. Chaque nom et chaque dossier ici est généré."
+      },
+      "insiderWatchList": {
+        "title": "La liste de surveillance",
+        "description": "<strong>deal</strong> est la liste de surveillance du control room : pour chaque opération, la société, les noms sous lesquels elle est connue, son ticker, son nom de code de projet et si elle est déjà publique. C'est la table la plus restreinte : le control room la lit, une équipe d'opération seulement la sienne, un réviseur de premier niveau jamais."
+      },
+      "insiderMail": {
+        "title": "Le courrier",
+        "description": "<strong>message</strong> contient le courrier sortant des employés : qui l'a envoyé, quand, et combien de destinataires étaient hors de la banque ou à une adresse personnelle."
+      },
+      "insiderMatch": {
+        "title": "Chaque message face à chaque opération",
+        "description": "<strong>deal_match</strong> est ce qu'a trouvé la commande match_deals : pour chaque message et chaque opération, s'il nomme la société, un alias, le ticker ou le nom de code, et à quel point il est proche de la description de l'opération selon un modèle d'embeddings local. Une paraphrase qui évite tout nom obtient quand même un score."
+      },
+      "insiderQueue": {
+        "title": "La file de revue",
+        "description": "Une vue matérialisée classe chaque cas. La correspondance est pondérée par le contexte : un expéditeur hors de l'équipe de l'opération, un destinataire hors de la banque ou à une adresse personnelle et un message envoyé avant l'annonce l'augmentent ; un membre de l'équipe qui écrit aux contreparties de l'opération elle-même la diminue."
+      },
+      "insiderLeak": {
+        "title": "Une paraphrase passe devant le courrier attendu",
+        "description": "Deux des messages derrière la file. Un trader qui n'est pas sur l'opération Falcon en parle à une adresse personnelle avec ses propres mots, sans nom, ticker ni nom de code, et se classe parmi les premiers. Le courrier de l'équipe aux avocats de l'opération nomme tout, et se classe bas."
+      },
+      "insiderCustomerData": {
+        "title": "Données clients",
+        "description": "Le même courrier est vérifié pour les données clients par des motifs SQL : numéros de sécurité sociale et de compte. Les colonnes de la table des clients sont marquées pii, donc cette lecture est elle-même enregistrée."
+      },
+      "insiderPiiAccess": {
+        "title": "Qui a lu des données clients",
+        "description": "<strong>ops.pii_access</strong> liste chaque lecture d'une table marquée pii : ici, la lecture que vous venez de faire. La file fait de même pour le personnel de la banque à partir du journal d'accès propre à la banque : l'employé des opérations qui a lu des dossiers clients cette semaine-là puis envoyé des données clients à l'extérieur arrive en premier."
+      },
+      "insiderAsReviewer": {
+        "title": "En tant que réviseur de premier niveau",
+        "description": "Ensuite, l'explorateur SQL s'exécute en tant que reviewer_ben, le réviseur de premier niveau des desks trading, recherche et opérations."
+      },
+      "insiderReviewerQueue": {
+        "title": "Seulement ses propres cas",
+        "description": "La même file, lue en tant que réviseur : seulement les cas des desks qu'il revoit, l'entité signalée affichée et l'opération masquée. Des règles de lignes sur le courrier et ses correspondances le font ; rien n'est copié. La liste de surveillance elle-même lui est refusée."
+      },
+      "insiderAsControlRoom": {
+        "title": "Retour au control room",
+        "description": "Ensuite, l'explorateur SQL s'exécute de nouveau en tant que tous les rôles."
+      },
+      "insiderAudit": {
+        "title": "Chaque lecture est enregistrée",
+        "description": "<strong>ops.queries</strong> enregistre chaque instruction : qui l'a exécutée, sous quel rôle, sur quelle table. Les lectures du réviseur sur la file et la liste de surveillance y figurent, comme les vôtres."
+      },
+      "insiderWhyFlagged": {
+        "title": "Pourquoi a-t-il été signalé ?",
+        "description": "Polly aide le réviseur humain après coup. Sa réponse a été produite lors de la construction de la démo et s'affiche telle qu'enregistrée."
+      },
+      "insiderOverTheWall": {
+        "title": "L'expéditeur était-il passé de l'autre côté de la muraille ?",
+        "description": "Qui a été mis dans la confidence pour l'opération, et pouvait donc en avoir connaissance. L'expéditeur signalé n'en fait pas partie."
+      },
+      "insiderDone": {
+        "title": "Ce que c'est, et ce que ce n'est pas",
+        "description": "Les opérations de la liste de surveillance ont été confrontées au courrier sortant par nom et par sens, classées pour revue, et la liste elle-même n'a jamais été montrée au réviseur. Il s'agit d'analyse de revue a posteriori derrière des contrôles en temps réel, pas d'un remplacement de la prévention des pertes de données. Les pièces jointes, les images, le texte encodé et les canaux personnels en sont exclus. La surveillance des employés exige une information préalable et, dans certains pays, un accord avec les représentants du personnel."
       }
     },
     "status": {
@@ -563,6 +623,10 @@
       "quality": {
         "title": "Des données dignes de confiance",
         "summary": "Le flux de ventes d'une chaîne de boutiques, raffiné du bronze à l'argent puis à l'or par des vues matérialisées contrôlées : il suffit de déposer un lot, et un lot qui échoue à un contrôle n'atteint jamais l'argent."
+      },
+      "insider": {
+        "title": "Revue d'initiés",
+        "summary": "Le courrier sortant d'une banque confronté à sa liste de surveillance des opérations en cours et vérifié pour les données clients, classé dans une seule file de revue qu'un réviseur de premier niveau lit sans jamais voir la liste."
       }
     }
   }

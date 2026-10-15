@@ -1,0 +1,12 @@
+# How many messages speak of each watch-list deal, and how close the closest one reads to it.
+query MatchesByDeal {
+  b__dealMatchGroupBy(by: [dealId], order_by: [{ groupKey: { dealId: asc } }]) {
+    groupKey
+    aggregate {
+      count
+      max {
+        meaningMatch
+      }
+    }
+  }
+}

@@ -155,9 +155,11 @@ class Stores:
     def up(self) -> None:
         if not self.compose_file.exists():
             return
-        self._compose("up", "-d", "--build", "--wait", "--scale", "seeder=0")
         services = self._compose("config", "--services", capture_output=True, text=True)
-        if "seeder" in services.stdout.split():
+        seeded = "seeder" in services.stdout.split()
+        # The stores first; a demo's seeder, when it has one, runs after them.
+        self._compose("up", "-d", "--build", "--wait", *(("--scale", "seeder=0") if seeded else ()))
+        if seeded:
             # Once, to its end, with the stores it writes to left running; its exit fails the build.
             self._compose("run", "--rm", "--no-deps", "seeder")
 
