@@ -134,3 +134,18 @@ class TestAProjectionThatDoesNotHoldThePosition:
         listing.append(_row("dev", deployed_sha=SECOND))
         answer = await _listed("dev")
         assert (answer["can_undo"], answer["can_redo"]) == (False, False)
+
+    async def test_stepping_forward_is_closed_too_when_it_had_stepped_back(
+        self, listing, monkeypatch
+    ):
+        """REQ-1561: a redo walks the same history an undo does, so an environment that had
+        stepped back before the commit went missing is not offered a control that can only be
+        refused."""
+
+        def _absent(org_id, sha):
+            raise env_repo.RepositoryError(f"{sha!r} is neither a branch nor a commit")
+
+        monkeypatch.setattr(env_repo, "parent_of", _absent)
+        listing.append(_row("dev", deployed_sha=SECOND, redo_sha=THIRD))
+        answer = await _listed("dev")
+        assert (answer["can_undo"], answer["can_redo"]) == (False, False)

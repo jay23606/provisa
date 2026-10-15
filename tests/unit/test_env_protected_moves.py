@@ -87,6 +87,12 @@ def wired(monkeypatch):
         calls["deploy"].append((env, ref))
         return _report(env, ref)
 
+    async def plan_deploy(db, org_id, env, tree, *, ref, seed=False, base_sha=None):
+        calls.setdefault("plan", []).append((env, ref))
+        return _report(env, ref)
+
+    monkeypatch.setattr(er, "plan_deploy", plan_deploy)
+
     async def request_deploy(admin_db, tenant_db, org_id, **kw):
         calls["request"].append(kw)
         return {"id": 7, "target_env": kw["target_env"], "report": _report("prod", "x").as_dict()}
@@ -192,3 +198,26 @@ class TestAnUnprotectedEnvironmentStillMoves:
     async def test_a_proposed_pull_moves_nothing(self, wired):
         await er.pull_environment(_Request(), ORG, "prod")
         assert wired["land"] == []
+
+
+class TestARevertSaysWhatItWouldRemoveBeforeItApplies:
+    """REQ-1496: a revert removes what the earlier build did not have, so those removals are named
+    first -- before the step is taken, and first in its report."""
+
+    async def test_a_dry_run_plans_the_step_and_moves_nothing(self, wired):
+        out = await er.undo_environment(_Request(), ORG, "dev", dry_run=True)
+        assert wired["plan"] == [("dev", FIRST)]
+        assert wired["deploy"] == [] and wired["position"] == [] and wired["request"] == []
+        assert out["applied"] is False
+        assert (out["deployed_sha"], out["would_deploy"]) == (SECOND, FIRST)
+
+    async def test_the_removals_lead_the_report(self, wired):
+        out = await er.undo_environment(_Request(), ORG, "dev", dry_run=True)
+        assert next(iter(out["report"]["removed"])) == "sales/tables/Order.yaml"
+        keys = [k for k in out["report"] if k in ("added", "changed", "removed")]
+        assert keys[0] == "removed"
+
+    async def test_a_dry_run_against_a_protected_environment_proposes_nothing(self, wired):
+        out = await er.redo_environment(_Request(), ORG, "prod", dry_run=True)
+        assert wired["request"] == [] and wired["audit"] == []
+        assert out["requires_approval"] is True

@@ -174,3 +174,12 @@ class TestRequestReview:
         assert audit[2] == "feature"
         assert audit[3]["into"] == "staging"
         assert audit[3]["url"] == "https://github.com/acme/model/pull/4"
+
+
+async def test_the_request_is_opened_with_the_orgs_secrets_bound(wired):
+    """REQ-1557/REQ-1551: opening the request resolves the remote's secret references exactly as
+    the push before it does, so the org and the acting person are bound around it too. Unbound, a
+    remote written with ``${secret:...}`` pushes and then cannot open the review."""
+    await er.request_review(_Request(), ORG, "feature", er.ReviewBody(message="please look"))
+    order = [c[0] for c in wired if c[0] in ("bound", "push", "pr")]
+    assert order == ["bound", "push", "bound", "pr"]

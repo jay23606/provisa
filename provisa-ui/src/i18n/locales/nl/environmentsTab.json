@@ -141,6 +141,9 @@
     "expiredKeptHint": "Deze omgeving is verlopen en wordt behouden omdat er nog naar wordt verwezen ({{reasons}}). Verwijder die verwijzingen, dan wordt ze bij de volgende ronde opgeruimd.",
     "selectTitle": "Objecten die deze merge zou meenemen",
     "selectHelp": "Vink objecten aan om alleen die te mergen. Laat alle vakjes leeg om het hele model te mergen.",
-    "pulledIn": "Ook meegenomen, omdat de selectie ze vereist:"
+    "pulledIn": "Ook meegenomen, omdat de selectie ze vereist:",
+    "rebuild": "Opnieuw opbouwen",
+    "rebuilt": "Het model van {{env}} is opnieuw naar de repository gecommit.",
+    "rebuildFailed": "{{env}} wijkt nog steeds af: de commit is niet aangekomen."
   }
 }

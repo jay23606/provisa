@@ -483,10 +483,14 @@ def _with_history(org_id: str, row: dict) -> dict:
     # strictly "can this node walk back from it", which a projection without the object cannot.
     try:
         behind = parent_of(org_id, here) if here is not None else None
+        walkable = True
     except RepositoryError:
         behind = None
+        walkable = False
     row["can_undo"] = behind is not None and behind != row["origin_sha"]
-    row["can_redo"] = row["redo_sha"] is not None
+    # REQ-1561: a redo walks the same history, so a projection that cannot walk back from the
+    # position cannot step forward from it either. Both ends are closed together.
+    row["can_redo"] = walkable and row["redo_sha"] is not None
     return row
 
 
@@ -1128,7 +1132,9 @@ async def deploy_into_environment(
 
 
 @model_change.commits_itself  # REQ-1524: commits the model it writes itself
-async def _move(request: Request, org_id: str, name: str, forward: bool) -> dict:
+async def _move(
+    request: Request, org_id: str, name: str, forward: bool, dry_run: bool = False
+) -> dict:
     """Move the environment one commit along its own history (REQ-1543).
 
     UNDO AND REDO ARE THE SAME ACT in opposite directions, so they are one function: both resolve a
@@ -1208,6 +1214,19 @@ async def _move(request: Request, org_id: str, name: str, forward: bool) -> dict
     tree = load_files(_readable(org_id, target, lambda: files_at(org_id, target)))
     db = await _org_model_db(org_id)
     try:
+        if dry_run:
+            # REQ-1496: the removals a revert would perform are named BEFORE it applies. A dry
+            # run plans the step, writes nothing and moves no cursor.
+            planned = await plan_deploy(db, org_id, name, tree, ref=target)
+            return {
+                "report": planned.as_dict(),
+                "applied": False,
+                "deployed_sha": here,
+                "would_deploy": target,
+                "requires_approval": await env_approvals.is_protected(
+                    _admin_pool(), org_id, name, await _member_count(org_id)
+                ),
+            }
         # REQ-1496/REQ-1504: a step along the history is a load, so a protected environment is
         # proposed to exactly as a deploy proposes to it.
         proposed = await _proposed_load(
@@ -1249,15 +1268,17 @@ async def _move(request: Request, org_id: str, name: str, forward: bool) -> dict
 
 
 @router.post("/{name}/undo")
-async def undo_environment(request: Request, org_id: str, name: str) -> dict:
-    """Put the environment back to the commit before the one it is at (REQ-1543)."""
-    return await _move(request, org_id, name, forward=False)
+async def undo_environment(request: Request, org_id: str, name: str, dry_run: bool = False) -> dict:
+    """Put the environment back to the commit before the one it is at (REQ-1543). ``dry_run``
+    reports what the step would do -- its removals first -- and applies none of it (REQ-1496)."""
+    return await _move(request, org_id, name, forward=False, dry_run=dry_run)
 
 
 @router.post("/{name}/redo")
-async def redo_environment(request: Request, org_id: str, name: str) -> dict:
-    """Step forward again toward the position the undo departed from (REQ-1543)."""
-    return await _move(request, org_id, name, forward=True)
+async def redo_environment(request: Request, org_id: str, name: str, dry_run: bool = False) -> dict:
+    """Step forward again toward the position the undo departed from (REQ-1543). ``dry_run``
+    reports what the step would do and applies none of it (REQ-1496)."""
+    return await _move(request, org_id, name, forward=True, dry_run=dry_run)
 
 
 def _rendered(merge_request: dict, state: str | None = None) -> dict:
@@ -1461,6 +1482,32 @@ async def preview_merge(
             _admin_pool(), org_id, name, await _member_count(org_id)
         ),
     }
+
+
+@router.post("/{name}/rebuild")
+@model_change.commits_itself  # REQ-1524: commits the model it writes itself
+async def rebuild_environment(request: Request, org_id: str, name: str) -> dict:
+    """Re-serialize this environment's whole model and commit it, clearing drift (REQ-1524).
+
+    The repair an operator shown the drifted badge reaches for: the projection fell behind because
+    a commit did not land, and this commits the model as it stands. The same act as the
+    write-through, so the repair is not a second mechanism that can itself fall behind. It writes
+    the repository and never the model.
+    """
+    from provisa.api.admin.orgs_router import _org_model_db
+    from provisa.core.env_repo import rebuild
+    from provisa.core.environments import org_schema
+
+    actor = await _guard_within(request, org_id, name)
+    await _known(org_id, name)
+    db = await _org_model_db(org_id)
+    async with db.acquire() as conn:
+        sha = await rebuild(conn, _admin_pool(), org_id, name, org_schema(org_id, name), actor)
+    row = await _known(org_id, name)
+    await _audit(
+        org_id, actor, "environment.repo_rebuild", name, {"sha": sha, "drifted": row["drifted"]}
+    )
+    return {"sha": sha, "drifted": row["drifted"]}
 
 
 @router.get("/-/repo-integration")
@@ -1786,9 +1833,13 @@ async def request_review(request: Request, org_id: str, name: str, body: ReviewB
     if pushed is not None:
         _track_pushed(org_id, name, pushed)
     try:
-        pull_request = await asyncio.to_thread(
+        # REQ-1557: opening the request resolves the remote's secret references, as the push
+        # above did, so the org and the acting person are bound around it too.
+        pull_request = await _remotely(
+            org_id,
             open_pull_request,
             remote,
+            user_id=actor,
             head=name,
             base=target,
             title=f"{name} -> {target}",
@@ -1854,6 +1905,19 @@ async def pull_environment(request: Request, org_id: str, name: str) -> dict:
         # Named, not resolved. Whoever now has to decide whose work survives is deciding about
         # particular objects, and "the two lines diverged" is not a statement about any of them.
         collided = await _collisions(org_id, name, base_sha, state["remote"])
+        # REQ-1556: the report reaches the audit record as well as the response. Nothing was
+        # applied; what collided is what somebody now has to decide about.
+        await _audit(
+            org_id,
+            actor,
+            "environment.repo_pull_refused",
+            name,
+            {
+                "sha": state["remote"],
+                "base": base_sha,
+                "conflicts": [c.as_dict() for c in collided],
+            },
+        )
         raise ApiError(
             409,
             "environments.diverged",

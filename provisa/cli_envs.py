@@ -98,7 +98,8 @@ def _print_report(report: dict[str, Any]) -> None:
     (REQ-1548), a load lists paths (REQ-1496)."""
     if "ref" in report:
         print(f"  ref       {report['ref']}")
-        for kind in ("added", "changed", "removed"):
+        # REQ-1496: what a load takes away is named first.
+        for kind in ("removed", "added", "changed"):
             for path in report[kind]:
                 print(f"  {kind[0].upper()} {path}")
         print(f"  unchanged {report['unchanged']}")
@@ -288,9 +289,9 @@ def _cmd_revert(args: argparse.Namespace) -> int:
             args,
             "POST",
             _env_path(args, args.env, "deploy"),
-            {"ref": args.to, "dry_run": False, "message": args.message or ""},
+            {"ref": args.to, "dry_run": args.dry_run, "message": args.message or ""},
         )
-        return _outcome(args, result, "Revert")
+        return _outcome(args, result, "Revert", dry_run=args.dry_run)
     return _step(args, "undo", "Revert")
 
 
@@ -300,7 +301,12 @@ def _cmd_redo(args: argparse.Namespace) -> int:
 
 
 def _step(args: argparse.Namespace, act: str, verb: str) -> int:
-    result = _call(args, "POST", _env_path(args, args.env, act), {})
+    path = _env_path(args, args.env, act)
+    if args.dry_run:
+        # REQ-1496: what the step would remove is named before it is taken.
+        result = _call(args, "POST", f"{path}?dry_run=true", {})
+        return _outcome(args, result, verb, dry_run=True)
+    result = _call(args, "POST", path, {})
     if "deployed_sha" not in result:
         return _outcome(args, result, verb)
     if args.json:
@@ -339,6 +345,19 @@ def _cmd_push(args: argparse.Namespace) -> int:
         pushed = result["pushed"]
         print(f"Pushed {args.env}" + (f" at {pushed[:12]}" if pushed else ": nothing to send"))
     return 0
+
+
+def _cmd_rebuild(args: argparse.Namespace) -> int:
+    """`provisa env rebuild` — commit an environment's whole model again, clearing drift."""
+    result = _call(args, "POST", _env_path(args, args.env, "rebuild"), {})
+    if args.json:
+        print(json.dumps(result))
+    elif result["drifted"]:
+        print(f"{args.env} is still drifted: the commit did not land", file=sys.stderr)
+    else:
+        sha = result["sha"]
+        print(f"Rebuilt {args.env}" + (f" at {sha[:12]}" if sha else ": already up to date"))
+    return REFUSED if result["drifted"] else 0
 
 
 def _cmd_pull(args: argparse.Namespace) -> int:
@@ -496,13 +515,19 @@ def register(sub) -> None:
         "--to", default=None, help="Build to revert to (default: the one before the current build)"
     )
     revert.add_argument("--message", default=None, help="Note carried onto an approval request")
-    _command(
+    redo = _command(
         env_sub,
         "redo",
         _cmd_redo,
         "Step forward again toward the build a revert departed from",
         env="Environment to step forward",
     )
+    for parser in (revert, redo):
+        parser.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="Report what the step would do, removals first, and apply none of it",
+        )
 
     _command(env_sub, "fetch", _cmd_fetch, "Fetch the org's remote branches into its repository")
     _command(
@@ -511,6 +536,13 @@ def register(sub) -> None:
         _cmd_push,
         "Send an environment's branch to the org's remote",
         env="Environment to push",
+    )
+    _command(
+        env_sub,
+        "rebuild",
+        _cmd_rebuild,
+        "Commit an environment's whole model again, clearing drift",
+        env="Environment to rebuild",
     )
     _command(
         env_sub,

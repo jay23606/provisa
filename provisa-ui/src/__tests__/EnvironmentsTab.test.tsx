@@ -45,6 +45,7 @@ vi.mock("../api/environments", () => ({
   requestReview: vi.fn(),
   fetchBranchSync: vi.fn(),
   pushEnvironment: vi.fn(),
+  rebuildEnvironment: vi.fn(),
   pullEnvironment: vi.fn(),
   // REQ-1556: the refusal is recognised by TYPE rather than by parsing its message, so the mock
   // has to hand back a real class for the component's instanceof to mean anything.
@@ -89,6 +90,7 @@ import {
   requestReview,
   fetchBranchSync,
   pushEnvironment,
+  rebuildEnvironment,
   pullEnvironment,
   DivergedError,
 } from "../api/environments";
@@ -98,6 +100,7 @@ const mockCreate = vi.mocked(createEnvironment);
 const mockDelete = vi.mocked(deleteEnvironment);
 const mockMerge = vi.mocked(mergeEnvironment);
 const mockPreview = vi.mocked(previewMerge);
+const mockRebuild = vi.mocked(rebuildEnvironment);
 const mockReview = vi.mocked(requestReview);
 const mockSync = vi.mocked(fetchBranchSync);
 const mockPush = vi.mocked(pushEnvironment);
@@ -315,6 +318,16 @@ describe("EnvironmentsTab", () => {
     render(<EnvironmentsTab />);
     fireEvent.click(await screen.findByTestId("env-pull-dev"));
     await waitFor(() => expect(mockPull).toHaveBeenCalledWith("acme", "dev"));
+  });
+
+  it("offers the repair where the drift is shown", async () => {
+    // REQ-1524: an operator shown the drifted badge has the act that clears it beside it.
+    mockList.mockResolvedValue([env("prod"), env("dev", { drifted: true })]);
+    mockRebuild.mockResolvedValue({ sha: "abc1234", drifted: false });
+    render(<EnvironmentsTab />);
+    fireEvent.click(await screen.findByTestId("env-rebuild-dev"));
+    await waitFor(() => expect(mockRebuild).toHaveBeenCalledWith("acme", "dev"));
+    expect(screen.queryByTestId("env-rebuild-prod")).toBeNull();
   });
 
   it("says a pull into a protected environment is proposed", async () => {

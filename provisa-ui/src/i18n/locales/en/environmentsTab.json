@@ -141,6 +141,9 @@
     "expiredKeptHint": "This environment has expired and is kept because something still refers to it ({{reasons}}). Remove those and it is retired on the next sweep.",
     "selectTitle": "Objects this merge would carry",
     "selectHelp": "Tick objects to merge only those. Leave every box unticked to merge the whole model.",
-    "pulledIn": "Also carried, because the selection requires them:"
+    "pulledIn": "Also carried, because the selection requires them:",
+    "rebuild": "Rebuild",
+    "rebuilt": "Committed {{env}}'s model to the repository again.",
+    "rebuildFailed": "{{env}} is still drifted: the commit did not land."
   }
 }

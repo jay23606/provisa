@@ -328,6 +328,20 @@ export async function pushEnvironment(
 }
 
 /**
+ * Commit this environment's whole model again, clearing drift (REQ-1524).
+ *
+ * The repair for the drifted badge: a commit did not land, so the projection is behind the model.
+ * It writes the repository and never the model. `drifted` is what the environment says afterwards.
+ */
+export async function rebuildEnvironment(
+  orgId: string,
+  name: string,
+): Promise<{ sha: string | null; drifted: boolean }> {
+  const res = await fetch(`${base(orgId)}/${encodeURIComponent(name)}/rebuild`, { method: "POST" });
+  return ok(res, "rebuildEnvironment");
+}
+
+/**
  * Fetch the remote and apply what it holds for this environment (REQ-1547).
  *
  * A pull is an apply: the fetch writes only the remote-tracking refs, and the branch moves because

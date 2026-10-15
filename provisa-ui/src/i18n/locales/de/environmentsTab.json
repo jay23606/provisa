@@ -141,6 +141,9 @@
     "expiredKeptHint": "Diese Umgebung ist abgelaufen und wird beibehalten, weil noch etwas auf sie verweist ({{reasons}}). Entfernen Sie diese Verweise, dann wird sie beim nächsten Durchlauf stillgelegt.",
     "selectTitle": "Objekte, die dieser Merge überträgt",
     "selectHelp": "Haken Sie Objekte an, um nur diese zu mergen. Lassen Sie alle Kästchen leer, um das gesamte Modell zu mergen.",
-    "pulledIn": "Ebenfalls übertragen, weil die Auswahl sie erfordert:"
+    "pulledIn": "Ebenfalls übertragen, weil die Auswahl sie erfordert:",
+    "rebuild": "Neu aufbauen",
+    "rebuilt": "Das Modell von {{env}} wurde erneut ins Repository committet.",
+    "rebuildFailed": "{{env}} ist weiterhin abgewichen: Der Commit ist nicht angekommen."
   }
 }

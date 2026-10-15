@@ -317,6 +317,16 @@ class TestRevert:
             )
         ]
 
+    def test_a_dry_run_revert_reports_and_applies_nothing(self, api, capsys):
+        # REQ-1496: the removals a revert would perform are named before it is taken.
+        seen, answers = api
+        report = {**self.MOVED["report"], "removed": ["sales/tables/Order.yaml"]}
+        answers.append({"report": report, "applied": False, "requires_approval": False})
+        assert _run("revert", "--org", "acme", "--env", "dev", "--dry-run") == 0
+        assert seen == [("POST", "/admin/orgs/acme/environments/dev/undo?dry_run=true", {})]
+        out = capsys.readouterr().out
+        assert "PLANNED" in out and "R sales/tables/Order.yaml" in out
+
     def test_redo_steps_forward_again(self, api):
         seen, answers = api
         answers.append(self.MOVED)
@@ -354,3 +364,18 @@ class TestTheRemote:
         answers.append(fetched)
         assert _run("fetch", "--org", "acme", "--json") == 0
         assert json.loads(capsys.readouterr().out) == fetched
+
+
+class TestRebuild:
+    def test_a_rebuild_that_cleared_the_drift_succeeds(self, api, capsys):
+        seen, answers = api
+        answers.append({"sha": "a" * 40, "drifted": False})
+        assert _run("rebuild", "--org", "acme", "--env", "dev") == 0
+        assert seen == [("POST", "/admin/orgs/acme/environments/dev/rebuild", {})]
+        assert "aaaaaaaaaaaa" in capsys.readouterr().out
+
+    def test_one_that_did_not_land_exits_non_zero(self, api, capsys):
+        _, answers = api
+        answers.append({"sha": None, "drifted": True})
+        assert _run("rebuild", "--org", "acme", "--env", "dev") == 1
+        assert "still drifted" in capsys.readouterr().err

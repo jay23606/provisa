@@ -378,7 +378,10 @@ def _pr_github(
         )
         if made.status_code == 422:
             open_ones = client.get(
-                url, headers=headers, params={"state": "open", "head": f"{owner}:{head}"}
+                # The same PAIR: a branch open against another base is a different review.
+                url,
+                headers=headers,
+                params={"state": "open", "head": f"{owner}:{head}", "base": base},
             )
             existing = open_ones.json() if open_ones.status_code == 200 else []
             if existing:

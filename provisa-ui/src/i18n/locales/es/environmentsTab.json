@@ -141,6 +141,9 @@
     "expiredKeptHint": "Este entorno ha caducado y se conserva porque algo todavía hace referencia a él ({{reasons}}). Quite esas referencias y se retirará en el próximo barrido.",
     "selectTitle": "Objetos que este merge llevaría",
     "selectHelp": "Marque objetos para hacer merge solo de ellos. Deje todas las casillas sin marcar para hacer merge del modelo completo.",
-    "pulledIn": "También se llevan, porque la selección los requiere:"
+    "pulledIn": "También se llevan, porque la selección los requiere:",
+    "rebuild": "Reconstruir",
+    "rebuilt": "El modelo de {{env}} se confirmó de nuevo en el repositorio.",
+    "rebuildFailed": "{{env}} sigue desviado: el commit no llegó."
   }
 }

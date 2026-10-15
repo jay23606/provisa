@@ -132,10 +132,12 @@ class DeployDelta:
         )
 
     def as_dict(self) -> dict[str, Any]:
+        # REMOVED FIRST (REQ-1496): what a load takes away is what a reader most needs to see
+        # before agreeing to it, so it is named before what the load adds or changes.
         return {
+            "removed": self.removed,
             "added": self.added,
             "changed": self.changed,
-            "removed": self.removed,
             "unchanged": self.unchanged,
         }
 

@@ -151,6 +151,11 @@ class TestWhatARefusedPullSays:
         monkeypatch.setattr(er, "_known", _known)
         monkeypatch.setattr(er, "_remote_of", _remote_of)
         monkeypatch.setattr(er, "_collisions", _collisions)
+
+        async def _audit(org_id, actor, action, name, detail):
+            asked.setdefault("audit", []).append((action, name, detail))
+
+        monkeypatch.setattr(er, "_audit", _audit)
         monkeypatch.setattr(env_ci, "fetch", lambda org_id, remote: None)
         monkeypatch.setattr(env_repo, "merge_base", lambda org_id, a, b: "base123")
         monkeypatch.setattr(
@@ -186,6 +191,20 @@ class TestWhatARefusedPullSays:
             await er.pull_environment(_Request(), ORG, "dev")
         assert raised.value.params["base"] == "base123"
         assert diverged["collisions"] == (ORG, "dev", "base123", "b" * 40)
+
+    async def test_the_refusal_reaches_the_audit_record(self, diverged):
+        """REQ-1556: the report reaches the response AND the audit record. A refused pull changed
+        nothing, and what it collided on is still what somebody then has to decide about."""
+        from provisa.api.errors import ApiError
+
+        with pytest.raises(ApiError):
+            await er.pull_environment(_Request(), ORG, "dev")
+        ((action, name, detail),) = diverged["audit"]
+        assert (action, name) == ("environment.repo_pull_refused", "dev")
+        assert detail["base"] == "base123"
+        assert detail["conflicts"] == [
+            {"path": "sales/domain.yaml", "source": "changed", "target": "removed"}
+        ]
 
 
 class TestAPullLandsOnTheCommitItApplied:

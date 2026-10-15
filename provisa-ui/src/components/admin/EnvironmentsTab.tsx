@@ -45,6 +45,7 @@ import {
   pullEnvironment,
   DivergedError,
   pushEnvironment,
+  rebuildEnvironment,
   requestReview,
 } from "../../api/environments";
 import { EnvironmentInUse, isBase } from "../../api/environments";
@@ -290,6 +291,15 @@ export function EnvironmentsTab() {
         color: "green",
         message: t("environmentsTab.pushed", { env: env.name, sha: answer.pushed?.slice(0, 7) }),
       };
+    });
+
+  // REQ-1524: the repair for a drifted projection, offered where the drift is shown.
+  const rebuild = (env: Environment) =>
+    act(env, async () => {
+      const answer = await rebuildEnvironment(orgId, env.name);
+      return answer.drifted
+        ? { color: "red", message: t("environmentsTab.rebuildFailed", { env: env.name }) }
+        : { color: "green", message: t("environmentsTab.rebuilt", { env: env.name }) };
     });
 
   const pull = (env: Environment) =>
@@ -617,6 +627,17 @@ export function EnvironmentsTab() {
                             {t("environmentsTab.drifted")}
                           </Badge>
                         </Tip>
+                      )}
+                      {e.drifted && (
+                        <Button
+                          size="compact-xs"
+                          variant="light"
+                          loading={busy === e.name}
+                          onClick={() => rebuild(e)}
+                          data-testid={`env-rebuild-${e.name}`}
+                        >
+                          {t("environmentsTab.rebuild")}
+                        </Button>
                       )}
                     </Group>
                   </Table.Td>

@@ -6275,5 +6275,8 @@
   "it/userProfileModal.json::userProfileModal.patEnvironmentHelp": "A token works in one environment: the one you were reading when you issued it. A new token will work in {{env}}.",
   "it/environmentsTab.json::environmentsTab.selectTitle": "Objects this merge would carry",
   "it/environmentsTab.json::environmentsTab.selectHelp": "Tick objects to merge only those. Leave every box unticked to merge the whole model.",
-  "it/environmentsTab.json::environmentsTab.pulledIn": "Also carried, because the selection requires them:"
+  "it/environmentsTab.json::environmentsTab.pulledIn": "Also carried, because the selection requires them:",
+  "it/environmentsTab.json::environmentsTab.rebuild": "Rebuild",
+  "it/environmentsTab.json::environmentsTab.rebuilt": "Committed {{env}}'s model to the repository again.",
+  "it/environmentsTab.json::environmentsTab.rebuildFailed": "{{env}} is still drifted: the commit did not land."
 }

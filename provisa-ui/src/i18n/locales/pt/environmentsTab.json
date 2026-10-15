@@ -141,6 +141,9 @@
     "expiredKeptHint": "Este ambiente expirou e é mantido porque algo ainda o referencia ({{reasons}}). Remova essas referências e ele será retirado na próxima varredura.",
     "selectTitle": "Objetos que esta mesclagem levaria",
     "selectHelp": "Marque objetos para mesclar apenas esses. Deixe todas as caixas desmarcadas para mesclar o modelo inteiro.",
-    "pulledIn": "Também levados, porque a seleção os exige:"
+    "pulledIn": "Também levados, porque a seleção os exige:",
+    "rebuild": "Reconstruir",
+    "rebuilt": "O modelo de {{env}} foi confirmado novamente no repositório.",
+    "rebuildFailed": "{{env}} continua com desvio: o commit não foi concluído."
   }
 }
