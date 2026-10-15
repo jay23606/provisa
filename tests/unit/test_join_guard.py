@@ -775,11 +775,12 @@ def _profiler_statements() -> list[str]:
 
 
 def test_the_profilers_statement_is_the_products_and_runs_outside_the_guard():
-    """The profile statement reads its table several times over. Sent as a role's query it is
-    a pairing of the table with itself and is refused where it is one; as the product's own
+    """The profile statement reads its table several times over: the key-range sample is a
+    UNION of ranges of it. The branches of a union are alternatives, never matched together, so
+    sent as a role's query no statement pairs the table with itself (#271); as the product's own
     statement the relationship guard is not held on it, and every other check still is."""
     as_a_role = [_refused(sql) for sql in _profiler_statements()]
-    assert any(as_a_role), "the key-range sample pairs the table with itself"
+    assert as_a_role == [[], [], []], "the union of key ranges is no pairing of the table"
     ctx, gov = _model()
     gov.table_map.update({f"sales.{name}": tid for name, tid in list(gov.table_map.items())})
     for sql in _profiler_statements():
