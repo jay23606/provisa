@@ -281,6 +281,7 @@ export function EnvSwitcher() {
               role="option"
               aria-selected={selected}
               aria-current={selected ? "true" : undefined}
+              data-env-option={e.name}
               leftSection={selected ? <Check size={14} aria-hidden /> : undefined}
               onClick={() => select(e.name)}
             >

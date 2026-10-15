@@ -291,7 +291,7 @@ demo's first start (a new control plane). The bundle build runs it before dumpin
 the setup's effects are in the dumps from the start. [tool-verified: `start-ui-install.sh:875-878`,
 `scripts/demo_bundle.py:417-418`]
 
-The file is a list of steps, each one `command` or `refresh` [tool-verified: `scripts/run_demo_setup.py`]:
+The file is a list of steps, each one `command`, `refresh` or `environment` [tool-verified: `scripts/run_demo_setup.py`]:
 
 ```yaml
 # demo/named/sonnets/setup.yaml
@@ -306,15 +306,27 @@ steps:
 ```
 
 A `command:` step calls a GraphQL mutation of that name (as `org_admin`, no arguments). A
-`refresh:` step calls `refreshMv` on the named view. The first step that fails stops the run
-and names the step. Nothing is retried.
+`refresh:` step calls `refreshMv` on the named view. An `environment:` step names an environment
+and its data mode, and creates it in the active org through `POST /admin/orgs/{org}/environments`,
+as the Environments page does:
+
+```yaml
+# demo/named/testdata/setup.yaml
+steps:
+- environment: {name: dev, data_mode: test_fake}
+- environment: {name: test, data_mode: test_fake}
+```
+
+The first step that fails stops the run and names the step. Nothing is retried.
 
 The launcher marks a demo set up by adding its name to the operator setting
 `demo.setup_completed`. A demo already listed there is not set up again against the same control
 plane. [tool-verified: `scripts/run_demo_setup.py`, `SETTING = "demo.setup_completed"`]
 
-A bundled demo's setup does not run again where it runs. What setup wrote is already in the
-bundle's dumps.
+A bundled demo's `command` and `refresh` steps do not run again where it runs: what they wrote is
+already in the bundle's dumps. Its `environment` steps do run there (`--environments-only`),
+because an environment is a branch of the model in the control plane, and every start builds the
+control plane anew. [tool-verified: `start-ui-install.sh`, `scripts/run_demo_setup.py`]
 
 ## docker-compose.run.yml — the run-time stores
 
@@ -450,6 +462,7 @@ Each step has:
 | `cypher` | a Cypher query | Graph explorer |
 | `term` | glossary term name | Glossary |
 | `role` | role name (or `all`) | SQL explorer's run-as picker |
+| `env` | `prod`, or an environment the demo's `setup.yaml` makes | the header's environment switcher; the steps after it read that environment |
 | `polly` | a natural-language question | Polly panel |
 
 A `polly` step is answered once when the demo's bundle is built (Polly asked through OpenRouter on

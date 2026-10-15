@@ -142,8 +142,73 @@ def test_the_first_step_that_fails_stops_the_run_naming_it(monkeypatch, demo, ca
 
 def test_a_step_that_is_neither_a_command_nor_a_refresh_is_refused(tmp_path):
     (tmp_path / "setup.yaml").write_text(yaml.safe_dump({"steps": [{"sql": "SELECT 1"}]}))
-    with pytest.raises(SystemExit, match="'command: <name>', 'refresh: <view>' or 'profile"):
+    with pytest.raises(SystemExit, match="'profile: <profiler>' or 'environment"):
         setup.steps(tmp_path)
+
+
+def test_an_environment_step_creates_it_in_the_active_org(monkeypatch, tmp_path):
+    """REQ-2053: a demo's environments are made as the Environments page makes them."""
+    home = tmp_path / "testdata"
+    home.mkdir()
+    (home / "setup.yaml").write_text(
+        yaml.safe_dump({"steps": [{"environment": {"name": "dev", "data_mode": "test_fake"}}]})
+    )
+    made: list[tuple[str, dict]] = []
+
+    class _EnvServer(_Server):
+        def __call__(self, request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/auth/me":
+                return httpx.Response(200, json={"active_org_id": "acme"})
+            if request.url.path.endswith("/environments"):
+                body = json.loads(request.content)
+                made.append((request.url.path, body))
+                return httpx.Response(200, json={"environment": body})
+            return super().__call__(request)
+
+    server = _EnvServer(done=[])
+    assert _run(monkeypatch, home, server) == 0
+    assert made == [("/admin/orgs/acme/environments", {"name": "dev", "data_mode": "test_fake"})]
+    assert server.stored == ["testdata"]
+
+
+def test_an_environment_step_names_its_name_and_data_mode(tmp_path):
+    (tmp_path / "setup.yaml").write_text(
+        yaml.safe_dump({"steps": [{"environment": {"name": "dev"}}]})
+    )
+    with pytest.raises(SystemExit, match="names its name and data_mode"):
+        setup.steps(tmp_path)
+
+
+def test_environments_only_runs_the_environment_steps_alone(monkeypatch, demo):
+    (demo / "setup.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "steps": [
+                    {"command": "embed_lines"},
+                    {"environment": {"name": "dev", "data_mode": "test_fake"}},
+                ]
+            }
+        )
+    )
+    made: list[str] = []
+
+    class _EnvServer(_Server):
+        def __call__(self, request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/auth/me":
+                return httpx.Response(200, json={"active_org_id": "acme"})
+            if request.url.path.endswith("/environments"):
+                made.append(json.loads(request.content)["name"])
+                return httpx.Response(200, json={"environment": json.loads(request.content)})
+            return super().__call__(request)
+
+    server = _EnvServer(done=[])
+    real = httpx.Client
+    monkeypatch.setattr(
+        setup.httpx, "Client", lambda **kw: real(transport=httpx.MockTransport(server), **kw)
+    )
+    assert setup.run(demo, "http://provisa.test", environments_only=True) == 0
+    assert made == ["dev"] and server.calls == []  # the command ran at the bundle build
+    assert server.stored == ["sonnets"]
 
 
 def test_a_demo_with_no_setup_has_nothing_to_run(tmp_path):

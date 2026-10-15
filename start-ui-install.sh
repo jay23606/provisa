@@ -874,11 +874,16 @@ else
 fi
 # REQ-2016: a named demo's setup.yaml (its commands and view builds) runs once against this
 # control plane, now that the server answers. A step that fails stops the start, naming it. A
-# bundled demo was set up when its bundle was built: what its setup wrote is in the bundle's stores.
-if [ -n "$DEMO_NAME" ] && [ "$_DEMO_BUNDLED" = false ] && [ -f "$_NAMED_DIR/setup.yaml" ]; then
+# bundled demo was set up when its bundle was built: what its setup wrote is in the bundle's stores
+# -- all but its environments (REQ-2053), branches of the model in this control plane, which are
+# made here.
+if [ -n "$DEMO_NAME" ] && [ -f "$_NAMED_DIR/setup.yaml" ]; then
+  _SETUP_SCOPE=""
+  if [ "$_DEMO_BUNDLED" = true ]; then _SETUP_SCOPE="--environments-only"; fi
   echo "Named demo '$DEMO_NAME': running its setup (once per control plane)..."
+  # shellcheck disable=SC2086  # empty, or the one flag: split on purpose
   if ! "$SCRIPT_DIR/.venv/bin/python" "$SCRIPT_DIR/scripts/run_demo_setup.py" \
-       "$_NAMED_DIR" --url "http://localhost:$PROVISA_API_PORT"; then
+       "$_NAMED_DIR" --url "http://localhost:$PROVISA_API_PORT" $_SETUP_SCOPE; then
     echo "Named demo '$DEMO_NAME': its setup failed (above). Backend log: $LOG_DIR/backend.log"
     exit 1
   fi
