@@ -1,13 +1,87 @@
 {
-  "version": "v0.1.0-alpha.487",
-  "previous": "v0.1.0-alpha.486",
+  "version": "v0.1.0-alpha.488",
+  "previous": "v0.1.0-alpha.487",
   "date": "2026-10-15",
-  "features": [],
+  "features": [
+    {
+      "category": "Table Registration",
+      "entries": [
+        {
+          "text": "A TTL of -1 means never expires: the table lands once and its replica is never stale after that. -1 can be set on a source, which its tables inherit as they inherit any TTL, or on a table.",
+          "changes": [
+            "-1 never expires"
+          ]
+        }
+      ]
+    }
+  ],
   "changes": [
+    {
+      "scope": "demo",
+      "entries": [
+        "The reviews named demo -- MongoDB, Elasticsearch and Neo4j joined on the product",
+        "Publish the reviews demo"
+      ]
+    },
+    {
+      "scope": "demo-bundles",
+      "entries": [
+        "MongoDB, Elasticsearch and Neo4j stores are carried in a demo's bundle"
+      ]
+    },
+    {
+      "scope": "demos",
+      "entries": [
+        "No engine-state poll for a demo sandbox or the anonymous demo open",
+        "scripts/new_demo.py scaffolds a named demo, scripts/check_demo.py runs its checks"
+      ]
+    },
+    {
+      "scope": "deploy",
+      "entries": [
+        "Restart the sandbox tier, seed the overlay from the image, name the org in the engine probe"
+      ]
+    },
+    {
+      "scope": "deps",
+      "entries": [
+        "graphql-core stays below 3.3, the version the tests run on"
+      ]
+    },
+    {
+      "scope": "duckdb",
+      "entries": [
+        "A source whose server is down fails no other source's listings (#256)"
+      ]
+    },
+    {
+      "scope": "elasticsearch",
+      "entries": [
+        "A native search keeps each hit's score"
+      ]
+    },
+    {
+      "scope": "graphql",
+      "entries": [
+        "A table's parameters are in the read's WHERE, before ORDER BY and LIMIT"
+      ]
+    },
     {
       "scope": "image",
       "entries": [
-        "The app image carries Java 21, so a files source's connector server runs wherever it does"
+        "Install the locked versions from uv.lock"
+      ]
+    },
+    {
+      "scope": "replicas",
+      "entries": [
+        "The table's read panel shows its replica and indexes, as its form does"
+      ]
+    },
+    {
+      "scope": "ui",
+      "entries": [
+        "The OpenAPI page types a table's parameters into their textarea"
       ]
     }
   ]

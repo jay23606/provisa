@@ -3,6 +3,65 @@
 All notable changes to Provisa are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## v0.1.0-alpha.488
+
+Released 2026-10-15.
+
+### Features
+
+#### Table Registration
+
+- A TTL of -1 means never expires: the table lands once and its replica is never stale after that. -1 can be set on a source, which its tables inherit as they inherit any TTL, or on a table.
+    - -1 never expires
+
+### Changes
+
+#### demo
+
+- The reviews named demo -- MongoDB, Elasticsearch and Neo4j joined on the product
+- Publish the reviews demo
+
+#### demo-bundles
+
+- MongoDB, Elasticsearch and Neo4j stores are carried in a demo's bundle
+
+#### demos
+
+- No engine-state poll for a demo sandbox or the anonymous demo open
+- scripts/new_demo.py scaffolds a named demo, scripts/check_demo.py runs its checks
+
+#### deploy
+
+- Restart the sandbox tier, seed the overlay from the image, name the org in the engine probe
+
+#### deps
+
+- graphql-core stays below 3.3, the version the tests run on
+
+#### duckdb
+
+- A source whose server is down fails no other source's listings (#256)
+
+#### elasticsearch
+
+- A native search keeps each hit's score
+
+#### graphql
+
+- A table's parameters are in the read's WHERE, before ORDER BY and LIMIT
+
+#### image
+
+- Install the locked versions from uv.lock
+
+#### replicas
+
+- The table's read panel shows its replica and indexes, as its form does
+
+#### ui
+
+- The OpenAPI page types a table's parameters into their textarea
+
 ## v0.1.0-alpha.487
 
 Released 2026-10-15.
