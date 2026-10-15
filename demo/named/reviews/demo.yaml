@@ -17,4 +17,4 @@ screenshot: card.png
 published: true
 # The oldest Provisa this demo's bundle runs on (REQ-2049): the first release carrying its
 # document, search and graph stores and the fixes it relies on.
-requires_provisa: 0.1.0a487
+requires_provisa: 0.1.0a489
