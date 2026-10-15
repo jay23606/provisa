@@ -84087,3 +84087,45 @@ And a reviewer without it sees the pseudonym, and anyone else the mask'
   - REQ-2057
   - REQ-2058
   notes: 'Maintainer 2026-10-15: "just list the masks in an enumerated list and the enumeration is the precedence". Built as part of REQ-2035 (ui).'
+- id: REQ-2061
+  status: proposed
+  since: 2026-10
+  group: 6. Execution, Routing, Caching & Performance
+  category: Warm Tables (Replica Profile — Low-Latency Placement)
+  feature: replicas-and-freshness-warm-placement
+  priority: SHOULD
+  type: behavioral
+  description: 'Fixed table arguments: a table whose source takes arguments (a parameterized API table, such as a GitHub table taking owner and name) may declare the argument values in its config (arguments: {name: value}). A table with every argument fixed is an ordinary table: it lands whole as a replica like any other, so TTL -1 and the landed-at-build demo rule apply to it; the fixed arguments are no longer columns a reader supplies.'
+  use_case: 'A demo pins a GitHub repository''s alerts table to one owner and repository and lands it once at build.'
+  scenario: 'Given an API table with arguments owner and name fixed in config
+
+
+When its replica is built
+
+
+Then it lands whole and reads are served from the replica without calling the source'
+  related_reqs:
+  - REQ-2031
+  - REQ-2036
+  notes: 'Maintainer 2026-10-15, on the vulnerabilities demo: allow fixed arguments in config.'
+- id: REQ-2062
+  status: proposed
+  since: 2026-10
+  group: 6. Execution, Routing, Caching & Performance
+  category: Warm Tables (Replica Profile — Low-Latency Placement)
+  feature: replicas-and-freshness-warm-placement
+  priority: SHOULD
+  type: behavioral
+  description: 'Landing filter: a table may declare landing_filter, a SQL predicate over its own columns that is applied when its replica lands, so only matching rows are copied. It lets a demo or an operator carry a slice of a very large public table (for example the CVEs that touch a given set of packages out of all of NVD) instead of the whole table.'
+  use_case: 'The vulnerabilities demo carries only the NVD rows for the CVEs of its alerts.'
+  scenario: 'Given a table with landing_filter cve_id IN (...)
+
+
+When its replica lands
+
+
+Then only the matching rows are in the replica'
+  related_reqs:
+  - REQ-2031
+  - REQ-2036
+  notes: 'Maintainer 2026-10-15, on the vulnerabilities demo: landing_filter on the table.'

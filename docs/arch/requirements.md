@@ -23793,3 +23793,29 @@ Per-reader masks: a column's masking is one ordered list of entries, each {to: a
 **Code:** —
 
 **Tests:** —
+
+## 6. Execution, Routing, Caching & Performance
+
+### REQ-2061 · Warm Tables (Replica Profile — Low-Latency Placement) {#REQ-2061}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+Fixed table arguments: a table whose source takes arguments (a parameterized API table, such as a GitHub table taking owner and name) may declare the argument values in its config (arguments: {name: value}). A table with every argument fixed is an ordinary table: it lands whole as a replica like any other, so TTL -1 and the landed-at-build demo rule apply to it; the fixed arguments are no longer columns a reader supplies.
+
+**Use case:** A demo pins a GitHub repository's alerts table to one owner and repository and lands it once at build.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-2062 · Warm Tables (Replica Profile — Low-Latency Placement) {#REQ-2062}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+Landing filter: a table may declare landing_filter, a SQL predicate over its own columns that is applied when its replica lands, so only matching rows are copied. It lets a demo or an operator carry a slice of a very large public table (for example the CVEs that touch a given set of packages out of all of NVD) instead of the whole table.
+
+**Use case:** The vulnerabilities demo carries only the NVD rows for the CVEs of its alerts.
+
+**Code:** —
+
+**Tests:** —
