@@ -257,6 +257,9 @@ def search_hits(
     request = {k: v for k, v in body.items() if k != "size"}
     request.setdefault("sort", ["_score"])
     request["track_total_hits"] = False
+    # A sorted search leaves each hit's _score null unless it is asked to keep it: the paging
+    # sorts every page, and a table reads the score (_score) of each hit.
+    request["track_scores"] = True
     read = 0
     with conn._client() as c:
         opened = c.post(f"/{index}/_pit", params={"keep_alive": _PIT_KEEPALIVE})
