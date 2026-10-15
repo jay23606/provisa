@@ -23729,3 +23729,17 @@ A table read where it lies (not replicated) that declares a probing change signa
 **Code:** `provisa/events/boot.py`, `provisa/events/handlers.py`
 
 **Tests:** `tests/unit/test_live_table_signal_node.py`
+
+## 10. UI & Admin Surfaces
+
+### REQ-2056 · UI {#REQ-2056}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+A capability demo, insider review at an investment bank: Is anyone sending deal-sensitive or customer data out of the bank? Generated private data only: the control room's watch list (each deal: entity legal name, aliases, ticker, project code name, deal type -- merger, acquisition, loan or underwriting -- a short description, the deal team and when each member was brought over the wall, and the public announcement date if any), employees, and an employee mailbox (messages with sender, recipients, sent time and body) whose tables would sit equally over a real mail source. Every outbound message is scored against every watch-list deal: entity match (legal name and aliases fuzzily, ticker, project code name) and semantic similarity of the message to the deal's description through the demo's own local embedding model, so a paraphrase that avoids every name still scores; the score is weighted by context -- a sender not on that deal's team, a recipient outside the bank's domains or a personal address, and a message sent before the deal's announcement each raise it; a deal-team member writing to the deal's own counterparties lowers it. The same messages are checked for customer PII by SQL pattern checks, joined to ops.pii_access (who read pii-tagged tables, and when) so a sender who read customer data that week and then mailed it out ranks high. One materialized view is the review queue: per message and deal, the score and which signals fired. Governance is half the demo: the watch list is the most restricted table, so a first-level reviewer's role sees only the flagged entity of their own cases through row rules and masking, never the list; the control room sees all; a deal team sees only its own deal; every read of the watch list and every review is in the audit record and queryable. Polly assists the human post-review (why a message was flagged, what the sender accessed, whether they were over the wall), answered at template build and served stored ([REQ-2012](#REQ-2012)). The tour names its limits: it is post-review analytics after real-time controls, not a data-loss-prevention replacement; attachments, images, encoded text and personal channels are outside it; employee monitoring needs disclosure and, in places, works-council agreement. Its tour follows the settled demo tour shape. Its business question: "Is anyone sending deal-sensitive or customer data out of the bank?"
+
+**Use case:** A compliance buyer opens the insider review demo and sees watch-list deals matched against outbound mail, ranked for review, with the watch list itself never exposed to the reviewer.
+
+**Code:** —
+
+**Tests:** —
