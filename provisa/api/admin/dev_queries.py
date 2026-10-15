@@ -321,37 +321,24 @@ def _parse_directives(query: str) -> tuple[Any, str]:
     return directives, sql_comment_prefix
 
 
-def _apply_pipeline_transforms(  # REQ-040, REQ-041, REQ-134, REQ-198, REQ-262, REQ-263, REQ-554
-    compiled, ctx, rls, role_id: str, role, fresh_mvs, state
+async def _apply_pipeline_transforms(  # REQ-040, REQ-041, REQ-134, REQ-198, REQ-262, REQ-263
+    compiled, ctx, role_id: str, fresh_mvs, state
 ) -> tuple[Any, bool]:
     """Govern, then the MV rewrite and Kafka filters. Returns (compiled, mv_applied).
 
-    Governed as the compiled pipeline governs the statement it runs (pgwire._pipeline
-    ``_govern_compiled``): its views expanded, then ``apply_governance`` -- row filters, masks
+    Governed by the compiled pipeline's own stage (pgwire._pipeline ``_govern_compiled``), the one
+    the statement runs through: its views expanded, its validation, then row filters, masks
     wherever a column is referenced (a join on a masked key included, REQ-740), hidden columns and
-    the row cap -- so the SQL shown is the SQL that runs."""
-    from provisa.compiler.stage2 import apply_governance, build_governance_context
+    the row cap -- so the SQL shown is the SQL that runs, refused where the run would be."""
     from provisa.compiler.sql_rewrite import lower_to_catalog_physical
+    from provisa.core.request_context import current_session_vars
     from provisa.mv.view_reinject import reinject
+    from provisa.pgwire._pipeline import _govern_compiled
 
-    gov_ctx = build_governance_context(
-        role_id,
-        rls,
-        state.masking_rules,
-        ctx,
-        getattr(state, "tables", []),
-        role=role,
-        relationships=getattr(state, "relationships", None),
-        source_types=state.source_types,
-        engine=getattr(state, "federation_engine", None),
+    governed = await _govern_compiled(
+        compiled.sql, role_id, state, current_session_vars.get(), sdl_joins=True
     )
-    sql = compiled.sql
-    view_map = getattr(state, "view_sql_map", None)
-    if view_map:
-        from provisa.mv.view_read import semantic_statement
-
-        sql, _validated = semantic_statement(sql, view_map, state, gov_ctx)
-    compiled.sql = apply_governance(sql, gov_ctx)
+    compiled.sql = governed.governed_sql
 
     # The view the pipeline's optimize stage would read in place of the governed statement
     # (pgwire._pipeline._view_answering): shown as the view's catalog among the sources.
@@ -576,8 +563,8 @@ async def compile_query(  # REQ-001, REQ-002, REQ-007, REQ-009, REQ-038, REQ-039
 
     for _compiled_orig in compiled_queries:
         pre_mv_sources = set(_compiled_orig.sources)
-        compiled, mv_applied = _apply_pipeline_transforms(
-            _compiled_orig, ctx, rls, role_id, role, fresh_mvs, state
+        compiled, mv_applied = await _apply_pipeline_transforms(
+            _compiled_orig, ctx, role_id, fresh_mvs, state
         )
 
         sampling = not has_capability(role, Capability.FULL_RESULTS) if role else True

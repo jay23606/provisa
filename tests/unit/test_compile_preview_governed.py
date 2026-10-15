@@ -16,13 +16,17 @@ and the row filter and the row cap are those the run applies."""
 
 from __future__ import annotations
 
-from types import SimpleNamespace
+import pytest
 
 from provisa.api.admin.dev_queries import _apply_pipeline_transforms
+from provisa.compiler.compiled_query_cache import CompiledQueryCache
 from provisa.compiler.rls import RLSContext
 from provisa.compiler.sql_gen import CompilationContext, CompiledQuery, TableMeta
-from provisa.compiler.stage2 import apply_governance, build_governance_context
+from provisa.federation.replica_address import ReplicaRoutes
 from provisa.security.masking import MaskingRule, MaskType
+from tests.role_state import RoleState
+
+pytestmark = pytest.mark.asyncio
 
 _ROLE = {"id": "analyst", "capabilities": [], "domain_access": ["*"], "max_rows": 50}
 _SQL = (
@@ -55,11 +59,13 @@ def _table(table_id: int, name: str, columns: list[str]) -> dict:
     }
 
 
-def _setting():
+def _state():
     ctx = CompilationContext()
     ctx.tables = {"orders": _meta(1, "orders"), "customers": _meta(2, "customers")}
-    rls = RLSContext(rules={1: "region = 'east'"})
-    state = SimpleNamespace(
+    return ctx, RoleState(
+        contexts={"analyst": ctx},
+        rls_contexts={"analyst": RLSContext(rules={1: "region = 'east'"})},
+        roles={"analyst": _ROLE},
         masking_rules={
             (1, "analyst"): {
                 "email": (MaskingRule(mask_type=MaskType.constant, value="***"), "varchar")
@@ -71,28 +77,39 @@ def _setting():
         ],
         relationships=[],
         source_types={"pg": "postgresql"},
+        source_catalogs={},
+        metrics={},
         federation_engine=None,
         view_sql_map=None,
         kafka_table_configs=None,
+        security_high=False,
+        admin_db=None,
+        compiled_query_cache=CompiledQueryCache(),
+        routing_cache=CompiledQueryCache(),
+        replica_routes=ReplicaRoutes(),
+        schema_boot_id="test-boot",
+        schema_version=1,
+        model_stamp=1,
     )
-    return ctx, rls, state
 
 
 def _compiled() -> CompiledQuery:
     return CompiledQuery(sql=_SQL, params=[], root_field="orders", columns=[], sources={"pg"})
 
 
-def test_the_preview_shows_a_join_on_a_masked_key_reading_the_mask():
-    ctx, rls, state = _setting()
-    shown, _mv = _apply_pipeline_transforms(_compiled(), ctx, rls, "analyst", _ROLE, [], state)
-    assert 'ON \'***\' = "t1"."name"' in shown.sql
+async def _shown(monkeypatch) -> str:
+    import provisa.api.app as app_mod
+
+    ctx, state = _state()
+    monkeypatch.setattr(app_mod, "state", state, raising=False)
+    shown, _mv = await _apply_pipeline_transforms(_compiled(), ctx, "analyst", [], state)
+    return shown.sql
 
 
-def test_the_preview_is_the_statement_the_run_governs():
-    ctx, rls, state = _setting()
-    shown, _mv = _apply_pipeline_transforms(_compiled(), ctx, rls, "analyst", _ROLE, [], state)
-    gov = build_governance_context(
-        "analyst", rls, state.masking_rules, ctx, state.tables, role=_ROLE, source_types={}
-    )
-    assert shown.sql == apply_governance(_SQL, gov)
-    assert "region" in shown.sql and "LIMIT 50" in shown.sql
+async def test_the_preview_shows_a_join_on_a_masked_key_reading_the_mask(monkeypatch):
+    assert 'ON \'***\' = "t1"."name"' in await _shown(monkeypatch)
+
+
+async def test_the_preview_carries_the_row_filter_and_the_row_cap_the_run_applies(monkeypatch):
+    shown = await _shown(monkeypatch)
+    assert '"t0"."region" = \'east\'' in shown and "LIMIT 50" in shown
