@@ -94,7 +94,7 @@ def test_create_connect_args_query_params():
         password="p",
         host="localhost",
         port=8001,
-        query={"role": "viewer", "mode": "catalog"},
+        query={"role": "viewer"},
     )
     _, kwargs = dialect.create_connect_args(url)
     assert kwargs["role"] == "viewer"

@@ -168,11 +168,10 @@ class ProvisaClient:
     # ── Catalog / discovery ───────────────────────────────────────────────
 
     def list_tables(self):
-        """List semantic layer tables (catalog mode). Returns a pandas DataFrame."""
+        """List the semantic layer tables the role is served. Returns a pandas DataFrame."""
         import pandas as pd
 
-        criteria = json.dumps({"mode": "catalog"}).encode()
-        infos = list(self._flight_client().list_flights(criteria, self._flight_call_options()))
+        infos = list(self._flight_client().list_flights(b"", self._flight_call_options()))
         rows = []
         for info in infos:
             path = [p.decode() if isinstance(p, bytes) else p for p in info.descriptor.path]

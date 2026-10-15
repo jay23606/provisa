@@ -14,18 +14,13 @@ import org.apache.arrow.vector.types.pojo.Schema;
  * Provisa JDBC Connection.
  *
  * Authenticates against Provisa, discovers registered tables, and executes
- * SQL via the HTTP API.
- *
- * Mode:
- *   catalog — exposes registered tables for schema discovery and routes SQL
- *             through the /data/sql governance endpoint.
+ * SQL through the /data/sql governance endpoint.
  */
 public class ProvisaConnection extends AbstractConnection {
 
     String baseUrl;
     String user;
     String role; // the role this connection REQUESTS; null = the server derives it from the identity
-    String mode; // "catalog"
     String authToken; // the session token sign-in returned; null on a server with no password sign-in
     FlightTransport flightTransport; // null when the Flight port was unreachable at connect
     EnvelopeDecryptor encryptionService; // REQ-690: client-side column decrypt (null = disabled)
@@ -49,10 +44,9 @@ public class ProvisaConnection extends AbstractConnection {
      * when it is not the conventional one beside the HTTP port (8815 beside 8001).
      */
     ProvisaConnection(
-            String baseUrl, String user, String password, String mode, String requestedRole,
+            String baseUrl, String user, String password, String requestedRole,
             Integer flightPort) throws SQLException {
         this.baseUrl = baseUrl;
-        this.mode = mode != null ? mode : "catalog";
         this.user = user;
         this.authToken = signIn(user, password);
         if (requestedRole != null && !requestedRole.isEmpty()) {
@@ -162,7 +156,7 @@ public class ProvisaConnection extends AbstractConnection {
         }
     }
 
-    // ── The catalog (mode=catalog) ──
+    // ── The catalog ──
 
     /**
      * The tables this connection's role is served, with their columns and keys (REQ-128).
@@ -264,7 +258,7 @@ public class ProvisaConnection extends AbstractConnection {
 
     /**
      * Execute raw SQL through the /data/sql Stage 2 governance endpoint.
-     * Used by catalog mode to route arbitrary SQL through RLS, masking, and visibility.
+     * Routes arbitrary SQL through RLS, masking, and visibility.
      *
      * @return list of rows, each as a map of column name → value
      */
@@ -333,7 +327,6 @@ public class ProvisaConnection extends AbstractConnection {
         }
     }
     @Override public boolean isClosed() { return closed; }
-    @Override public String getSchema() { return mode; }
 
     void checkClosed() throws SQLException {
         if (closed) throw new SQLException("Connection is closed");

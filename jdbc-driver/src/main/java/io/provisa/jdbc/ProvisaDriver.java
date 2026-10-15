@@ -7,8 +7,8 @@ import java.util.logging.Logger;
 /**
  * Provisa JDBC Driver.
  *
- * Connection URL format: jdbc:provisa://host:port[?mode=catalog]
- * Properties: user, password, mode
+ * Connection URL format: jdbc:provisa://host:port[?role=...&flight_port=...]
+ * Properties: user, password, role, flight_port
  */
 public class ProvisaDriver implements Driver {
 
@@ -26,9 +26,8 @@ public class ProvisaDriver implements Driver {
 
         String remainder = url.substring("jdbc:provisa://".length());
 
-        // Split off query string: host:port?mode=catalog
+        // Split off query string: host:port?role=...
         String hostPort = remainder;
-        String mode = info.getProperty("mode", "catalog");
         // REQ-690/REQ-694: client-side decryption params (connection URL or Properties).
         String kmsProvider = info.getProperty("kms_provider");
         String kmsKeyArn = info.getProperty("kms_key_arn");
@@ -45,7 +44,6 @@ public class ProvisaDriver implements Driver {
                 String[] kv = param.split("=", 2);
                 if (kv.length != 2) continue;
                 switch (kv[0]) {
-                    case "mode": mode = kv[1]; break;
                     case "flight_port": flightPort = kv[1]; break;
                     case "role": role = java.net.URLDecoder.decode(kv[1], java.nio.charset.StandardCharsets.UTF_8); break;
                     case "kms_provider": kmsProvider = kv[1]; break;
@@ -65,7 +63,7 @@ public class ProvisaDriver implements Driver {
         String password = info.getProperty("password", "");
 
         ProvisaConnection conn = new ProvisaConnection(
-            baseUrl, user, password, mode, role, parseFlightPort(flightPort));
+            baseUrl, user, password, role, parseFlightPort(flightPort));
         conn.configureEncryption(kmsProvider, kmsKeyArn, kmsMasterKey);
         return conn;
     }
@@ -86,9 +84,6 @@ public class ProvisaDriver implements Driver {
 
     @Override
     public DriverPropertyInfo[] getPropertyInfo(String url, Properties info) {
-        DriverPropertyInfo modeProp = new DriverPropertyInfo("mode", info.getProperty("mode", "catalog"));
-        modeProp.description = "Connection mode: 'catalog' (schema discovery and SQL execution)";
-        modeProp.choices = new String[]{"catalog"};
         DriverPropertyInfo roleProp = new DriverPropertyInfo("role", info.getProperty("role"));
         roleProp.description = "The role to act as: one role the user holds, or a comma-separated "
             + "set of them. Omitted: the server derives the role from the signed-in identity.";
@@ -99,7 +94,6 @@ public class ProvisaDriver implements Driver {
         return new DriverPropertyInfo[]{
             new DriverPropertyInfo("user", info.getProperty("user")),
             new DriverPropertyInfo("password", info.getProperty("password")),
-            modeProp,
             roleProp,
             flightPortProp,
         };

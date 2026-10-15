@@ -357,9 +357,9 @@ df = pd.read_sql("SELECT id, amount, region FROM orders WHERE region = 'west'", 
 with engine.connect() as conn:
     rows = conn.execute(text("SELECT id, amount FROM orders")).fetchall()
 
-# role + mode URL parameters (mode=catalog for arbitrary SQL)
+# role URL parameter
 engine = create_engine(
-    "provisa+http://alice:secret@localhost:8001?role=analyst&mode=catalog"
+    "provisa+http://alice:secret@localhost:8001?role=analyst"
 )
 
 # ADBC — Arrow-native streaming via Flight

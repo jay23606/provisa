@@ -22,7 +22,6 @@ class ProvisaStatementTest {
 
     @Test
     void allowsStatementCreation() throws SQLException {
-        conn.mode = "catalog";
         when(conn.createStatement()).thenCallRealMethod();
         doCallRealMethod().when(conn).checkClosed();
         assertDoesNotThrow(() -> conn.createStatement());
@@ -30,7 +29,6 @@ class ProvisaStatementTest {
 
     @Test
     void routesToSqlEndpoint() throws SQLException {
-        conn.mode = "catalog";
         conn.baseUrl = "http://localhost:8001";
         conn.role = "admin";
 
@@ -54,7 +52,6 @@ class ProvisaStatementTest {
 
     @Test
     void emptyResultSet() throws SQLException {
-        conn.mode = "catalog";
         conn.baseUrl = "http://localhost:8001";
         conn.role = "admin";
 

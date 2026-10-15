@@ -18,11 +18,10 @@ class ProvisaDatabaseMetaDataTest {
     @Mock
     ProvisaConnection conn;
 
-    // ── mode=catalog: getTables ──
+    // ── getTables ──
 
     @Test
     void catalogMode_getTablesReturnsRegisteredTablesWithAliases() throws SQLException {
-        conn.mode = "catalog";
         when(conn.fetchRegisteredTables()).thenReturn(List.of(
             new ProvisaConnection.RegisteredTable(1, "sales", "orders", null, "Customer orders", List.of()),
             new ProvisaConnection.RegisteredTable(2, "sales", "customers", "clients", "Customer accounts", List.of())
@@ -44,11 +43,10 @@ class ProvisaDatabaseMetaDataTest {
         assertFalse(rs.next());
     }
 
-    // ── mode=catalog: getColumns ──
+    // ── getColumns ──
 
     @Test
     void catalogMode_getColumnsReturnsAliasesAndDescriptions() throws SQLException {
-        conn.mode = "catalog";
         when(conn.fetchRegisteredTables()).thenReturn(List.of(
             new ProvisaConnection.RegisteredTable(1, "sales", "orders", null, null, List.of(
                 new ProvisaConnection.RegisteredColumn("id", null, "Primary key"),
