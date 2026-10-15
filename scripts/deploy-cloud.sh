@@ -42,7 +42,7 @@ set -euo pipefail
 NODE="${NODE:-provisa-saas-coordinator}"
 ZONE="${ZONE:-us-central1-a}"
 PROJECT="${PROJECT:-provisa-test-473}"
-CONTAINERS="${CONTAINERS:-compose-provisa-1 compose-provisa-ui-1}"
+CONTAINERS="${CONTAINERS:-compose-provisa-1 compose-provisa-ui-1 compose-provisa-sandbox-1}"
 SITE="${SITE:-https://cloud.provisa.dev}"
 # The control plane lives on Cloud SQL. Nothing on the node holds it and no container is a
 # long-lived psql client, so SQL runs in a throwaway container joined to the app's own network —
@@ -404,15 +404,20 @@ YAML
     echo "== host overlay: up to date"
     return
   fi
-  # Seeded from the RUNNING container, before the mount exists. A bind mount hides whatever the
-  # image baked at that path, and an empty /app/provisa is an empty import root — the app would not
-  # start at all. The pushes ship explicit subsets (CONFIG_FILES, the ui tarball), never the whole
-  # tree, so the host copy has to begin as a full copy of the baked one.
+  # Seeded from the IMAGE, through a created (never started) container of it. A bind mount hides
+  # whatever the image baked at that path, and an empty /app/provisa is an empty import root — the
+  # app would not start at all. The pushes ship explicit subsets (CONFIG_FILES, the ui tarball),
+  # never the whole tree, so the host copy has to begin as a full copy of the baked one. Never the
+  # running container's /app: once an earlier overlay is mounted, that is the host directory this
+  # removes first, and the seed copied an empty tree.
   echo "== host overlay: seeding from the image"
-  ssh_node "sudo mkdir -p $OVERLAY_DIR \
+  ssh_node "set -e; IMG=\$(sudo docker inspect -f '{{.Config.Image}}' $API_CONTAINER) \
+    && SEED=\$(sudo docker create \$IMG) \
+    && trap 'sudo docker rm -f \$SEED >/dev/null' EXIT \
+    && sudo mkdir -p $OVERLAY_DIR \
     && for d in static provisa config; do \
          sudo rm -rf $OVERLAY_DIR/\$d \
-           && sudo docker cp $API_CONTAINER:/app/\$d $OVERLAY_DIR/\$d \
+           && sudo docker cp \$SEED:/app/\$d $OVERLAY_DIR/\$d \
            && echo \"seeded \$d=\$(sudo ls $OVERLAY_DIR/\$d | wc -l)\"; \
        done"
   echo "== host overlay: installing overlay"
@@ -725,8 +730,11 @@ verify_engine() {
     echo "cannot be exercised. Set them and re-run." >&2
     exit 1
   fi
-  local body
-  body="$(curl -s --max-time 240 -u "$su_user:$su_pass" \
+  # The control-plane host names no org, so the probe names the bootstrap org, as break-glass
+  # must under multitenancy (else auth.org_selection_required).
+  local body boot
+  boot="$(ssh_node "sudo docker exec $API_CONTAINER sh -c 'echo \${ORG_ID:-default}'" | tr -d '\r')"
+  body="$(curl -s --max-time 240 -u "$su_user:$su_pass" -H "x-org-provisa: $boot" \
     -H 'Content-Type: application/json' -d '{"sql":"SELECT 1 AS ok"}' "$SITE/data/sql")" || {
       echo "the engine query never returned" >&2; exit 1; }
   case "$body" in
