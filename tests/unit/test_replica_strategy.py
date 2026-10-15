@@ -407,6 +407,69 @@ def test_bundle_resolve_download_without_launcher_is_loud(tmp_path):
         resolver.resolve(wanted)
 
 
+def test_a_bundle_missing_inside_a_request_is_downloaded_off_it(tmp_path):
+    """Inside a request a miss starts one download of its own, outside the request's deadline, and
+    answers BundleDownloading at once; a request after it finds the bundle."""
+    import threading
+
+    from provisa.core import request_deadline
+
+    release = threading.Event()
+    calls: list[float | None] = []
+
+    def _dl(spec, dest):
+        calls.append(request_deadline.remaining())
+        release.wait(5)
+        _lay_down_bundle(spec, dest)
+
+    resolver = rd.BundleResolver(cache_root=tmp_path, downloader=_dl)
+    spec = rd.bundle_spec_for("files")
+    with request_deadline.within(30):
+        with pytest.raises(rd.BundleDownloading):
+            resolver.resolve(spec)
+        with pytest.raises(rd.BundleDownloading):
+            resolver.resolve(spec)  # the download in flight is not started again
+        thread = rd._downloads[resolver.cached_path(spec)]
+    release.set()
+    thread.join(5)
+    assert calls == [None]  # one download, with no request deadline over it
+    with request_deadline.within(30):
+        assert resolver.resolve(spec) == tmp_path / spec.version / "pgwire-file"
+
+
+def test_a_bundle_download_off_a_request_that_failed_is_reported_once(tmp_path):
+    import threading
+
+    from provisa.core import request_deadline
+
+    release = threading.Event()
+    attempts: list[str] = []
+
+    def _dl(spec, dest):
+        attempts.append(spec.artifact_name)
+        release.wait(5)
+        dest.mkdir(parents=True, exist_ok=True)  # produces no launcher
+
+    resolver = rd.BundleResolver(cache_root=tmp_path, downloader=_dl)
+    spec = rd.bundle_spec_for("splunk")
+    with request_deadline.within(30):
+        with pytest.raises(rd.BundleDownloading):
+            resolver.resolve(spec)
+        thread = rd._downloads[resolver.cached_path(spec)]
+        release.set()
+        thread.join(5)
+        with pytest.raises(rd.BundleUnavailable) as failed:
+            resolver.resolve(spec)
+        assert not isinstance(failed.value, rd.BundleDownloading)
+        assert "did not produce launcher" in str(failed.value)
+        with pytest.raises(rd.BundleDownloading):  # the next request tries again
+            resolver.resolve(spec)
+        again = rd._downloads.get(resolver.cached_path(spec))
+        if again is not None:  # None: it has already ended
+            again.join(5)
+    assert attempts == ["pgwire-splunk", "pgwire-splunk"]
+
+
 # -- REQ-955: server lifecycle -------------------------------------------------
 
 

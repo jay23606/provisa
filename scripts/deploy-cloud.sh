@@ -369,6 +369,9 @@ OVERLAY_DIR="/root/.provisa/overlay"
 OVERLAY_EXT="/root/.provisa/extensions/overlay/docker-compose.overlay.yml"
 # The hub cache of the embedding models the app and the sandbox tier load (a demo's own, REQ-2006).
 HF_CACHE_DIR="/root/.provisa/hf-cache"
+# The runtime-deps cache: the connector bundles (hundreds of megabytes each) a source reads
+# through, fetched once rather than at every recreate (provisa/runtime_deps/pgwire_bundles.py).
+RUNTIME_DEPS_DIR="/root/.provisa/runtime-deps"
 
 push_overlay() {
   cat > "$STAGE/docker-compose.overlay.yml" <<YAML
@@ -383,6 +386,7 @@ services:
       # A huggingface embedding model is fetched into the hub cache at its first use; on the host,
       # a recreate does not fetch it again.
       - ${HF_CACHE_DIR}:/root/.cache/huggingface
+      - ${RUNTIME_DEPS_DIR}:/root/.cache/provisa/runtime_deps
   provisa-ui:
     volumes:
       - ${OVERLAY_DIR}/static:/app/static
@@ -396,6 +400,7 @@ services:
       - ${OVERLAY_DIR}/provisa:/app/provisa
       - ${OVERLAY_DIR}/config:/app/config
       - ${HF_CACHE_DIR}:/root/.cache/huggingface
+      - ${RUNTIME_DEPS_DIR}:/root/.cache/provisa/runtime_deps
     environment:
       # The demos cloud.provisa.dev offers (first-launch.sh's default; a node set up
       # by an earlier release offers its own list until it is set up again).
@@ -420,7 +425,7 @@ YAML
   ssh_node "set -e; IMG=\$(sudo docker inspect -f '{{.Config.Image}}' $API_CONTAINER) \
     && SEED=\$(sudo docker create \$IMG) \
     && trap 'sudo docker rm -f \$SEED >/dev/null' EXIT \
-    && sudo mkdir -p $OVERLAY_DIR $HF_CACHE_DIR \
+    && sudo mkdir -p $OVERLAY_DIR $HF_CACHE_DIR $RUNTIME_DEPS_DIR \
     && for d in static provisa config; do \
          sudo rm -rf $OVERLAY_DIR/\$d \
            && sudo docker cp \$SEED:/app/\$d $OVERLAY_DIR/\$d \

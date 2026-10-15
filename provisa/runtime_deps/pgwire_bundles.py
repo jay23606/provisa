@@ -27,6 +27,7 @@ import os
 import platform
 import shutil
 import tarfile
+import threading
 from dataclasses import dataclass
 from http import HTTPStatus
 from pathlib import Path
@@ -96,6 +97,26 @@ def named_bundle_dir(connector: str) -> str | None:
 class BundleUnavailable(Exception):  # REQ-956
     """A pgwire bundle could not be resolved — unknown source type, download failure, or a download
     that did not produce the launcher. Raised on fail-loud resolution; never a fallback."""
+
+
+class BundleDownloading(BundleUnavailable):
+    """The bundle is not here yet and is being downloaded off any request: a bundle is hundreds of
+    megabytes, and a download inside a request was cut off by the request's deadline every time,
+    so it never arrived. The request is answered now; a later one finds the bundle."""
+
+    def __init__(self, spec: "BundleSpec") -> None:
+        super().__init__(
+            f"the {spec.artifact_name} connector is being downloaded ({spec.version}); "
+            "try again shortly"
+        )
+        self.spec = spec
+
+
+#: Downloads in flight off any request, by destination, and the failure of the last one that
+#: ended badly (reported to the next request, which then starts another).
+_downloads: dict[Path, threading.Thread] = {}
+_download_failures: dict[Path, BundleUnavailable] = {}
+_downloads_lock = threading.Lock()
 
 
 @dataclass(frozen=True)
@@ -284,10 +305,45 @@ class BundleResolver:  # REQ-956
                 f"setting {bundle_dir_key(spec.connector)} names {dest}, which has no launcher "
                 f"{self.launcher_path(spec)}"
             )
+        from provisa.core import request_deadline
+
+        if request_deadline.remaining() is not None:
+            self._download_off_request(spec, dest)
+        self._fetch(spec, dest)
+        return dest
+
+    def _fetch(self, spec: BundleSpec, dest: Path) -> None:
         self._download(spec, dest)
         if not self.is_cached(spec):
             raise BundleUnavailable(
                 f"pgwire bundle {spec.artifact_name} download did not produce launcher "
                 f"{self.launcher_path(spec)}"
             )
-        return dest
+
+    def _download_off_request(self, spec: BundleSpec, dest: Path) -> None:
+        """Inside a request: start the download on a thread of its own (one per bundle), outside
+        the request's deadline, and answer :class:`BundleDownloading` now. A download that failed
+        is reported once, to the request after it, and the next request starts another."""
+        with _downloads_lock:
+            failed = _download_failures.pop(dest, None)
+            if failed is not None:
+                raise failed
+            if dest not in _downloads:
+
+                def run() -> None:
+                    try:
+                        self._fetch(spec, dest)
+                    except BundleUnavailable as exc:
+                        with _downloads_lock:
+                            _download_failures[dest] = exc
+                    finally:
+                        with _downloads_lock:
+                            _downloads.pop(dest, None)
+
+                # A new thread starts with an empty context: no request deadline is bound in it.
+                thread = threading.Thread(
+                    target=run, daemon=True, name=f"pgwire-bundle:{spec.artifact_name}"
+                )
+                _downloads[dest] = thread
+                thread.start()
+        raise BundleDownloading(spec)

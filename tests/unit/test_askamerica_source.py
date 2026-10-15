@@ -1381,6 +1381,29 @@ def test_a_catalog_that_cannot_be_prepared_is_reported_and_not_asked_for_again()
     assert isinstance(pr.ServerCatalogFailed("s", RuntimeError("x")), pr.server_start_errors())
 
 
+@pytest.mark.parametrize("unanswered", [TimeoutError(), ConnectionRefusedError()])
+def test_a_preparation_the_server_did_not_answer_is_sent_again(unanswered):
+    """A server that has only just opened its port can be too busy to answer its first catalog
+    query in time. That is no answer, not a failure: the source stays starting and the next
+    request sends the query again -- it is never refused for good (a sandbox's files source was,
+    for every later query, on a node where the server took nearly two minutes to start)."""
+    answers = [unanswered, None]
+
+    def prepare(ports):
+        answer = answers.pop(0)
+        if answer is not None:
+            raise answer
+
+    replica = _replica_with_server(
+        healthy=True, exit_code=None, catalog_ready=False, prepare=prepare
+    )
+    ports = pr.PortPair(5440, "127.0.0.1", 5540)
+    with pytest.raises(pr.SourceStillStartingError):
+        replica.await_catalog(ports, 5)
+    replica.await_catalog(ports, 5)  # sent again, answered: the attach goes ahead
+    assert answers == []
+
+
 def test_a_restarted_server_has_its_catalog_prepared_afresh():
     prepared: list[pr.PortPair] = []
     replica = _replica_with_server(
