@@ -448,6 +448,8 @@ async def _fetch_gql_remote_rows(
     The flag: the read stopped at max_rows with more to read (REQ-1350)."""
     from provisa.graphql_remote.executor import NO_POLICY, execute_remote
 
+    # REQ-2061: the table's fixed arguments are sent with every read; a read gives no value for one.
+    variables = {**(gql_tbl.get("arguments") or {}), **(variables or {})}
     answer = await execute_remote(
         url=gql_reg["url"],
         auth=gql_reg.get("auth"),

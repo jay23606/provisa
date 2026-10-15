@@ -176,6 +176,7 @@ CREATE TABLE IF NOT EXISTS registered_tables (
     off_peak_window TEXT,    -- REQ-1141: per-table "HH:MM-HH:MM" window override; NULL = inherit source
     off_peak_tz TEXT,        -- REQ-1141: per-table window zone override; NULL = inherit source
     pagination  JSONB,       -- REQ-318: how the table is read page by page; NULL = not paged here
+    arguments   JSONB,       -- REQ-2061: its source's parameters fixed for every read; NULL = none
     gql_naming_convention TEXT,
     watermark_column TEXT,
     change_signal TEXT,  -- REQ-929: override source change signal; NULL = inherit

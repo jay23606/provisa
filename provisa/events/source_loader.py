@@ -1759,6 +1759,13 @@ def make_graphql_remote_loader(gql_sources: dict[str, Any], max_rows: int) -> Ad
                         "columns": col_selections,
                         "rows_path": tbl.get("rows_path"),
                         "error_policy": reg.get("error_policy") or NO_POLICY,
+                        # REQ-2061: the table's fixed arguments, sent on every read of it.
+                        "variables": dict(tbl.get("arguments") or {}) or None,
+                        "required_args": [
+                            *(tbl.get("required_args") or []),
+                            *(tbl.get("optional_args") or []),
+                        ]
+                        or None,
                     }
         raise UnsupportedSourceFetch(
             f"graphql_remote source {source.id!r} table {table.table_name!r}: no matching "
@@ -1783,6 +1790,8 @@ def make_graphql_remote_loader(gql_sources: dict[str, Any], max_rows: int) -> Ad
             # REQ-318: the table's own bound where it set one (registry row), else the operator's.
             max_rows=connection_max_rows(table.pagination, max_rows),
             error_policy=request["error_policy"],
+            variables=request["variables"],
+            required_args=request["required_args"],
         )
 
     async def _load(source: Any, table: Any) -> list[dict]:

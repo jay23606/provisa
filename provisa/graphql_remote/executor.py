@@ -436,12 +436,17 @@ async def whole_connection(  # REQ-1915, REQ-1923
     table: str,
     max_rows: int | None,
     error_policy: ErrorPolicy = NO_POLICY,
+    variables: dict | None = None,
+    required_args: list[dict] | None = None,
 ) -> AsyncGenerator[list[dict]]:
     """A connection table's whole collection, a page at a time, for a read that must have all of
     it (a replica build, an event-loop land): the read never holds more than one page, and one
     that reaches ``max_rows`` with more to read fails by name (:class:`RowLimitReached`, naming
-    ``table``) instead of yielding a table cut at the bound."""
-    read = _connection_read(url, auth, field_name, columns, rows_path, None, None, error_policy)
+    ``table``) instead of yielding a table cut at the bound. ``variables``: the arguments every
+    page is read with -- a table's fixed arguments (REQ-2061) -- declared by ``required_args``."""
+    read = _connection_read(
+        url, auth, field_name, columns, rows_path, variables, required_args, error_policy
+    )
     async with aclosing(bounded_pages(read, _CONNECTION_PAGE_SIZE, max_rows)) as pages:
         async for page, cut_at in pages:
             if cut_at is not None:

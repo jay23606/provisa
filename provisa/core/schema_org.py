@@ -233,6 +233,9 @@ registered_tables = Table(
     # REQ-318: how the table is read page by page (provisa.core.paging); NULL = not paged here.
     # none_as_null: an unpaged table (None) is SQL NULL, never the JSON value null.
     Column("pagination", JSON(none_as_null=True)),
+    # REQ-2061: the values of the parameters the table's source takes by name, fixed for every
+    # read (a GraphQL root field's arguments, an OpenAPI operation's parameters); NULL = none.
+    Column("arguments", JSON(none_as_null=True)),
     Column("gql_naming_convention", Text),
     Column("watermark_column", Text),
     Column("change_signal", Text),  # REQ-929: override source change signal; NULL = inherit

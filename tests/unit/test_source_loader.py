@@ -164,8 +164,10 @@ async def test_make_graphql_remote_loader_forwards_query(monkeypatch):
     captured: dict = {}
 
     async def _fake_execute_remote(
-        *, url, auth, field_name, columns, rows_path, max_rows, error_policy
-    ):
+        *, url, auth, field_name, columns, rows_path, max_rows, error_policy, variables,
+        required_args,
+    ):  # fmt: skip
+        assert variables is None  # REQ-2061: a table that fixes no argument sends none
         captured.update(
             url=url,
             auth=auth,
@@ -238,7 +240,10 @@ async def test_a_connection_tables_replica_source_reads_it_a_page_at_a_time(monk
 
     pulled: list[str] = []
 
-    async def _pages(url, auth, field_name, columns, rows_path, *, table, max_rows, error_policy):
+    async def _pages(
+        url, auth, field_name, columns, rows_path, *, table, max_rows, error_policy, variables,
+        required_args,
+    ):  # fmt: skip
         assert (table, max_rows) == ("gql.issues", 500)
         for page in ([{"id": 1}, {"id": 2}], [{"id": 3}]):
             pulled.append("page")
@@ -282,7 +287,10 @@ async def test_a_connection_table_is_read_up_to_its_own_bound_when_it_sets_one(m
 
     bounds: list[int] = []
 
-    async def _pages(url, auth, field_name, columns, rows_path, *, table, max_rows, error_policy):
+    async def _pages(
+        url, auth, field_name, columns, rows_path, *, table, max_rows, error_policy, variables,
+        required_args,
+    ):  # fmt: skip
         bounds.append(max_rows)
         yield [{"id": 1}]
 
