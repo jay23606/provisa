@@ -104,6 +104,9 @@ class TestApiColumnType:
             ("decimal(10,2)", ApiColumnType.number),
             ("boolean", ApiColumnType.boolean),
             ("json", ApiColumnType.jsonb),
+            # #267: a Cypher date or timestamp column is typed, not refused.
+            ("date", ApiColumnType.date),
+            ("timestamp", ApiColumnType.timestamp),
         ],
     )
     def test_known_types_map(self, data_type: str, expected: ApiColumnType):
@@ -124,6 +127,23 @@ class TestApiColumnType:
             ("id", ApiColumnType.integer),
             ("name", ApiColumnType.string),
         ]
+
+    def test_a_date_and_a_timestamp_are_read_from_their_iso_text(self):
+        """#267: the flattened row holds a date and a timestamp (in UTC), and the cache lands
+        them as DATE and TIMESTAMP."""
+        from datetime import date, datetime
+
+        from provisa.api_source.engine_cache import _land_columns
+        from provisa.api_source.flattener import flatten_item
+        from provisa.api_source.models import ApiColumn
+
+        columns = [
+            ApiColumn(name="bought_on", type=ApiColumnType.date),
+            ApiColumn(name="at", type=ApiColumnType.timestamp),
+        ]
+        row = flatten_item({"bought_on": "2026-03-01", "at": "2026-03-01T03:04:05+02:00"}, columns)
+        assert row == {"bought_on": date(2026, 3, 1), "at": datetime(2026, 3, 1, 1, 4, 5)}
+        assert _land_columns(columns) == [("bought_on", "DATE"), ("at", "TIMESTAMP")]
 
     def test_untyped_column_is_refused(self):
         with pytest.raises(ValueError, match="requires data_type"):

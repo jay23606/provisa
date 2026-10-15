@@ -7,7 +7,7 @@ query BatteryComplaints {
     product {
       name
       category
-      specsBatteryHours
+      batteryHours
     }
   }
 }

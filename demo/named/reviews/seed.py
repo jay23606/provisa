@@ -170,7 +170,6 @@ def _catalog(rng: random.Random) -> list[dict]:
         names.add((name, category))
         product = {
             "_id": len(products) + 1,
-            "product_id": len(products) + 1,
             "name": f"{name} {category}" if category in ("power bank", "case", "cable") else name,
             "category": category,
             "brand": brand,
