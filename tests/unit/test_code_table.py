@@ -201,11 +201,11 @@ def test_arguments_go_in_declared_order_and_one_left_out_is_absent(manifest):
 
 
 def test_a_code_table_is_read_by_provisa_and_landed():
-    from provisa.api.data.materialization import _is_native_read
+    from provisa.api.data.materialization import is_native_read
 
     types = {"orders-src": "python", "pg": "postgresql"}
-    assert _is_native_read(_orders_table(), types)
-    assert not _is_native_read({**_orders_table(), "source_id": "pg"}, types)
+    assert is_native_read(_orders_table(), types)
+    assert not is_native_read({**_orders_table(), "source_id": "pg"}, types)
 
 
 @pytest.fixture

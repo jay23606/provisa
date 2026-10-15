@@ -114,7 +114,7 @@ def _sql_name(name: str) -> str:
     return apply_sql_name(name)
 
 
-def _is_native_read(table: dict, types: dict[str, str]) -> bool:
+def is_native_read(table: dict, types: dict[str, str]) -> bool:
     """Whether Provisa reads ``table`` itself, per statement, under the statement's arguments: a
     MongoDB pipeline table (REQ-1980), a Cosmos DB table with a query or parameters (REQ-1982),
     a Qdrant search (REQ-1983), an Elasticsearch native search (REQ-2017), or a code source's
@@ -138,14 +138,14 @@ def _is_native_read(table: dict, types: dict[str, str]) -> bool:
 
 
 def _pipeline_tables(state, table_ids: Iterable[int]) -> dict[str, dict]:
-    """The tables the statement reads that Provisa reads itself (``_is_native_read``), by their
+    """The tables the statement reads that Provisa reads itself (``is_native_read``), by their
     sql names."""
     ids = set(table_ids)
     types = getattr(state, "source_types", None) or {}
     return {
         _sql_name(t["table_name"]): t
         for t in (getattr(state, "tables", None) or [])
-        if t.get("id") in ids and _is_native_read(t, types)
+        if t.get("id") in ids and is_native_read(t, types)
     }
 
 

@@ -63,7 +63,7 @@ steps:
   route: /graph
   capability: query_development
   cypher: >-
-    MATCH (r:Repositories)<-[i:RAISED_IN]-(a:DependabotAlerts)-[b:ABOUT]->(c:Cves)-[e:EXPLOITED_AS]->(k:Kev)
+    MATCH (r:S__Repositories)<-[i:RAISED_IN]-(a:S__DependabotAlerts)-[b:ABOUT]->(c:S__Cves)-[e:EXPLOITED_AS]->(k:S__Kev)
     WHERE a.state = 'open' RETURN r, i, a, b, c, e, k
 - key: vulnerabilitiesRest
   route: /openapi

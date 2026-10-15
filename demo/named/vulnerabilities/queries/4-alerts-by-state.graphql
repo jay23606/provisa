@@ -1,6 +1,6 @@
 # The Dependabot alerts by state and severity: what is open, fixed and dismissed.
 query AlertsByState {
-  dependabotAlertsGroupBy(by: [state, severity], order_by: [{ aggregate: { count: desc } }]) {
+  s__dependabotAlertsGroupBy(by: [state, severity], order_by: [{ aggregate: { count: desc } }]) {
     groupKey
     aggregate {
       count

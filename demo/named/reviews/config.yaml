@@ -39,7 +39,7 @@ domains:
     who bought what (Neo4j), joined on the product id
 federation_engine: duckdb
 naming:
-  domain_prefix: false
+  domain_prefix: true
   rules: []
 roles:
 - id: analyst
