@@ -1,15 +1,29 @@
 {
-  "version": "v0.1.0-alpha.488",
-  "previous": "v0.1.0-alpha.487",
+  "version": "v0.1.0-alpha.489",
+  "previous": "v0.1.0-alpha.488",
   "date": "2026-10-15",
   "features": [
     {
-      "category": "Table Registration",
+      "category": "Change Signals",
       "entries": [
         {
-          "text": "A TTL of -1 means never expires: the table lands once and its replica is never stale after that. -1 can be set on a source, which its tables inherit as they inherit any TTL, or on a table.",
+          "text": "A table read where it lies (not replicated) that declares a probing change signal -- probe or ttl_probe, its own else its source's -- is a signal-only node of the event loop: its probe (MAX of its watermark column, a count, or its probe_query) runs on its cache TTL, and a change is posted to the materialized views that read it, which recompute and ripple on to theirs.",
           "changes": [
-            "-1 never expires"
+            "A live table that declares a probe is a signal-only node for its views",
+            "The quality demo, data you can trust, driven by landing alone"
+          ]
+        }
+      ]
+    },
+    {
+      "category": "Triggers",
+      "entries": [
+        {
+          "text": "A trigger says when something runs, and what runs is an ordinary command (python or statement), a SQL statement or a webhook.",
+          "changes": [
+            "A trigger fires on a table's change or event, and runs a command",
+            "A table floored by its own replicate builds its replica (#269); a write to a native-feed table fires its triggers from the feed alone",
+            "The admin Triggers page -- every automatic run in one place, read and edited in its panel"
           ]
         }
       ]
@@ -17,71 +31,118 @@
   ],
   "changes": [
     {
-      "scope": "demo",
+      "scope": "api-source",
       "entries": [
-        "The reviews named demo -- MongoDB, Elasticsearch and Neo4j joined on the product",
-        "Publish the reviews demo"
+        "An API-backed table's date and timestamp columns are typed (#267)"
       ]
     },
     {
-      "scope": "demo-bundles",
+      "scope": "auth",
       "entries": [
-        "MongoDB, Elasticsearch and Neo4j stores are carried in a demo's bundle"
+        "Rights follow the roles a request acts as, never every role held",
+        "Selecting an environment is judged by every role held, as it is decided before the acting roles exist"
+      ]
+    },
+    {
+      "scope": "demo",
+      "entries": [
+        "Cap the reviews run-time stores' memory for the cloud node"
       ]
     },
     {
       "scope": "demos",
       "entries": [
-        "No engine-state poll for a demo sandbox or the anonymous demo open",
-        "scripts/new_demo.py scaffolds a named demo, scripts/check_demo.py runs its checks"
+        "A bundle build lands a live account's tables with its key, and refuses an empty one",
+        "The insurance vertical demo -- property exposure against hazard risk",
+        "A tour's Polly questions are answered at the bundle build and stored",
+        "A scaffolded demo's example step opens on the GraphQL page",
+        "A scaffolded demo's example step opens the GraphQL page"
       ]
     },
     {
       "scope": "deploy",
       "entries": [
-        "Restart the sandbox tier, seed the overlay from the image, name the org in the engine probe"
-      ]
-    },
-    {
-      "scope": "deps",
-      "entries": [
-        "graphql-core stays below 3.3, the version the tests run on"
+        "The embedding-model hub cache on the host; a sonnets sandbox searches by meaning (CI)"
       ]
     },
     {
       "scope": "duckdb",
       "entries": [
-        "A source whose server is down fails no other source's listings (#256)"
+        "A MongoDB column named apart from its field is found (#266)"
       ]
     },
     {
-      "scope": "elasticsearch",
+      "scope": "explorers",
       "entries": [
-        "A native search keeps each hit's score"
+        "A demo visitor's OpenAPI page loads, and GraphQL reopens on its last tab"
       ]
     },
     {
-      "scope": "graphql",
+      "scope": "gcp-saas",
       "entries": [
-        "A table's parameters are in the read's WHERE, before ORDER BY and LIMIT"
+        "The control-plane Postgres runs on the control-plane VM; Cloud SQL removed"
       ]
     },
     {
-      "scope": "image",
+      "scope": "governance",
       "entries": [
-        "Install the locked versions from uv.lock"
+        "A star reads only the columns the role is served; RETURNING is governed"
+      ]
+    },
+    {
+      "scope": "jdbc",
+      "entries": [
+        "Drop the connection mode setting, which had one value and changed nothing"
+      ]
+    },
+    {
+      "scope": "mv",
+      "entries": [
+        "A view the event loop refreshes is marked fresh in the MV registry (#268)"
       ]
     },
     {
       "scope": "replicas",
       "entries": [
-        "The table's read panel shows its replica and indexes, as its form does"
+        "Replica builds as ops tables, with a build log and failures per source and day"
+      ]
+    },
+    {
+      "scope": "roles",
+      "entries": [
+        "A role's max_rows is set by the nearest role that declares it, as rate_limit is"
+      ]
+    },
+    {
+      "scope": "row-level",
+      "entries": [
+        "A row-level table is read through ANY filter, fetched by that filter; DIRECT reads live"
+      ]
+    },
+    {
+      "scope": "sandbox",
+      "entries": [
+        "cloud.provisa.dev offers weblogs, files, sonnets and reviews",
+        "A demo's own embedding models reach its sandboxes",
+        "A demo sandbox is deleted after an hour without use (was a day)"
+      ]
+    },
+    {
+      "scope": "temp-tables",
+      "entries": [
+        "A session's temporary tables are bounded, and a gone session's are reaped"
       ]
     },
     {
       "scope": "ui",
       "entries": [
-        "The OpenAPI page types a table's parameters into their textarea"
+        "js-yaml is a dependency of its own, so the live demos page check runs"
+      ]
+    },
+    {
+      "scope": "writes",
+      "entries": [
+        "A source with no direct driver is written through the engine"
       ]
     }
   ]
