@@ -92,6 +92,7 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "fake-indexeddb": "^6.2.5",
     "globals": "^17.6.0",
+    "js-yaml": "4.1.1",
     "jsdom": "^29.1.1",
     "nyc": "^18.0.0",
     "postcss": "^8.4.47",
