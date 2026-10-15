@@ -16,6 +16,9 @@
 #   neo4j          customers and what they bought (Provisa: customers, purchases, bought_together)
 #   seeder         writes the data once (seed.py), then exits
 #
+# The bundle build (scripts/demo_bundle.py) dumps each store by its role -- document (MongoDB),
+# search (Elasticsearch), graph (Neo4j) -- for docker-compose.run.yml to load where it runs.
+#
 # Ports: 28617 MongoDB, 28692 Elasticsearch, 28674 Neo4j's HTTP API (28687 its Bolt); each can
 # be moved by its variable.
 x-demo-labels: &demo-labels
@@ -28,10 +31,16 @@ services:
     labels:
       <<: *demo-labels
       com.provisa.demo.role: document
+    # The seeder writes as the store's administrator; Provisa reads as reviews_reader
+    # (db/mongo-reader.js), which writes nothing.
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: ${REVIEWS_MONGO_ADMIN_PASSWORD:-reviews-admin}
     ports:
       - "${REVIEWS_MONGO_PORT:-28617}:27017"
     volumes:
       - reviews_mongo:/data/db
+      - ./db/mongo-reader.js:/docker-entrypoint-initdb.d/20-reader.js:ro
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
       interval: 2s
@@ -47,6 +56,8 @@ services:
       discovery.type: single-node
       xpack.security.enabled: "false"
       ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+      # Where the bundle build snapshots the indices (scripts/demo_bundle.py), inside the container.
+      path.repo: /usr/share/elasticsearch/snapshots
     ports:
       - "${REVIEWS_ES_PORT:-28692}:9200"
     volumes:
@@ -87,7 +98,7 @@ services:
       <<: *demo-labels
       com.provisa.demo.role: seeder
     environment:
-      MONGO_URL: mongodb://mongodb:27017
+      MONGO_URL: mongodb://root:${REVIEWS_MONGO_ADMIN_PASSWORD:-reviews-admin}@mongodb:27017/?authSource=admin
       ES_URL: http://elasticsearch:9200
       NEO4J_URL: http://neo4j:7474
     depends_on:

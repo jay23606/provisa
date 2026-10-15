@@ -82693,8 +82693,9 @@
     native-query table reviews_matching(phrase) with highlight, Neo4j purchases with a Cypher table bought_together;
     relationships on product id across the three stores; 4-6 example queries; the "battery dies" -> catalog ->
     bought-together headline; data from a seeder, no licensed data. A Cypher table takes no parameter, so
-    bought_together holds every product''s pairs and a query filters it by product_id. Not published yet: the
-    bundle build dumps Postgres and Qdrant stores only.'
+    bought_together holds every product''s pairs and a query filters it by product_id. Lead, 2026-10-15:
+    publish it; the bundle build dumps MongoDB (document), Elasticsearch (search) and Neo4j (graph) stores
+    for its run-time compose to load, read only.'
 - id: REQ-2031
   status: complete
   since: 2026-10

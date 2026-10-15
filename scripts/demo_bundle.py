@@ -24,10 +24,12 @@ where the demo runs:
        (``PROVISA_DEMO_SEED_EXPORT=true``): it lands the demo's template from those stores and
        writes the seed -- ``seeded/replicas.duckdb`` and ``seeded/replicas.json``
        (provisa/api/demo_replicas.py);
-    3. each Postgres data store (a service labelled ``com.provisa.demo.role: rdb``) is dumped to
-       ``dump/<service>.sql``, and each Qdrant store (``com.provisa.demo.role: vector``) is saved as
-       one snapshot a collection, ``dump/<service>/<collection>.snapshot``, for the demo's run-time
-       compose file (docker-compose.run.yml) to load and restore;
+    3. each data store is dumped by its ``com.provisa.demo.role``, for the demo's run-time compose
+       file (docker-compose.run.yml) to load and restore: a Postgres store (``rdb``) to
+       ``dump/<service>.sql``, a Qdrant store (``vector``) as one snapshot a collection,
+       ``dump/<service>/<collection>.snapshot``, a MongoDB store (``document``) as one archive,
+       ``dump/<service>.archive.gz``, an Elasticsearch store (``search``) as a snapshot repository,
+       ``dump/<service>/``, and a Neo4j store (``graph``) as ``dump/<service>/neo4j.dump``;
     4. everything is taken down, and the copy is packed (provisa/core/demo_bundles.py) as
        ``DIR/<name>-<version>.tar.gz``, version ``<UTC minute>-<commit>``.
 
@@ -135,19 +137,33 @@ class Stores:
             self._compose("run", "--rm", "--no-deps", "seeder")
 
     def dump(self) -> list[str]:
-        """Each Postgres data store's database, to dump/<service>.sql."""
+        """Each data store, by its role: a Postgres database (rdb) to dump/<service>.sql, a Qdrant
+        store (vector) a snapshot a collection, a MongoDB store (document) one archive, an
+        Elasticsearch store (search) one snapshot of its indices, and a Neo4j store (graph) its
+        database's dump. A graph store is dumped last: it is stopped to be dumped."""
         if not self.compose_file.exists():
             return []
         config = json.loads(
             self._compose("config", "--format", "json", capture_output=True, text=True).stdout
         )
         dumped = []
+        graphs = []
         for name, service in sorted(config["services"].items()):
             labels = service.get("labels") or {}
-            if labels.get("com.provisa.demo.role") == "vector":
+            role = labels.get("com.provisa.demo.role")
+            if role == "vector":
                 dumped += self._snapshot(name, service)
                 continue
-            if labels.get("com.provisa.demo.role") != "rdb":
+            if role == "document":
+                dumped.append(self._mongodump(name, service))
+                continue
+            if role == "search":
+                dumped.append(self._es_snapshot(name, service))
+                continue
+            if role == "graph":
+                graphs.append((name, service))
+                continue
+            if role != "rdb":
                 continue
             if not str(service["image"]).startswith("postgres:"):
                 raise SystemExit(f"{self.demo.name}: data store {name} is not Postgres; no dump")
@@ -168,15 +184,103 @@ class Stores:
                     stdout=out,
                 )
             dumped.append(name)
+        for name, service in graphs:
+            dumped.append(self._neo4j_dump(name, service))
         return dumped
+
+    def _published(self, name: str, port: str) -> str:
+        """The address a service's container port is published at, on this host."""
+        published = self._compose("port", name, port, capture_output=True, text=True).stdout
+        return f"http://127.0.0.1:{published.strip().rsplit(':', 1)[1]}"
+
+    def _mongodump(self, name: str, service: dict) -> str:
+        """MongoDB store ``name``, every database of it, as one gzipped archive,
+        dump/<name>.archive.gz, read as its administrator (MONGO_INITDB_ROOT_*)."""
+        if not str(service["image"]).startswith("mongo:"):
+            raise SystemExit(f"{self.demo.name}: document store {name} is not MongoDB; no dump")
+        env = service["environment"]
+        target = self.demo / "dump" / f"{name}.archive.gz"
+        target.parent.mkdir(exist_ok=True)
+        with target.open("wb") as out:
+            self._compose(
+                "exec",
+                "-T",
+                name,
+                "mongodump",
+                "--quiet",
+                "--archive",
+                "--gzip",
+                "--username",
+                env["MONGO_INITDB_ROOT_USERNAME"],
+                "--password",
+                env["MONGO_INITDB_ROOT_PASSWORD"],
+                "--authenticationDatabase",
+                "admin",
+                stdout=out,
+            )
+        return name
+
+    def _es_snapshot(self, name: str, service: dict) -> str:
+        """Elasticsearch store ``name``, its indices, as one snapshot (``data``) in a repository at
+        its ``path.repo``, copied out of the container to dump/<name>/."""
+        if not str(service["image"]).startswith("docker.elastic.co/elasticsearch/"):
+            raise SystemExit(f"{self.demo.name}: search store {name} is not Elasticsearch")
+        location = (service.get("environment") or {}).get("path.repo")
+        if not location:
+            raise SystemExit(
+                f"{self.demo.name}: search store {name} sets no path.repo to snapshot to"
+            )
+        base = self._published(name, "9200")
+        made = httpx.put(
+            f"{base}/_snapshot/bundle",
+            json={"type": "fs", "settings": {"location": location}},
+            timeout=60,
+        )
+        made.raise_for_status()
+        taken = httpx.put(
+            f"{base}/_snapshot/bundle/data",
+            params={"wait_for_completion": "true"},
+            json={"indices": "*,-.*", "include_global_state": False},
+            timeout=600,
+        )
+        taken.raise_for_status()
+        if taken.json()["snapshot"]["state"] != "SUCCESS":
+            raise SystemExit(f"{self.demo.name}: snapshot of {name}: {taken.text}")
+        target = self.demo / "dump" / name
+        target.parent.mkdir(exist_ok=True)
+        self._compose("cp", f"{name}:{location}", str(target))
+        return f"{name}/data"
+
+    def _neo4j_dump(self, name: str, service: dict) -> str:
+        """Neo4j store ``name``'s database (neo4j), dumped to dump/<name>/neo4j.dump: the store is
+        stopped, and neo4j-admin dumps its data volume."""
+        if not str(service["image"]).startswith("neo4j:"):
+            raise SystemExit(f"{self.demo.name}: graph store {name} is not Neo4j; no dump")
+        target = self.demo / "dump" / name
+        target.mkdir(parents=True, exist_ok=True)
+        self._compose("stop", name)
+        self._compose(
+            "run",
+            "--rm",
+            "--no-deps",
+            "-v",
+            f"{target}:/dumps",
+            "--entrypoint",
+            "neo4j-admin",
+            name,
+            "database",
+            "dump",
+            "neo4j",
+            "--to-path=/dumps",
+        )
+        return f"{name}/neo4j"
 
     def _snapshot(self, name: str, service: dict) -> list[str]:
         """Each collection of Qdrant store ``name``, as a snapshot in dump/<name>/<collection>.snapshot
         (REQ-2016): what it holds is read live where the demo runs, restored from these."""
         if not str(service["image"]).startswith("qdrant/qdrant:"):
             raise SystemExit(f"{self.demo.name}: vector store {name} is not Qdrant; no snapshot")
-        published = self._compose("port", name, "6333", capture_output=True, text=True).stdout
-        base = f"http://127.0.0.1:{published.strip().rsplit(':', 1)[1]}"
+        base = self._published(name, "6333")
         collections = httpx.get(f"{base}/collections", timeout=60)
         collections.raise_for_status()
         saved = []

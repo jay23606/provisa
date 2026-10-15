@@ -58,6 +58,9 @@ sources:
   host: ${env:REVIEWS_MONGO_HOST:-localhost}
   port: ${env:REVIEWS_MONGO_PORT:-28617}
   database: catalog
+  # A reader (db/mongo-reader.js): the store is shared, and Provisa writes nothing to it.
+  username: reviews_reader
+  password: reviews_reader
   cache_ttl: 300
   description: The shop's catalog in MongoDB -- its products, specs nested, and their star ratings
 - id: reviews

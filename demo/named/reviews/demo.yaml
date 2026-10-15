@@ -7,14 +7,14 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 #
-# The reviews demo's card on provisa.dev's live demos page (REQ-2006). Not published yet: its
-# bundle build dumps Postgres and Qdrant stores only (scripts/demo_bundle.py), and this demo's are
-# MongoDB, Elasticsearch and Neo4j. It runs from the checkout (start-ui-install.sh --demo reviews),
-# its stores filled by its seeder.
+# The reviews demo's card on provisa.dev's live demos page (REQ-2006).
 title: Product reviews
 description: >-
   An electronics shop's catalog in MongoDB, its customers' reviews in Elasticsearch and who bought
   what in Neo4j, joined on the product: which products do reviews say the battery dies on, and
   what else did their buyers buy?
-published: false
-requires_provisa: 0.1.0a486
+screenshot: card.png
+published: true
+# The oldest Provisa this demo's bundle runs on (REQ-2049): the first release carrying its
+# document, search and graph stores and the fixes it relies on.
+requires_provisa: 0.1.0a487
