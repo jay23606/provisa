@@ -20520,9 +20520,9 @@ Replication is bounded, single and survivable. Replicating a table never holds t
 
 **Use case:** An operator can set a large table to be replicated without taking the server down, and a reader either gets a complete answer from the replica or a clear statement that it is not ready yet.
 
-**Code:** `provisa/federation/replica_runner.py`, `provisa/federation/replica_locks.py`, `provisa/federation/replica_state.py`
+**Code:** `provisa/federation/row_filter.py`, `provisa/compiler/pk_bounds.py`, `provisa/executor/drivers/cursor_stream.py`, `provisa/federation/replica_runner.py`, `provisa/federation/replica_locks.py`, `provisa/federation/replica_state.py`
 
-**Tests:** `tests/unit/federation/test_replica_runner.py`, `tests/unit/federation/test_replica_builds.py`, `tests/integration/test_replica_build_locks_pg.py`, `tests/unit/test_query_residency.py`
+**Tests:** `tests/unit/federation/test_row_filter.py`, `tests/unit/test_row_level_filter_required.py`, `tests/unit/test_driver_streaming.py`, `tests/unit/pgwire/test_row_level_route.py`, `tests/integration/test_row_level_filter_sql_e2e.py`, `tests/unit/federation/test_replica_runner.py`, `tests/unit/federation/test_replica_builds.py`, `tests/integration/test_replica_build_locks_pg.py`, `tests/unit/test_query_residency.py`
 
 ## 11. Platform, Infrastructure & Delivery
 

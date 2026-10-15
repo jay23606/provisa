@@ -74297,10 +74297,18 @@
 
     '
   code:
+  - provisa/federation/row_filter.py
+  - provisa/compiler/pk_bounds.py
+  - provisa/executor/drivers/cursor_stream.py
   - provisa/federation/replica_runner.py
   - provisa/federation/replica_locks.py
   - provisa/federation/replica_state.py
   tests:
+  - tests/unit/federation/test_row_filter.py
+  - tests/unit/test_row_level_filter_required.py
+  - tests/unit/test_driver_streaming.py
+  - tests/unit/pgwire/test_row_level_route.py
+  - tests/integration/test_row_level_filter_sql_e2e.py
   - tests/unit/federation/test_replica_runner.py
   - tests/unit/federation/test_replica_builds.py
   - tests/integration/test_replica_build_locks_pg.py

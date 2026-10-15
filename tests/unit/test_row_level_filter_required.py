@@ -8,22 +8,27 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 
-"""A read of a row-level replica table must bind its key (REQ-1915).
+"""A read of a row-level replica table must filter it (REQ-1915, amended 2026-10-01).
 
-A table replicated ROW BY ROW (``row_materialize``, on an engine that cannot attach its source)
-holds only the rows keyed reads have fetched. A statement that reads it without binding its key
-used to behave three ways: the chokepoint surfaces copied the whole source table into the worker
-and upserted it one row at a time (a 20M-document collection never finished; Neo4j ran out of
-memory building the node set), pgwire and Flight answered from whatever rows happened to be
-replicated — or failed with "relation does not exist" when none had been — and GraphQL read an
-API cache table that was never created. It is now refused at planning, on every surface, naming
-the table and its key. BOUND means one of:
+A table replicated ROW BY ROW (``row_materialize``, on an engine that cannot attach its source) is
+replicated that way because it is large, so it is never read whole. A statement that read it with
+no filter used to behave three ways: the chokepoint surfaces copied the whole source table into
+the worker (a 20M-document collection never finished; Neo4j ran out of memory building the node
+set), pgwire and Flight answered from whatever rows happened to be replicated, and GraphQL read an
+API cache table that was never created. A read the engine federates is refused at planning, on
+every surface, naming the table; a single-source read through the source's own driver (DIRECT)
+reads the source live and is not refused (maintainer ruling 2026-10-05). FILTERED means one of:
 
-- the statement's predicates resolve concrete values for the table's primary key — an equality,
-  an IN list, or an OR of key equalities, with literals or bound parameters;
-- the table is the target of a JOIN whose ON condition is a single column-to-column equality
-  between one of its columns and a column of another relation (key pushdown: the engine supplies
-  the values from the other side)."""
+- a KEY filter: the statement's predicates resolve concrete values for the table's primary key —
+  an equality, an IN list, or an OR of key equalities, with literals or bound parameters;
+- a key the engine supplies: the table is the target of a JOIN whose ON condition is a single
+  column-to-column equality between one of its columns and a column of another relation;
+- any other filter: a predicate on the table's own columns, with literals or bound parameters
+  (= <> < <= > >= IN BETWEEN LIKE, IS [NOT] NULL, AND/OR/NOT of those), whose rows are fetched
+  from the source (``FilterBound``).
+
+The interim rule (a read had to bind the KEY, ``data.row_level_key_required``) is replaced: the
+cases it refused for a non-key predicate are now filtered reads, kept below as such."""
 
 # Requirements: REQ-1915, REQ-1865
 
@@ -34,7 +39,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from provisa.api.errors import ApiError, RowLevelKeyRequired
+from provisa.api.errors import ApiError, RowLevelFilterRequired
+from provisa.compiler.pk_bounds import FilterBound
 from provisa.audit.context import audit_identity_scope
 from provisa.cache.store import NoopCacheStore
 from provisa.compiler.directives import NO_CACHE_HINT, cache_hint_for
@@ -107,11 +113,11 @@ def planning(monkeypatch):
         yield state
 
 
-def _assert_names_table_and_key(error: RowLevelKeyRequired) -> None:
+def _assert_names_table_and_key(error: RowLevelFilterRequired) -> None:
     assert isinstance(error, ApiError) and error.status_code == 400
-    assert error.code == "data.row_level_key_required"
-    assert error.params == {"table": "orders", "key": "id"}
-    assert "orders" in str(error) and '"id"' in str(error)
+    assert error.code == "data.row_level_filter_required"
+    assert error.params == {"table": "orders"}
+    assert "orders" in str(error) and "because it is large" in str(error)
 
 
 # -- the two stages, as the surfaces reach them ---------------------------------------------------
@@ -119,7 +125,7 @@ def _assert_names_table_and_key(error: RowLevelKeyRequired) -> None:
 
 async def test_pgwire_refuses_an_unfiltered_read_of_a_row_level_table(planning):
     """D3 symptom 2: pgwire answered `42P01 relation … does not exist` (or a partial replica)."""
-    with pytest.raises(RowLevelKeyRequired) as refused:
+    with pytest.raises(RowLevelFilterRequired) as refused:
         await _pipeline.govern_pgwire_plan(
             "SELECT o.id FROM sales.orders o LIMIT 1", "analyst", deliver=None
         )
@@ -128,7 +134,7 @@ async def test_pgwire_refuses_an_unfiltered_read_of_a_row_level_table(planning):
 
 async def test_bolt_refuses_an_unfiltered_read_instead_of_replicating_the_node_set(planning):
     """D3 symptom 3: Bolt's engine path (the compiled stage) copied every node of the label."""
-    with pytest.raises(RowLevelKeyRequired) as refused:
+    with pytest.raises(RowLevelFilterRequired) as refused:
         await _pipeline._govern_and_route_compiled(
             "SELECT o.id FROM sales.orders o LIMIT 1",
             "analyst",
@@ -141,14 +147,14 @@ async def test_bolt_refuses_an_unfiltered_read_instead_of_replicating_the_node_s
 
 
 async def test_a_cached_answer_does_not_stand_in_for_the_refusal(planning, monkeypatch):
-    """The refusal precedes the cache read on both stages: an answer some earlier build cached
-    for the unbound statement is never served."""
+    """An unbound statement skips the cache read on both stages: an answer some earlier build
+    cached for it is never served, and its federated read is refused."""
     read = AsyncMock(return_value=(object(), ()))
     monkeypatch.setattr(_pipeline, "_cached_before_routing", read)
     sql = "-- @provisa cache=true\nSELECT o.id FROM sales.orders o LIMIT 1"
-    with pytest.raises(RowLevelKeyRequired):
+    with pytest.raises(RowLevelFilterRequired):
         await _pipeline._govern_and_route(sql, "analyst", serve_cached=True)
-    with pytest.raises(RowLevelKeyRequired):
+    with pytest.raises(RowLevelFilterRequired):
         await _pipeline._govern_and_route_compiled(
             "SELECT o.id FROM sales.orders o LIMIT 1",
             "analyst",
@@ -184,8 +190,8 @@ async def test_a_read_that_binds_the_key_is_planned_on_both_stages(planning, sql
 
 
 async def test_a_graphql_field_is_refused_before_its_cache_and_its_route(planning, monkeypatch):
-    """/data/graphql reads each field through the compiled pipeline: the same decision point,
-    ahead of the cache read and the route."""
+    """/data/graphql reads each field through the compiled pipeline: the same decision point. The
+    cache is never read for it; the route decides the refusal (a federated read is refused)."""
     from provisa.api.data import endpoint
     from provisa.compiler.directives import CacheHint
     from provisa.compiler.sql_types import ColumnRef, CompiledQuery
@@ -201,7 +207,7 @@ async def test_a_graphql_field_is_refused_before_its_cache_and_its_route(plannin
         columns=[ColumnRef("t0", "id", "id", None)],
         sources={"neo"},
     )
-    with pytest.raises(RowLevelKeyRequired) as refused:
+    with pytest.raises(RowLevelFilterRequired) as refused:
         await endpoint._execute_one_field(
             compiled,
             planning.contexts["analyst"],
@@ -216,7 +222,41 @@ async def test_a_graphql_field_is_refused_before_its_cache_and_its_route(plannin
         )
     _assert_names_table_and_key(refused.value)
     cache_read.assert_not_awaited()
-    routed.assert_not_called()
+    routed.assert_awaited()  # the refusal is the ENGINE route's (maintainer ruling 2026-10-05)
+
+
+async def test_a_direct_unfiltered_read_is_planned_live_with_no_bound(planning, monkeypatch):
+    """Maintainer ruling 2026-10-05: a single-source read through the source's own driver reads
+    the source live -- no bound, so nothing is fetched into the copy, and it is not refused. Nor is
+    it answered from the cache: the statement binds the row-level table neither way."""
+    cache_read = AsyncMock(return_value=(object(), ()))
+    monkeypatch.setattr(_pipeline, "_cached_before_routing", cache_read)
+    sql = "-- @provisa cache=true\nSELECT o.id FROM sales.orders o LIMIT 1"
+    with patch.object(
+        _pipeline, "_optimize_and_route", new=AsyncMock(side_effect=_decision("DIRECT"))
+    ):
+        raw = await _pipeline._govern_and_route(sql, "analyst", serve_cached=True)
+        compiled = await _pipeline._govern_and_route_compiled(
+            "SELECT o.id FROM sales.orders o LIMIT 1",
+            "analyst",
+            state=planning,
+            cache_hint=cache_hint_for("sql", sql),
+            serve_cached=True,
+            sdl_joins=True,
+        )
+    assert raw.route.name == "DIRECT" and raw.pk_bounds == ()
+    assert compiled.route.name == "DIRECT" and compiled.pk_bounds == ()
+    cache_read.assert_not_awaited()
+
+
+async def test_a_direct_filtered_read_fetches_nothing_into_the_copy(planning, monkeypatch):
+    with patch.object(
+        _pipeline, "_optimize_and_route", new=AsyncMock(side_effect=_decision("DIRECT"))
+    ):
+        plan = await _pipeline._govern_and_route(
+            "SELECT o.id FROM sales.orders o WHERE o.customer_id = 5", "analyst"
+        )
+    assert plan.pk_bounds == ()
 
 
 async def test_the_flag_is_ignored_when_the_engine_attaches_the_source(planning):
@@ -275,42 +315,64 @@ def test_a_join_that_pushes_the_key_down_is_bound(monkeypatch, sql):
     [
         "SELECT o.id FROM orders o",
         "SELECT count(*) FROM orders",
-        "SELECT o.id FROM orders o WHERE o.customer_id = 5",
-        "SELECT o.id FROM orders o WHERE o.id = 1 OR o.customer_id = 5",
-        "SELECT o.id FROM orders o WHERE o.id > 10",
         # the row-level table is in FROM and only the OTHER relation is joined to it
         "SELECT o.id FROM orders o JOIN customers c ON c.id = o.customer_id",
         "SELECT c.name FROM customers c JOIN orders o ON o.customer_id = c.id AND o.id > c.id",
-        "SELECT c.name FROM customers c JOIN orders o ON o.customer_id = 5",
         "SELECT * FROM (SELECT o.id FROM orders o) s",
     ],
-    ids=[
-        "no-filter",
-        "count",
-        "filter-on-another-column",
-        "or-with-a-non-key",
-        "key-range",
-        "in-from-position",
-        "composite-on",
-        "on-a-literal",
-        "inside-a-subquery",
-    ],
+    ids=["no-filter", "count", "in-from-position", "composite-on", "inside-a-subquery"],
 )
-def test_an_unbound_read_is_refused(monkeypatch, sql):
-    with pytest.raises(RowLevelKeyRequired) as refused:
+def test_an_unfiltered_read_is_refused(monkeypatch, sql):
+    with pytest.raises(RowLevelFilterRequired) as refused:
         _decide(monkeypatch, sql)
-    assert refused.value.params["table"] == "orders" and refused.value.params["key"] == "id"
+    assert refused.value.params == {"table": "orders"}
+
+
+@pytest.mark.parametrize(
+    ("sql", "predicate"),
+    [
+        ("SELECT o.id FROM orders o WHERE o.customer_id = 5", '"customer_id" = 5'),
+        (
+            "SELECT o.id FROM orders o WHERE o.id = 1 OR o.customer_id = 5",
+            '"id" = 1 OR "customer_id" = 5',
+        ),
+        ("SELECT o.id FROM orders o WHERE o.id > 10", '"id" > 10'),
+        ("SELECT c.name FROM customers c JOIN orders o ON o.customer_id = 5", '"customer_id" = 5'),
+    ],
+    ids=["filter-on-another-column", "or-with-a-non-key", "key-range", "on-a-literal"],
+)
+def test_a_non_key_filter_is_a_filtered_read(monkeypatch, sql, predicate):
+    """Refused under the interim key rule; REQ-1915 (amended 2026-10-01) reads them through the
+    filter, fetched from the source."""
+    (bound,) = _decide(monkeypatch, sql)
+    assert isinstance(bound, FilterBound)
+    assert (bound.table_name, bound.predicate, bound.pk_columns) == ("orders", predicate, ("id",))
+
+
+def test_a_filter_s_bound_parameters_are_inlined_in_its_canonical_form(monkeypatch):
+    (bound,) = _decide(
+        monkeypatch, "SELECT o.id FROM orders o WHERE o.customer_id BETWEEN $1 AND $2", [3, 9]
+    )
+    assert bound.predicate == '"customer_id" BETWEEN 3 AND 9'
+
+
+def test_a_key_filter_stays_a_key_read(monkeypatch):
+    """The cheapest case keeps its per-row path even with another predicate beside it."""
+    (bound,) = _decide(
+        monkeypatch, "SELECT o.id FROM orders o WHERE o.id = 4 AND o.customer_id > 1"
+    )
+    assert not isinstance(bound, FilterBound) and bound.values == ((4,),)
 
 
 def test_every_reference_must_be_bound_in_its_own_select(monkeypatch):
     """A key bound on one reference does not cover another reference to the same table."""
     one_branch = "SELECT o.id FROM orders o WHERE o.id = 1 UNION ALL SELECT o2.id FROM orders o2"
-    with pytest.raises(RowLevelKeyRequired):
+    with pytest.raises(RowLevelFilterRequired):
         _decide(monkeypatch, one_branch)
     both = _decide(monkeypatch, one_branch + " WHERE o2.id IN (1, 2)")
     assert [b.values for b in both] == [((1,), (2,))]
     # a key predicate in an enclosing query does not bind the read inside it
-    with pytest.raises(RowLevelKeyRequired):
+    with pytest.raises(RowLevelFilterRequired):
         _decide(monkeypatch, "SELECT s.id FROM (SELECT o.id FROM orders o) s WHERE s.id = 1")
     # ... the read's own SELECT does, wherever that SELECT sits
     inner = _decide(
@@ -323,7 +385,7 @@ def test_every_reference_must_be_bound_in_its_own_select(monkeypatch):
 
 def test_two_joins_to_one_table_are_not_both_pushed_down(monkeypatch):
     """Key pushdown probes one JOIN per table: with two, each reference binds its key itself."""
-    with pytest.raises(RowLevelKeyRequired):
+    with pytest.raises(RowLevelFilterRequired):
         _decide(
             monkeypatch,
             "SELECT c.name FROM customers c JOIN orders a ON a.customer_id = c.id "
@@ -332,7 +394,7 @@ def test_two_joins_to_one_table_are_not_both_pushed_down(monkeypatch):
 
 
 def test_a_union_has_no_key_pushdown(monkeypatch):
-    with pytest.raises(RowLevelKeyRequired):
+    with pytest.raises(RowLevelFilterRequired):
         _decide(
             monkeypatch,
             "SELECT c.name FROM customers c JOIN orders o ON o.customer_id = c.id "
@@ -350,7 +412,7 @@ def test_a_write_to_a_row_level_table_is_not_a_read_of_it(monkeypatch):
     assert _decide(monkeypatch, "INSERT INTO orders (id, customer_id) VALUES (1, 2)") == ()
     assert _decide(monkeypatch, "UPDATE orders SET customer_id = 3 WHERE customer_id = 2") == ()
     assert _decide(monkeypatch, "DELETE FROM orders WHERE customer_id = 2") == ()
-    with pytest.raises(RowLevelKeyRequired):  # ... but what an INSERT selects from is read
+    with pytest.raises(RowLevelFilterRequired):  # ... but what an INSERT selects from is read
         _decide(monkeypatch, "INSERT INTO archive (id) SELECT o.id FROM orders o")
 
 
@@ -364,7 +426,7 @@ def test_every_row_level_table_of_the_statement_must_be_bound(monkeypatch):
         tables,
     )
     # orders joined, customers unbound: refused for customers
-    with pytest.raises(RowLevelKeyRequired) as refused:
+    with pytest.raises(RowLevelFilterRequired) as refused:
         _decide(
             monkeypatch,
             "SELECT o.id FROM customers c JOIN orders o ON o.customer_id = c.id",
