@@ -718,13 +718,17 @@ SWAGGER_UI_HTML = """\
       // signed-in credential. A break-glass operator session is stored under its own key,
       // because the Firebase token sync deletes `provisa_token` whenever it sees no signed-in user.
       // This page runs in its own srcdoc document with no access to the app's fetch interceptor, so
-      // it repeats the same preference order the app's storedToken() uses.
+      // it repeats the same preference order the app's storedToken() uses, and the same place:
+      // a demo sandbox's visitor keeps the tab's identity in sessionStorage (browserStorage.ts).
+      const visitor = sessionStorage.getItem("provisa_visitor") === "true";
+      const identity = (key) =>
+        visitor ? sessionStorage.getItem("visitor:" + key) : localStorage.getItem(key);
       const withIdentity = (headers) => {
-        const role = urlRole || localStorage.getItem("provisa_role");
+        const role = urlRole || identity("provisa_role");
         if (role) headers["x-provisa-role"] = role;
-        const token = localStorage.getItem("provisa_su_token") || localStorage.getItem("provisa_token");
+        const token = identity("provisa_su_token") || identity("provisa_token");
         if (token && !headers["Authorization"]) headers["Authorization"] = "Bearer " + token;
-        const orgId = localStorage.getItem("provisa_org");
+        const orgId = identity("provisa_org");
         if (orgId && !headers["X-Org-Provisa"]) headers["X-Org-Provisa"] = orgId;
         return headers;
       };

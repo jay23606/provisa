@@ -55,6 +55,7 @@ import { localizedStreamFrame } from "./streamErrors";
 import { getStored, scopedStorage, setStored, storageKey } from "../lib/browserStorage";
 import { useNamedDemo } from "../context/NamedDemoContext";
 import { operationNameOf } from "./graphqlOperationName";
+import { savedActiveTab } from "./graphiqlSavedTab";
 
 /** Register # @provisa hint completions in the GraphQL Monaco editor. */
 monaco.languages.registerCompletionItemProvider("graphql", {
@@ -569,6 +570,8 @@ export function QueryPage() {
   const [defaultTabs] = useState(() =>
     exampleQueries.length > 0 ? exampleQueries.map((e) => ({ query: e.query })) : undefined,
   );
+  // Opened again, the explorer starts on the tab it last had open, not a new empty one.
+  const [savedTab] = useState(() => savedActiveTab(graphiqlStorage));
   // REQ-1516: start the engine on arrival, not on the first Run. Sign-in already prewarms
   // (REQ-1471), which covers a session that queries soon after it starts; it does not cover the tab
   // left open past the idle window, where the shard is reaped underneath the operator. Composing a
@@ -971,6 +974,9 @@ export function QueryPage() {
         shouldPersistHeaders
         storage={graphiqlStorage}
         defaultTabs={defaultTabs}
+        initialQuery={savedTab?.query}
+        initialVariables={savedTab?.variables}
+        initialHeaders={savedTab?.headers}
       >
         {handed && <OpenFromNav key={handed.seq} query={handed.query} autoRun={handed.autoRun} />}
         <GraphiQL.Footer>
