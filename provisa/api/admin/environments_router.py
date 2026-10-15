@@ -771,6 +771,8 @@ async def merge_into_environment(request: Request, org_id: str, name: str, body:
             org=org_id,
             env=body.from_env,
         )
+    if body.retire_source:
+        await _retirable(org_id, body.from_env)
     db = await _org_model_db(org_id)
     protected = await env_approvals.is_protected(
         _admin_pool(), org_id, name, await _member_count(org_id)
@@ -905,6 +907,25 @@ async def _refresh(org_id: str, env: str, *, connectivity: bool) -> str:
         reset_current_env(env_token)
         reset_current_org(org_token)
     return "recompiled"
+
+
+async def _retirable(org_id: str, name: str) -> None:
+    """Refuse, BEFORE a merge applies, a retirement the merge could not go on to perform
+    (REQ-1542): ``prod`` is never retired, and neither is an environment something still refers
+    to (REQ-1918). Both are known beforehand, so a merge that asks for the impossible is refused
+    whole rather than applied and then answered with the retirement's refusal."""
+    if name == PROD:
+        raise ApiError(
+            409,
+            "environments.prod_immutable",
+            f"{PROD!r} exists from the organization's creation and cannot be retired, so a merge "
+            "out of it cannot end it.",
+            org=org_id,
+            env=name,
+        )
+    blocking = await env_dependents(_admin_pool(), org_id, name)
+    if blocking:
+        raise _in_use(EnvironmentInUse(org_id, name, blocking))
 
 
 async def _retire(org_id: str, actor: str | None, name: str, *, remote: bool = False) -> dict:
@@ -1223,6 +1244,10 @@ async def decide_merge_request(
     actor = await _guard(request, org_id)
     decided_on = await _request_or_404(org_id, request_id)
     await _confined(request, org_id, decided_on["source_env"], decided_on["target_env"])
+    if body.approve and decided_on["retire_source"] and decided_on["source_env"] is not None:
+        # REQ-1542: the retirement is part of what is approved, so it is checked before any of it
+        # is applied -- something may have come to refer to the source since the request.
+        await _retirable(org_id, decided_on["source_env"])
     try:
         decided = await env_approvals.decide(
             _admin_pool(),
