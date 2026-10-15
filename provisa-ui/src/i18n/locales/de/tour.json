@@ -447,6 +447,46 @@
       "reviewsDone": {
         "title": "Was Sie gerade gesehen haben",
         "description": "Drei NoSQL-Speicher, eine MongoDB-Pipeline, eine Elasticsearch-Suche und eine Cypher-Abfrage, über das Produkt verbunden und mit der Frage des Händlers in SQL, Cypher, REST und GraphQL befragt."
+      },
+      "insuranceScenario": {
+        "title": "Worum es in dieser Demo geht",
+        "description": "Ein Sachversicherer will wissen, wo sich sein Exposure im Verhältnis zum Naturgefahrenrisiko konzentriert. Sein eigener Policenbestand, mit der Versicherungssumme (TIV) jeder Police, liegt in seiner Datenbank; das Gefahrenrisiko jedes US-Countys ist öffentlich, in den Daten von FEMA, US Forest Service und NOAA. Die Tour zeigt, wie Provisa beides über das County verknüpft und die Frage in SQL, über REST und in GraphQL beantwortet."
+      },
+      "insuranceJoin": {
+        "title": "Über das County verknüpft",
+        "description": "Der Bestand und die öffentlichen Risikotabellen teilen den FIPS-Code des Countys, und diese Beziehungen verknüpfen sie. Jede Abfrage, die beide verbindet, nutzt diese Verknüpfung."
+      },
+      "insuranceAnswer": {
+        "title": "Die Antwort in SQL",
+        "description": "Die Sicht exposure_by_county verknüpft in jedem County den Bestand mit dem Risiko und wird gespeichert vorgehalten. Sortiert nach der mit dem Risikoperzentil gewichteten Versicherungssumme stehen die Countys vorn, in denen das meiste Exposure auf das höchste Risiko trifft."
+      },
+      "insuranceRecap": {
+        "title": "Was Sie gesehen haben",
+        "description": "Die eigenen Daten des Versicherers, live gelesen, und öffentliche Risikodaten, einmal geladen, über das County in einem governten Modell verknüpft: Eine Sicht beantwortet, wo das Exposure auf das Risiko trifft, in SQL, GraphQL und REST, mit den Zugriffsrechten jeder Rolle."
+      },
+      "insuranceGovdata": {
+        "title": "Die öffentlichen Risikodaten",
+        "description": "Die Behördendaten stammen von AskAmerica, einem echten Konto. Seine drei County-Tabellen werden einmal geladen, wenn die Demo gebaut wird, und danach dauerhaft aus dieser Kopie gelesen: Sie laufen nie ab, und diese Demo ruft das Konto nie auf."
+      },
+      "insuranceBook": {
+        "title": "Der Bestand des Versicherers",
+        "description": "Jede laufende Police, live aus der eigenen Datenbank des Versicherers gelesen: ihr County, ihre Sparte, Versicherungssumme, Prämie und Selbstbehalt."
+      },
+      "insuranceRisk": {
+        "title": "Der National Risk Index der FEMA",
+        "description": "Für jedes US-County der Risikowert und die Risikoeinstufung über alle Gefahren, sein nationales Perzentil, sein erwarteter Jahresschaden und der Wert all seiner Gebäude. Die Waldbrand- und Sturmtabellen stehen daneben."
+      },
+      "insuranceTerms": {
+        "title": "In der Sprache des Versicherers",
+        "description": "Das Glossar benennt, wonach ein Underwriter fragt: Versicherungssumme, Kumul, wahrscheinlicher Höchstschaden (PML), erwarteter Jahresschaden. Hier der Kumul: Exposure, das sich dort konzentriert, wo ein Ereignis viele Policen zugleich trifft."
+      },
+      "insuranceByRating": {
+        "title": "Nach Risikoeinstufung, in GraphQL",
+        "description": "Dieselbe Sicht, gruppiert nach der Risikoeinstufung der FEMA: wie viel der Versicherungssumme des Bestands in Countys mit der Einstufung „Relatively High“ oder „Very High“ liegt."
+      },
+      "insuranceRest": {
+        "title": "Dieselbe Antwort über REST",
+        "description": "Die Sicht ist auch ein REST-Endpunkt, auf dem Server gruppiert und summiert. Jeder Client, der HTTP spricht, erhält die Antwort, ohne SQL zu schreiben."
       }
     },
     "status": {
@@ -475,6 +515,10 @@
       "reviews": {
         "title": "Produktrezensionen",
         "summary": "Katalog, Rezensionen und Käufe eines Elektronikhändlers in MongoDB, Elasticsearch und Neo4j, über das Produkt verbunden: Bei welchen Produkten fällt laut Rezensionen der Akku aus, und was haben deren Käufer sonst noch gekauft?"
+      },
+      "insurance": {
+        "title": "Sachexposure und Gefahrenrisiko",
+        "summary": "Die Frage eines Sachversicherers, wo sich sein Exposure gegenüber dem Gefahrenrisiko konzentriert: seine eigenen Policen, über das County mit FEMA-, Waldbrand- und Sturmdaten verknüpft, beantwortet in SQL, GraphQL und REST."
       }
     }
   }

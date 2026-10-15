@@ -83,6 +83,30 @@ _NOT_COPIED = ("seeded", "dump", "data")
 # A small image to hand the stores' files back with (Stores.down).
 _CHOWN_IMAGE = "busybox:1.36.1"
 _PORT_VAR = re.compile(r"\$\{([A-Z][A-Z0-9_]*_PORT):-\d+\}")
+# A variable the demo's config.yaml reads: ${env:NAME} or ${env:NAME:-default}.
+_CONFIG_VAR = re.compile(r"\$\{env:([A-Za-z_][A-Za-z0-9_]*)")
+
+
+def _config_env(demo: Path) -> dict[str, str]:
+    """What this process holds of the variables the demo's config.yaml reads -- the account key of
+    a source landed in the build (a govdata source's ASKAMERICA_API_KEY) -- for the servers the
+    build starts: their environment is otherwise only the build's own. A variable this process does
+    not hold is left out; the config's own default (or its refusal) then stands."""
+    names = set(_CONFIG_VAR.findall((demo / "config.yaml").read_text()))
+    return {name: os.environ[name] for name in sorted(names) if name in os.environ}
+
+
+def _refuse_empty_replicas(demo: Path) -> None:
+    """REQ-2037: a table the demo serves from a replica that landed no rows fails the build, by
+    name: the bundle would serve an empty table for good (a TTL -1 replica is never landed again)."""
+    record = json.loads((demo / "seeded" / "replicas.json").read_text())
+    empty = sorted(
+        f"{r['source_id']}.{r['schema_name']}.{r['table_name']}"
+        for r in record["replicas"]
+        if not r.get("completed_rows")
+    )
+    if empty:
+        raise SystemExit(f"{demo.name}: these replicas landed no rows: {', '.join(empty)}")
 
 
 def _free_port() -> int:
@@ -374,6 +398,7 @@ def _set_up(work: Path, demo: Path, stores: Stores, timeout: float) -> None:
     url = f"postgresql+psycopg://provisa:provisa@/provisa?host={host}&port={port}"
     http_port = _free_port()
     server_env = {
+        **_config_env(demo),
         **stores.env,
         "PROVISA_CONFIG": str(demo / "config.yaml"),
         "PROVISA_ENGINE": "duckdb",
@@ -433,6 +458,7 @@ def _seed(work: Path, demo: Path, stores: Stores, timeout: float) -> None:
     url = f"postgresql+psycopg://provisa:provisa@/provisa?host={host}&port={port}"
     http_port = _free_port()
     server_env = {
+        **_config_env(demo),
         **stores.env,
         "ORG_ID": "demobundle",
         "PROVISA_CONFIG": str(_config(work)),
@@ -522,6 +548,7 @@ def build(args: argparse.Namespace) -> int:
                 _set_up(work, demo, stores, args.timeout)
             if _replicates(demo, stores):
                 _seed(work, demo, stores, args.timeout)
+                _refuse_empty_replicas(demo)
             dumped = stores.dump()
         finally:
             stores.down()

@@ -1,0 +1,14 @@
+# The book's total insured value by FEMA's all-hazard risk rating of the counties it is written in:
+# how much of the exposure sits where the risk is Relatively High or Very High.
+query TivByRiskRating {
+  i__viewExposureByCountyGroupBy(by: [riskRating], order_by: [{ aggregate: { sum: { tiv: desc } } }]) {
+    groupKey
+    aggregate {
+      count
+      sum {
+        tiv
+        policies
+      }
+    }
+  }
+}

@@ -447,6 +447,46 @@
       "reviewsDone": {
         "title": "Wat zojuist te zien was",
         "description": "Drie NoSQL-opslagen, een MongoDB-pipeline, een Elasticsearch-zoekopdracht en een Cypher-query, gekoppeld op het product en bevraagd met de vraag van de winkel in SQL, Cypher, REST en GraphQL."
+      },
+      "insuranceScenario": {
+        "title": "Waar deze demo over gaat",
+        "description": "Een schadeverzekeraar wil weten waar zijn blootstelling zich concentreert ten opzichte van het risico op natuurrampen. Zijn eigen portefeuille van polissen, met de totale verzekerde waarde (TIV) van elke polis, staat in zijn database; het risico van elke Amerikaanse county is openbaar, in de gegevens van FEMA, de US Forest Service en NOAA. De tour laat zien hoe Provisa beide per county koppelt en de vraag beantwoordt in SQL, via REST en in GraphQL."
+      },
+      "insuranceJoin": {
+        "title": "Gekoppeld per county",
+        "description": "De portefeuille en de openbare risicotabellen delen de FIPS-code van de county, en deze relaties koppelen ze. Elke query die ze combineert, gebruikt deze koppeling."
+      },
+      "insuranceAnswer": {
+        "title": "Het antwoord in SQL",
+        "description": "De view exposure_by_county koppelt per county de portefeuille aan het risico en wordt opgeslagen bewaard. Gesorteerd op de verzekerde waarde gewogen met het risicopercentiel staan de county's voorop waar de grootste blootstelling het hoogste risico ontmoet."
+      },
+      "insuranceRecap": {
+        "title": "Wat u hebt gezien",
+        "description": "De eigen gegevens van de verzekeraar, live gelezen, en openbare risicogegevens, één keer geladen, per county gekoppeld in één beheerd model: één view beantwoordt waar de blootstelling het risico ontmoet, in SQL, GraphQL en REST, volgens de toegang van elke rol."
+      },
+      "insuranceGovdata": {
+        "title": "De openbare risicogegevens",
+        "description": "De overheidsgegevens komen van AskAmerica, een echt account. De drie countytabellen worden één keer geladen, wanneer de demo wordt gebouwd, en daarna voorgoed uit die kopie gelezen: ze verlopen nooit en deze demo roept het account nooit aan."
+      },
+      "insuranceBook": {
+        "title": "De portefeuille van de verzekeraar",
+        "description": "Elke lopende polis, live gelezen uit de eigen database van de verzekeraar: de county, de branche, de totale verzekerde waarde, de premie en het eigen risico."
+      },
+      "insuranceRisk": {
+        "title": "De National Risk Index van FEMA",
+        "description": "Voor elke Amerikaanse county de risicoscore en -klasse over alle gevaren, het nationale percentiel, de verwachte jaarlijkse schade en de waarde van al zijn gebouwen. De tabellen over bosbranden en stormen staan ernaast."
+      },
+      "insuranceTerms": {
+        "title": "In de termen van de verzekeraar",
+        "description": "De woordenlijst benoemt waar een acceptant naar vraagt: totale verzekerde waarde, accumulatie, waarschijnlijke maximale schade (PML), verwachte jaarlijkse schade. Hier accumulatie: blootstelling die zich concentreert waar één gebeurtenis veel polissen tegelijk treft."
+      },
+      "insuranceByRating": {
+        "title": "Per risicoklasse, in GraphQL",
+        "description": "Dezelfde view gegroepeerd per risicoklasse van FEMA: hoeveel van de verzekerde waarde van de portefeuille in county's ligt met de klasse 'Relatively High' of 'Very High'."
+      },
+      "insuranceRest": {
+        "title": "Hetzelfde antwoord via REST",
+        "description": "De view is ook een REST-endpoint, gegroepeerd en opgeteld op de server. Elke client die HTTP spreekt, krijgt het antwoord zonder SQL te schrijven."
       }
     },
     "status": {
@@ -475,6 +515,10 @@
       "reviews": {
         "title": "Productreviews",
         "summary": "De catalogus, reviews en aankopen van een elektronicawinkel in MongoDB, Elasticsearch en Neo4j, gekoppeld op het product: bij welke producten zeggen reviews dat de batterij het begeeft, en wat kochten hun kopers verder?"
+      },
+      "insurance": {
+        "title": "Blootstelling van eigendommen en natuurrisico",
+        "summary": "De vraag van een schadeverzekeraar waar zijn blootstelling zich concentreert ten opzichte van het risico: zijn eigen polissen per county gekoppeld aan gegevens over FEMA, bosbranden en stormen, beantwoord in SQL, GraphQL en REST."
       }
     }
   }

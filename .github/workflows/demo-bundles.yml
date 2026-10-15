@@ -71,6 +71,11 @@ jobs:
     permissions:
       contents: read
       packages: write # the bundle, to ghcr.io/<owner>/provisa-demos
+    # What a demo's config.yaml reads to land a table from a live account at its build (REQ-2031:
+    # landed once, as a TTL -1 replica; the bundle carries the rows, never the key). The build hands
+    # each server it starts only the variables the config names (scripts/demo_bundle.py).
+    env:
+      ASKAMERICA_API_KEY: ${{ secrets.ASKAMERICA_API_KEY }}
     strategy:
       fail-fast: false
       matrix:

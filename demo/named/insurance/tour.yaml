@@ -1,0 +1,63 @@
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+#
+# The insurance demo's own tour (REQ-2010): the story of the demo, told with its own data. The step
+# kinds and what each names are listed in demo/named/weblogs/tour.yaml; every name here is checked
+# against the demo by tests/unit/test_named_demo_tour.py, and the words of each step are
+# tour.steps.<key> in the UI's tour.json, in every language.
+#
+# The track: the scenario (the insurer's question, and its two kinds of data); how the pieces fit
+# (its own book, the public risk tables landed once, the join by county, the insurer's terms);
+# the answer in SQL, over REST and in GraphQL, over the view that joins exposure to risk; a recap.
+# Where the tour's "Look around on my own" leaves the visitor: the SQL page, with its example queries.
+landing:
+  route: /sql
+  capability: query_development
+steps:
+- key: insuranceScenario
+  route: /sources
+  capability: source_registration
+  source: book
+- key: insuranceGovdata
+  source: govdata
+- key: insuranceBook
+  route: /tables
+  capability: table_registration
+  table: book.policies
+- key: insuranceRisk
+  table: govdata.fema_nri_earthquake_by_county
+- key: insuranceJoin
+  route: /relationships
+  capability: create_relationship
+  relationship: RISK_OF
+- key: insuranceTerms
+  route: /admin/glossary
+  capability: glossary_read
+  term: accumulation
+- key: insuranceAnswer
+  route: /sql
+  capability: query_development
+  sql: >-
+    SELECT e.county_name, e.state_abbr, e.policies, e.tiv, e.risk_rating, e.risk_national_pctl,
+           e.wildfire_direct_exposure, e.storm_damage_5y
+    FROM "insurance"."view_exposure_by_county" AS e
+    ORDER BY e.tiv * e.risk_national_pctl DESC
+    LIMIT 15
+- key: insuranceByRating
+  route: /query
+  capability: query_development
+  example: 1-tiv-by-risk-rating
+- key: insuranceRest
+  route: /openapi
+  capability: query_development
+  api: GET /data/rest/insurance/view_exposure_by_county?groupBy=risk_rating&aggregate=count,sum
+- key: insuranceRecap
+  route: /sources
+  capability: source_registration
+  source: govdata
