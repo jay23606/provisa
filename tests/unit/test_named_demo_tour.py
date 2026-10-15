@@ -206,6 +206,9 @@ def _check_steps(home: Path, steps: list[dict]) -> None:
             assert step["relationship"] in aliases, step
         if "example" in step:
             assert step["example"] in examples, step
+            # An example query opens in a new tab of the GraphQL page: a step on any other page
+            # waits for an editor that is not there, and the tour stalls on it.
+            assert page == "/query", f"{step['key']}: an example runs on /query, not {page}"
         if "term" in step:
             assert step["term"] in terms, step
         if "role" in step:
