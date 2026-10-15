@@ -155,6 +155,7 @@ class ReplicaRunner:
         plan_indexes: Callable[[ReplicaKey, datetime], Awaitable[None]] | None = None,
         deferred_until: Callable[[ReplicaKey, datetime], Awaitable[datetime | None]] | None = None,
         build_indexes: Callable[[Any], Awaitable[None]] | None = None,
+        changed: Callable[[ReplicaKey], None] | None = None,
     ) -> None:
         self._db = db
         self._org_id = org_id
@@ -183,6 +184,9 @@ class ReplicaRunner:
         # off-peak window), or None when it may run now.
         self._deferred_until = deferred_until
         self._build_indexes = build_indexes
+        # REQ-2054: told of each landing whose rows differ from the replica's last, after it is
+        # recorded -- what runs the commands declared to run on the table's changes.
+        self._changed = changed
         self._holder = f"{socket.gethostname()}:{os.getpid()}"
         # Set when the process shuts down: no build is claimed or started after it, so nothing
         # rebuilds the engine's runtime after the engine has been closed.
@@ -402,6 +406,17 @@ class ReplicaRunner:
             )
         _log_failure(key, exc, failure, self._retry(), failed_at)
 
+    def _landed(self, key: ReplicaKey, before: Any, outcome: BuildOutcome) -> None:
+        """REQ-2054: a landing whose rows differ from the last one is a change to the table. A
+        landing whose content hash matches the last one's changed nothing; one with no hash on
+        side is taken as a change."""
+        if self._changed is None:
+            return
+        last = before.content_hash if before is not None else None
+        if last is not None and outcome.content_hash == last:
+            return
+        self._changed(key)
+
     async def _committed(self, keys: list[ReplicaKey], outcome: BuildOutcome) -> None:
         """Tell the source the build of ``keys`` is recorded as completed, when it asked to be
         told (``BuildOutcome.committed``). The build stays completed whatever this does: a
@@ -461,6 +476,7 @@ class ReplicaRunner:
                     now = datetime.now(UTC)
                     due = await self._next_refresh_at(key, now)
                     async with self._db.acquire() as conn:
+                        before = await build_state.read(conn, key)
                         await build_state.record_completed(
                             conn,
                             key,
@@ -475,6 +491,7 @@ class ReplicaRunner:
                             now=now,
                         )
                     await self._planned(key, now)
+                    self._landed(key, before, outcome)
                     log.info(
                         "replica of %s built: %d rows (%s, one read of %d tables)",
                         ".".join(key),
@@ -535,6 +552,7 @@ class ReplicaRunner:
                 now = datetime.now(UTC)
                 due = await self._next_refresh_at(job.key, now)
                 async with self._db.acquire() as conn:
+                    before = await build_state.read(conn, job.key)
                     await build_state.record_completed(
                         conn,
                         job.key,
@@ -549,6 +567,7 @@ class ReplicaRunner:
                         now=now,
                     )
                 await self._planned(job.key, now)
+                self._landed(job.key, before, outcome)
                 log.info(
                     "replica of %s built: %d rows (%s)",
                     ".".join(job.key),

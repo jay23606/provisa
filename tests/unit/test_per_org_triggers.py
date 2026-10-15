@@ -56,6 +56,11 @@ class _Orgs:
     def model_db(self):
         return self._stores[current_org.get()]
 
+    @property
+    def tenant_db(self):
+        # REQ-2054: where a trigger's run is recorded -- the bound org's state store.
+        return self._stores[current_org.get()]
+
 
 @pytest.fixture
 async def orgs(control_plane, monkeypatch):

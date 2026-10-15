@@ -378,8 +378,8 @@
       "task_enabled": "Задача '{{task}}' включена",
       "task_not_found": "Задача '{{task}}' не найдена",
       "trigger_exists": "Триггер '{{trigger}}' уже существует",
-      "trigger_fields_required": "требуются id, name и cron",
-      "trigger_role_required": "Триггер '{{trigger}}': SQL-триггер выполняется от имени роли этой организации",
+      "trigger_fields_required": "Требуются id, имя и расписание cron или таблица, по которой срабатывать",
+      "trigger_role_required": "Триггер '{{trigger}}': SQL-триггер или триггер команды выполняется от роли этой организации",
       "trigger_sql_refused": "{{reason}}",
       "unknown_request_type": "Неизвестный тип запроса '{{type}}'",
       "unknown_trigger_kind": "Неизвестный тип триггера '{{kind}}'",
@@ -419,7 +419,8 @@
       "role_id_taken": "Роль '{{role}}' уже существует",
       "role_updated": "Роль '{{role}}' обновлена",
       "relationship_id_taken": "Связь '{{relationship}}' уже существует",
-      "relationship_graphql_alias_taken": "Псевдоним GraphQL '{{alias}}' уже является псевдонимом связи '{{relationship}}' из '{{table}}'"
+      "relationship_graphql_alias_taken": "Псевдоним GraphQL '{{alias}}' уже является псевдонимом связи '{{relationship}}' из '{{table}}'",
+      "trigger_refused": "{{reason}}"
     },
     "secrets": {
       "name_refused": "{{name}} не является именем в пределах секретов этой организации в {{service}}: имя задаётся относительно организации и не может выходить за её пределы",

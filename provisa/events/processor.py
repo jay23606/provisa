@@ -157,8 +157,12 @@ class TableProcessor(ABC):
         preprocess: Callable[..., Any] | None = None,
         emit_outcomes: frozenset[str] | None = None,
         subscribers_of: Callable[[str, str], list[str]] | None = None,
+        on_event: Callable[[str, str, dict], None] | None = None,
     ) -> None:
         self.node = node
+        # REQ-2054: told of each ``error`` and ``quarantine`` event this node posts, once it is
+        # committed, as (node, event, payload) -- what fires the triggers on the node's table.
+        self._on_event = on_event
         # REQ-965: the declared downstream EMIT-outcome set (a subset of {replace, append, delta}),
         # independent of the persistence outcome. None → the default single-shape path (post one event,
         # fan to every dependent). When set, the loop resolves the demand-driven emit (declared ∩
@@ -479,6 +483,8 @@ class TableProcessor(ABC):
                 await self._complete_all(conn, claimed, now)
         except OwnershipLost:
             return None
+        if self._on_event is not None:
+            self._on_event(self.node, "error", payload)
         return event_id
 
     async def _emit_quarantine(
@@ -500,6 +506,8 @@ class TableProcessor(ABC):
                 await self._complete_all(conn, claimed, now)
         except OwnershipLost:
             return None
+        if self._on_event is not None:
+            self._on_event(self.node, "quarantine", {"reason": reason})
         return event_id
 
     async def _emit_warns(self, conn: Any, ctx: NodeContext, now: datetime) -> None:

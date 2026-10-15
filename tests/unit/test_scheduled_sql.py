@@ -73,8 +73,10 @@ def test_build_scheduler_creates_sql_job():
     assert scheduler is not None
     job = scheduler.get_job("nightly:org_default")
     assert job is not None
-    assert job.func is jobs._execute_sql
-    assert list(job.args) == [_PURGE, "nightly", "ops", "default"]
+    # REQ-2054: every scheduled trigger runs through the one recorded run, with its stored row.
+    assert job.func is jobs._run_scheduled
+    row, org = job.args
+    assert (row["kind"], row["sql"], row["role"], org) == ("sql", _PURGE, "ops", "default")
 
 
 def test_a_sql_trigger_names_the_role_it_runs_as():
@@ -122,10 +124,9 @@ def test_row_writes_are_admitted_with_their_tokens_as_values():
         assert "{{" not in rendered
 
 
-def test_build_scheduler_mutual_exclusivity_raises():
-    trig = ScheduledTrigger(id="bad", cron="0 0 * * *", sql=_PURGE, role="ops", url="http://x/hook")
-    with pytest.raises(ValueError, match="mutually exclusive"):
-        jobs.build_scheduler([trig], "default")
+def test_a_trigger_that_runs_two_things_is_refused():
+    with pytest.raises(ValueError, match="it runs one thing, not url, sql"):
+        ScheduledTrigger(id="bad", cron="0 0 * * *", sql=_PURGE, role="ops", url="http://x/hook")
 
 
 @pytest.mark.asyncio

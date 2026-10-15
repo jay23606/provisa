@@ -1229,6 +1229,20 @@ scheduled_triggers:
 
 Scheduled tasks are managed via the admin UI (enable/disable toggle) or the `toggle_scheduled_task` admin mutation. (REQ-216)
 
+A trigger can fire on a registered table instead of a schedule: `on: {table, event}` names the table as `source_id.schema.table` and the event, `change`, `error` or `quarantine`. A `command` trigger runs a registered command as its `role`, through the command's own governed dispatch, and gives it what fired as arguments. A change gives `table` and, where the change signal carries it (Kafka, Debezium), the landed batch as `changes`. An `error` or `quarantine` event gives `table`, `event`, `reason` and `error`. A trigger whose command declares an argument the trigger does not give is refused at save. A change fires once per burst its change signal reports, or once a write made through Provisa lands; a table served from its replica fires when a build lands rows that differ from the last. A command's own write is a change, so triggers chain. Each run is recorded with its time, its outcome (`succeeded`, `refused` or `failed`), its error and what fired it, and the `scheduledTasks` admin query lists it. Only prod's triggers fire, and nothing is installed in a source database. (REQ-2054) [tool-verified: `provisa/scheduler/table_triggers.py`, `provisa/scheduler/trigger_runs.py`]
+
+```yaml
+scheduled_triggers:
+  - id: bronze_to_silver
+    on: {table: bronze_pg.public.bronze, event: change}
+    command: promote_to_silver
+    role: loader
+  - id: alert_on_quarantine
+    on: {table: bronze_pg.public.bronze, event: quarantine}
+    command: notify_steward      # declares arguments table, reason
+    role: loader
+```
+
 ## OrderBy Format
 
 OrderBy uses the `{column: direction}` format with a 6-value direction enum: (REQ-200, REQ-201)

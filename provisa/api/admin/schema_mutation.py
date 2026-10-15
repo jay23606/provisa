@@ -5069,17 +5069,32 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
         info: StrawberryInfo,
         id: str,
         name: str,
-        cron: str,
         kind: str,
+        cron: Optional[str] = None,
         webhook_name: Optional[str] = None,
         args_json: Optional[str] = None,
         sql: Optional[str] = None,
         role: Optional[str] = None,
+        on_table: Optional[str] = None,
+        on_event: Optional[str] = None,
+        command: Optional[str] = None,
     ) -> MutationResult:
-        """Create a scheduled trigger (webhook or SQL) and register it live (REQ-1003/1004)."""
+        """Create a trigger -- on a cron schedule, or (REQ-2054) on a table's change or event --
+        running a webhook, a SQL statement or a command, and register it live (REQ-1003/1004)."""
         require_capability(info, "org_settings")
         return await _ops.create_scheduled_task_op(
-            info.context["request"], id, name, cron, kind, webhook_name, args_json, sql, role
+            info.context["request"],
+            id,
+            name,
+            cron,
+            kind,
+            webhook_name,
+            args_json,
+            sql,
+            role,
+            on_table=on_table,
+            on_event=on_event,
+            command=command,
         )
 
     @strawberry.mutation

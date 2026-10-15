@@ -1228,6 +1228,20 @@ scheduled_triggers:
 
 Tarefas programadas são gerenciadas via a UI de administração (alternância habilitar/desabilitar) ou a mutação de administração `toggle_scheduled_task`. (REQ-216)
 
+Um gatilho pode disparar sobre uma tabela registrada em vez de uma programação: `on: {table, event}` nomeia a tabela como `source_id.schema.table` e o evento, `change`, `error` ou `quarantine`. Um gatilho `command` executa um comando registrado como sua `role`, pelo despacho governado do próprio comando, e lhe passa como argumentos o que o disparou. Uma mudança passa `table` e, onde o sinal de mudança o carrega (Kafka, Debezium), o lote carregado como `changes`. Um evento `error` ou `quarantine` passa `table`, `event`, `reason` e `error`. Um gatilho cujo comando declara um argumento que o gatilho não passa é recusado ao salvar. Uma mudança dispara uma vez por rajada que seu sinal de mudança informa, ou quando chega uma escrita feita pelo Provisa; uma tabela servida de sua réplica dispara quando uma construção carrega linhas diferentes da anterior. A própria escrita de um comando é uma mudança, então os gatilhos se encadeiam. Cada execução é registrada com seu horário, seu resultado (`succeeded`, `refused` ou `failed`), seu erro e o que a disparou, e a consulta de administração `scheduledTasks` a lista. Só os gatilhos de prod disparam, e nada é instalado em um banco de dados de origem. (REQ-2054) [tool-verified: `provisa/scheduler/table_triggers.py`, `provisa/scheduler/trigger_runs.py`]
+
+```yaml
+scheduled_triggers:
+  - id: bronze_to_silver
+    on: {table: bronze_pg.public.bronze, event: change}
+    command: promote_to_silver
+    role: loader
+  - id: alert_on_quarantine
+    on: {table: bronze_pg.public.bronze, event: quarantine}
+    command: notify_steward      # declares arguments table, reason
+    role: loader
+```
+
 ## Formato OrderBy
 
 OrderBy usa o formato `{column: direction}` com um enum de direção de 6 valores: (REQ-200, REQ-201)

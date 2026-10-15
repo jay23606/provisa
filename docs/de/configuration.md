@@ -1228,6 +1228,20 @@ scheduled_triggers:
 
 Geplante Aufgaben werden über die Admin-UI (Umschalter zum Aktivieren/Deaktivieren) oder die Admin-Mutation `toggle_scheduled_task` verwaltet. (REQ-216)
 
+Ein Trigger kann statt nach Zeitplan bei einer registrierten Tabelle auslösen: `on: {table, event}` nennt die Tabelle als `source_id.schema.table` und das Ereignis, `change`, `error` oder `quarantine`. Ein `command`-Trigger führt einen registrierten Befehl als seine `role` aus, über die eigene gesteuerte Ausführung des Befehls, und übergibt ihm als Argumente, was ihn ausgelöst hat. Eine Änderung übergibt `table` und, wo das Änderungssignal ihn mitführt (Kafka, Debezium), den geladenen Stapel als `changes`. Ein `error`- oder `quarantine`-Ereignis übergibt `table`, `event`, `reason` und `error`. Ein Trigger, dessen Befehl ein Argument deklariert, das der Trigger nicht übergibt, wird beim Speichern abgelehnt. Eine Änderung löst einmal pro Schub aus, den ihr Änderungssignal meldet, oder sobald ein über Provisa geschriebener Schreibvorgang ankommt; eine aus ihrem Replikat bediente Tabelle löst aus, wenn ein Aufbau Zeilen lädt, die sich vom letzten unterscheiden. Der eigene Schreibvorgang eines Befehls ist eine Änderung, daher verketten sich Trigger. Jeder Lauf wird mit Zeit, Ergebnis (`succeeded`, `refused` oder `failed`), Fehler und Auslöser aufgezeichnet, und die Admin-Abfrage `scheduledTasks` listet ihn. Nur die Trigger von prod lösen aus, und in einer Quelldatenbank wird nichts installiert. (REQ-2054) [tool-verified: `provisa/scheduler/table_triggers.py`, `provisa/scheduler/trigger_runs.py`]
+
+```yaml
+scheduled_triggers:
+  - id: bronze_to_silver
+    on: {table: bronze_pg.public.bronze, event: change}
+    command: promote_to_silver
+    role: loader
+  - id: alert_on_quarantine
+    on: {table: bronze_pg.public.bronze, event: quarantine}
+    command: notify_steward      # declares arguments table, reason
+    role: loader
+```
+
 ## OrderBy-Format
 
 OrderBy verwendet das Format `{column: direction}` mit einem 6-wertigen Richtungs-Enum: (REQ-200, REQ-201)

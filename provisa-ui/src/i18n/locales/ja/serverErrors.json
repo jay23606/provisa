@@ -378,8 +378,8 @@
       "task_enabled": "タスク「{{task}}」を有効にしました",
       "task_not_found": "タスク「{{task}}」が見つかりません",
       "trigger_exists": "トリガー「{{trigger}}」は既に存在します",
-      "trigger_fields_required": "id、name、cron は必須です",
-      "trigger_role_required": "トリガー '{{trigger}}': SQL トリガーはこの組織のロールとして実行されます",
+      "trigger_fields_required": "ID、名前、および cron スケジュールまたは発火対象のテーブルが必要です",
+      "trigger_role_required": "トリガー '{{trigger}}': SQL またはコマンドのトリガーはこの組織のロールとして実行されます",
       "trigger_sql_refused": "{{reason}}",
       "unknown_request_type": "不明なリクエストタイプ「{{type}}」です",
       "unknown_trigger_kind": "不明なトリガー種別「{{kind}}」です",
@@ -419,7 +419,8 @@
       "role_id_taken": "ロール「{{role}}」はすでに存在します",
       "role_updated": "ロール「{{role}}」を更新しました",
       "relationship_id_taken": "リレーションシップ「{{relationship}}」はすでに存在します",
-      "relationship_graphql_alias_taken": "GraphQL エイリアス「{{alias}}」は、すでに「{{table}}」からのリレーションシップ「{{relationship}}」のエイリアスです"
+      "relationship_graphql_alias_taken": "GraphQL エイリアス「{{alias}}」は、すでに「{{table}}」からのリレーションシップ「{{relationship}}」のエイリアスです",
+      "trigger_refused": "{{reason}}"
     },
     "secrets": {
       "name_refused": "{{name}} は {{service}} 内のこの組織のシークレットに含まれる名前ではありません。名前は組織に対する相対指定であり、組織の外に出ることはできません",

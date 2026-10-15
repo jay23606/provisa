@@ -33,7 +33,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timezone
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from apscheduler.triggers.cron import CronTrigger
@@ -57,7 +57,7 @@ from provisa.compiler.schema_gen import SchemaInput, generate_schema
 from provisa.compiler.sql_gen import CompilationContext, TableMeta, compile_query
 from provisa.compiler.context import build_context
 from provisa.core.models import Role, ScheduledTrigger, flatten_roles
-from provisa.scheduler.jobs import _execute_webhook, build_scheduler, trigger_job_id
+from provisa.scheduler.jobs import _run_scheduled, build_scheduler, trigger_job_id
 from tests.helpers import ALL_DATA_CAPABILITIES
 
 
@@ -850,7 +850,7 @@ def _when_cron_fires(shared_data: dict) -> None:
     shared_data["scheduler"] = scheduler
 
     # Simulate the cron firing by invoking the registered job's target with its
-    # configured args, capturing the outbound HTTP POST that _execute_webhook makes.
+    # configured args, capturing the outbound HTTP POST its run makes.
     captured: dict = {}
 
     class _Resp:
@@ -874,7 +874,10 @@ def _when_cron_fires(shared_data: dict) -> None:
             captured["payload"] = json
             return _Resp()
 
-    with patch("provisa.scheduler.jobs.httpx.AsyncClient", _Client):
+    with (
+        patch("provisa.scheduler.trigger_runs.httpx.AsyncClient", _Client),
+        patch("provisa.scheduler.trigger_runs.record", AsyncMock()),
+    ):
         job = next(j for j in scheduler.get_jobs() if j.id == _NIGHTLY_JOB)
         func = job.func
         args = job.args
@@ -895,7 +898,7 @@ def _then_webhook_executed(shared_data: dict) -> None:
     job = next(j for j in scheduler.get_jobs() if j.id == _NIGHTLY_JOB)
     # APScheduler wired the cron expression into a CronTrigger.
     assert isinstance(job.trigger, CronTrigger)
-    assert job.func is _execute_webhook
+    assert job.func is _run_scheduled
 
     captured = shared_data["captured"]
     assert captured.get("url") == "https://reports.example.com/run"

@@ -960,6 +960,8 @@ def make_runner(state: Any, org_id: str, platform_url: str) -> ReplicaRunner:
     from provisa.federation.engine import configured_engine_url
     from provisa.federation.replica_locks import BuildLocks
 
+    from provisa.scheduler.table_triggers import table_changed
+
     engine = state.federation_engine.engine
 
     async def build(key: ReplicaKey, progress: Progress) -> BuildOutcome:
@@ -985,6 +987,7 @@ def make_runner(state: Any, org_id: str, platform_url: str) -> ReplicaRunner:
         plan_indexes=lambda key, landed_at: plan_indexes(state, key, landed_at),
         deferred_until=_deferred_until(state),
         build_indexes=lambda item: build_indexes(state, item),
+        changed=lambda key: table_changed(state, key),  # REQ-2054
     )
 
 

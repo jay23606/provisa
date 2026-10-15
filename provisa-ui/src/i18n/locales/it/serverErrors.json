@@ -378,8 +378,8 @@
       "task_enabled": "Attività '{{task}}' abilitata",
       "task_not_found": "Attività '{{task}}' non trovata",
       "trigger_exists": "Trigger '{{trigger}}' già esistente",
-      "trigger_fields_required": "id, name e cron sono obbligatori",
-      "trigger_role_required": "Trigger '{{trigger}}': un trigger SQL viene eseguito come un ruolo di questa organizzazione",
+      "trigger_fields_required": "Sono obbligatori id, nome e una pianificazione cron o una tabella su cui scattare",
+      "trigger_role_required": "Trigger '{{trigger}}': un trigger SQL o di comando si esegue come un ruolo di questa organizzazione",
       "trigger_sql_refused": "{{reason}}",
       "unknown_request_type": "Tipo di richiesta '{{type}}' sconosciuto",
       "unknown_trigger_kind": "Tipo di trigger '{{kind}}' sconosciuto",
@@ -419,7 +419,8 @@
       "role_id_taken": "Il ruolo '{{role}}' esiste già",
       "role_updated": "Ruolo '{{role}}' aggiornato",
       "relationship_id_taken": "La relazione '{{relationship}}' esiste già",
-      "relationship_graphql_alias_taken": "L'alias GraphQL '{{alias}}' è già l'alias della relazione '{{relationship}}' da '{{table}}'"
+      "relationship_graphql_alias_taken": "L'alias GraphQL '{{alias}}' è già l'alias della relazione '{{relationship}}' da '{{table}}'",
+      "trigger_refused": "{{reason}}"
     },
     "secrets": {
       "name_refused": "{{name}} non è un nome all'interno dei segreti di questa organizzazione in {{service}}: un nome è relativo all'organizzazione e non può uscirne",

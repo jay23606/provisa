@@ -151,6 +151,6 @@ def test_build_processors_threads_check_into_processor() -> None:
         handle=_handle,
         preprocess=hook,
     )
-    procs = build_processors([spec], db=None, dependents_of=lambda _n: [])
+    procs = build_processors([spec], db=None, dependents_of=lambda _n: [], on_event=lambda *_: None)
     assert len(procs) == 1
     assert procs[0]._preprocess is hook

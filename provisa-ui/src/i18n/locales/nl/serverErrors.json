@@ -378,8 +378,8 @@
       "task_enabled": "Taak '{{task}}' ingeschakeld",
       "task_not_found": "Taak '{{task}}' niet gevonden",
       "trigger_exists": "Trigger '{{trigger}}' bestaat al",
-      "trigger_fields_required": "id, name en cron zijn vereist",
-      "trigger_role_required": "Trigger '{{trigger}}': een SQL-trigger draait als een rol van deze organisatie",
+      "trigger_fields_required": "id, naam en een cron-schema of een tabel om op af te gaan zijn verplicht",
+      "trigger_role_required": "Trigger '{{trigger}}': een SQL- of opdrachttrigger draait als een rol van deze organisatie",
       "trigger_sql_refused": "{{reason}}",
       "unknown_request_type": "Onbekend verzoektype '{{type}}'",
       "unknown_trigger_kind": "Onbekend triggertype '{{kind}}'",
@@ -419,7 +419,8 @@
       "role_id_taken": "Rol '{{role}}' bestaat al",
       "role_updated": "Rol '{{role}}' bijgewerkt",
       "relationship_id_taken": "Relatie '{{relationship}}' bestaat al",
-      "relationship_graphql_alias_taken": "De GraphQL-alias '{{alias}}' is al de alias van relatie '{{relationship}}' vanuit '{{table}}'"
+      "relationship_graphql_alias_taken": "De GraphQL-alias '{{alias}}' is al de alias van relatie '{{relationship}}' vanuit '{{table}}'",
+      "trigger_refused": "{{reason}}"
     },
     "secrets": {
       "name_refused": "{{name}} is geen naam binnen de secrets van deze organisatie in {{service}}: een naam is relatief ten opzichte van de organisatie en kan deze niet verlaten",

@@ -45,11 +45,12 @@ async def after_table_written(
     # REQ-1915, REQ-1924: a table read from its whole-table replica is out of date once it is
     # written, so a build of the replica is asked for. Readers keep the old replica until the new
     # one swaps in.
-    from provisa.federation import replica_builds, replica_state
+    from provisa.scheduler.table_triggers import source_changed
+    from provisa.federation import replica_state
 
-    await replica_builds.request_if_replicated(
-        state, table_id, source_id, replica_state.REASON_WRITE
-    )
+    # REQ-2054: and the commands that run when it changes run -- when its new replica lands, or
+    # now for a table read live.
+    await source_changed(state, table_id, source_id, replica_state.REASON_WRITE)
     if state.hot_manager is None:
         return
     from provisa.cache.hot_tables import HotTableManager

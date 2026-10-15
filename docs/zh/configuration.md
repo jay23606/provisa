@@ -1229,6 +1229,20 @@ scheduled_triggers:
 
 计划任务通过管理界面（启用/禁用开关）或 `toggle_scheduled_task` 管理变更（Mutation）进行管理。（REQ-216）
 
+触发器可以在已注册的表上触发，而不是按计划：`on: {table, event}` 以 `source_id.schema.table` 形式指定表，并指定事件 `change`、`error` 或 `quarantine`。`command` 触发器以其 `role` 运行一个已注册的命令，经由该命令自身的受治理调度，并把触发它的内容作为参数传入。变更传入 `table`，以及在变更信号携带时（Kafka、Debezium）作为 `changes` 的已落地批次。`error` 或 `quarantine` 事件传入 `table`、`event`、`reason` 和 `error`。若触发器的命令声明了触发器不提供的参数，保存时会被拒绝。变更在其变更信号报告的每一批变更时触发一次，或在经由 Provisa 写入完成时触发；由副本提供的表在构建落地了与上次不同的行时触发。命令自身的写入也是一次变更，因此触发器可以链式触发。每次运行都会记录时间、结果（`succeeded`、`refused` 或 `failed`）、错误以及触发来源，`scheduledTasks` 管理查询会列出它。只有 prod 的触发器会触发，且不会在任何源数据库中安装任何东西。（REQ-2054）[tool-verified: `provisa/scheduler/table_triggers.py`, `provisa/scheduler/trigger_runs.py`]
+
+```yaml
+scheduled_triggers:
+  - id: bronze_to_silver
+    on: {table: bronze_pg.public.bronze, event: change}
+    command: promote_to_silver
+    role: loader
+  - id: alert_on_quarantine
+    on: {table: bronze_pg.public.bronze, event: quarantine}
+    command: notify_steward      # declares arguments table, reason
+    role: loader
+```
+
 ## OrderBy 格式
 
 OrderBy 使用 `{column: direction}` 格式，direction 是一个含 6 个取值的枚举：（REQ-200、REQ-201）

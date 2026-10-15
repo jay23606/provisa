@@ -378,8 +378,8 @@
       "task_enabled": "Tarefa '{{task}}' habilitada",
       "task_not_found": "Tarefa '{{task}}' não encontrada",
       "trigger_exists": "O gatilho '{{trigger}}' já existe",
-      "trigger_fields_required": "id, name e cron são obrigatórios",
-      "trigger_role_required": "Gatilho '{{trigger}}': um gatilho SQL é executado como uma função desta organização",
+      "trigger_fields_required": "id, nome e uma programação cron ou uma tabela em que disparar são obrigatórios",
+      "trigger_role_required": "Gatilho '{{trigger}}': um gatilho SQL ou de comando executa como uma função desta organização",
       "trigger_sql_refused": "{{reason}}",
       "unknown_request_type": "Tipo de solicitação desconhecido '{{type}}'",
       "unknown_trigger_kind": "Tipo de gatilho desconhecido '{{kind}}'",
@@ -419,7 +419,8 @@
       "role_id_taken": "A função '{{role}}' já existe",
       "role_updated": "Função '{{role}}' atualizada",
       "relationship_id_taken": "O relacionamento '{{relationship}}' já existe",
-      "relationship_graphql_alias_taken": "O alias GraphQL '{{alias}}' já é o alias do relacionamento '{{relationship}}' a partir de '{{table}}'"
+      "relationship_graphql_alias_taken": "O alias GraphQL '{{alias}}' já é o alias do relacionamento '{{relationship}}' a partir de '{{table}}'",
+      "trigger_refused": "{{reason}}"
     },
     "secrets": {
       "name_refused": "{{name}} não é um nome dentro dos segredos desta organização em {{service}}: um nome é relativo à organização e não pode sair dela",

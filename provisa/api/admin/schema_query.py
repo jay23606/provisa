@@ -1868,7 +1868,8 @@ class Query:  # REQ-021, REQ-042
 
     @strawberry.field
     async def scheduled_tasks(self, info: StrawberryInfo) -> list[ScheduledTaskType]:
-        """List the caller's org's scheduled triggers, from its model, with their next run."""
+        """List the caller's org's triggers, from its model -- on a schedule or on a table's
+        change or event (REQ-2054) -- with their last run and a schedule's next."""
         require_capability(info, "observability")
         from provisa.api.admin._table_ops import _get_pool
         from provisa.api.app import state
@@ -1876,9 +1877,12 @@ class Query:  # REQ-021, REQ-042
         from provisa.core.request_context import require_current_org
         from provisa.scheduler.jobs import trigger_job_id
 
+        from provisa.scheduler.trigger_runs import last_runs
+
         pool = await _get_pool()
         async with pool.acquire() as conn:
             rows = await trigger_repo.list_all(conn)
+        runs = await last_runs(state)
         org_id = require_current_org()
         scheduler = state._scheduler
         result = []
@@ -1893,17 +1897,31 @@ class Query:  # REQ-021, REQ-042
                 if job is not None and job.next_run_time is not None
                 else None
             )
+            run = runs.get(row["id"])
             result.append(
                 ScheduledTaskType(
                     id=row["id"],
                     name=row["name"],
+                    fires_on=(
+                        "schedule"
+                        if row["cron"] is not None
+                        else "change"
+                        if row["on_event"] == "change"
+                        else "event"
+                    ),
                     cron_expression=row["cron"],
+                    on_table=row["on_table"],
+                    on_event=row["on_event"],
                     webhook_url=row["url"],
                     kind=row["kind"],  # REQ-1003
                     sql=row["sql"],
+                    command=row["command"],
                     role=row["role"],
                     enabled=row["enabled"],
-                    last_run_at=None,
+                    last_run_at=run["ran_at"].isoformat() if run is not None else None,
+                    last_outcome=run["outcome"] if run is not None else None,
+                    last_error=run["error"] if run is not None else None,
+                    last_fired_by=run["fired_by"] if run is not None else None,
                     next_run_at=next_run,
                 )
             )

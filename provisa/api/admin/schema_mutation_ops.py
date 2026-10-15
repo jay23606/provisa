@@ -896,12 +896,16 @@ async def create_scheduled_task_op(  # REQ-1003, REQ-1004
     request: Request,
     id: str,
     name: str,
-    cron: str,
+    cron: str | None,
     kind: str,
     webhook_name: str | None,
     args_json: str | None,
     sql: str | None,
     role: str | None = None,
+    *,
+    on_table: str | None = None,
+    on_event: str | None = None,
+    command: str | None = None,
 ) -> MutationResult:
     """Create a scheduled trigger (webhook or SQL) in the CALLER's org and schedule it (REQ-1003).
 
@@ -919,21 +923,25 @@ async def create_scheduled_task_op(  # REQ-1003, REQ-1004
     from provisa.core.schema_org import tracked_webhooks
 
     kind = kind.strip().lower()
-    if kind not in ("webhook", "sql"):
+    if kind not in ("webhook", "sql", "command"):
         return MutationResult(
             success=False,
             message=f"Unknown trigger kind {kind!r}",
             code="schema.unknown_trigger_kind",
             params={"kind": kind},
         )
-    if not id.strip() or not name.strip() or not cron.strip():
+    cron = cron.strip() if cron else None
+    if not id.strip() or not name.strip() or not (cron or on_table):
         return MutationResult(
             success=False,
-            message="id, name, and cron are required",
+            message="id, name, and a cron schedule or a table to fire on are required",
             code="schema.trigger_fields_required",
         )
 
-    trigger: dict = {"id": id.strip(), "name": name.strip(), "cron": cron.strip(), "enabled": True}
+    trigger: dict = {"id": id.strip(), "name": name.strip(), "cron": cron, "enabled": True}
+    if on_table:  # REQ-2054: fired by the table's change or event-loop event, not a schedule
+        trigger["on_table"] = on_table.strip()
+        trigger["on_event"] = (on_event or "change").strip()
     pool = await _get_pool()
 
     if kind == "webhook":
@@ -963,6 +971,24 @@ async def create_scheduled_task_op(  # REQ-1003, REQ-1004
             )
         # The webhook's URL is resolved in the org when the trigger fires, not copied here.
         trigger["webhook_name"] = webhook_name
+        if args_json:
+            trigger["args"] = _json.loads(args_json)
+    elif kind == "command":  # REQ-2054
+        from provisa.api.app import state as _state
+
+        if not command or not role or role not in (_state.roles or {}):
+            return MutationResult(
+                success=False,
+                message=f"Trigger {id.strip()!r}: a command trigger names a command and a role "
+                "of this org it runs as",
+                code="schema.trigger_role_required",
+                params={"trigger": id.strip()},
+            )
+        from provisa.api.admin.capabilities import require_trigger_role
+
+        require_trigger_role(request, role)
+        trigger["command"] = command
+        trigger["role"] = role
         if args_json:
             trigger["args"] = _json.loads(args_json)
     else:  # sql
@@ -999,7 +1025,35 @@ async def create_scheduled_task_op(  # REQ-1003, REQ-1004
         trigger["sql"] = sql.strip()
         trigger["role"] = role
 
-    model = ScheduledTrigger(**trigger)
+    try:
+        model = ScheduledTrigger(**trigger)
+    except ValueError as invalid:
+        return MutationResult(
+            success=False,
+            message=str(invalid),
+            code="schema.trigger_refused",
+            params={"trigger": trigger["id"], "reason": str(invalid)},
+        )
+    from provisa.api.app import state as _held
+    from provisa.core.models import trigger_refusal
+    from provisa.security.rights import SYSTEM_ROLE_IDS
+
+    refused = trigger_refusal(  # REQ-2054
+        model,
+        commands={
+            fn["name"]: [a["name"] for a in fn["arguments"]]
+            for fn in _held.tracked_functions.values()
+        },
+        tables={f"{t['source_id']}.{t['schema_name']}.{t['table_name']}" for t in _held.tables},
+        roles=set(_held.roles) | set(SYSTEM_ROLE_IDS),
+    )
+    if refused is not None:
+        return MutationResult(
+            success=False,
+            message=refused,
+            code="schema.trigger_refused",
+            params={"trigger": model.id, "reason": refused},
+        )
     async with pool.acquire() as conn:
         if await trigger_repo.get(conn, model.id) is not None:
             return MutationResult(

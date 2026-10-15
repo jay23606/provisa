@@ -378,8 +378,8 @@
       "task_enabled": "המשימה '{{task}}' הופעלה",
       "task_not_found": "המשימה '{{task}}' לא נמצאה",
       "trigger_exists": "הטריגר '{{trigger}}' כבר קיים",
-      "trigger_fields_required": "id, name ו-cron הם שדות חובה",
-      "trigger_role_required": "טריגר '{{trigger}}': טריגר SQL פועל כתפקיד של ארגון זה",
+      "trigger_fields_required": "נדרשים מזהה, שם ותזמון cron או טבלה שעליה מופעל",
+      "trigger_role_required": "טריגר '{{trigger}}': טריגר SQL או פקודה רץ בתפקיד של ארגון זה",
       "trigger_sql_refused": "{{reason}}",
       "unknown_request_type": "סוג בקשה לא מוכר '{{type}}'",
       "unknown_trigger_kind": "סוג טריגר לא מוכר '{{kind}}'",
@@ -419,7 +419,8 @@
       "role_id_taken": "התפקיד '{{role}}' כבר קיים",
       "role_updated": "התפקיד '{{role}}' עודכן",
       "relationship_id_taken": "הקשר '{{relationship}}' כבר קיים",
-      "relationship_graphql_alias_taken": "כינוי ה-GraphQL '{{alias}}' כבר משמש ככינוי של הקשר '{{relationship}}' מ-'{{table}}'"
+      "relationship_graphql_alias_taken": "כינוי ה-GraphQL '{{alias}}' כבר משמש ככינוי של הקשר '{{relationship}}' מ-'{{table}}'",
+      "trigger_refused": "{{reason}}"
     },
     "secrets": {
       "name_refused": "{{name}} אינו שם בתוך הסודות של הארגון הזה ב-{{service}}: שם הוא יחסי לארגון ואינו יכול לצאת ממנו",

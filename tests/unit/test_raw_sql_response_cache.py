@@ -392,9 +392,9 @@ async def test_successful_write_invalidates_its_tables_for_the_org(monkeypatch):
     monkeypatch.setattr(change_events, "emit_change_event", lambda *a, **k: None)
 
     async def _no_replica(_state, _table_id, _source_id, _reason):
-        return False  # no replica store here: the build request has its own tests
+        return None  # no replica store or trigger here: those have their own tests
 
-    monkeypatch.setattr("provisa.federation.replica_builds.request_if_replicated", _no_replica)
+    monkeypatch.setattr("provisa.scheduler.table_triggers.source_changed", _no_replica)
     state = _state(store)
     state.contexts["analyst"].tables["a"].table_name = "t"
     stale: list[str] = []

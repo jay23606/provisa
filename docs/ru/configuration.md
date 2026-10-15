@@ -1229,6 +1229,20 @@ scheduled_triggers:
 
 Запланированные задачи управляются через панель администрирования (переключатель включения/выключения) или административную мутацию `toggle_scheduled_task`. (REQ-216)
 
+Триггер может срабатывать по зарегистрированной таблице вместо расписания: `on: {table, event}` называет таблицу в виде `source_id.schema.table` и событие, `change`, `error` или `quarantine`. Триггер `command` запускает зарегистрированную команду от своей роли `role`, через собственную управляемую диспетчеризацию команды, и передаёт ей в аргументах то, что его вызвало. Изменение передаёт `table` и, где сигнал изменений его несёт (Kafka, Debezium), загруженный пакет как `changes`. Событие `error` или `quarantine` передаёт `table`, `event`, `reason` и `error`. Триггер, команда которого объявляет аргумент, не передаваемый триггером, отклоняется при сохранении. Изменение срабатывает один раз на каждую серию, о которой сообщает сигнал изменений, или когда поступает запись, сделанная через Provisa; таблица, обслуживаемая из реплики, срабатывает, когда сборка загружает строки, отличающиеся от прошлых. Собственная запись команды — это изменение, поэтому триггеры выстраиваются в цепочку. Каждый запуск записывается со временем, результатом (`succeeded`, `refused` или `failed`), ошибкой и тем, что его вызвало, и административный запрос `scheduledTasks` его показывает. Срабатывают только триггеры prod, и в исходной базе данных ничего не устанавливается. (REQ-2054) [tool-verified: `provisa/scheduler/table_triggers.py`, `provisa/scheduler/trigger_runs.py`]
+
+```yaml
+scheduled_triggers:
+  - id: bronze_to_silver
+    on: {table: bronze_pg.public.bronze, event: change}
+    command: promote_to_silver
+    role: loader
+  - id: alert_on_quarantine
+    on: {table: bronze_pg.public.bronze, event: quarantine}
+    command: notify_steward      # declares arguments table, reason
+    role: loader
+```
+
 ## Формат OrderBy
 
 OrderBy использует формат `{column: direction}` с перечислением направления из 6 значений: (REQ-200, REQ-201)

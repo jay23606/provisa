@@ -23689,3 +23689,17 @@ A feature demo, environments and test data: The model's git-branch environments 
 **Code:** —
 
 **Tests:** —
+
+## 9. Live Data & Events
+
+### REQ-2054 · Triggers {#REQ-2054}
+
+**Status:** ✅ complete · **Priority:** SHOULD · **Type:** behavioral
+
+A trigger says when something runs, and what runs is an ordinary command (python or statement), a SQL statement or a webhook. Besides a cron schedule, a trigger can be on a registered table (named source_id.schema.table) for its change, or for the event loop's error or quarantine event for it. A change fires once per burst of changes its change signal reports: native (PostgreSQL logical replication, MongoDB and Cosmos DB change streams), debezium, kafka, the signal webhook, or a write made through Provisa. A table read from its whole-table replica changes when a build of the replica lands rows that differ from the last; a table read live changes when it is written or signalled. The trigger gives the command what fired it as arguments: on change, the table and, where the signal carries it (Kafka, Debezium), the landed batch (changes); on an event, the table, the event, its reason and its error. A trigger whose command declares an argument it does not give is refused at save. The command runs as the trigger's role through the command's normal governed dispatch, and stays runnable by hand or from a schedule. A command's own write is itself a change, so triggers chain. Each run, scheduled or not, is recorded on the trigger: when it ran, whether it succeeded, was refused or failed, why, and what fired it; a refused or failed run wrote nothing and fires nothing downstream. Only an org's prod triggers fire. No trigger is installed in any source database. The admin API lists each trigger with what fires it, its target, role, enabled, last run and a schedule's next firing.
+
+**Use case:** Rows landing in a bronze table run a command that promotes them to silver, whose write runs the command that promotes them to gold, with no trigger in the source database and every run on the record.
+
+**Code:** `provisa/core/models.py`, `provisa/core/schema_org.py`, `provisa/core/repositories/scheduled_trigger.py`, `provisa/scheduler/trigger_runs.py`, `provisa/scheduler/table_triggers.py`, `provisa/scheduler/jobs.py`, `provisa/federation/replica_runner.py`, `provisa/events/push_wiring.py`, `provisa/events/processor.py`, `provisa/api/data/table_written.py`, `provisa/api/admin/schema_mutation_ops.py`, `provisa/api/admin/schema_query.py`
+
+**Tests:** `tests/unit/test_table_triggers.py`, `tests/unit/test_scheduled_triggers.py`, `tests/integration/test_triggers_on_change_e2e.py`

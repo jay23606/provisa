@@ -1850,16 +1850,69 @@ class Webhook(BaseModel):  # REQ-209, REQ-210, REQ-211
         return data
 
 
-class ScheduledTrigger(BaseModel):
-    """Time-based trigger for webhooks or internal functions."""
+#: What a trigger may fire on for a table (REQ-2054): a burst of changes to it, or the event
+#: loop's ``error`` or ``quarantine`` event for it.
+TRIGGER_EVENTS = ("change", "error", "quarantine")
+
+
+def trigger_arguments(cron: str | None, on_event: str | None, args: dict) -> frozenset[str]:
+    """The arguments a trigger gives the command it runs (REQ-2054): a schedule's are its declared
+    ``args``; a change gives the table ("source_id.schema.table") and, where the change signal
+    carries it, the landed batch (``changes``); an ``error`` or ``quarantine`` event gives the
+    table, the event and its reason and error."""
+    if cron is not None:
+        return frozenset(args)
+    if on_event == "change":
+        return frozenset({"table", "changes"})
+    return frozenset({"table", "event", "reason", "error"})
+
+
+def trigger_refusal(
+    trigger: "ScheduledTrigger",
+    *,
+    commands: dict[str, list[str]],
+    tables: set[str],
+    roles: set[str],
+) -> str | None:
+    """Why ``trigger`` is refused at save, or None (REQ-2054): the table it is on is registered,
+    the command it runs is registered and declares only arguments the trigger gives it, and the
+    role it runs as exists. ``commands`` maps each registered command to its argument names;
+    ``tables`` holds each registered table as "source_id.schema.table"."""
+    if trigger.on_table is not None and trigger.on_table not in tables:
+        return f"trigger {trigger.id!r}: it is on {trigger.on_table!r}, which is not registered"
+    if trigger.command is None:
+        return None
+    if trigger.command not in commands:
+        return f"trigger {trigger.id!r}: it runs {trigger.command!r}, which is no command"
+    if trigger.role not in roles:
+        return f"trigger {trigger.id!r}: it runs as {trigger.role!r}, which is no role"
+    given = trigger_arguments(trigger.cron, trigger.on_event, trigger.args)
+    missing = [a for a in commands[trigger.command] if a not in given]
+    if missing:
+        return (
+            f"trigger {trigger.id!r}: command {trigger.command!r} takes {', '.join(missing)}, "
+            f"which the trigger does not give (it gives {', '.join(sorted(given)) or 'nothing'})"
+        )
+    return None
+
+
+class ScheduledTrigger(BaseModel):  # REQ-1003, REQ-2054
+    """A trigger: WHEN something runs -- on a ``cron`` schedule, or ``on`` a table's change or
+    event-loop event -- and WHAT runs: a webhook, a SQL statement, or a registered ``command``,
+    as ``role``. Exactly one of ``cron`` and ``on_table`` says when."""
 
     id: str
-    cron: str  # cron expression (e.g. "0 * * * *" for hourly)
+    cron: str | None = None  # cron expression (e.g. "0 * * * *" for hourly)
+    # REQ-2054: the registered table ("source_id.schema.table") and the event (TRIGGER_EVENTS)
+    # it fires on, in place of a schedule. Written ``on: {table, event}`` in a config.
+    on_table: str | None = None
+    on_event: str | None = None
     name: str | None = None  # display name; the id when unset
-    url: str | None = None  # webhook URL (mutually exclusive with function)
+    url: str | None = None  # webhook URL (mutually exclusive with sql and command)
     webhook_name: str | None = None  # display name for the webhook
     args: dict = Field(default_factory=dict)  # arg name → value for webhook POST body
-    function: str | None = None  # internal function name
+    # REQ-2054: the registered command it runs, as ``role``, given the trigger's arguments.
+    command: str | None = None
     # REQ-1003: SQL statement executed against the federated engine on the cron schedule.
     # Mutually exclusive with url/function. REQ-1004: the text may contain {{date-token}}
     # placeholders substituted with the run's execution date/time before execution.
@@ -1868,6 +1921,43 @@ class ScheduledTrigger(BaseModel):
     # SQL trigger: a schedule acts as a role someone chose, never as a built-in one.
     role: str | None = None
     enabled: bool = True
+
+    @model_validator(mode="before")
+    @classmethod
+    def _on_a_table(cls, data: Any) -> Any:
+        """``on: {table, event}`` is the config's way of writing ``on_table`` and ``on_event``."""
+        if isinstance(data, dict) and isinstance(data.get("on"), dict):
+            on = data["on"]
+            data = {k: v for k, v in data.items() if k != "on"}
+            data["on_table"] = on.get("table")
+            data["on_event"] = on.get("event", "change")
+        return data
+
+    @model_validator(mode="after")
+    def _says_when_and_what(self) -> "ScheduledTrigger":  # REQ-2054
+        """Exactly one of a schedule and a table says when; exactly one target says what; a
+        command runs as a role, as a SQL statement does."""
+        if (self.cron is None) == (self.on_table is None):
+            raise ValueError(
+                f"trigger {self.id!r}: it fires on a 'cron' schedule or 'on' a table, one of them"
+            )
+        if self.on_table is not None:
+            if self.on_event not in TRIGGER_EVENTS:
+                raise ValueError(
+                    f"trigger {self.id!r}: 'on' event {self.on_event!r} is not one of "
+                    f"{', '.join(TRIGGER_EVENTS)}"
+                )
+            if len(self.on_table.split(".")) != 3:
+                raise ValueError(
+                    f"trigger {self.id!r}: 'on' table {self.on_table!r} is not "
+                    "source_id.schema.table"
+                )
+        targets = [n for n in ("url", "webhook_name", "sql", "command") if getattr(self, n)]
+        if len(targets) > 1 and set(targets) != {"url", "webhook_name"}:
+            raise ValueError(f"trigger {self.id!r}: it runs one thing, not {', '.join(targets)}")
+        if self.command is not None and not self.role:
+            raise ValueError(f"trigger {self.id!r}: a command trigger names the role it runs as")
+        return self
 
     @model_validator(mode="after")
     def _sql_trigger_writes_rows_as_a_role(self) -> "ScheduledTrigger":

@@ -1229,6 +1229,20 @@ scheduled_triggers:
 
 משימות מתוזמנות מנוהלות דרך ממשק הניהול (מתג הפעלה/כיבוי) או דרך מוטציית הניהול `toggle_scheduled_task`. (REQ-216)
 
+טריגר יכול לפעול על טבלה רשומה במקום על פי תזמון: `on: {table, event}` מציין את הטבלה בצורה `source_id.schema.table` ואת האירוע, `change`, `error` או `quarantine`. טריגר `command` מריץ פקודה רשומה בתפקיד `role` שלו, דרך השיגור המנוהל של הפקודה עצמה, ומעביר לה כארגומנטים את מה שהפעיל אותו. שינוי מעביר `table` ובמקום שבו אות השינוי נושא אותה (Kafka, Debezium) את האצווה שנטענה בשם `changes`. אירוע `error` או `quarantine` מעביר `table`, `event`, `reason` ו-`error`. טריגר שהפקודה שלו מצהירה על ארגומנט שהטריגר אינו מעביר נדחה בשמירה. שינוי מפעיל פעם אחת לכל פרץ שאות השינוי שלו מדווח, או כשכתיבה שבוצעה דרך Provisa נוחתת; טבלה המוגשת מהרפליקה שלה מפעילה כשבנייה טוענת שורות השונות מהקודמת. הכתיבה של פקודה עצמה היא שינוי, ולכן טריגרים משתרשרים. כל הרצה נרשמת עם זמנה, תוצאתה (`succeeded`, `refused` או `failed`), השגיאה שלה ומה שהפעיל אותה, ושאילתת הניהול `scheduledTasks` מציגה אותה. רק הטריגרים של prod פועלים, ושום דבר אינו מותקן במסד נתוני מקור. (REQ-2054) [tool-verified: `provisa/scheduler/table_triggers.py`, `provisa/scheduler/trigger_runs.py`]
+
+```yaml
+scheduled_triggers:
+  - id: bronze_to_silver
+    on: {table: bronze_pg.public.bronze, event: change}
+    command: promote_to_silver
+    role: loader
+  - id: alert_on_quarantine
+    on: {table: bronze_pg.public.bronze, event: quarantine}
+    command: notify_steward      # declares arguments table, reason
+    role: loader
+```
+
 ## פורמט OrderBy
 
 OrderBy משתמש בפורמט `{column: direction}` עם enum כיוון בעל 6 ערכים: (REQ-200, REQ-201)

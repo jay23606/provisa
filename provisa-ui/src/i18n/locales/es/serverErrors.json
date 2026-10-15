@@ -378,8 +378,8 @@
       "task_enabled": "Tarea '{{task}}' habilitada",
       "task_not_found": "No se encontró la tarea '{{task}}'",
       "trigger_exists": "El desencadenador '{{trigger}}' ya existe",
-      "trigger_fields_required": "id, name y cron son obligatorios",
-      "trigger_role_required": "Disparador '{{trigger}}': un disparador SQL se ejecuta como un rol de esta organización",
+      "trigger_fields_required": "Se requieren id, nombre y una programación cron o una tabla sobre la que dispararse",
+      "trigger_role_required": "Disparador '{{trigger}}': un disparador SQL o de comando se ejecuta como un rol de esta organización",
       "trigger_sql_refused": "{{reason}}",
       "unknown_request_type": "Tipo de solicitud desconocido: '{{type}}'",
       "unknown_trigger_kind": "Tipo de desencadenador desconocido: '{{kind}}'",
@@ -419,7 +419,8 @@
       "role_id_taken": "El rol '{{role}}' ya existe",
       "role_updated": "Rol '{{role}}' actualizado",
       "relationship_id_taken": "La relación '{{relationship}}' ya existe",
-      "relationship_graphql_alias_taken": "El alias de GraphQL '{{alias}}' ya es el alias de la relación '{{relationship}}' desde '{{table}}'"
+      "relationship_graphql_alias_taken": "El alias de GraphQL '{{alias}}' ya es el alias de la relación '{{relationship}}' desde '{{table}}'",
+      "trigger_refused": "{{reason}}"
     },
     "secrets": {
       "name_refused": "{{name}} no es un nombre dentro de los secretos de esta organización en {{service}}: un nombre es relativo a la organización y no puede salir de ella",
