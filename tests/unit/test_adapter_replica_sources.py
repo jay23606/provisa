@@ -31,6 +31,7 @@ def _table(schema="s", name="t", cols=("id", "name")):
         schema_name=schema,
         table_name=name,
         columns=[SimpleNamespace(name=c, native_filter_type=None) for c in cols],
+        landing_filter=None,
     )
 
 

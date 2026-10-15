@@ -28,6 +28,7 @@ def _table(
     live=None,
     columns=None,
     probe_type=None,
+    landing_filter=None,
 ):
     return SimpleNamespace(
         source_id=source_id,
@@ -36,6 +37,7 @@ def _table(
         change_signal=change_signal,
         watermark_column=watermark_column,
         probe_type=probe_type,
+        landing_filter=landing_filter,
         live=live,
         columns=columns or [_col("id", "bigint", pk=True), _col("status", "text")],
     )
@@ -87,6 +89,11 @@ class TestResolveLandingArgs:
         args = resolve_landing_args(_source(), _table())
         assert args.columns == [("id", "bigint"), ("status", "text")]
         assert args.pk_columns == ["id"]
+
+    def test_the_tables_landing_filter_rides_with_its_args(self):  # REQ-2062
+        assert resolve_landing_args(_source(), _table()).landing_filter is None
+        filtered = _table(landing_filter="status = 'open'")
+        assert resolve_landing_args(_source(), filtered).landing_filter == "status = 'open'"
 
     def test_columns_translated_to_ir_by_platform(self):
         # REQ-846: engine-normalized native spellings the generic aliases don't cover — Trino

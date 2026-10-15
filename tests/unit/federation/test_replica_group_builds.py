@@ -42,6 +42,7 @@ def _table(name):
         change_signal=None,
         watermark_column=None,
         probe_type=None,
+        landing_filter=None,
         live=None,
         row_materialize=False,
         columns=[_col("id", "bigint", pk=True), _col("name", "text")],

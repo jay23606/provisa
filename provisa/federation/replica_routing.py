@@ -471,9 +471,10 @@ async def export_view_addresses(state: Any) -> dict[tuple[str, str, str], tuple[
 
 async def landing_worklist(
     engine: Any, state: Any
-) -> list[tuple[Any, str, str, list[tuple[str, str]], list[str]]]:
+) -> list[tuple[Any, str, str, list[tuple[str, str]], list[str], str | None]]:
     """The registered tables whose replica is reconciled, as
-    ``(source, schema_name, table_name, columns, pk_columns)`` (REQ-846/932).
+    ``(source, schema_name, table_name, columns, pk_columns, landing_filter)`` (REQ-846/932,
+    REQ-2062).
 
     The tables of :func:`replica_tables` whose data columns all have a resolved type. A registered
     data column with no type is a registration gap and the table is skipped (logged), never
@@ -484,7 +485,7 @@ async def landing_worklist(
 
 async def draft_landing_worklist(
     engine: Any, state: Any
-) -> list[tuple[Any, str, str, list[tuple[str, str]], list[str]]]:
+) -> list[tuple[Any, str, str, list[tuple[str, str]], list[str], str | None]]:
     """:func:`landing_worklist` for the DRAFT tables (:func:`draft_replica_tables`, REQ-1921):
     what the definition of a draft's replica is judged by."""
     return _worklist(engine, await draft_replica_tables(engine, state))
@@ -492,10 +493,10 @@ async def draft_landing_worklist(
 
 def _worklist(
     engine: Any, tables: list[tuple[Any, dict]]
-) -> list[tuple[Any, str, str, list[tuple[str, str]], list[str]]]:
+) -> list[tuple[Any, str, str, list[tuple[str, str]], list[str], str | None]]:
     from provisa.core.ir_types import to_ir
 
-    work: list[tuple[Any, str, str, list[tuple[str, str]], list[str]]] = []
+    work: list[tuple[Any, str, str, list[tuple[str, str]], list[str], str | None]] = []
     for src, reg in tables:
         data_cols = _data_columns(reg)
         if any(c["data_type"] is None for c in data_cols):
@@ -513,6 +514,7 @@ def _worklist(
                 reg["table_name"],
                 [(c["column_name"], to_ir(c["data_type"])) for c in data_cols],
                 [c["column_name"] for c in data_cols if c["is_primary_key"]],
+                reg["landing_filter"],  # REQ-2062
             )
         )
     return work

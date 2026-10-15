@@ -55,6 +55,7 @@ class PgBackend(NativeEngineBackend):
         by the engine itself, as one statement; any other is streamed into the store."""
         from provisa.core.change_signal import REPLACE, select_landing_shape
         from provisa.federation.replica_parties import PgStatementCopy
+        from provisa.core.landing_filter import where as landing_where
         from provisa.transpiler.native_json import source_projection
 
         if select_landing_shape(args.change_signal, args.watermark_column) != REPLACE:
@@ -71,6 +72,7 @@ class PgBackend(NativeEngineBackend):
             columns=args.columns,
             # REQ-1965: a natively array/struct/map column is copied as PostgreSQL's own JSON.
             projection=source_projection(table.columns, "postgres"),
+            where=landing_where(table, lambda: "postgres"),  # REQ-2062
         )
 
     def replica_target(self, state: Any, *, address: Any, args: Any, engine: Any) -> Any:

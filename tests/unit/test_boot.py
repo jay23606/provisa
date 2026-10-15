@@ -91,6 +91,7 @@ def _tbl(sid, tname, cols, *, cache_ttl=300):
         live=None,
         columns=cols,
         cache_ttl=cache_ttl,
+        landing_filter=None,
     )
 
 

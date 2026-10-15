@@ -51,6 +51,7 @@ def _wired(monkeypatch, *, signal, watermark=None, source_type="postgresql", sen
         change_signal=None,
         watermark_column=watermark,
         probe_type=None,
+        landing_filter=None,
         live=None,
         cache_ttl=None,
         file_glob=None,

@@ -55,6 +55,7 @@ _ROW = {
     "table_name": "orders",
     "dq_contract": None,
     "query_template": None,
+    "landing_filter": None,
     "role_ttl": {},  # REQ-1907
     "pagination": None,  # REQ-318: the table sets no paging
     "replicate": None,

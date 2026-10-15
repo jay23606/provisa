@@ -236,6 +236,8 @@ registered_tables = Table(
     # REQ-2061: the values of the parameters the table's source takes by name, fixed for every
     # read (a GraphQL root field's arguments, an OpenAPI operation's parameters); NULL = none.
     Column("arguments", JSON(none_as_null=True)),
+    # REQ-2062: a SQL predicate over the table's own columns, applied when its replica lands.
+    Column("landing_filter", Text),
     Column("gql_naming_convention", Text),
     Column("watermark_column", Text),
     Column("change_signal", Text),  # REQ-929: override source change signal; NULL = inherit

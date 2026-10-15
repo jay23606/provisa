@@ -411,6 +411,7 @@ async def _upsert(conn: "Connection", table: Table) -> int | None:
         "role_ttl": dict(table.role_ttl),  # REQ-1907
         "pagination": paging_row(table.pagination),  # REQ-318
         "arguments": dict(table.arguments) or None,  # REQ-2061
+        "landing_filter": table.landing_filter,  # REQ-2062
         # REQ-1919: every setting a configuration can give a table is the store's to hold.
         "approval_hook": table.approval_hook,
         "hot": table.hot,
@@ -473,6 +474,7 @@ async def _upsert(conn: "Connection", table: Table) -> int | None:
         "role_ttl",  # REQ-1907
         "pagination",  # REQ-318
         "arguments",  # REQ-2061
+        "landing_filter",  # REQ-2062
         "approval_hook",  # REQ-1919
         "hot",
         "kafka_sink",
@@ -660,6 +662,7 @@ async def _upsert(conn: "Connection", table: Table) -> int | None:
 KEPT_ON_FORM_EDIT: tuple[str, ...] = (
     "approval_hook",
     "arguments",  # REQ-2061
+    "landing_filter",  # REQ-2062
     "hot",
     "kafka_sink",
     "promotions",

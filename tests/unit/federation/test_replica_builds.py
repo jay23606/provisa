@@ -46,6 +46,7 @@ def _table(source_id="s1"):
         change_signal=None,
         watermark_column=None,
         probe_type=None,
+        landing_filter=None,
         live=None,
         row_materialize=False,
         columns=[_col("id", "bigint", pk=True), _col("status", "text")],

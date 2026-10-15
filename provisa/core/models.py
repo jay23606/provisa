@@ -1232,6 +1232,9 @@ class Table(
     # A fixed argument is no parameter of the table: a read neither gives nor may give it, and a
     # table whose arguments are all fixed is a whole that lands like any table.
     arguments: dict[str, Any] = Field(default_factory=dict)
+    # REQ-2062: a SQL predicate over the table's own columns, applied when its replica lands; the
+    # replica holds only the rows that pass it.
+    landing_filter: str | None = None
     live: LiveDeliveryConfig | None = None  # live query delivery config (Phase AM)
     # REQ-924/926/927: the single watermark column (an existing column). Set → append landing +
     # incremental refresh (WHERE wm > cursor) + poll-path subscription (insert/update grain, no
@@ -1388,6 +1391,18 @@ class Table(
             raise ValueError(
                 f"table {self.table_name!r}: argument(s) {', '.join(both)} are fixed and also "
                 f"parameters of the table (_nf_ columns); a fixed argument is no parameter"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _validate_landing_filter(self) -> "Table":
+        if self.landing_filter is not None:  # REQ-2062
+            from provisa.core.landing_filter import check
+
+            check(
+                self.table_name,
+                self.landing_filter,
+                [c.name for c in self.columns if not c.native_filter_type],
             )
         return self
 

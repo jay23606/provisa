@@ -65,17 +65,25 @@ _SOURCE_IDENTITY = ("type", "host", "port", "database", "path")
 
 
 def definition_hash(
-    source: Any, address: Any, columns: list[tuple[str, str]], pk_columns: list[str]
+    source: Any,
+    address: Any,
+    columns: list[tuple[str, str]],
+    pk_columns: list[str],
+    *,
+    landing_filter: str | None,
 ) -> str:
     """What a replica is built from, as a digest: the address it is written at, its columns in
-    order with their types, its key, and its source's connection identity. A model that gives a
-    different digest than the last build recorded asks for a rebuild."""
+    order with their types, its key, its source's connection identity and, where it has one, its
+    landing filter (REQ-2062). A model that gives a different digest than the last build recorded
+    asks for a rebuild."""
     identity = {name: _plain(getattr(source, name, None)) for name in _SOURCE_IDENTITY}
     described = {
         "address": [address.schema, address.table],
         "columns": [[name, ir_type] for name, ir_type in columns],
         "key": list(pk_columns),
         "source": identity,
+        # Only where it is set: a table without one keeps the digest it always had.
+        **({"landing_filter": landing_filter} if landing_filter is not None else {}),
     }
     return hashlib.sha256(json.dumps(described, sort_keys=True).encode()).hexdigest()
 
@@ -177,7 +185,7 @@ async def wanted_shapes(
         *await landing_worklist(engine, state),
         *await draft_landing_worklist(engine, state),
     ]
-    for src, schema_name, table_name, columns, pk_columns in worklist:
+    for src, schema_name, table_name, columns, pk_columns, landing_filter in worklist:
         key = (src.id, schema_name, table_name)
         if whole is not None and key not in whole:
             continue
@@ -190,7 +198,10 @@ async def wanted_shapes(
                 org_id=address_org, source_id=src.id, schema_name=schema_name, table_name=table_name
             )
         )
-        shapes[key] = (definition_hash(src, address, columns, pk_columns), columns)
+        shapes[key] = (
+            definition_hash(src, address, columns, pk_columns, landing_filter=landing_filter),
+            columns,
+        )
     return shapes
 
 
