@@ -24,6 +24,7 @@ import sys
 import time
 from pathlib import Path
 
+from tests import embedded_pg
 from tests.embedded_pg import start_local_postgres
 
 _REPO = Path(__file__).resolve().parents[2]
@@ -94,3 +95,27 @@ def test_a_running_session_s_postgres_is_left_alone():
         starter.wait(timeout=30)
         start_local_postgres().stop()  # and it is reaped once its session is gone
     assert not root.exists()
+
+
+def _ownerless(tmp_path: Path, name: str, age_seconds: float) -> Path:
+    root = tmp_path / f"pv-pg-{name}"
+    (root / "data").mkdir(parents=True)
+    stamp = time.time() - age_seconds
+    os.utime(root, (stamp, stamp))
+    return root
+
+
+def test_a_directory_with_no_recorded_starter_is_removed_once_it_is_a_day_old(
+    tmp_path, monkeypatch
+):
+    """A directory made before starters recorded themselves has no owner.pid and was never
+    removed: tests' temp space filled with them."""
+    monkeypatch.setattr(embedded_pg.tempfile, "gettempdir", lambda: str(tmp_path))
+    day = embedded_pg.OWNERLESS_AFTER_SECONDS
+    old = _ownerless(tmp_path, "old", day + 60)
+    new = _ownerless(tmp_path, "new", 60)  # a starter that has not recorded itself yet
+    owned = _ownerless(tmp_path, "owned", day + 60)
+    (owned / "owner.pid").write_text(str(os.getpid()))  # its starter runs
+    embedded_pg._stop_orphans()
+    assert not old.exists()
+    assert new.exists() and owned.exists()
