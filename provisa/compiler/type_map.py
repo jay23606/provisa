@@ -172,6 +172,9 @@ _TYPE_MAP: dict[str, GraphQLScalarType] = cast(
         "float": GraphQLFloat,  # canonical IR floating type (REQ-846)
         "double": GraphQLFloat,
         "float8": GraphQLFloat,  # postgres double precision alias
+        # PostgreSQL's own spelling in information_schema: an ops table's Float column on a
+        # PostgreSQL control plane (sla_breach_log.observed) is read as it.
+        "double precision": GraphQLFloat,
         "float64": GraphQLFloat,  # BigQuery's own floating-point type name
         "decimal": GraphQLFloat,
         "numeric": GraphQLFloat,

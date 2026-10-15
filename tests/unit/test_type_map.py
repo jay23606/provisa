@@ -12,7 +12,7 @@
 
 import pytest
 
-from provisa.compiler.type_map import GraphQLString, column_type_to_graphql
+from provisa.compiler.type_map import GraphQLFloat, GraphQLString, column_type_to_graphql
 
 
 # ── saphana's own SQL_TYPE_NAMEs (REQ-1753) ─────────────────────────────────────────────────────
@@ -26,6 +26,12 @@ def test_column_type_to_graphql_nvarchar_parameterized():
 
 def test_column_type_to_graphql_nclob():
     assert column_type_to_graphql("NCLOB") is GraphQLString
+
+
+def test_column_type_to_graphql_postgres_double_precision():
+    # A Float column of an ops table on a PostgreSQL control plane (sla_breach_log.observed) is
+    # read from information_schema as "double precision"; the server would not start without it.
+    assert column_type_to_graphql("double precision") is GraphQLFloat
 
 
 def test_column_type_to_graphql_unmapped_type_raises():
