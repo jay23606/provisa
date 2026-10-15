@@ -8,46 +8,41 @@
 
 Drives the runtime object directly — the NativeEngineBackend protocol (attach_source, run/run_sync,
 connection, ensure_materialize_attached) — against a stock embedded PG with the contrib FDWs built in
-(reuses the pgserver + FDW-build helpers proven by test_embedded_pg_fdw_engine_e2e). A green run proves
+(on the embedded PostgreSQL with the FDW bundle staged, tests/embedded_pg.py). A green run proves
 the pg engine's runtime, not just its connectors: a loopback Postgres source is imported as a foreign
 schema, wrapped in a physical-named view, and a federated query returns its rows.
 """
 
 from __future__ import annotations
 
-import sys
-import tempfile
 from types import SimpleNamespace
 
 import pytest
 
-pytestmark = [pytest.mark.integration, pytest.mark.asyncio(loop_scope="session")]
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.local_platform,
+    pytest.mark.asyncio(loop_scope="session"),
+]
 
 asyncpg = pytest.importorskip("asyncpg")
-pgserver = pytest.importorskip("pgserver")
-psycopg2 = pytest.importorskip("psycopg2")
 
 from provisa.federation.pg_runtime import PgFederationRuntime  # noqa: E402
-from tests.integration.test_embedded_pg_fdw_engine_e2e import (  # noqa: E402
-    _have_build_tools,
-    _install_fdws_into_pgserver,
-    _loopback_source_params,
-)
+from tests.embedded_pg import start_local_postgres  # noqa: E402
+from tests.integration.test_embedded_pg_fdw_engine_e2e import _loopback_source_params  # noqa: E402
 
 
 @pytest.fixture(scope="session")
 def pg_with_fdw():
-    if sys.platform not in ("darwin", "linux") or not _have_build_tools():
-        pytest.skip("needs a C toolchain (cc/make/tar + curl/wget) to build the contrib FDWs")
-    base = tempfile.mkdtemp(prefix="provisa_pg_rt_")
-    server = pgserver.get_server(base)
-    _install_fdws_into_pgserver()
-    yield server
+    # An embedded PostgreSQL run from a private install with the product's FDW bundle staged.
+    pg = start_local_postgres(fdws=True)
+    yield pg
+    pg.stop()
 
 
 async def test_pg_runtime_federates_postgres_source(pg_with_fdw):
     server = pg_with_fdw
-    dsn = server.get_uri()
+    dsn = server.dsn()
 
     # A loopback "remote" the pg runtime will attach via postgres_fdw: orders in demo_remote.
     conn = await asyncpg.connect(dsn=dsn)

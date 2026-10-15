@@ -20,25 +20,22 @@ tests/integration/test_custom_connectors_mongo_e2e.py.
 
 from __future__ import annotations
 
-import sys
-import tempfile
 import textwrap
 from types import SimpleNamespace
 
 import pytest
 
-pytestmark = [pytest.mark.integration, pytest.mark.asyncio(loop_scope="session")]
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.local_platform,
+    pytest.mark.asyncio(loop_scope="session"),
+]
 
 asyncpg = pytest.importorskip("asyncpg")
-pgserver = pytest.importorskip("pgserver")
-psycopg2 = pytest.importorskip("psycopg2")
 
 from provisa.federation.pg_runtime import PgFederationRuntime  # noqa: E402
-from tests.integration.test_embedded_pg_fdw_engine_e2e import (  # noqa: E402
-    _have_build_tools,
-    _install_fdws_into_pgserver,
-    _loopback_source_params,
-)
+from tests.embedded_pg import start_local_postgres  # noqa: E402
+from tests.integration.test_embedded_pg_fdw_engine_e2e import _loopback_source_params  # noqa: E402
 
 _DESCRIPTOR = """
 connectors:
@@ -60,17 +57,15 @@ connectors:
 
 @pytest.fixture(scope="session")
 def pg_with_fdw():
-    if sys.platform not in ("darwin", "linux") or not _have_build_tools():
-        pytest.skip("needs a C toolchain (cc/make/tar + curl/wget) to build the contrib FDWs")
-    base = tempfile.mkdtemp(prefix="provisa_custom_pg_")
-    server = pgserver.get_server(base)
-    _install_fdws_into_pgserver()
-    yield server
+    # An embedded PostgreSQL run from a private install with the product's FDW bundle staged.
+    pg = start_local_postgres(fdws=True)
+    yield pg
+    pg.stop()
 
 
 async def test_config_driven_pg_fdw_federates_postgres_source(pg_with_fdw, tmp_path, monkeypatch):
     server = pg_with_fdw
-    dsn = server.get_uri()
+    dsn = server.dsn()
 
     conn = await asyncpg.connect(dsn=dsn)
     try:
