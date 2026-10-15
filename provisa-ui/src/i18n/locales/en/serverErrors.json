@@ -486,6 +486,10 @@
     },
     "users": {
       "assignment_not_found": "Assignment not found",
+      "attribute_name_invalid": "Attribute name '{{name}}' must be letters, digits and underscores, and must not start with a digit",
+      "attribute_name_missing": "An attribute needs a name",
+      "attribute_name_reserved": "'{{name}}' is bound from the acting identity on every request and cannot be recorded as an attribute",
+      "attribute_not_found": "User '{{user}}' has no attribute '{{name}}'",
       "last_org_admin": "{{user}} is the last org admin of: {{orgs}}. Promote another org admin in each, or delete the organization, first.",
       "last_platform_admin": "{{user}} is the last platform admin of this deployment. Grant the platform admin role to another user first.",
       "no_active_org": "No organization is bound to this request. Sign in to an organization first.",

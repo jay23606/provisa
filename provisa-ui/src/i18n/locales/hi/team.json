@@ -67,6 +67,29 @@
     "colEnvironment": "एनवायरनमेंट",
     "envPerVisitorBadge": "प्रति विज़िटर, {{ttl}}",
     "envSharedBadge": "साझा: {{name}}",
-    "spentStatus": "पूरी तरह रिडीम किया गया"
+    "spentStatus": "पूरी तरह रिडीम किया गया",
+    "memberPanel": "सदस्य विवरण",
+    "resizeMemberPanel": "सदस्य पैनल का आकार बदलें",
+    "expandMemberPanel": "सदस्य पैनल बड़ा करें",
+    "restoreMemberPanel": "सदस्य पैनल पुनर्स्थापित करें",
+    "closeMemberPanel": "सदस्य पैनल बंद करें",
+    "backToMembers": "सदस्यों पर वापस जाएँ",
+    "attributes": {
+      "help": "वे गुण जिन्हें पंक्ति नियम इस सदस्य के लिए पढ़ सकता है। संगठन यहाँ जो दर्ज करता है, वह उनके पहचान प्रदाता के उसी गुण पर प्राथमिकता पाता है।",
+      "colName": "गुण",
+      "colValue": "मान",
+      "colSource": "स्रोत",
+      "empty": "अभी कोई गुण नहीं।",
+      "nameLabel": "गुण",
+      "valueLabel": "मान",
+      "add": "जोड़ें",
+      "sourceOrg": "संगठन",
+      "sourceIdp": "पहचान प्रदाता",
+      "overriddenHint": "संगठन के मान द्वारा ओवरराइड किया गया",
+      "edit": "{{name}} संपादित करें",
+      "saveEdit": "{{name}} सहेजें",
+      "cancelEdit": "संपादन रद्द करें",
+      "remove": "{{name}} हटाएँ"
+    }
   }
 }

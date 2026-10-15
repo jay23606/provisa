@@ -67,6 +67,29 @@
     "colEnvironment": "环境",
     "envPerVisitorBadge": "每位访客，{{ttl}}",
     "envSharedBadge": "共享：{{name}}",
-    "spentStatus": "已全部兑换"
+    "spentStatus": "已全部兑换",
+    "memberPanel": "成员详情",
+    "resizeMemberPanel": "调整成员面板大小",
+    "expandMemberPanel": "展开成员面板",
+    "restoreMemberPanel": "还原成员面板",
+    "closeMemberPanel": "关闭成员面板",
+    "backToMembers": "返回成员列表",
+    "attributes": {
+      "help": "行规则可为此成员读取的属性。组织在此记录的值优先于其标识提供程序提供的同名属性。",
+      "colName": "属性",
+      "colValue": "值",
+      "colSource": "来源",
+      "empty": "尚无属性。",
+      "nameLabel": "属性",
+      "valueLabel": "值",
+      "add": "添加",
+      "sourceOrg": "组织",
+      "sourceIdp": "标识提供程序",
+      "overriddenHint": "已被组织的值覆盖",
+      "edit": "编辑 {{name}}",
+      "saveEdit": "保存 {{name}}",
+      "cancelEdit": "取消编辑",
+      "remove": "删除 {{name}}"
+    }
   }
 }

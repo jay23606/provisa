@@ -48,6 +48,9 @@ CARRIED: frozenset[str] = frozenset(
         # environment this one came from, and every capability behind the name is re-read from THIS
         # environment's ``roles`` row.
         "user_role_assignments",
+        # REQ-1382: what the org records of its members travels with who holds which role: a
+        # row rule on an attribute admits nobody in an environment where nobody has one.
+        "user_attributes",
         "rls_rules",
         "tags",
         "tag_param_values",
@@ -81,7 +84,9 @@ CARRIED: frozenset[str] = frozenset(
 #: later copy touches them. A merge is a statement about the MODEL, and prod's ``developer`` row
 #: holding nothing is precisely the guarantee a merge from an unrestricted dev must not overwrite;
 #: were these to travel on merge, the review path itself would become the escalation route.
-SEEDED_AT_CREATION: frozenset[str] = frozenset({"roles", "user_role_assignments", "model_seed"})
+SEEDED_AT_CREATION: frozenset[str] = frozenset(
+    {"roles", "user_role_assignments", "user_attributes", "model_seed"}
+)
 
 #: The source rows carry their id, type and governance fields; WHERE THEY POINT stays behind
 #: (REQ-1491). They cannot simply be excluded — registered_tables references a source, and dropping
@@ -98,7 +103,11 @@ IDENTITY_ONLY: frozenset[str] = frozenset(
 #: an environment, not the assignment a member already held. Withholding the assignments instead
 #: left an environment in which nobody could do anything and made rights look like a property of
 #: the environment rather than of the person.
-NEVER_SENSITIVE: frozenset[str] = frozenset({"org_secrets", "user_directory"})
+#: ``user_idp_attributes`` (REQ-1383) is what each identity provider said at a sign-in to THIS
+#: environment; it is rewritten there at the next one.
+NEVER_SENSITIVE: frozenset[str] = frozenset(
+    {"org_secrets", "user_directory", "user_idp_attributes"}
+)
 
 #: Never copied: runtime state and evidence, which belong to the environment that PRODUCED them.
 #: ``catalog_bindings`` is here rather than with the model because its vendor_ref and physical_key

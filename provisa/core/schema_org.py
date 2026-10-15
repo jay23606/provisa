@@ -1288,6 +1288,31 @@ user_directory = Table(
     Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
 )
 
+# REQ-1382: attributes the org records for a member; where the identity provider supplies the
+# same name, the org's record wins (provisa.auth.attributes). See schema.sql.
+user_attributes = Table(
+    "user_attributes",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("user_id", Text, nullable=False),
+    Column("name", Text, nullable=False),
+    Column("value", Text, nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    UniqueConstraint("user_id", "name"),
+)
+
+# REQ-1383: what each user's identity provider supplied at their last sign-in -- the scalar claims,
+# by normalized name, so an administrator sees which attributes are the provider's and which the
+# org's record overrides. Rewritten at sign-in when it changed; never administered.
+user_idp_attributes = Table(
+    "user_idp_attributes",
+    metadata,
+    Column("user_id", Text, primary_key=True),
+    Column("name", Text, primary_key=True),
+    Column("value", Text, nullable=False),
+    Column("seen_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+)
+
 # REQ-1330: who granted/revoked/verified consent to mail an address, and when. See the matching
 # block in schema.sql.
 email_send_authority_audit = Table(

@@ -486,6 +486,10 @@
     },
     "users": {
       "assignment_not_found": "Toewijzing niet gevonden",
+      "attribute_name_invalid": "Kenmerknaam '{{name}}' mag alleen letters, cijfers en underscores bevatten en mag niet met een cijfer beginnen",
+      "attribute_name_missing": "Een kenmerk heeft een naam nodig",
+      "attribute_name_reserved": "'{{name}}' wordt bij elk verzoek ingesteld vanuit de handelende identiteit en kan niet als kenmerk worden vastgelegd",
+      "attribute_not_found": "Gebruiker '{{user}}' heeft geen kenmerk '{{name}}'",
       "last_org_admin": "{{user}} is de laatste organisatiebeheerder van: {{orgs}}. Bevorder eerst in elk daarvan een andere organisatiebeheerder, of verwijder de organisatie.",
       "last_platform_admin": "{{user}} is de laatste platformbeheerder van deze installatie. Ken de rol eerst aan een andere gebruiker toe.",
       "no_active_org": "Er is geen organisatie aan dit verzoek gekoppeld. Meld u eerst aan bij een organisatie.",

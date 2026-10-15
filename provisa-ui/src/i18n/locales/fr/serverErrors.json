@@ -486,6 +486,10 @@
     },
     "users": {
       "assignment_not_found": "Affectation introuvable",
+      "attribute_name_invalid": "Le nom d'attribut '{{name}}' ne doit contenir que des lettres, des chiffres et des traits de soulignement, et ne doit pas commencer par un chiffre",
+      "attribute_name_missing": "Un attribut doit avoir un nom",
+      "attribute_name_reserved": "'{{name}}' est défini à partir de l'identité agissante à chaque requête et ne peut pas être enregistré comme attribut",
+      "attribute_not_found": "L'utilisateur '{{user}}' n'a pas d'attribut '{{name}}'",
       "last_org_admin": "{{user}} est le dernier administrateur d'organisation de : {{orgs}}. Promouvez d'abord un autre administrateur dans chacune, ou supprimez l'organisation.",
       "last_platform_admin": "{{user}} est le dernier administrateur de plateforme de ce déploiement. Accordez d'abord ce rôle à un autre utilisateur.",
       "no_active_org": "Aucune organisation n'est liée à cette requête. Connectez-vous d'abord à une organisation.",

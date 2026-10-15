@@ -486,6 +486,10 @@
     },
     "users": {
       "assignment_not_found": "未找到分配",
+      "attribute_name_invalid": "属性名 '{{name}}' 只能包含字母、数字和下划线，且不能以数字开头",
+      "attribute_name_missing": "属性需要名称",
+      "attribute_name_reserved": "'{{name}}' 在每个请求中由当前操作的身份绑定，不能记录为属性",
+      "attribute_not_found": "用户 '{{user}}' 没有属性 '{{name}}'",
       "last_org_admin": "{{user}} 是以下组织的最后一位组织管理员：{{orgs}}。请先在每个组织中提升另一位组织管理员，或删除该组织。",
       "last_platform_admin": "{{user}} 是此部署的最后一位平台管理员。请先将该角色授予其他用户。",
       "no_active_org": "此请求未绑定任何组织。请先登录某个组织。",

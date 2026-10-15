@@ -50,6 +50,8 @@ import { inviteUrl } from "../lib/authHost";
 import { ListTable, ListHead, ListRow, ListEmpty, ListItems } from "../components/list/ListTable";
 import { useListSortGroup, type ListColumn } from "../components/list/useListSortGroup";
 import { Tip } from "../components/Tip";
+import { SplitPane } from "../components/list/SplitPane";
+import { MemberAttributes } from "../components/admin/MemberAttributes";
 
 // REQ-1266: org_admin self-service team management. The org_admin invites people into their
 // active org and picks the role each invitee is granted on redemption (the invite carries
@@ -62,6 +64,8 @@ export function TeamPage() {
   const { roles } = useRoles();
   const [invites, setInvites] = useState<OrgInvite[]>([]);
   const [members, setMembers] = useState<OrgMember[]>([]);
+  // The member whose attributes the panel beside the list shows.
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [roleId, setRoleId] = useState<string | null>(null);
   // REQ-1287/REQ-1310: addressing the invitation is what makes it a message rather than a link the
   // org_admin has to carry themselves. Empty means a shareable link, which is still a valid choice.
@@ -300,7 +304,7 @@ export function TeamPage() {
   };
 
   return (
-    <Stack gap="lg" p="md" maw={860} data-testid="team-page">
+    <Stack gap="lg" p="md" data-testid="team-page">
       <div>
         <Title order={2}>{t("teamPage.title")}</Title>
         <Text c="dimmed" size="sm">
@@ -320,77 +324,110 @@ export function TeamPage() {
           controlTestId="team-section-members"
           title={t("teamPage.membersHeading")}
         >
-          <ListTable minWidth={640} testId="team-members">
-            <ListHead
-              sortGroup={memberSortGroup}
-              columns={[
-                { col: "person" },
-                { col: "provider" },
-                { col: "orgAdmin" },
-                t("teamPage.colActions"),
-              ]}
-            />
-            <Table.Tbody>
-              {members.length === 0 && <ListEmpty colSpan={4}>{t("teamPage.noMembers")}</ListEmpty>}
-              <ListItems
-                state={memberSortGroup}
-                colSpan={4}
-                rowKey={(m) => m.user_id}
-                render={(m) => {
-                  const lastAdmin = m.is_org_admin && adminCount <= 1;
-                  return (
-                    <ListRow testId={`team-member-${m.user_id}`}>
-                      <Table.Td>
-                        <Text size="sm">{m.display_name ?? m.email ?? m.user_id}</Text>
-                        {m.email && m.display_name && (
-                          <Text size="xs" c="dimmed">
-                            {m.email}
-                          </Text>
-                        )}
-                      </Table.Td>
-                      <Table.Td>{m.provider ?? "—"}</Table.Td>
-                      <Table.Td>{m.is_org_admin ? t("teamPage.yes") : t("teamPage.no")}</Table.Td>
-                      <Table.Td>
-                        <Group gap="xs">
-                          <Tip text={lastAdmin ? t("teamPage.lastAdminHint") : undefined}>
-                            <Button
-                              size="compact-xs"
-                              variant="default"
-                              disabled={lastAdmin}
-                              onClick={() => handleToggleAdmin(m)}
-                              data-testid={`team-toggle-admin-${m.user_id}`}
-                            >
-                              {m.is_org_admin ? t("teamPage.demote") : t("teamPage.promote")}
-                            </Button>
-                          </Tip>
-                          <Tip
-                            text={
-                              m.user_id === userId
-                                ? t("teamPage.selfRemoveHint")
-                                : lastAdmin
-                                  ? t("teamPage.lastAdminHint")
-                                  : undefined
-                            }
-                          >
-                            <Button
-                              size="compact-xs"
-                              color="red"
-                              variant="light"
-                              disabled={lastAdmin || m.user_id === userId}
-                              onClick={() => handleRemoveMember(m)}
-                              data-testid={`team-remove-${m.user_id}`}
-                            >
-                              {t("teamPage.removeButton")}
-                            </Button>
-                          </Tip>
-                        </Group>
-                      </Table.Td>
-                    </ListRow>
-                  );
-                }}
-              />
-            </Table.Tbody>
-          </ListTable>
+          <SplitPane
+            testId="team-members-split"
+            storageKey="provisa.team.detailWidth"
+            title={(() => {
+              const m = members.find((m) => m.user_id === selectedMemberId);
+              return m ? (m.display_name ?? m.email ?? m.user_id) : "";
+            })()}
+            onClose={() => setSelectedMemberId(null)}
+            labels={{
+              panel: t("teamPage.memberPanel"),
+              resize: t("teamPage.resizeMemberPanel"),
+              expand: t("teamPage.expandMemberPanel"),
+              restore: t("teamPage.restoreMemberPanel"),
+              close: t("teamPage.closeMemberPanel"),
+              backToList: t("teamPage.backToMembers"),
+            }}
+            list={
+              <ListTable minWidth={640} testId="team-members">
+                <ListHead
+                  sortGroup={memberSortGroup}
+                  columns={[
+                    { col: "person" },
+                    { col: "provider" },
+                    { col: "orgAdmin" },
+                    t("teamPage.colActions"),
+                  ]}
+                />
+                <Table.Tbody>
+                  {members.length === 0 && (
+                    <ListEmpty colSpan={4}>{t("teamPage.noMembers")}</ListEmpty>
+                  )}
+                  <ListItems
+                    state={memberSortGroup}
+                    colSpan={4}
+                    rowKey={(m) => m.user_id}
+                    render={(m) => {
+                      const lastAdmin = m.is_org_admin && adminCount <= 1;
+                      return (
+                        <ListRow
+                          testId={`team-member-${m.user_id}`}
+                          selected={m.user_id === selectedMemberId}
+                          onClick={() =>
+                            setSelectedMemberId(m.user_id === selectedMemberId ? null : m.user_id)
+                          }
+                        >
+                          <Table.Td>
+                            <Text size="sm">{m.display_name ?? m.email ?? m.user_id}</Text>
+                            {m.email && m.display_name && (
+                              <Text size="xs" c="dimmed">
+                                {m.email}
+                              </Text>
+                            )}
+                          </Table.Td>
+                          <Table.Td>{m.provider ?? "—"}</Table.Td>
+                          <Table.Td>
+                            {m.is_org_admin ? t("teamPage.yes") : t("teamPage.no")}
+                          </Table.Td>
+                          <Table.Td onClick={(e) => e.stopPropagation()}>
+                            <Group gap="xs">
+                              <Tip text={lastAdmin ? t("teamPage.lastAdminHint") : undefined}>
+                                <Button
+                                  size="compact-xs"
+                                  variant="default"
+                                  disabled={lastAdmin}
+                                  onClick={() => handleToggleAdmin(m)}
+                                  data-testid={`team-toggle-admin-${m.user_id}`}
+                                >
+                                  {m.is_org_admin ? t("teamPage.demote") : t("teamPage.promote")}
+                                </Button>
+                              </Tip>
+                              <Tip
+                                text={
+                                  m.user_id === userId
+                                    ? t("teamPage.selfRemoveHint")
+                                    : lastAdmin
+                                      ? t("teamPage.lastAdminHint")
+                                      : undefined
+                                }
+                              >
+                                <Button
+                                  size="compact-xs"
+                                  color="red"
+                                  variant="light"
+                                  disabled={lastAdmin || m.user_id === userId}
+                                  onClick={() => handleRemoveMember(m)}
+                                  data-testid={`team-remove-${m.user_id}`}
+                                >
+                                  {t("teamPage.removeButton")}
+                                </Button>
+                              </Tip>
+                            </Group>
+                          </Table.Td>
+                        </ListRow>
+                      );
+                    }}
+                  />
+                </Table.Tbody>
+              </ListTable>
+            }
+          >
+            {selectedMemberId === null ? null : (
+              <MemberAttributes key={selectedMemberId} userId={selectedMemberId} />
+            )}
+          </SplitPane>
         </CollapsibleItem>
 
         <CollapsibleItem

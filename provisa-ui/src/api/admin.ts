@@ -1878,6 +1878,51 @@ export async function removeUserAssignment(userId: string, assignmentId: number)
   if (!res.ok) throw httpError("remove assignment", res.status);
 }
 
+/** One attribute of a member: the org's record, or what their identity provider supplied at their
+ *  last sign-in. Where both name it, the org's value is in force and the provider's is overridden. */
+export interface MemberAttribute {
+  name: string;
+  value: string;
+  source: "org" | "idp";
+  overridden: boolean;
+}
+
+function attributesPath(userId: string, name?: string): string {
+  const base = `${API_BASE}/admin/users/${encodeURIComponent(userId)}/attributes`;
+  return name === undefined ? base : `${base}/${encodeURIComponent(name)}`;
+}
+
+export async function fetchMemberAttributes(userId: string): Promise<MemberAttribute[]> {
+  const res = await fetch(attributesPath(userId));
+  if (!res.ok) throw httpError("fetch attributes", res.status);
+  return res.json();
+}
+
+export async function setMemberAttribute(
+  userId: string,
+  name: string,
+  value: string,
+): Promise<MemberAttribute> {
+  const res = await fetch(attributesPath(userId, name), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ value }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(serverMessage(data, requestFailed("set attribute", res.status)));
+  }
+  return res.json();
+}
+
+export async function deleteMemberAttribute(userId: string, name: string): Promise<void> {
+  const res = await fetch(attributesPath(userId, name), { method: "DELETE" });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(serverMessage(data, requestFailed("delete attribute", res.status)));
+  }
+}
+
 export interface OrgInvite {
   token: string;
   org_id: string;

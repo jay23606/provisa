@@ -486,6 +486,10 @@
     },
     "users": {
       "assignment_not_found": "Zuweisung nicht gefunden",
+      "attribute_name_invalid": "Der Attributname '{{name}}' darf nur Buchstaben, Ziffern und Unterstriche enthalten und nicht mit einer Ziffer beginnen",
+      "attribute_name_missing": "Ein Attribut braucht einen Namen",
+      "attribute_name_reserved": "'{{name}}' wird bei jeder Anfrage aus der handelnden Identität gesetzt und kann nicht als Attribut erfasst werden",
+      "attribute_not_found": "Benutzer '{{user}}' hat kein Attribut '{{name}}'",
       "last_org_admin": "{{user}} ist der letzte Organisationsadministrator von: {{orgs}}. Befördern Sie dort jeweils einen weiteren Organisationsadministrator oder löschen Sie die Organisation zuerst.",
       "last_platform_admin": "{{user}} ist der letzte Plattformadministrator dieser Bereitstellung. Weisen Sie die Rolle zuerst einem anderen Benutzer zu.",
       "no_active_org": "An diese Anfrage ist keine Organisation gebunden. Melden Sie sich zuerst bei einer Organisation an.",

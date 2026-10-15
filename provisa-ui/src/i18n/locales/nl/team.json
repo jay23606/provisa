@@ -67,6 +67,29 @@
     "colEnvironment": "Omgeving",
     "envPerVisitorBadge": "Per bezoeker, {{ttl}}",
     "envSharedBadge": "Gedeeld: {{name}}",
-    "spentStatus": "Volledig ingewisseld"
+    "spentStatus": "Volledig ingewisseld",
+    "memberPanel": "Lidgegevens",
+    "resizeMemberPanel": "Formaat van het lidpaneel wijzigen",
+    "expandMemberPanel": "Lidpaneel uitvouwen",
+    "restoreMemberPanel": "Lidpaneel herstellen",
+    "closeMemberPanel": "Lidpaneel sluiten",
+    "backToMembers": "Terug naar leden",
+    "attributes": {
+      "help": "Kenmerken die een rijregel voor dit lid kan lezen. Wat de organisatie hier vastlegt, gaat voor op hetzelfde kenmerk van hun identiteitsprovider.",
+      "colName": "Kenmerk",
+      "colValue": "Waarde",
+      "colSource": "Bron",
+      "empty": "Nog geen kenmerken.",
+      "nameLabel": "Kenmerk",
+      "valueLabel": "Waarde",
+      "add": "Toevoegen",
+      "sourceOrg": "Organisatie",
+      "sourceIdp": "Identiteitsprovider",
+      "overriddenHint": "Overschreven door de waarde van de organisatie",
+      "edit": "{{name}} bewerken",
+      "saveEdit": "{{name}} opslaan",
+      "cancelEdit": "Bewerken annuleren",
+      "remove": "{{name}} verwijderen"
+    }
   }
 }

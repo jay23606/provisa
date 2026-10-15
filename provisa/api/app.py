@@ -685,6 +685,15 @@ class AppState:
         self._active_runtime().roles = value
 
     @property
+    def user_attributes(self) -> dict[str, dict[str, str]]:
+        """user id -> the attributes the org records for them (REQ-1382)."""
+        return self._active_runtime().user_attributes
+
+    @user_attributes.setter
+    def user_attributes(self, value: dict[str, dict[str, str]]) -> None:
+        self._active_runtime().user_attributes = value
+
+    @property
     def surfaces(self) -> dict[str, RoleSurface]:
         """role id -> the role's whole data surface, from one build (api/role_surface.py)."""
         return self._active_runtime().surfaces
@@ -2743,6 +2752,11 @@ async def _rebuild_schemas_impl(raw_config: dict | None = None, *, announce: boo
 
         await _load_masking_rules(conn, col_types_converted, roles, role_chains_by_id)
         await _load_kept(conn)  # REQ-1942
+        # REQ-1382: what the org records of its members, so a request's attributes resolve
+        # without a read (provisa.auth.attributes).
+        from provisa.core.repositories import user_attribute as _attr_repo
+
+        state.user_attributes = await _attr_repo.org_by_user(conn)
         await _check_fakes(conn)  # REQ-1494
 
         tracked_functions, tracked_webhooks = await _load_tracked_functions_and_webhooks(

@@ -79,9 +79,12 @@ class DeployError(Exception):
 
 
 #: The tables a deploy owns. Everything the projection writes, which is every carried and
-#: identity-only table except ``user_role_assignments`` -- who holds a role is never projected, so a
-#: tree carries no statement about it and a deploy must not act as though it did (REQ-1539).
-PROJECTED: frozenset[str] = (CARRIED | IDENTITY_ONLY) - frozenset({"user_role_assignments"})
+#: identity-only table except ``user_role_assignments`` and ``user_attributes`` -- who holds a role,
+#: and what the org records of its members (REQ-1382), are never projected, so a tree carries no
+#: statement about them and a deploy must not act as though it did (REQ-1539).
+PROJECTED: frozenset[str] = (CARRIED | IDENTITY_ONLY) - frozenset(
+    {"user_role_assignments", "user_attributes"}
+)
 
 #: The directories that address a root kind rather than a domain. Every one is a reserved keyword,
 #: which is what lets a first path segment decide between the two without ambiguity.

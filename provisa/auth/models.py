@@ -47,6 +47,10 @@ class AuthIdentity:  # REQ-120
     # role the identity holds (``roles``): a user exercises a right only acting as a role that
     # carries it. Bound by the auth middleware for each request; None until then.
     acting_roles: list[str] | None = None
+    # REQ-1382: the attributes the org records for this user (provisa.auth.attributes), read from
+    # the org the request is bound to. They overlay the provider's claims as session variables.
+    # Bound by the auth middleware with the acting roles; None until then.
+    org_attributes: dict[str, str] | None = None
 
 
 @dataclass
