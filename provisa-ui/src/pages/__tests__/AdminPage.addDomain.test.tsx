@@ -18,7 +18,12 @@ import { render } from "../../test-utils/render";
 const deleteDomain = vi.fn(async (_id: string) => ({ success: true, message: "ok" }));
 const createDomain =
   vi.fn<
-    (id: string, description: string, alias?: string | null) => Promise<Record<string, unknown>>
+    (
+      id: string,
+      description: string,
+      alias: string | null,
+      parent: string | null,
+    ) => Promise<Record<string, unknown>>
   >();
 const refetch = vi.fn(async () => undefined);
 // One object per hook, the same on every render: the page derives state from these in effects.
@@ -94,7 +99,7 @@ describe("Admin > Domains: adding a domain", () => {
     createDomain.mockResolvedValueOnce({ success: true, message: "Domain 'finance' created" });
     await addDomain("finance");
     await waitFor(() => expect(screen.queryByTestId("new-domain-form")).toBeNull());
-    expect(createDomain).toHaveBeenCalledWith("finance", "", null);
+    expect(createDomain).toHaveBeenCalledWith("finance", "", null, null);
     expect(refetch).toHaveBeenCalled();
   });
 });

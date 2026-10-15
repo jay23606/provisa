@@ -91,7 +91,10 @@ CREATE TABLE IF NOT EXISTS domains (
     id            TEXT PRIMARY KEY,
     description   TEXT NOT NULL DEFAULT '',
     steward       TEXT,
-    graphql_alias TEXT
+    graphql_alias TEXT,
+    -- REQ-1363: the domain this one sits under; NULL = no parent. No foreign key (see
+    -- schema_org.domains): the model store holds the tree.
+    parent_domain_id TEXT
 );
 ALTER TABLE domains ADD COLUMN IF NOT EXISTS graphql_alias TEXT;
 -- REQ-609: designated steward; NULL = pending (the domain may not serve governed data).

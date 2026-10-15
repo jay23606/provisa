@@ -654,6 +654,13 @@ def _decompose(  # noqa: C901 -- allow-complex: one branch per projected kind, a
                 named(path, "parent role", entry.get("parent_role_id"), roles)
             rows[table].append(entry)
 
+    # REQ-1363: the domain files state a tree. A parent that is no domain of this tree, or a
+    # domain that is its own ancestor, is refused with the rest, by name.
+    from provisa.security.domain_tree import parent_map, tree_problem
+
+    not_a_tree = tree_problem(parent_map(rows["domains"]))
+    if not_a_tree is not None:
+        problems.append(not_a_tree)
     if problems:
         raise DeployError(problems)
     return rows

@@ -483,6 +483,10 @@ class Domain(BaseModel):  # REQ-471, REQ-609
     # catalogs (REQ-1070), so an unstewarded domain shows as a gap rather than disappearing.
     steward: str | None = None
     graphql_alias: str | None = None
+    # REQ-1363: the domain this one sits under — a business unit and the organizations within
+    # it. Governance structure only: a role that lists the parent reaches every domain under
+    # it, and addressing stays flat (a table is still ``domain.table`` of its one domain).
+    parent_domain_id: str | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -2704,6 +2708,17 @@ class ProvisaConfig(BaseModel):
         from provisa.core.assignments_source import require_assignments_source
 
         require_assignments_source(self.multitenancy, self.auth.model_dump())
+        return self
+
+    @model_validator(mode="after")
+    def _domains_form_a_tree(self) -> "ProvisaConfig":
+        """REQ-1363: every parent a domain names is a domain of this config, and no domain is
+        its own ancestor. The load fails naming the domain, or the domains of the cycle."""
+        from provisa.security.domain_tree import parent_map, tree_problem
+
+        problem = tree_problem(parent_map(d.model_dump() for d in self.domains))
+        if problem is not None:
+            raise ValueError(problem)
         return self
 
     @model_validator(mode="after")

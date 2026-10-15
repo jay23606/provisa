@@ -197,6 +197,10 @@
     "policyApplyFailed": "Не удалось применить политику доменов",
     "settingsPanel": "Настройки",
     "deleteDomainTitle": "Удалить домен «{{id}}»?",
-    "deleteDomainConsequence": "Домен будет удалён. Домен, который ещё используется, удалить нельзя."
+    "deleteDomainConsequence": "Домен будет удалён. Домен, который ещё используется, удалить нельзя.",
+    "colParentDomain": "Родительский домен",
+    "parentDomainHint": "Роль с доступом к родительскому домену получает доступ и к этому.",
+    "noParentDomain": "Без родителя",
+    "stewardInherited": "унаследован"
   }
 }

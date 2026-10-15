@@ -80,6 +80,7 @@
     "tagPrefix": "标签：",
     "labelTag": "标签：",
     "tagTableCount_one": "用于 {{count}} 张表",
-    "tagTableCount_other": "用于 {{count}} 张表"
+    "tagTableCount_other": "用于 {{count}} 张表",
+    "alsoReaches": "也能访问其下的域：{{domains}}"
   }
 }

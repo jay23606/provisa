@@ -197,6 +197,10 @@
     "policyApplyFailed": "Applicazione del criterio di dominio non riuscita",
     "settingsPanel": "Impostazioni",
     "deleteDomainTitle": "Eliminare il dominio \"{{id}}\"?",
-    "deleteDomainConsequence": "Il dominio viene rimosso. Un dominio ancora in uso non può essere eliminato."
+    "deleteDomainConsequence": "Il dominio viene rimosso. Un dominio ancora in uso non può essere eliminato.",
+    "colParentDomain": "Dominio padre",
+    "parentDomainHint": "Un ruolo con accesso al dominio padre raggiunge anche questo.",
+    "noParentDomain": "Nessun padre",
+    "stewardInherited": "ereditato"
   }
 }

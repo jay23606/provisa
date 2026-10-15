@@ -6434,5 +6434,10 @@
   "ru/landingScope.json::landingScope.argumentsNotJson": "Not valid JSON",
   "ru/landingScope.json::landingScope.argumentsNotObject": "Give a JSON object of argument names and values",
   "ru/landingScope.json::landingScope.readFilter": "Landing filter",
-  "ru/landingScope.json::landingScope.readArguments": "Fixed arguments"
+  "ru/landingScope.json::landingScope.readArguments": "Fixed arguments",
+  "ru/adminPage.json::adminPage.colParentDomain": "Parent domain",
+  "ru/adminPage.json::adminPage.parentDomainHint": "A role granted the parent domain reaches this one too.",
+  "ru/adminPage.json::adminPage.noParentDomain": "No parent",
+  "ru/adminPage.json::adminPage.stewardInherited": "inherited",
+  "ru/securityPage.json::securityPage.alsoReaches": "Also reaches the domains under them: {{domains}}"
 }

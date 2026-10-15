@@ -80,6 +80,7 @@
     "tagPrefix": "тег:",
     "labelTag": "Тег:",
     "tagTableCount_one": "на {{count}} таблице",
-    "tagTableCount_other": "на {{count}} таблицах"
+    "tagTableCount_other": "на {{count}} таблицах",
+    "alsoReaches": "Также охватывает домены под ними: {{domains}}"
   }
 }

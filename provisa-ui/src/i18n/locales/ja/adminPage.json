@@ -197,6 +197,10 @@
     "policyApplyFailed": "ドメインポリシーの適用に失敗しました",
     "settingsPanel": "設定",
     "deleteDomainTitle": "ドメイン「{{id}}」を削除しますか？",
-    "deleteDomainConsequence": "ドメインは削除されます。使用中のドメインは削除できません。"
+    "deleteDomainConsequence": "ドメインは削除されます。使用中のドメインは削除できません。",
+    "colParentDomain": "親ドメイン",
+    "parentDomainHint": "親ドメインを付与されたロールはこのドメインにも届きます。",
+    "noParentDomain": "親なし",
+    "stewardInherited": "継承"
   }
 }

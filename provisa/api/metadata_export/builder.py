@@ -95,11 +95,15 @@ def _source_assets(
 
 
 def _domain_assets(config: ProvisaConfig, org_id: str | None) -> list[DomainAsset]:  # REQ-609
+    from provisa.security.domain_tree import effective_steward, parent_map
+
+    parents = parent_map(d.model_dump() for d in config.domains)
+    stewards = {d.id: d.steward for d in config.domains}
     assets: list[DomainAsset] = []
     for domain in config.domains:
-        steward = (
-            OwnerRef(id=domain.steward, kind="steward") if domain.steward is not None else None
-        )
+        # REQ-1363: a domain with no steward answers to its nearest ancestor's.
+        owner = effective_steward(domain.id, stewards, parents)
+        steward = OwnerRef(id=owner, kind="steward") if owner is not None else None
         # REQ-609: a domain with no steward is published as pending rather than omitted — the
         # catalog must show the governance gap, not a shorter list of domains.
         assets.append(

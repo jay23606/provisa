@@ -39,7 +39,7 @@ import { PageLoading } from "../components/PageLoading";
 import { useDependentsDialog } from "../hooks/useDependentsDialog";
 import { ResidencyGrant } from "../components/admin/ResidencyGrant";
 import { RoleRead } from "./security/RoleRead";
-import { CapabilityGrid, DomainsNote } from "./security/RoleFormParts";
+import { CapabilityGrid, DomainsNote, SubtreeNote } from "./security/RoleFormParts";
 import { useRegionChoices } from "../hooks/useRegionQueries";
 import { ListTable, ListHead, ListRow, ListItems } from "../components/list/ListTable";
 import { useListSortGroup, type ListColumn } from "../components/list/useListSortGroup";
@@ -274,6 +274,7 @@ export function SecurityRolesPage() {
           value={roleForm.domainAccess}
           onChange={(selected) => setRoleForm({ ...roleForm, domainAccess: selected })}
         />
+        <SubtreeNote listed={roleForm.domainAccess} domains={domains} />
       </FormField>
       {!listsADomain(roleForm) && (
         <FormField size="full">
@@ -374,6 +375,7 @@ export function SecurityRolesPage() {
                 value={roleForm.domainAccess}
                 onChange={(selected) => setRoleForm({ ...roleForm, domainAccess: selected })}
               />
+              <SubtreeNote listed={roleForm.domainAccess} domains={domains} />
             </FormField>
             {!listsADomain(roleForm) && (
               <FormField size="full">

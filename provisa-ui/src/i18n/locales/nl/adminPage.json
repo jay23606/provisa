@@ -197,6 +197,10 @@
     "policyApplyFailed": "Toepassen van domeinbeleid mislukt",
     "settingsPanel": "Instellingen",
     "deleteDomainTitle": "Domein \"{{id}}\" verwijderen?",
-    "deleteDomainConsequence": "Het domein wordt verwijderd. Een domein dat nog in gebruik is, kan niet worden verwijderd."
+    "deleteDomainConsequence": "Het domein wordt verwijderd. Een domein dat nog in gebruik is, kan niet worden verwijderd.",
+    "colParentDomain": "Bovenliggend domein",
+    "parentDomainHint": "Een rol met toegang tot het bovenliggende domein bereikt ook dit domein.",
+    "noParentDomain": "Geen bovenliggend",
+    "stewardInherited": "overgenomen"
   }
 }

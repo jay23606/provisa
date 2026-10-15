@@ -175,6 +175,12 @@ domains = Table(
     Column("description", Text, nullable=False, server_default=""),
     Column("steward", Text),  # REQ-609: designated steward; NULL = pending
     Column("graphql_alias", Text),
+    # REQ-1363: the domain this one sits under (a business unit and its organizations); NULL =
+    # no parent. No foreign key: a load or a deploy writes the whole tree at once, in no order
+    # a self-reference could rely on. What holds it is the model store — a parent with children
+    # is refused deletion (repositories.integrity), and an unknown parent or a cycle is refused
+    # by name wherever a tree is written (security.domain_tree).
+    Column("parent_domain_id", Text),
     Column("org_id", Text),  # cross-model ref -> admin.orgs
     Column("tenant_id", Uuid),
 )

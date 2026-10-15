@@ -74,7 +74,9 @@ def _domain_rule(role: str, domain: str, expr: str) -> dict:
 
 
 def _rules_for(role: str, rules: list[dict], assignments: list[dict]) -> dict[int, str]:
-    return build_rls_context(resolve_table_rules(rules, TABLES, CHAINS, assignments), role).rules
+    return build_rls_context(
+        resolve_table_rules(rules, TABLES, CHAINS, assignments, {}), role
+    ).rules
 
 
 class TestTagRuleReach:
@@ -181,7 +183,9 @@ class TestResolvedRulesReachGovernance:
                 "columns": [{"column_name": "id"}, {"column_name": "region"}],
             }
         ]
-        rls = build_rls_context(resolve_table_rules(rules, TABLES, CHAINS, assignments), "analyst")
+        rls = build_rls_context(
+            resolve_table_rules(rules, TABLES, CHAINS, assignments, {}), "analyst"
+        )
         return build_governance_context(
             "analyst", rls, {}, ctx, tables, role=unscoped_role("analyst")
         )

@@ -429,7 +429,15 @@ _OPS_REPORT_VIEWS: dict[str, str] = {
         SELECT 'domain:' || d.id, 'domain', d.id, d.id,
                'missing_steward'
         FROM domains d
-        WHERE d.steward IS NULL AND d.id <> ''
+        WHERE d.id <> '' AND d.id NOT IN (
+            -- a domain under a stewarded one answers to that steward
+            WITH RECURSIVE stewarded(id) AS (
+                SELECT id FROM domains WHERE steward IS NOT NULL
+                UNION
+                SELECT c.id FROM domains c JOIN stewarded s ON c.parent_domain_id = s.id
+            )
+            SELECT id FROM stewarded
+        )
     """,
     # Table pairs most often read in the same query — materialization/caching
     # candidates. Pairs ordered table_id_a < table_id_b to count each pair once.

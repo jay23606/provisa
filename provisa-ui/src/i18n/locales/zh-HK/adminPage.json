@@ -197,6 +197,10 @@
     "policyApplyFailed": "套用網域原則失敗",
     "settingsPanel": "設定",
     "deleteDomainTitle": "刪除網域「{{id}}」？",
-    "deleteDomainConsequence": "該網域將被移除。仍在使用中的網域無法刪除。"
+    "deleteDomainConsequence": "該網域將被移除。仍在使用中的網域無法刪除。",
+    "colParentDomain": "父域",
+    "parentDomainHint": "獲授予父域的角色亦能存取此域。",
+    "noParentDomain": "無父域",
+    "stewardInherited": "繼承"
   }
 }

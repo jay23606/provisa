@@ -197,6 +197,10 @@
     "policyApplyFailed": "החלת מדיניות הדומיין נכשלה",
     "settingsPanel": "הגדרות",
     "deleteDomainTitle": "למחוק את הדומיין \"{{id}}\"?",
-    "deleteDomainConsequence": "הדומיין יוסר. לא ניתן למחוק דומיין שעדיין בשימוש."
+    "deleteDomainConsequence": "הדומיין יוסר. לא ניתן למחוק דומיין שעדיין בשימוש.",
+    "colParentDomain": "דומיין אב",
+    "parentDomainHint": "תפקיד שקיבל גישה לדומיין האב מגיע גם לדומיין זה.",
+    "noParentDomain": "ללא אב",
+    "stewardInherited": "בירושה"
   }
 }

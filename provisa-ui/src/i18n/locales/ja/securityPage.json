@@ -80,6 +80,7 @@
     "tagPrefix": "タグ:",
     "labelTag": "タグ:",
     "tagTableCount_one": "{{count}} 個のテーブルに付与",
-    "tagTableCount_other": "{{count}} 個のテーブルに付与"
+    "tagTableCount_other": "{{count}} 個のテーブルに付与",
+    "alsoReaches": "その下のドメインにも届きます: {{domains}}"
   }
 }

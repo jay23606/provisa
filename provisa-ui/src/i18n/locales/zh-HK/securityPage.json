@@ -80,6 +80,7 @@
     "tagPrefix": "標籤：",
     "labelTag": "標籤：",
     "tagTableCount_one": "用於 {{count}} 個資料表",
-    "tagTableCount_other": "用於 {{count}} 個資料表"
+    "tagTableCount_other": "用於 {{count}} 個資料表",
+    "alsoReaches": "亦能存取其下的域：{{domains}}"
   }
 }

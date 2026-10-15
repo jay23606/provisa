@@ -10,6 +10,8 @@
 
 import { useTranslation } from "react-i18next";
 import { Checkbox, Group, Text } from "@mantine/core";
+import { alsoReached } from "../../lib/domainTree";
+import type { TreeDomain } from "../../lib/domainTree";
 import { FormField } from "../../components/form/FormLayout";
 import type { Capability } from "../../types/auth";
 
@@ -51,6 +53,20 @@ export function DomainsNote({ savedWithNone }: { savedWithNone: boolean }) {
   ) : (
     <Text size="sm" c="red" role="alert" data-testid="role-domains-required">
       {t("securityPage.domainsRequired")}
+    </Text>
+  );
+}
+
+/** REQ-1363: a role that lists a domain reaches every domain under it. The picker shows what was
+ *  chosen; this says what else that choice reaches, so a grant on a business unit is not mistaken
+ *  for a grant on one domain. Nothing is rendered when the choice reaches no more. */
+export function SubtreeNote({ listed, domains }: { listed: string[]; domains: TreeDomain[] }) {
+  const { t } = useTranslation();
+  const reached = alsoReached(listed, domains);
+  if (listed.includes("*") || reached.length === 0) return null;
+  return (
+    <Text size="sm" c="dimmed" role="note" data-testid="role-domain-subtree">
+      {t("securityPage.alsoReaches", { count: reached.length, domains: reached.join(", ") })}
     </Text>
   );
 }

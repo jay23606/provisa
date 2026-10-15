@@ -177,6 +177,7 @@ COLUMN_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "id": "Domain name — the identifier roles are granted access to",
         "description": "What the domain covers",
         "steward": "Role or principal accountable for the domain's metadata quality",
+        "parent_domain_id": "Domain this one sits under; a role granted the parent reaches it too",
         "graphql_alias": "Name the domain is exposed under in GraphQL, when it differs",
         "org_id": "Org the domain was defined in",
         "tenant_id": _TENANT,

@@ -197,6 +197,10 @@
     "policyApplyFailed": "डोमेन नीति लागू करने में विफल",
     "settingsPanel": "सेटिंग्स",
     "deleteDomainTitle": "डोमेन \"{{id}}\" हटाएँ?",
-    "deleteDomainConsequence": "डोमेन हटा दिया जाएगा। जो डोमेन अभी उपयोग में है उसे हटाया नहीं जा सकता।"
+    "deleteDomainConsequence": "डोमेन हटा दिया जाएगा। जो डोमेन अभी उपयोग में है उसे हटाया नहीं जा सकता।",
+    "colParentDomain": "मूल डोमेन",
+    "parentDomainHint": "मूल डोमेन की पहुँच वाली भूमिका इस डोमेन तक भी पहुँचती है।",
+    "noParentDomain": "कोई मूल नहीं",
+    "stewardInherited": "विरासत में"
   }
 }

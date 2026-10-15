@@ -197,6 +197,10 @@
     "policyApplyFailed": "Échec de l'application de la politique de domaine",
     "settingsPanel": "Paramètres",
     "deleteDomainTitle": "Supprimer le domaine « {{id}} » ?",
-    "deleteDomainConsequence": "Le domaine est supprimé. Un domaine encore utilisé ne peut pas être supprimé."
+    "deleteDomainConsequence": "Le domaine est supprimé. Un domaine encore utilisé ne peut pas être supprimé.",
+    "colParentDomain": "Domaine parent",
+    "parentDomainHint": "Un rôle autorisé sur le domaine parent atteint aussi celui-ci.",
+    "noParentDomain": "Aucun parent",
+    "stewardInherited": "hérité"
   }
 }

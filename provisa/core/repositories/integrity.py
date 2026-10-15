@@ -183,6 +183,8 @@ REFERENCES: tuple[Reference, ...] = (
     _dep("tracked_webhooks", "domain_id", "domain", "webhook", "name"),
     _dep("provisa_sources", "domain_id", "domain", "remote_registration", "id"),
     _dep("user_role_assignments", "domain_id", "domain", "role_assignment", "id"),
+    # REQ-1363: a domain's children block it -- they are moved or removed first.
+    _dep("domains", "parent_domain_id", "domain", "domain", "id"),
     # --- to a source ---------------------------------------------------------------------------
     _dep("registered_tables", "source_id", "source", "table", "id"),
     # REQ-1934: a table's Data Profiler membership.

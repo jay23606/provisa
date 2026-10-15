@@ -197,6 +197,10 @@
     "policyApplyFailed": "Falha ao aplicar a política de domínio",
     "settingsPanel": "Configurações",
     "deleteDomainTitle": "Excluir o domínio \"{{id}}\"?",
-    "deleteDomainConsequence": "O domínio é removido. Um domínio que ainda está em uso não pode ser excluído."
+    "deleteDomainConsequence": "O domínio é removido. Um domínio que ainda está em uso não pode ser excluído.",
+    "colParentDomain": "Domínio pai",
+    "parentDomainHint": "Um papel com acesso ao domínio pai também alcança este.",
+    "noParentDomain": "Sem pai",
+    "stewardInherited": "herdado"
   }
 }
