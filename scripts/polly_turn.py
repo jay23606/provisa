@@ -8,12 +8,13 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 
-"""One bake-off question as the chat panel asks it (REQ-2012): the turn, every client-tool pause
-answered the way the browser answers it and the turn resumed, as useMcpChat.ts does.
+"""A question put to Polly as the chat panel asks it (REQ-2012): the turn, every client-tool pause
+answered the way the browser answers it and the turn resumed, as useMcpChat.ts does. The Polly
+bake-off asks its questions so, and a demo's bundle build its tour's stored answers.
 
 A pause the browser would answer with a person's choice (present_choice) or confirmation
 (refresh_mv) has no one to answer it here: the question ends with that as its error. Kept apart
-from the e2e test so it can be checked without a server."""
+from a server so it can be checked without one."""
 
 # Requirements: REQ-2012, REQ-1795
 

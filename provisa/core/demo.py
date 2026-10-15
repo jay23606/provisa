@@ -61,7 +61,8 @@ def example_queries(directory: Path | None) -> list[dict[str, str]]:  # REQ-2009
 
 
 def tour_answers_path(named: str) -> Path:  # REQ-2012
-    """Where the demo's template build stores Polly's answers to its tour's questions:
+    """Where the demo's bundle build stores Polly's answers to its tour's questions
+    (scripts/demo_bundle.py):
     ``{"<step key>": {"question": ..., "answer": ...}}``."""
     return Path(named) / "tour_answers.json"
 
@@ -86,7 +87,7 @@ def demo_tour(directory: Path | None) -> list[dict[str, str]]:  # REQ-2010
     started or it has no tour.
 
     REQ-2012: a step asking Polly a question (``polly``) carries the answer stored for it when the
-    demo's template was built, as ``answer``, if one was stored for that same question; the UI
+    demo's bundle was built, as ``answer``, if one was stored for that same question; the UI
     leaves out a step with none. Nothing is asked when a visitor walks the tour."""
     import json
 
@@ -101,7 +102,7 @@ def demo_tour(directory: Path | None) -> list[dict[str, str]]:  # REQ-2010
     steps = yaml.safe_load(path.read_text(encoding="utf-8"))["steps"]
     answers_path = tour_answers_path(named)
     if not answers_path.is_file():
-        return steps  # a demo not built from a template: no stored answers
+        return steps  # a demo not built as a bundle: no stored answers
     stored = json.loads(answers_path.read_text(encoding="utf-8"))
     for step in steps:
         entry = stored.get(step["key"]) if "polly" in step else None
