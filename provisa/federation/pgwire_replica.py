@@ -865,6 +865,11 @@ class PgwireServer:  # REQ-955
             time.sleep(0.1)
 
 
+#: A catalog preparation that failed for want of an answer -- the connection timed out, was
+#: refused or was dropped -- rather than one the server answered with an error.
+_UNANSWERED: tuple[type[BaseException], ...] = (TimeoutError, OSError)
+
+
 def _prepare_catalog(ports: PortPair) -> None:
     """Send the server its first catalog query, as the user the engines attach as, and wait for
     the answer (see ``ConnectorReplica.await_catalog``). One round trip on a connection of its
@@ -1277,7 +1282,10 @@ class ConnectorReplica:  # REQ-954/955/956
         query is sent here, once, from a thread of its own (``_prepare_catalog``); every attach
         and statement meanwhile is answered "still starting" at once, and the attach that
         follows finds the catalog prepared. A failed preparation is ``ServerCatalogFailed`` and
-        is not sent again until the server is restarted."""
+        is not sent again until the server is restarted -- unless it failed for want of an answer
+        (a timeout, a refused or dropped connection): a server that has only just opened its port
+        can be too busy to answer, so the next request sends it again, and meanwhile the source is
+        still starting rather than failed for good."""
         with self._start_lock:
             if self._catalog_ready:
                 return
@@ -1308,6 +1316,11 @@ class ConnectorReplica:  # REQ-954/955/956
         with self._start_lock:
             if server != self._catalog_server:
                 return  # its server was stopped: the next one's catalog is prepared afresh
+            if isinstance(error, _UNANSWERED):
+                # Not an answer from the server, so nothing it said is kept: the next
+                # await_catalog sends the query again.
+                self._catalog_thread = None
+                return
             self._catalog_error = error
             self._catalog_ready = error is None
 

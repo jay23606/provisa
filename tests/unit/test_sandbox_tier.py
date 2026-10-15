@@ -229,3 +229,28 @@ async def test_a_demo_that_declares_no_embedding_model_leaves_its_template_none(
     monkeypatch.setattr(org_settings, "write_org_overrides", write)
     await write_declared_vector_models(object(), SimpleNamespace(vector_models=[]))
     assert written == [{"vector_models": None}]  # an earlier build's models are cleared
+
+
+def test_the_demos_connector_bundles_are_fetched_outside_any_request(monkeypatch, tmp_path):
+    """The sandbox tier fetches the bundle of every connector a published demo reads through (the
+    files demo's file connector) into the runtime-deps cache at startup, so no visitor's request
+    waits for hundreds of megabytes."""
+    from provisa.api import demo_templates
+    from provisa.core import request_deadline
+    from provisa.runtime_deps import pgwire_bundles as rd
+
+    monkeypatch.delenv("PROVISA_DEMO_BUNDLES", raising=False)
+    monkeypatch.delenv("PROVISA_NAMED_DEMO_DIR", raising=False)
+    monkeypatch.setenv("PROVISA_RUNTIME_DEPS_CACHE", str(tmp_path))
+    fetched: list[tuple[str, float | None]] = []
+
+    def _download(spec, dest):
+        fetched.append((spec.artifact_name, request_deadline.remaining()))
+        (dest / "bin").mkdir(parents=True)
+        (dest / "bin" / spec.artifact_name).write_text("")
+
+    monkeypatch.setattr(rd, "download_release_asset", _download)
+    assert [s.artifact_name for s in demo_templates.connector_bundles()] == ["pgwire-file"]
+    demo_templates.prefetch_connector_bundles()
+    assert fetched == [("pgwire-file", None)]
+    assert rd.BundleResolver().is_cached(rd.bundle_spec_for("files"))
