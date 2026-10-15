@@ -136,7 +136,14 @@ def _path_names(path: str, prefix: str) -> tuple[str, str]:
 
 
 def test_there_is_a_demo_tour_to_check():
-    assert [p.parent.name for p in TOURS] == ["files", "sonnets", "weblogs"]
+    """The tours are found, not listed: every published demo has one, so none is left unchecked."""
+    published = {
+        spec.parent.name
+        for spec in _NAMED.glob("*/demo.yaml")
+        if yaml.safe_load(spec.read_text()).get("published") is True
+    }
+    assert published, "no published demo"
+    assert published <= {p.parent.name for p in TOURS}, "a published demo with no tour.yaml"
 
 
 @pytest.mark.parametrize("path", TOURS, ids=[p.parent.name for p in TOURS])
