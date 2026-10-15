@@ -641,8 +641,11 @@ class EngineAttachedStore(_SyncedStore):
     no lock is taken, no write generation is kept, and the engine reads it in place rather than
     copying a table per statement, so the copy's canary has nothing to answer."""
 
-    def __init__(self, con: Any) -> None:
+    def __init__(self, con: Any, listing: Any) -> None:
         self._con = con
+        # The engine's ``DuckDBRuntime._listing``: the store's catalog listings run on the engine
+        # connection, which an unreachable source's attach would otherwise fail (#256).
+        self._listing = listing
 
     def _run(
         self, fn: Any, *, read_only: bool = False, canary: bool = False, unseen: bool = False
@@ -652,12 +655,15 @@ class EngineAttachedStore(_SyncedStore):
             raise RuntimeError(_READ_IN_PLACE)
         from provisa.core import request_deadline
 
-        cur = self._con.cursor()
-        try:
-            with request_deadline.cancel_on_deadline(cur.interrupt):
-                return fn(cur)
-        finally:
-            cur.close()
+        def _once() -> Any:
+            cur = self._con.cursor()
+            try:
+                with request_deadline.cancel_on_deadline(cur.interrupt):
+                    return fn(cur)
+            finally:
+                cur.close()
+
+        return self._listing(_once)
 
     def canary(self) -> StoreCanary:
         raise RuntimeError(_READ_IN_PLACE)

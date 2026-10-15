@@ -102,6 +102,7 @@ def test_the_runtime_configures_the_pool_right_after_the_attach(workers):
     runtime._pg_ext_loaded = False
     runtime._raw_attached = set()
     runtime._raw_attach_ddl = {}
+    runtime._unreachable = {}
     runtime._attach_source = {}
     source = _pg(4)
     runtime._attach_raw(source, DuckDBPostgresConnector().details(source))
@@ -124,6 +125,7 @@ def test_an_environments_own_attach_has_its_own_pool_configured(workers):
     runtime._pg_ext_loaded = True
     runtime._raw_attached = set()
     runtime._raw_attach_ddl = {}
+    runtime._unreachable = {}
     runtime._attach_source = {}
     runtime._catalog_of = lambda _source: "dev"  # type: ignore[method-assign]
     runtime._ext_loaded = set()
