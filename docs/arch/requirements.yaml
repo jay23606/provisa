@@ -21177,14 +21177,15 @@
   feature: row-security-and-masking-masking
   priority: MUST
   type: behavioral
-  description: Masking SELECT expressions only; predicates that remain in the query (JOIN ON, RLS-injected
-    filters) use physical unmasked columns unchanged — user-written WHERE/HAVING references to masked
-    columns never reach this stage, rejected at validation time by V005 (REQ-531). ORDER BY, LIMIT, GROUP
-    BY, and all other clauses likewise remain unchanged, and masking returns a new immutable CompiledQuery,
-    never mutating the input (absorbs REQ-744). Masking injection operates on the SELECT projection list
-    exclusively, preserving query filtering and join semantics.
-  use_case: Separating masked SELECT projections from unmasked predicates ensures query filters remain
-    executable while users see masked values.
+  description: A masked column is its mask wherever the statement references it -- the select list,
+    expressions, JOIN ON, GROUP BY, ORDER BY and window clauses -- and a hidden column is NULL; a
+    user-written WHERE or HAVING reference to a masked column is refused at validation by V005 (REQ-531).
+    So a join on a masked key does not use the real value, and a role that may not see a key cannot
+    recover it by joining on it. A demo or model that needs the join for a masked role exposes a
+    non-sensitive surrogate key. RLS-injected filters read the physical columns. Masking returns a new
+    immutable CompiledQuery, never mutating the input (absorbs REQ-744).
+  use_case: A role sees masked values everywhere it reads them, and cannot use a masked key in a join to
+    reach the rows or values the mask withholds.
   code:
   - provisa/compiler/mask_inject.py
   - provisa/compiler/stage2.py
@@ -21193,16 +21194,18 @@
   - tests/e2e/test_masking.py
   - tests/integration/test_security_integration_extra.py
   since: 2026-06
-  scenario: 'Given a masked column also referenced in WHERE or JOIN ON
+  scenario: 'Given a column masked for a role and referenced in the select list and in a JOIN ON
 
-    When masking is injected
+    When the role runs the statement
 
-    Then SELECT projects the masked expression; WHERE and JOIN ON reference the physical unmasked column
+    Then both references read the masked expression, so the join does not match on the real value
+
+    And a WHERE or HAVING reference to the masked column is refused with V005
 
     '
   integration_test: required
-  integration_test_reason: Separating masked SELECT from unmasked predicates requires SQL AST rewriting
-    and execution to verify filter correctness.
+  integration_test_reason: That a join on a masked key reads the mask requires SQL AST rewriting and
+    execution to verify.
   bdd: true
   bdd_reason: Behavior expressed as stakeholder-readable Gherkin acceptance criteria.
   stakeholders:
@@ -21210,9 +21213,9 @@
   - data-engineer
   competitive_position:
     status: ahead
-    rationale: Applying masking only to SELECT projection while preserving unmasked column references
-      in WHERE/JOIN predicates is a deliberate security design that prevents leakage via predicate manipulation
-      while keeping queries functional.
+    rationale: Masking a column wherever the statement references it, joins included, keeps a masked
+      key from being recovered or used by a role that may not see it.
+  notes: 'Amended 2026-10-15 (maintainer): mask everywhere, as built in cb95696ee; JOIN ON reads the mask. Earlier text said JOIN ON reads the physical column.'
 - id: REQ-741
   status: complete
   group: 1. Access Governance & Security
