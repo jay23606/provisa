@@ -42,6 +42,8 @@
     "deleteAccountHeading": "Elimina account",
     "deleteAccountHelp": "Questa operazione rimuove l'account Provisa e l'appartenenza a ogni organizzazione. Le organizzazioni di appartenenza, e tutto ciò che vi è registrato, vengono conservate.",
     "deleteAccountConfirmLabel": "Digitare {{userId}} per confermare",
-    "deleteAccountButton": "Elimina il mio account"
+    "deleteAccountButton": "Elimina il mio account",
+    "patEnvironment": "Ambiente",
+    "patEnvironmentHelp": "Un token funziona in un solo ambiente: quello che stavi consultando quando lo hai emesso. Un nuovo token funzionerà in {{env}}."
   }
 }

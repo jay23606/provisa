@@ -161,6 +161,18 @@ async def resolve_selected_env(
     and a visitor whose environment is gone or expired is refused like anybody else whose
     environment is: there is no other environment a refusal could quietly become (REQ-1487).
     """
+    # REQ-1503: a non-interactive credential addresses exactly one environment, and the
+    # environment comes FROM the credential. A header naming another is refused rather than
+    # resolved in favour of either, and naming none is served by the credential's own.
+    credential_env = getattr(identity, "credential_env", None)
+    if credential_env is not None:
+        if requested is not None and requested != credential_env:
+            raise EnvironmentRightError(
+                f"this credential addresses environment {credential_env!r} and cannot be served "
+                f"by {requested!r}"
+            )
+        return await _existing_env(admin_db, org_id, credential_env)
+
     pinned_env = None
     if identity is not None and admin_db is not None:
         user_id = getattr(identity, "user_id", None)

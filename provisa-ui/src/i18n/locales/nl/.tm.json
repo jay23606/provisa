@@ -6269,5 +6269,7 @@
   "nl/tour.json::tour.steps.reviewsSearchStore.description": "<strong>reviews</strong> is Elasticsearch: the 5,000 reviews customers wrote, each with its product, its stars and its text. Provisa reads it live; nothing is copied first.",
   "nl/tour.json::tour.steps.reviewsSearchStore.title": "The reviews, in Elasticsearch",
   "nl/tour.json::tour.steps.reviewsSearchTable.description": "<strong>reviews_matching</strong> is an Elasticsearch search, registered as a table. Its phrase is a parameter: a query sets it, and each row is a review whose text holds the phrase, with the phrase highlighted.",
-  "nl/tour.json::tour.steps.reviewsSearchTable.title": "An Elasticsearch search as a table"
+  "nl/tour.json::tour.steps.reviewsSearchTable.title": "An Elasticsearch search as a table",
+  "nl/userProfileModal.json::userProfileModal.patEnvironment": "Environment",
+  "nl/userProfileModal.json::userProfileModal.patEnvironmentHelp": "A token works in one environment: the one you were reading when you issued it. A new token will work in {{env}}."
 }

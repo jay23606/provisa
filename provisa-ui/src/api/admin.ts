@@ -353,6 +353,8 @@ export interface PersonalAccessToken {
   expires_at: string | null;
   last_used_at: string | null;
   revoked_at: string | null;
+  // REQ-1503: the one environment the token addresses -- the one it was issued into.
+  env_name: string;
 }
 
 export async function listPersonalAccessTokens(): Promise<PersonalAccessToken[]> {

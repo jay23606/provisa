@@ -37,6 +37,11 @@ class AuthIdentity:  # REQ-120
     # ``environments.created_by`` when the environment is bound (``env_routing``), never stored and
     # never carried by a token; empty everywhere but inside the environment the caller created.
     env_capabilities: frozenset[str] = frozenset()
+    # REQ-1503: the environment a non-interactive credential addresses -- the one a personal
+    # access token was issued into. None for an interactive session, which names its environment
+    # on each request. Set, it is the environment the request is served by, and a request naming
+    # another is refused.
+    credential_env: str | None = None
 
 
 @dataclass

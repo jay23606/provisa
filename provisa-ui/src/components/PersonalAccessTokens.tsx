@@ -29,6 +29,7 @@ import {
   type PersonalAccessToken,
 } from "../api/admin";
 import { CopyButton } from "./CopyButton";
+import { selectedEnv } from "../lib/authFetch";
 
 /**
  * REQ-1263: the user's own personal access tokens — the credential every non-browser protocol
@@ -130,6 +131,11 @@ export function PersonalAccessTokens() {
         </Alert>
       )}
 
+      {/* REQ-1503: a token addresses the environment it is issued into, so the one a new token
+          will address is said before it is issued. */}
+      <Text fz="0.85rem" c="dimmed" mb="xs" data-testid="profile-pat-env-help">
+        {t("userProfileModal.patEnvironmentHelp", { env: selectedEnv() ?? "prod" })}
+      </Text>
       <FormLayout style={{ marginBottom: "0.75rem" }}>
         <FormField size="medium">
           <TextInput
@@ -182,6 +188,9 @@ export function PersonalAccessTokens() {
               <Table.Th c="dimmed" fw={500}>
                 {t("userProfileModal.patExpires")}
               </Table.Th>
+              <Table.Th c="dimmed" fw={500}>
+                {t("userProfileModal.patEnvironment")}
+              </Table.Th>
               <Table.Th />
             </Table.Tr>
           </Table.Thead>
@@ -194,6 +203,7 @@ export function PersonalAccessTokens() {
                 </Table.Td>
                 <Table.Td>{when(tok.last_used_at)}</Table.Td>
                 <Table.Td>{when(tok.expires_at)}</Table.Td>
+                <Table.Td data-testid={`pat-env-${tok.token_hash}`}>{tok.env_name}</Table.Td>
                 <Table.Td ta="right">
                   {tok.revoked_at ? (
                     <Badge size="xs" color="gray" data-testid={`profile-pat-revoked-${tok.prefix}`}>

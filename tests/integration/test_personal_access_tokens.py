@@ -137,7 +137,7 @@ _AS_ALICE = {"Authorization": "Bearer tok-alice", "x-org-provisa": _ORG}
 
 @pytest.mark.asyncio
 async def test_an_issued_token_resolves_to_its_owners_identity(store):
-    secret, row = await store.issue(user_id=_ALICE, org_id=_ORG, name="laptop")
+    secret, row = await store.issue(user_id=_ALICE, org_id=_ORG, env_name="prod", name="laptop")
 
     assert is_personal_access_token(secret), "a PAT must be recognizable by its prefix alone"
     assert "token_hash" not in row, "the issuance record must not echo the stored hash"
@@ -151,7 +151,7 @@ async def test_an_issued_token_resolves_to_its_owners_identity(store):
 @pytest.mark.asyncio
 async def test_the_identity_names_the_account_not_the_token(store):
     """REQ-1263: an audit row written under a PAT must name the person, not the credential."""
-    secret, _ = await store.issue(user_id=_ALICE, org_id=_ORG, name="ci-runner")
+    secret, _ = await store.issue(user_id=_ALICE, org_id=_ORG, env_name="prod", name="ci-runner")
 
     identity = await store.validate(secret)
 
@@ -165,7 +165,12 @@ async def test_the_identity_names_the_account_not_the_token(store):
 @pytest.mark.asyncio
 async def test_a_scoped_token_carries_its_own_role(store):
     secret, _ = await store.issue(
-        user_id=_ALICE, org_id=_ORG, name="readonly", role_id="analyst", scopes=["read"]
+        user_id=_ALICE,
+        org_id=_ORG,
+        env_name="prod",
+        name="readonly",
+        role_id="analyst",
+        scopes=["read"],
     )
 
     identity = await store.validate(secret)
@@ -176,7 +181,7 @@ async def test_a_scoped_token_carries_its_own_role(store):
 
 @pytest.mark.asyncio
 async def test_the_secret_is_not_recoverable_from_the_store(store):
-    secret, _ = await store.issue(user_id=_ALICE, org_id=_ORG, name="laptop")
+    secret, _ = await store.issue(user_id=_ALICE, org_id=_ORG, env_name="prod", name="laptop")
 
     rows = await store.list_for_user(_ALICE, _ORG)
 
@@ -195,7 +200,7 @@ async def test_an_unknown_token_is_rejected(store):
 
 @pytest.mark.asyncio
 async def test_a_revoked_token_stops_working(store):
-    secret, _ = await store.issue(user_id=_ALICE, org_id=_ORG, name="laptop")
+    secret, _ = await store.issue(user_id=_ALICE, org_id=_ORG, env_name="prod", name="laptop")
     await store.validate(secret)
 
     assert await store.revoke(token_hash=hash_token(secret), user_id=_ALICE)
@@ -206,7 +211,7 @@ async def test_a_revoked_token_stops_working(store):
 
 @pytest.mark.asyncio
 async def test_revocation_is_scoped_to_the_owner(store):
-    secret, _ = await store.issue(user_id=_ALICE, org_id=_ORG, name="laptop")
+    secret, _ = await store.issue(user_id=_ALICE, org_id=_ORG, env_name="prod", name="laptop")
 
     assert not await store.revoke(token_hash=hash_token(secret), user_id=_BOB), (
         "holding a token's hash must not let another user revoke it"
@@ -221,6 +226,7 @@ async def test_an_expired_token_is_rejected(store, planes):
     secret, _ = await store.issue(
         user_id=_ALICE,
         org_id=_ORG,
+        env_name="prod",
         name="short-lived",
         expires_at=datetime.datetime.now(timezone.utc) + datetime.timedelta(days=1),
     )
@@ -243,6 +249,7 @@ async def test_expiry_in_the_past_is_refused_at_issuance(store):
         await store.issue(
             user_id=_ALICE,
             org_id=_ORG,
+            env_name="prod",
             name="already-dead",
             expires_at=datetime.datetime.now(timezone.utc) - datetime.timedelta(days=1),
         )
@@ -253,8 +260,8 @@ async def test_leaving_an_org_revokes_that_orgs_tokens(store, planes):
     from provisa.core.org_membership import remove_from_org
 
     admin_db, tenant_db = planes
-    secret, _ = await store.issue(user_id=_ALICE, org_id=_ORG, name="laptop")
-    bob_secret, _ = await store.issue(user_id=_BOB, org_id=_ORG, name="bob-laptop")
+    secret, _ = await store.issue(user_id=_ALICE, org_id=_ORG, env_name="prod", name="laptop")
+    bob_secret, _ = await store.issue(user_id=_BOB, org_id=_ORG, env_name="prod", name="bob-laptop")
 
     await remove_from_org(admin_db, tenant_db, _ALICE, _ORG)
 

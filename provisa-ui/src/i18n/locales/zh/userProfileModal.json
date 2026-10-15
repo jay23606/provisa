@@ -42,6 +42,8 @@
     "deleteAccountHeading": "删除账号",
     "deleteAccountHelp": "此操作将删除您的 Provisa 账号以及您在所有组织中的成员身份。您所属的组织及其中注册的所有内容将被保留。",
     "deleteAccountConfirmLabel": "输入 {{userId}} 以确认",
-    "deleteAccountButton": "删除我的账号"
+    "deleteAccountButton": "删除我的账号",
+    "patEnvironment": "环境",
+    "patEnvironmentHelp": "令牌仅在一个环境中有效：即签发时您正在查看的环境。新令牌将在 {{env}} 中有效。"
   }
 }

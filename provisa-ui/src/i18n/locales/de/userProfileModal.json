@@ -42,6 +42,8 @@
     "deleteAccountHeading": "Konto löschen",
     "deleteAccountHelp": "Dies entfernt Ihr Provisa-Konto und Ihre Mitgliedschaft in jeder Organisation. Organisationen, denen Sie angehören, und alles darin Registrierte bleiben erhalten.",
     "deleteAccountConfirmLabel": "Geben Sie {{userId}} zur Bestätigung ein",
-    "deleteAccountButton": "Mein Konto löschen"
+    "deleteAccountButton": "Mein Konto löschen",
+    "patEnvironment": "Umgebung",
+    "patEnvironmentHelp": "Ein Token funktioniert in einer Umgebung: der, die Sie beim Ausstellen gelesen haben. Ein neues Token funktioniert in {{env}}."
   }
 }
