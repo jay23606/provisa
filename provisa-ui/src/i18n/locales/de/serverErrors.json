@@ -125,7 +125,8 @@
       "replica_building": "Die Kopie von {{replica}} wird noch erstellt. Der Aufbau läuft weiter; öffnen Sie die Vorschau erneut, sobald er abgeschlossen ist.",
       "address_invalid": "Die Adresse kann nicht aufgelöst werden: {{reason}}",
       "address_not_found": "Nichts aufzulösen: {{reason}}",
-      "mixed_resolve_and_other_fields": "resolve kann in einer Operation nicht mit anderen Wurzelfeldern kombiniert werden"
+      "mixed_resolve_and_other_fields": "resolve kann in einer Operation nicht mit anderen Wurzelfeldern kombiniert werden",
+      "source_starting": "Die Quelle {{source}} wird noch gestartet. Versuchen Sie es gleich noch einmal."
     },
     "discovery": {
       "adapter_missing_discover_schema": "Adapter für '{{source_type}}' implementiert discover_schema nicht",

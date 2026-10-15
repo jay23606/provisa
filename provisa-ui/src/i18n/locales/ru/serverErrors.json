@@ -125,7 +125,8 @@
       "replica_building": "Копия {{replica}} ещё создаётся. Создание продолжается; откройте предпросмотр снова, когда оно завершится.",
       "address_invalid": "Адрес не может быть разрешён: {{reason}}",
       "address_not_found": "Нечего разрешать: {{reason}}",
-      "mixed_resolve_and_other_fields": "resolve нельзя сочетать с другими корневыми полями в одной операции"
+      "mixed_resolve_and_other_fields": "resolve нельзя сочетать с другими корневыми полями в одной операции",
+      "source_starting": "Источник {{source}} ещё запускается. Повторите попытку через минуту."
     },
     "discovery": {
       "adapter_missing_discover_schema": "Адаптер для '{{source_type}}' не реализует discover_schema",

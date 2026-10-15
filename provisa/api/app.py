@@ -3609,6 +3609,23 @@ def create_app() -> FastAPI:
             },
         )
 
+    from provisa.federation.pgwire_replica import SourceStillStartingError as _SourceStarting
+
+    @app.exception_handler(_SourceStarting)
+    async def _source_starting_handler(_req: _Request, exc: _SourceStarting):  # noqa: F841  # pyright: ignore[reportUnusedFunction]
+        # A statement on a source whose own server is still starting (an adapter mounting its
+        # schemas, a files server reading its folder): the answer exists once it serves, and the
+        # body names the source -- never a bare 500 (REQ-1824).
+        return _JSONResponse(
+            status_code=503,
+            headers={"Retry-After": "10"},
+            content={
+                "detail": str(exc),
+                "code": "data.source_starting",
+                "params": {"source": exc.source_id},
+            },
+        )
+
     from provisa.core.secrets_providers import SecretNameRefused as _SecretNameRefused
 
     @app.exception_handler(_SecretNameRefused)

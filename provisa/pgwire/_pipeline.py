@@ -712,18 +712,42 @@ def _direct_terminal_serves(decision: Any, default_source: str, state: Any) -> b
     return source_id != "provisa-admin" and state.source_pools.has(source_id)
 
 
-def _refuse_while_source_server_starts(decision: Any, sources: Any, state: Any) -> None:
-    """A statement the engine computes over a source whose own server is still starting (an
-    AskAmerica adapter mounts its schemas for minutes) is refused naming the source and that it
-    is starting, before the engine is asked for a relation it has not been able to attach."""
+async def _await_source_servers(decision: Any, sources: Any, state: Any) -> None:
+    """A statement the engine computes over a source read through its own server (a files, a
+    SaaS or an AskAmerica adapter) runs once that server serves. The engine attaches its sources
+    first -- which starts a server not yet started -- then the statement waits for any still
+    starting, at most ``STATEMENT_START_WAIT_SECONDS`` in all; past that it is refused naming the
+    source and that it is starting (503), never handed to the engine naming a relation it could
+    not attach (a binder error), and never left to run out its request."""
+    import asyncio
+
     from provisa.transpiler.router import Route
 
     if decision.route != Route.ENGINE:
         return
-    from provisa.federation.pgwire_replica import require_serving
+    from provisa.federation.pgwire_replica import (
+        PGWIRE_REPLICA_TYPES,
+        STATEMENT_START_WAIT_SECONDS,
+        await_serving,
+    )
 
-    for source_id in sorted(sources):
-        require_serving(source_id, state.source_types.get(source_id, ""))
+    served = [
+        (sid, state.source_types.get(sid, ""))
+        for sid in sorted(sources)
+        if state.source_types.get(sid, "") in PGWIRE_REPLICA_TYPES
+    ]
+    if not served:
+        return
+    backend = state.federation_engine.engine.backend
+    # The attach is the engine's own (idempotent; a complete one is not walked again). An engine
+    # that attaches nothing reads such a source from its replica, and has no server to wait for.
+    attach = getattr(backend, "_attached_runtime", None)
+    if attach is not None:
+        await attach(state)
+    deadline = asyncio.get_running_loop().time() + STATEMENT_START_WAIT_SECONDS
+    for source_id, source_type in served:
+        remaining = max(0.0, deadline - asyncio.get_running_loop().time())
+        await asyncio.to_thread(await_serving, source_id, source_type, remaining)
 
 
 async def _optimize_and_route_cached(
@@ -2286,7 +2310,7 @@ async def route_governed(
         _qualified = unalias_write_target(_qualified)
         return state.federation_engine.transpile_physical(_qualified)
 
-    _refuse_while_source_server_starts(decision, _sources, state)
+    await _await_source_servers(decision, _sources, state)
     if decision.route == Route.ENGINE:
         # REQ-135/REQ-1163: optimization — a view governance kept as its reference (its region's
         # copy, an as-of read of a bitemporal view, a materialized view the reader sees whole) is
@@ -4836,7 +4860,7 @@ async def _route_compiled(
     # which the reverse compiler does not have (it mis-translated a reshaped junction table).
     # Row-level materialization (REQ-1865) is the sanctioned mechanism for neo4j read performance
     # instead. A single-source neo4j query now always falls through to Route.ENGINE.
-    _refuse_while_source_server_starts(decision, sources, state)
+    await _await_source_servers(decision, sources, state)
     if decision.route == Route.ENGINE:
         _exec_sql, physical_sql = await _engine_forms(_exec_sql)
         _hints = _engine_session_hints(state, sources, session_props, _exec_sql, writes=_is_write)

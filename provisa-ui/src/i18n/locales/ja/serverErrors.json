@@ -125,7 +125,8 @@
       "replica_building": "{{replica}} のコピーはまだ作成中です。作成は続行されます。完了後にもう一度プレビューを開いてください。",
       "address_invalid": "アドレスを解決できません: {{reason}}",
       "address_not_found": "解決する対象がありません: {{reason}}",
-      "mixed_resolve_and_other_fields": "resolve は 1 つの操作で他のルートフィールドと組み合わせることはできません"
+      "mixed_resolve_and_other_fields": "resolve は 1 つの操作で他のルートフィールドと組み合わせることはできません",
+      "source_starting": "ソース {{source}} はまだ起動中です。しばらくしてからもう一度お試しください。"
     },
     "discovery": {
       "adapter_missing_discover_schema": "「{{source_type}}」のアダプターは discover_schema を実装していません",

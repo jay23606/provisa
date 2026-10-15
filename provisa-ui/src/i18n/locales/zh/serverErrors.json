@@ -125,7 +125,8 @@
       "replica_building": "{{replica}} 的副本仍在构建中。构建会继续；完成后请再次打开预览。",
       "address_invalid": "无法解析该地址：{{reason}}",
       "address_not_found": "没有可解析的内容：{{reason}}",
-      "mixed_resolve_and_other_fields": "resolve 不能在同一操作中与其他根字段组合使用"
+      "mixed_resolve_and_other_fields": "resolve 不能在同一操作中与其他根字段组合使用",
+      "source_starting": "源 {{source}} 仍在启动。请稍后重试。"
     },
     "discovery": {
       "adapter_missing_discover_schema": "'{{source_type}}' 的适配器未实现 discover_schema",
