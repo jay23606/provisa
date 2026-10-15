@@ -793,6 +793,16 @@
         "label": "Clé IA du bac à sable",
         "help": "Une référence ${secret:NAME} à la clé du point de terminaison, stockée dans l'organisation de ce déploiement ; chaque bac à sable l'utilise. Non définie : pas d'IA dans les bacs à sable."
       }
+    },
+    "temp_tables": {
+      "max_per_session": {
+        "label": "Tables temporaires par session",
+        "help": "Le nombre maximal de tables temporaires qu'une session (une connexion pgwire ou une requête SQL) peut détenir à la fois. Une table de plus est refusée ; supprimez-en une d'abord. 0 n'en autorise aucune."
+      },
+      "max_rows": {
+        "label": "Lignes par table temporaire",
+        "help": "Le nombre maximal de lignes qu'une table temporaire peut contenir. Une table temporaire est une vraie table du magasin du moteur qu'un rôle sans droit d'écriture peut remplir ; elle est donc bornée. Une table qui dépasserait la limite est refusée ; rien n'est tronqué."
+      }
     }
   }
 }

@@ -793,6 +793,16 @@
         "label": "KI-Schlüssel der Sandbox",
         "help": "Ein ${secret:NAME}-Verweis auf den Schlüssel des Endpunkts, gespeichert in der Organisation dieser Bereitstellung; jede Sandbox nutzt ihn. Nicht gesetzt: keine KI in Sandboxen."
       }
+    },
+    "temp_tables": {
+      "max_per_session": {
+        "label": "Temporäre Tabellen pro Sitzung",
+        "help": "Die Höchstzahl temporärer Tabellen, die eine Sitzung (eine pgwire-Verbindung oder eine SQL-Anfrage) gleichzeitig halten darf. Eine weitere Tabelle wird abgelehnt; zuerst eine löschen. 0 erlaubt keine."
+      },
+      "max_rows": {
+        "label": "Zeilen pro temporärer Tabelle",
+        "help": "Die Höchstzahl an Zeilen, die eine temporäre Tabelle halten darf. Eine temporäre Tabelle ist eine echte Tabelle im Store der Engine, die auch eine Rolle ohne Schreibrecht füllen kann; deshalb ist sie begrenzt. Eine Tabelle, die das Limit überschreiten würde, wird abgelehnt; es wird nichts gekürzt."
+      }
     }
   }
 }

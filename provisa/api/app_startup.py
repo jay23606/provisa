@@ -156,6 +156,8 @@ async def _start_background_tasks(_log: logging.Logger) -> None:
     #   replica-hot        shared — it promotes and demotes busy tables in the region's replica
     #                      state (federation/replica_hot.evaluation_loop).
     #   idle reaper        NOT gated — it measures idleness from THIS process's activity.
+    #   temp-tables        NOT gated — a session's liveness is known only to the worker holding it;
+    #                      each worker renews its own sessions and drops what gone ones left.
     _holder = _scheduler_holders(state).region
 
     # REQ-1915: spool files a build left when its process died are removed at node start. A
@@ -185,6 +187,12 @@ async def _start_background_tasks(_log: logging.Logger) -> None:
             _hot_evaluation_loop(state, should_run=_holder.holds, workers=expected_workers()),
             name="replica-hot",
         )
+
+    # REQ-1926: every worker keeps its own sessions' temporary-table schemas alive in the state of
+    # their org environment, and drops the ones a session that is gone left in a store.
+    from provisa.pgwire.temp_keeper import keep as _keep_temp_tables
+
+    state._temp_keeper_task = spawn_long_lived(_keep_temp_tables(state), name="temp-tables")
 
     if state.hot_manager is not None and state.federation_engine.is_connected():
         from provisa.cache.hot_tables import HotTableManager

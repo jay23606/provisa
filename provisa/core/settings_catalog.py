@@ -104,6 +104,33 @@ DECLARED: list[Setting] = [
         min=1,
         unit="bytes",
     ),
+    # --- A session's temporary tables (REQ-1926) --------------------------------------------------
+    # Live: read when a table is made or filled. A temporary table is a real table of the
+    # engine's store that a role with no write right may fill, so both are bounded.
+    Setting(
+        key="temp_tables.max_per_session",
+        card="limits",
+        type="int",
+        effect="live",
+        req="REQ-1926",  # 20: enough for a working session; a table past it is refused by name
+        env="PROVISA_TEMP_TABLES_MAX_PER_SESSION",
+        default=20,
+        min=0,
+        unit="tables",
+    ),
+    Setting(
+        key="temp_tables.max_rows",
+        card="limits",
+        type="int",
+        effect="live",
+        # 1,000,000: a role's row limit bounds one query, not a table filled by several, and a
+        # role with full results has none; a table that would pass this is refused, not cut.
+        req="REQ-1926",
+        env="PROVISA_TEMP_TABLES_MAX_ROWS",
+        default=1_000_000,
+        min=1,
+        unit="rows",
+    ),
     Setting(
         key="limits.engine_query_timeout",
         card="limits",

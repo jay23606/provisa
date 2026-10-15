@@ -793,6 +793,16 @@
         "label": "AI-sleutel van de sandbox",
         "help": "Een ${secret:NAME}-verwijzing naar de sleutel van het endpoint, opgeslagen in de organisatie van deze implementatie; elke sandbox gebruikt hem. Niet ingesteld: geen AI in sandboxen."
       }
+    },
+    "temp_tables": {
+      "max_per_session": {
+        "label": "Tijdelijke tabellen per sessie",
+        "help": "Het maximale aantal tijdelijke tabellen dat één sessie (een pgwire-verbinding of één SQL-verzoek) tegelijk mag hebben. Een tabel daarboven wordt geweigerd; verwijder er eerst een. 0 staat er geen toe."
+      },
+      "max_rows": {
+        "label": "Rijen per tijdelijke tabel",
+        "help": "Het maximale aantal rijen dat een tijdelijke tabel mag bevatten. Een tijdelijke tabel is een echte tabel in de store van de engine die ook een rol zonder schrijfrecht kan vullen, daarom is ze begrensd. Een tabel die de limiet zou overschrijden wordt geweigerd; er wordt niets afgekapt."
+      }
     }
   }
 }
