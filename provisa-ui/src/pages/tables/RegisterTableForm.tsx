@@ -8,6 +8,7 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
+import { NEVER_EXPIRES, cacheTtlHint } from "../../components/form/cacheTtl";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { UntypedColumns } from "./UntypedColumns";
 import { ProfilerRowRulesField } from "./ProfilerRowRulesField";
@@ -25,7 +26,7 @@ import { QdrantVectorColumns } from "./QdrantVectorColumns";
 import { FilesGlobFieldset } from "./FilesGlobFieldset";
 import { isFilesSourceType } from "./tableSectionFields";
 import { useTranslation } from "react-i18next";
-import { Checkbox, NumberInput, SegmentedControl, Select, Text, TextInput } from "@mantine/core";
+import { Checkbox, SegmentedControl, Select, Text, TextInput, NumberInput } from "@mantine/core";
 import { domainToSqlName, toSnakeCase } from "../../naming";
 import { NlTableSearch } from "./NlTableSearch";
 import { useAvailableSchemas, useAvailableTables } from "../../hooks/useAdminQueries";
@@ -947,11 +948,15 @@ export function RegisterTableForm({
           )}
       </FormIdentifiers>
       {needsCacheTtl && (
-        <FormField help={t("registerTableForm.cacheTtlHint")} size="short">
+        <FormField
+          hint={cacheTtlHint(cacheTtl, t)}
+          help={t("registerTableForm.cacheTtlHint")}
+          size="short"
+        >
           <NumberInput
+            min={NEVER_EXPIRES}
             data-testid="register-table-cache-ttl"
             label={t("registerTableForm.cacheTtlLabel")}
-            min={0}
             required
             value={cacheTtl === "" ? "" : Number(cacheTtl)}
             onChange={(v) => setCacheTtl(v === "" ? "" : String(v))}

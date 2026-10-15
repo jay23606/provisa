@@ -1059,7 +1059,12 @@ async def _resolve_pk_from_sources() -> None:
                 )
             ).fetchall()
         ]
+        from provisa.federation.replica_routing import kept_sources
+
+        _kept = await kept_sources(state)  # REQ-2031: never contacted, its keys never re-read
         for _pk_t in _pk_rows:
+            if _pk_t["source_id"] in _kept:
+                continue
             _pk_dialect = {
                 "mysql": "mysql",
                 "mariadb": "mysql",

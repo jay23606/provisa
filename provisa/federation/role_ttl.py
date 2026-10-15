@@ -42,6 +42,15 @@ def declared_cache_ttl(table: Any, source: Any) -> int | None:
     return table.cache_ttl if table.cache_ttl is not None else source.cache_ttl
 
 
+def never_expires(table: Any, source: Any) -> bool:
+    """Whether the table's declared cache_ttl is -1 (REQ-2031): it lands once, its replica is
+    never stale after that, its reads are always answered from the replica, and nothing asks its
+    source for it again."""
+    from provisa.core.cache_ttl import NEVER_EXPIRES
+
+    return declared_cache_ttl(table, source) == NEVER_EXPIRES
+
+
 def lands_from_config(
     *,
     materialize: bool,
@@ -130,11 +139,22 @@ def role_ttl(table: Any, source: Any, role: str | None) -> int:
 
 
 def effective_ttl(table: Any, source: Any, role: str | None) -> int:
-    """``max(cache_ttl, role_ttl(role))`` — the operator's floor always wins."""
-    return max(floor_ttl(table, source), role_ttl(table, source, role))
+    """``max(cache_ttl, role_ttl(role))`` — the operator's floor always wins. A cache_ttl that
+    never expires (-1) is never relaxed: nothing is longer (REQ-2031)."""
+    from provisa.core.cache_ttl import NEVER_EXPIRES
+
+    floor = floor_ttl(table, source)
+    if floor == NEVER_EXPIRES:
+        return NEVER_EXPIRES
+    return max(floor, role_ttl(table, source, role))
 
 
 def max_accepted_ttl(table: Any, source: Any) -> int:
     """The longest any reader of this table accepts — the row cache's reap horizon."""
+    from provisa.core.cache_ttl import NEVER_EXPIRES
+
+    floor = floor_ttl(table, source)
+    if floor == NEVER_EXPIRES:
+        return NEVER_EXPIRES  # REQ-2031: kept rows are never reaped
     entries: dict[str, int] = table.role_ttl
-    return max([floor_ttl(table, source), *entries.values()])
+    return max([floor, *entries.values()])

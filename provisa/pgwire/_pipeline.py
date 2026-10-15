@@ -3378,7 +3378,9 @@ def _response_cache_policy(plan: _Plan, state: Any) -> tuple[int, set[int]] | No
         _, ttl = resolve_policy(None, None, default_ttl=state.response_cache_default_ttl)
         ttls.append(ttl)
     ttl = opt_in_ttl(plan.cache_ttl, ttls)
-    return None if ttl <= 0 else (ttl, table_ids)
+    from provisa.core.cache_ttl import NEVER_EXPIRES
+
+    return None if ttl <= 0 and ttl != NEVER_EXPIRES else (ttl, table_ids)
 
 
 def _response_cache_bound() -> int:

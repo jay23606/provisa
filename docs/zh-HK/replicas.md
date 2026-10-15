@@ -114,6 +114,7 @@ PROVISA_MATERIALIZE_URL="postgresql://provisa:secret@replicas.internal:5432/repl
 | 按角色 TTL | 表上的 `role_ttl` | 列出的角色接受不超過其自身 TTL 的複本；表的 `cache_ttl` 仍是下限 | 重建更少：寬容角色的讀取從不請求重建 |
 | 負載保護 | `load_protected: true`，配合 `cache_ttl`、探測或 `off_peak_window` | 查詢從不讀取資料來源；僅由執行器刷新複本，有非尖峰視窗時僅在視窗開啟期間刷新 | 僅計劃內的刷新 |
 | 新鮮度閘門 | 資料來源上的 `freshness_gate: true` | 每次讀取都先對照資料來源的 `change_signal` 和 `cache_ttl` 檢查；判定為過期則在讀取前先刷新 | 過期時在讀取路徑中進行一次刷新 |
+| 永不過期 | 資料來源或表上的 `cache_ttl: -1` | 只載入一次；每次讀取都由副本回應，讀取尚未載入的表會被按名拒絕 | 僅此一次載入：所有表都已載入的資料來源不再被連接、探測或讀取，也不需要憑證 |
 
 [tool-verified: `provisa/core/replicate.py`; `provisa/federation/replica_builds.py` `_next_refresh_at`, `_probe_decides`; `provisa/federation/query_residency.py` `freshness_verdict`, `is_stale_of`; `provisa/federation/role_ttl.py` `effective_ttl`; `provisa/freshness/source_gate.py` `gate_source`; `provisa/events/push_wiring.py` `wire_push_listeners`, `_run_change_stream`]
 

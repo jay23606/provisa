@@ -58,7 +58,7 @@ sources:
 | `base_url` | `null` | כתובת URL בסיסית למקורות API |
 | `pool_min` / `pool_max` | `1` / `5` | גבולות pool החיבורים |
 | `cache_enabled` | `true` | הפעלה/כיבוי מטמון לכל הטבלאות במקור זה |
-| `cache_ttl` | `null` | שניות; `null` יורש את ברירת המחדל הגלובלית |
+| `cache_ttl` | `null` | שניות; `null` יורש את ברירת המחדל הגלובלית; `-1` אינו פג לעולם |
 | `federation_hints` | `{}` | פרמטרים מורחבים לפי-מחבר (dict[str,str]); ראו רפרנס סוגים למטה. REQ-281 |
 | `mapping` | `{}` | DSL מיפוי עבור redis, elasticsearch, prometheus. REQ-251 |
 | `allowed_domains` | `[]` | הגבלת מקור זה למזהי דומיין מסוימים; ריק = ללא הגבלה |

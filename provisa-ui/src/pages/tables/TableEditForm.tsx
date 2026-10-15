@@ -8,6 +8,7 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
+import { NEVER_EXPIRES } from "../../components/form/cacheTtl";
 import { Tip } from "../../components/Tip";
 import { TableDraftTick, TableRegionField } from "./TablePlacementFields";
 import { Fragment, useEffect, useState } from "react";
@@ -535,7 +536,7 @@ export function TableEditForm({
                         {t("tableEditForm.ttlNeedsIntervalPost")}
                       </Text>
                     </FormField>
-                  ) : (
+                  ) : effTtl === NEVER_EXPIRES ? null : ( // its Cache TTL's hint says it
                     <FormField size="full">
                       <Text size="xs" c="dimmed">
                         {t("tableEditForm.refreshesEvery", {

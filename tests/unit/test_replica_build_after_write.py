@@ -42,6 +42,7 @@ def _table(tid: int, *, parameterized: bool = False) -> SimpleNamespace:
         table_name=f"orders_{tid}",
         columns=columns,
         row_materialize=False,
+        cache_ttl=None,
     )
 
 
@@ -56,7 +57,7 @@ def written(monkeypatch):
         return True
 
     async def _sources(_state):
-        return [SimpleNamespace(id="shop", type=SimpleNamespace(value="openapi"))]
+        return [SimpleNamespace(id="shop", type=SimpleNamespace(value="openapi"), cache_ttl=None)]
 
     async def _tables(_state):
         return [_table(1), _table(2, parameterized=True)]
@@ -155,7 +156,7 @@ async def test_a_source_that_owns_no_replica_is_never_rebuilt_on_a_write(
     asked, kicked = written
 
     async def _sources(_state):
-        return [SimpleNamespace(id="shop", type=SimpleNamespace(value=stype))]
+        return [SimpleNamespace(id="shop", type=SimpleNamespace(value=stype), cache_ttl=None)]
 
     monkeypatch.setattr("provisa.federation.registry_view.registered_sources", _sources)
     assert (

@@ -405,6 +405,22 @@ class ReplicaBuildFailed(ReadRefused):
         super().__init__(f"the replica of {replica} could not be built: {reason}")
 
 
+class ReplicaNotLanded(ReadRefused):
+    """A read of a table whose cache_ttl never expires (-1) found no replica of it (REQ-2031).
+    Such a table is read only from its replica, and a read never sends anything to its source:
+    the read is refused, naming the table, until the table has landed."""
+
+    code = "query.replica_not_landed"
+
+    def __init__(self, replica: str) -> None:
+        self.replica = replica
+        self.params = {"table": replica}
+        super().__init__(
+            f"{replica} never expires and has not landed yet, so it has no replica to answer "
+            "from; a read never asks its source for it"
+        )
+
+
 async def read(conn: "Connection", key: ReplicaKey) -> ReplicaRecord | None:
     """The record of the replica ``key``, or None when it has none."""
     row = (await conn.execute_core(select(*_COLUMNS).where(_is(key)))).fetchone()

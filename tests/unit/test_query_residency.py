@@ -991,3 +991,55 @@ async def test_a_read_gated_on_freshness_waits_for_the_pass_that_is_filling_it(
     )
     assert await _ensure(state, {"mail"}) == [("mail", "messages")]
     assert kicked and not (await _record(plane, mail)).partial
+
+
+# -- REQ-2031: a cache_ttl of -1 never expires ------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_a_table_that_never_expires_and_has_not_landed_is_refused_and_nothing_is_asked(
+    wiring, plane
+):
+    from provisa.federation.replica_state import ReplicaNotLanded
+
+    pets = _table("pets-db", "pets", cache_ttl=-1)
+    state = _state([_source("pets-db")], [pets], _Backend(), plane)
+    with pytest.raises(ReplicaNotLanded, match="pets-db.pet_store.pets") as refused:
+        await _ensure(state, {"pets-db"})
+    assert refused.value.params == {"table": "pets-db.pet_store.pets"}
+    assert await _record(plane, pets) is None  # no build was asked for
+    assert wiring.kicks == 0
+
+
+@pytest.mark.asyncio
+async def test_a_landed_table_that_never_expires_is_read_from_its_replica_however_old(
+    wiring, plane
+):
+    pets = _table("pets-db", "pets", cache_ttl=-1)
+    state = _state([_source("pets-db")], [pets], _Backend(), plane)
+    await _built(plane, pets, at=datetime.now(UTC) - timedelta(days=400))
+    residency = await _residency(state, {"pets-db"})
+    assert residency.built == [] and _key(pets) in residency.replicas_read
+    assert wiring.kicks == 0
+
+
+@pytest.mark.asyncio
+async def test_a_sources_never_expiring_ttl_is_inherited(wiring, plane):
+    from provisa.federation.replica_state import ReplicaNotLanded
+
+    pets = _table("pets-db", "pets", cache_ttl=None)
+    state = _state([_source("pets-db", cache_ttl=-1)], [pets], _Backend(), plane)
+    assert state.replica_routes.floored[pets.id] == ("pets-db", "cache_ttl")
+    with pytest.raises(ReplicaNotLanded):
+        await _ensure(state, {"pets-db"})
+
+
+def test_a_never_expiring_replica_is_stale_only_until_it_lands():
+    src = _source("pets-db", cache_ttl=-1)
+    table = _table("pets-db", "pets", cache_ttl=None)
+    node = "pets-db/pet_store.pets"
+    landed = {node: {"last_refresh_at": 0.0, "last_refresh_ok": True}}
+    stale = is_stale_of([src], {"pets-db": [table]}, landed, 10**9, reader_role=None)
+    assert stale("pets-db") is False
+    never = is_stale_of([src], {"pets-db": [table]}, {node: None}, 10**9, reader_role=None)
+    assert never("pets-db") is True

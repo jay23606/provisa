@@ -1341,8 +1341,11 @@ def _validate_source_load_management(input: SourceInput) -> "MutationResult | No
             code="schema.change_signal_not_honoured",
             params={"source": input.id, "type": input.type, "signal": input.change_signal},
         )
-    if input.cache_ttl is not None and input.cache_ttl < 0:
-        return _fail("schema.invalid_cache_ttl", "cache_ttl must be 0 or more seconds")
+    from provisa.core.cache_ttl import cache_ttl_refusal  # REQ-2031
+
+    _ttl_err = cache_ttl_refusal(input.cache_ttl)
+    if _ttl_err is not None:
+        return _fail("schema.invalid_cache_ttl", _ttl_err)
     if input.max_live_concurrency is not None and input.max_live_concurrency < 1:
         return _fail(
             "schema.max_live_concurrency_invalid",
@@ -4002,6 +4005,16 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
     ) -> MutationResult:
         """Update cache settings for a source."""
         require_capability(info, "source_registration")
+        from provisa.core.cache_ttl import cache_ttl_refusal  # REQ-2031
+
+        _ttl_err = cache_ttl_refusal(cache_ttl)
+        if _ttl_err is not None:
+            return MutationResult(
+                success=False,
+                message=_ttl_err,
+                code="schema.invalid_cache_ttl",
+                params={"source": source_id},
+            )
         pool = await _get_pool()
         async with pool.acquire() as conn:
             _sig = await conn.execute_core(
@@ -4052,6 +4065,16 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
     ) -> MutationResult:
         """Update cache TTL for a registered table."""
         require_capability(info, "table_registration")
+        from provisa.core.cache_ttl import cache_ttl_refusal  # REQ-2031
+
+        _ttl_err = cache_ttl_refusal(cache_ttl)
+        if _ttl_err is not None:
+            return MutationResult(
+                success=False,
+                message=_ttl_err,
+                code="schema.invalid_cache_ttl",
+                params={"table": str(table_id)},
+            )
         pool = await _get_pool()
         async with pool.acquire() as conn:
             _t = await conn.execute_core(

@@ -114,6 +114,7 @@ PROVISA_MATERIALIZE_URL="postgresql://provisa:secret@replicas.internal:5432/repl
 | TTL לפי תפקיד | `role_ttl` על טבלה | תפקיד ברשימה מקבל רפליקה עד ה-TTL שלו; `cache_ttl` של הטבלה נשאר הרצפה | פחות בניות מחדש: קריאה של תפקיד סובלני אינה מבקשת אחת |
 | הגנת עומס | `load_protected: true`, עם `cache_ttl`, בדיקה או `off_peak_window` | שאילתות לעולם אינן קוראות את המקור; הרצן לבדו מרענן את הרפליקה, ועם חלון שעות שפל רק כשהוא פתוח | רק הרענונים המתוזמנים |
 | שער עדכניות | `freshness_gate: true` על מקור | כל קריאה נבדקת מול `change_signal` ו-`cache_ttl` של המקור קודם; פסק דין "מיושן" מרענן לפני הקריאה | רענון בנתיב הקריאה כשמיושן |
+| אינו פג לעולם | `cache_ttl: -1` על מקור או טבלה | נטען פעם אחת; כל קריאה נענית מהרפליקה, וקריאה של טבלה שעוד לא נטענה נדחית בציון שמה | רק הטעינה האחת: מקור שכל הטבלאות שלו נטענו אינו מחובר, נבדק או נקרא שוב, ואינו צריך פרטי גישה |
 
 [tool-verified: `provisa/core/replicate.py`; `provisa/federation/replica_builds.py` `_next_refresh_at`, `_probe_decides`; `provisa/federation/query_residency.py` `freshness_verdict`, `is_stale_of`; `provisa/federation/role_ttl.py` `effective_ttl`; `provisa/freshness/source_gate.py` `gate_source`; `provisa/events/push_wiring.py` `wire_push_listeners`, `_run_change_stream`]
 

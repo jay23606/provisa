@@ -114,6 +114,7 @@ Los orígenes empresariales rara vez admiten tiempo real. Los datos llegan por c
 | TTL por rol | `role_ttl` en una tabla | Un rol listado acepta una réplica de hasta su propio TTL; el `cache_ttl` de la tabla sigue siendo el piso | Menos reconstrucciones: la lectura de un rol tolerante nunca pide una |
 | Protección de carga | `load_protected: true`, con `cache_ttl`, una sonda o una `off_peak_window` | Las consultas nunca leen el origen; solo el runner refresca la réplica, y con una ventana fuera de horas punta solo mientras está abierta | Solo los refrescos programados |
 | Compuerta de frescura | `freshness_gate: true` en un origen | Cada lectura se comprueba primero contra el `change_signal` y el `cache_ttl` del origen; un veredicto de obsoleto refresca antes de la lectura | Un refresco en la ruta de lectura cuando está obsoleta |
+| Nunca caduca | `cache_ttl: -1` en un origen o una tabla | Se carga una vez; cada lectura se responde desde la réplica, y la lectura de una tabla aún no cargada se rechaza indicando su nombre | Solo esa carga: un origen cuyas tablas se han cargado todas no se vuelve a adjuntar, sondear ni leer, y no necesita credenciales |
 
 [tool-verified: `provisa/core/replicate.py`; `provisa/federation/replica_builds.py` `_next_refresh_at`, `_probe_decides`; `provisa/federation/query_residency.py` `freshness_verdict`, `is_stale_of`; `provisa/federation/role_ttl.py` `effective_ttl`; `provisa/freshness/source_gate.py` `gate_source`; `provisa/events/push_wiring.py` `wire_push_listeners`, `_run_change_stream`]
 

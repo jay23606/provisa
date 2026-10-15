@@ -53,7 +53,7 @@ def test_valid_settings_pass():
     ("kw", "code"),
     [
         ({"max_live_concurrency": 0}, "schema.max_live_concurrency_invalid"),
-        ({"cache_ttl": -1}, "schema.invalid_cache_ttl"),
+        ({"cache_ttl": -2}, "schema.invalid_cache_ttl"),  # -1 is legal: never expires
         ({"change_signal": "sometimes"}, "schema.invalid_change_signal"),
         ({"sentinel_path": "gopher://host/marker"}, "schema.invalid_sentinel_path"),
         ({"freshness_gate": True, "change_signal": "ttl"}, "schema.invalid_freshness_gate"),

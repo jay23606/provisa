@@ -8,6 +8,7 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
+import { ttlText } from "../components/form/cacheTtl";
 import { useSetSourceRegion, useRegionChoices } from "../hooks/useRegionQueries";
 import { useRegionSelection } from "../hooks/useRegionSelection";
 import { filterByRegion } from "../hooks/regionFilter";
@@ -409,7 +410,7 @@ export function SourcesPage() {
   const loading = sourcesLoading || (settingsLoading && settings === null);
 
   const getEffectiveTtl = (source: Source): string => {
-    if (source.cacheTtl != null) return `${source.cacheTtl}s (custom)`;
+    if (source.cacheTtl != null) return `${ttlText(source.cacheTtl, t)} (custom)`;
     if (settings) return `${settings.cache.default_ttl}s (global)`;
     return "default";
   };

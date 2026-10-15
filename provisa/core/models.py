@@ -286,7 +286,7 @@ class Source(BaseModel):  # REQ-012, REQ-052, REQ-053, REQ-204, REQ-229, REQ-250
     use_pgbouncer: bool = Field(default=False, alias="use_pgbouncer")
     pgbouncer_port: int = Field(default=6432, alias="pgbouncer_port")
     cache_enabled: bool = True
-    cache_ttl: int | None = None  # overrides global default; None = inherit
+    cache_ttl: int | None = None  # overrides global default; None = inherit; -1 never expires
     # REQ-826: when this source's tables are served from their replicas — the default a table with
     # no value of its own inherits (provisa.core.replicate). Not set = the global threshold; -1 =
     # never (live wherever a live path exists); N > 0 = once a table passes N governed statements
@@ -358,6 +358,15 @@ class Source(BaseModel):  # REQ-012, REQ-052, REQ-053, REQ-204, REQ-229, REQ-250
 
         check_replicate(self.replicate)
         refused = contradiction(self.replicate, self.load_protected)
+        if refused is not None:
+            raise ValueError(f"source {self.id!r}: {refused}")
+        return self
+
+    @model_validator(mode="after")
+    def _validate_cache_ttl(self) -> "Source":  # REQ-2031
+        from provisa.core.cache_ttl import cache_ttl_refusal
+
+        refused = cache_ttl_refusal(self.cache_ttl)
         if refused is not None:
             raise ValueError(f"source {self.id!r}: {refused}")
         return self
@@ -1192,7 +1201,7 @@ class Table(
     promotions: list[dict] = Field(default_factory=list)
     alias: str | None = None  # GraphQL type/field name override
     description: str | None = None  # GraphQL type description
-    cache_ttl: int | None = None  # overrides source-level; None = inherit
+    cache_ttl: int | None = None  # overrides source-level; None = inherit; -1 never expires
     # REQ-1907: operator-set role -> TTL seconds. A reader's effective TTL on this table is
     # max(cache_ttl, role_ttl(role)); an unlisted role uses cache_ttl. Empty = every role uses it.
     role_ttl: dict[str, int] = Field(default_factory=dict)
@@ -1381,6 +1390,15 @@ class Table(
         # The table's own two values; a value it inherits is judged with its source at config
         # load (config_loader._validate_replicate) and at save.
         refused = contradiction(self.replicate, bool(self.load_protected))
+        if refused is not None:
+            raise ValueError(f"table {self.table_name!r}: {refused}")
+        return self
+
+    @model_validator(mode="after")
+    def _validate_cache_ttl(self) -> "Table":  # REQ-2031
+        from provisa.core.cache_ttl import cache_ttl_refusal
+
+        refused = cache_ttl_refusal(self.cache_ttl)
         if refused is not None:
             raise ValueError(f"table {self.table_name!r}: {refused}")
         return self

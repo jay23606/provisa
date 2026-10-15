@@ -71,19 +71,33 @@ def owns_replica(source: Any) -> bool:
     return stype not in NO_REPLICA_TYPES and not is_live_only(stype)
 
 
+#: The setting a never-expiring table's floor names (REQ-2031).
+CACHE_TTL = "cache_ttl"
+
+
+def resolved_cache_ttl(source: Any, table: Any) -> int | None:
+    """The table's ``cache_ttl``: its own, else its source's. ``table`` a model or a registry row."""
+    own = table["cache_ttl"] if isinstance(table, dict) else table.cache_ttl
+    return own if own is not None else source.cache_ttl
+
+
 def table_floor(source: Any, table: Any, *, promoted: bool) -> str | None:
     """The operator setting that puts ``table``'s reads on its replica (REQ-030, REQ-826), or
     None when they may be live: the floor of its source (``core.operator_floor.floor_setting`` —
     a floored source has no live attach, so every table of it is served from its replica), else
-    the table's own resolved ``load_protected`` / ``replicate`` (``core.replicate.floor_of``).
+    a ``cache_ttl`` that never expires (REQ-2031), else the table's own resolved
+    ``load_protected`` / ``replicate`` (``core.replicate.floor_of``).
     ``promoted``: the table passed its threshold AND its replica exists in this engine's store
     (``replica_state.promotion``'s serving set) — until then it is read live."""
+    from provisa.core.cache_ttl import NEVER_EXPIRES
     from provisa.core.operator_floor import floor_setting
     from provisa.core.replicate import floor_of, resolved_load_protected, resolved_replicate
 
     of_source = floor_setting(source)
     if of_source is not None:
         return of_source
+    if resolved_cache_ttl(source, table) == NEVER_EXPIRES:
+        return CACHE_TTL  # REQ-2031: read only from its replica, whatever it says otherwise
     return floor_of(
         resolved_replicate(source, table),
         resolved_load_protected(source, table),
@@ -174,8 +188,12 @@ def live_while_building(source: Any, table: Any, engine: Any) -> bool:
     live read to fall back on)."""
     from provisa.core.replicate import ALWAYS, resolved_load_protected, resolved_replicate
 
+    from provisa.core.cache_ttl import NEVER_EXPIRES
+
     if not has_live_attach(source, engine) or resolved_load_protected(source, table):
         return False
+    if resolved_cache_ttl(source, table) == NEVER_EXPIRES:
+        return False  # REQ-2031: read only from its replica
     return resolved_replicate(source, table) != ALWAYS
 
 
@@ -236,6 +254,11 @@ class _Registry(NamedTuple):
     synthetic: dict[int, tuple[str, str]]
     #: REQ-1942: the ids of the sources bound to a synthetic store.
     bound: frozenset[str] = frozenset()
+    #: REQ-2031: the tables whose cache_ttl never expires and whose replica exists in this
+    #: engine's store. Nothing asks their source for them again.
+    kept_for_good: frozenset[tuple[str, str, str]] = frozenset()
+    #: REQ-2031: the sources every registered table of which is kept for good.
+    kept_sources: frozenset[str] = frozenset()
 
 
 async def _registry(state: Any) -> _Registry:
@@ -260,9 +283,35 @@ async def _registry(state: Any) -> _Registry:
         sources = {s.id: s for s in await registered_sources(state, conn)}
         synthetic = await generated_tables(conn)
         bound = frozenset(await synthetic_sources(conn))
+    from provisa.core.cache_ttl import NEVER_EXPIRES
+    from provisa.federation.replica_state import read_all
+
+    never = {
+        _replica_key(reg)
+        for reg in registered
+        if reg["source_id"] in sources
+        and resolved_cache_ttl(sources[reg["source_id"]], reg) == NEVER_EXPIRES
+    }
     async with tdb.acquire() as conn:
         promoted, serving = await promotion(conn, lambda: store_identity(state))
-    return _Registry(registered, sources, serving, promoted, synthetic, bound)
+        kept: frozenset[tuple[str, str, str]] = frozenset()
+        if never:  # the store is asked only then: a deployment with none may have no store
+            here = store_identity(state)
+            kept = frozenset(
+                r.key for r in await read_all(conn) if r.key in never and r.exists_in(here)
+            )
+    by_source: dict[str, set[tuple[str, str, str]]] = {}
+    for reg in registered:
+        by_source.setdefault(reg["source_id"], set()).add(_replica_key(reg))
+    kept_sources = frozenset(sid for sid, keys in by_source.items() if keys <= kept)
+    return _Registry(registered, sources, serving, promoted, synthetic, bound, kept, kept_sources)
+
+
+async def kept_sources(state: Any) -> frozenset[str]:
+    """The sources every registered table of which never expires and has landed (REQ-2031):
+    nothing contacts them, so they get no engine catalog, no pool and no credential. Read where
+    a build of the org's runtime needs it before its routes are published."""
+    return (await _registry(state)).kept_sources
 
 
 def _replica_key(reg: dict) -> tuple[str, str, str]:
@@ -275,7 +324,7 @@ def _served_from_replica(
     """The tables with a replica on ``engine`` by the one decision (``reads_replica``), where the
     tables replicated for being busy are ``busy``: the serving set for what reads go to, the
     promoted set for what has (or is to have) a replica."""
-    registered, sources, _serving, _promoted, synthetic, _bound = registry
+    registered, sources, synthetic = registry.registered, registry.sources, registry.synthetic
     out: list[tuple[Any, dict]] = []
     for reg in registered:
         src = sources.get(reg["source_id"])
@@ -305,7 +354,8 @@ def _unavailable(registry: _Registry) -> dict[int, str]:
 
 
 def _floored(registry: _Registry) -> dict[int, tuple[str, str]]:
-    registered, sources, serving, _promoted, synthetic, _bound = registry
+    registered, sources, synthetic = registry.registered, registry.sources, registry.synthetic
+    serving = registry.serving
     floored: dict[int, tuple[str, str]] = {}
     for reg in registered:
         src = sources.get(reg["source_id"])
@@ -585,6 +635,8 @@ async def replica_routes(state: Any) -> ReplicaRoutes:
         },
         promoted=registry.promoted,
         serving=registry.serving,
+        kept_for_good=registry.kept_for_good,
+        kept_sources=registry.kept_sources,
         synthetic={tid: found[0] for tid, found in registry.synthetic.items()},
         unavailable=_unavailable(registry),
         # The backend's own record, by reference: a later reconcile is seen without republishing.

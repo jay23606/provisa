@@ -25,6 +25,7 @@ from dataclasses import dataclass
 
 from redis.exceptions import RedisError
 
+from provisa.core.cache_ttl import NEVER_EXPIRES
 from provisa.core import settings_registry
 from provisa.otel_compat import get_tracer as _get_tracer
 from provisa.otel_compat import stage as _stage
@@ -212,13 +213,18 @@ class RedisCacheStore(CacheStore):  # REQ-230, REQ-231
                 rkey = self._prefixed_key(key, tenant_id)
                 meta = json.dumps({"cached_at": time.time(), "ttl": ttl}).encode()
                 pipe = self._redis.pipeline()
-                pipe.set(rkey, data, ex=ttl)
-                pipe.set(rkey + ":meta", meta, ex=ttl)
+                # REQ-2031: -1 never expires; the entry goes when a table it reads changes.
+                ex = None if ttl == NEVER_EXPIRES else ttl
+                pipe.set(rkey, data, ex=ex)
+                pipe.set(rkey + ":meta", meta, ex=ex)
                 if table_ids:
                     for tid in table_ids:
                         tkey = self._prefixed_table_key(tid, tenant_id)
                         pipe.sadd(tkey, key)
-                        pipe.expire(tkey, ttl + 60)  # slightly longer than cache TTL
+                        if ex is None:
+                            pipe.persist(tkey)
+                        else:
+                            pipe.expire(tkey, ex + 60)  # slightly longer than cache TTL
                 await pipe.execute()
             except (RedisError, OSError):
                 log.warning("Redis set failed, query result not cached", exc_info=True)

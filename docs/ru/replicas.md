@@ -114,6 +114,7 @@ PROVISA_MATERIALIZE_URL="postgresql://provisa:secret@replicas.internal:5432/repl
 | TTL по ролям | `role_ttl` на таблице | Перечисленная роль принимает реплику не старше её собственного TTL; `cache_ttl` таблицы остаётся нижней границей | Меньше перестроений: чтение терпимой роли никогда их не запрашивает |
 | Защита нагрузки | `load_protected: true`, с `cache_ttl`, пробой или `off_peak_window` | Запросы никогда не читают источник; реплику обновляет только исполнитель, а при окне вне пиковых часов только пока оно открыто | Только плановые обновления |
 | Шлюз актуальности | `freshness_gate: true` на источнике | Каждое чтение сначала проверяется по `change_signal` и `cache_ttl` источника; вердикт «устарело» обновляет данные перед чтением | Обновление на пути чтения, когда данные устарели |
+| Не истекает | `cache_ttl: -1` на источнике или таблице | Загружается один раз; каждое чтение обслуживается из реплики, а чтение ещё не загруженной таблицы отклоняется с указанием её имени | Только эта загрузка: источник, все таблицы которого загружены, больше не подключается, не опрашивается и не читается, и учётные данные ему не нужны |
 
 [tool-verified: `provisa/core/replicate.py`; `provisa/federation/replica_builds.py` `_next_refresh_at`, `_probe_decides`; `provisa/federation/query_residency.py` `freshness_verdict`, `is_stale_of`; `provisa/federation/role_ttl.py` `effective_ttl`; `provisa/freshness/source_gate.py` `gate_source`; `provisa/events/push_wiring.py` `wire_push_listeners`, `_run_change_stream`]
 

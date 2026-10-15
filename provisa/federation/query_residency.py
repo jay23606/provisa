@@ -44,7 +44,7 @@ import logging
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from provisa.federation.execution_auth import system_auth
@@ -143,7 +143,7 @@ def is_stale_of(
 
     Raises ValueError when a table it would judge has change_signal ttl / ttl_probe and no table or
     source cache_ttl (REQ-1907, amended 2026-09-30): such a table has no refresh clock."""
-    from provisa.federation.role_ttl import effective_ttl, require_landing_ttl
+    from provisa.federation.role_ttl import effective_ttl, never_expires, require_landing_ttl
 
     by_id = {s.id: s for s in sources}
     for s in sources:
@@ -157,6 +157,8 @@ def is_stale_of(
         ok = bool(state.get("last_refresh_ok", True)) if state else True
         if at is None or not ok:
             return True
+        if never_expires(table, source):
+            return False  # REQ-2031: landed once, never stale after
         if now - float(at) <= float(effective_ttl(table, source, reader_role)):
             return False
         return check(source, table, float(at), ok, now) is not True
@@ -550,7 +552,7 @@ async def ensure_resident(
     from provisa.federation import replica_builds, replica_state
     from provisa.federation.replica_routing import live_while_building
     from provisa.federation.replica_state_view import view_for
-    from provisa.federation.role_ttl import require_landing_ttl
+    from provisa.federation.role_ttl import never_expires, require_landing_ttl
 
     # What a replicated source's replica is written into: the engine's own store, or (Trino) the
     # store it reads through its connector. The plan asks for it only for a source the
@@ -661,7 +663,7 @@ async def ensure_resident(
                 if not (known and _joins(record, view.age(org_id, key))):
                     async with db.acquire() as conn:
                         record = await replica_state.read(conn, key)
-                        if _stale(source, t, record):
+                        if _stale(source, t, record) and not never_expires(t, source):
                             await replica_state.request_build(
                                 conn, key, replica_state.REASON_READ, retry=retry
                             )
@@ -670,6 +672,15 @@ async def ensure_resident(
             if not _stale(source, t, record):
                 _read_from(key, record)
                 continue
+            if never_expires(t, source) and (
+                record is None
+                or record.build_state not in (replica_state.REQUESTED, replica_state.BUILDING)
+            ):
+                # REQ-2031: a read never asks the source for a table that never expires. Its one
+                # landing is the model's (replica_converge); a read waits only on that build.
+                if record is not None and record.build_state == replica_state.FAILED:
+                    raise replica_state.ReplicaBuildFailed(".".join(key), record.last_error)
+                raise replica_state.ReplicaNotLanded(".".join(key))
             if record is not None and record.build_state == replica_state.FAILED:
                 # Failed too recently to ask again (replica_state.RetryPolicy): the read fails
                 # with the build's own error. It never reads what the failed build left.
@@ -849,7 +860,12 @@ def _row_stale(cached_at: datetime, now: datetime, reader_ttl: int, change_fed: 
     """A cached row is re-fetched for a reader only when its landed-at stamp is older than the
     reader's effective TTL AND its freshness check does not report it fresh (REQ-1907). A row of a
     pushed-change table is kept current by the CDC background refresh (REQ-1865 section 5), which
-    is its freshness check; any other row has none and is judged on the TTL alone."""
+    is its freshness check; any other row has none and is judged on the TTL alone. A TTL that
+    never expires (-1) keeps every row it has (REQ-2031)."""
+    from provisa.core.cache_ttl import NEVER_EXPIRES
+
+    if reader_ttl == NEVER_EXPIRES:
+        return False
     return (now - cached_at).total_seconds() > reader_ttl and not change_fed
 
 
@@ -1277,6 +1293,7 @@ async def _land_row_cache_arrow(
     TIMESTAMP carries no zone and every reader treats it as UTC."""
     import pyarrow as pa
 
+    from provisa.core.cache_ttl import expires_after
     from provisa.federation.materialize_exec import _ROW_CACHED_AT, _ROW_EXPIRES_AT
 
     now = datetime.now(UTC)
@@ -1285,7 +1302,7 @@ async def _land_row_cache_arrow(
     stamp = pa.timestamp("us")
     arrays += [
         pa.array([now.replace(tzinfo=None)] * n, stamp),
-        pa.array([(now + timedelta(seconds=reap_horizon)).replace(tzinfo=None)] * n, stamp),
+        pa.array([expires_after(now, reap_horizon).replace(tzinfo=None)] * n, stamp),
     ]
     full_columns = list(columns) + [(_ROW_CACHED_AT, "timestamp"), (_ROW_EXPIRES_AT, "timestamp")]
     stamped = pa.Table.from_arrays(arrays, names=[c for c, _ in full_columns])
@@ -1333,8 +1350,10 @@ async def _land_row_cache(
 
         runtime = _duckdb_runtime(backend, state)
         runtime.ensure_materialize_attached()  # REQ-1901: resolves runtime._store_broker
+        from provisa.core.cache_ttl import expires_after
+
         now = datetime.now(UTC)
-        expires_at = now + timedelta(seconds=reap_horizon)
+        expires_at = expires_after(now, reap_horizon)  # REQ-2031: -1 never
         stamped = [{**r, _ROW_CACHED_AT: now, _ROW_EXPIRES_AT: expires_at} for r in rows]
         full_columns = list(columns) + [
             (_ROW_CACHED_AT, "timestamp"),

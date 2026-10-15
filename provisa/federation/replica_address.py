@@ -267,6 +267,13 @@ class ReplicaRoutes:
     #: table that needs a required parameter, in a Test (synthetic) environment whose generated
     #: model holds no copy of it. A synthetic environment calls no source API.
     unavailable: Mapping[int, str] = field(default_factory=dict)
+    #: REQ-2031: (source_id, schema, table) of each table whose cache_ttl never expires and whose
+    #: replica has landed in this engine's store. Nothing contacts its source for it: no attach,
+    #: probe, listener or landing.
+    kept_for_good: frozenset[tuple[str, str, str]] = frozenset()
+    #: REQ-2031: the sources all of whose registered tables are kept for good: never attached,
+    #: probed, reconciled or landed, and needing no credential.
+    kept_sources: frozenset[str] = frozenset()
     #: How many times this runtime's routes have CHANGED since it was built (REQ-826). Not part
     #: of what the routes say (two publications that say the same are equal whatever their
     #: generation): it is part of the routing-cache key, so a cached route never outlives the

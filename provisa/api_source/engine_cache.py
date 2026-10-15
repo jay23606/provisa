@@ -34,6 +34,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -337,7 +338,11 @@ def table_exists(  # REQ-318, REQ-309, REQ-327
         conn.execute(sql)
         conn.fetchall()
         # Cache the positive result; expire before the engine drops the table
-        if ttl is not None and ttl > _TABLE_EXISTS_SAFETY_MARGIN:
+        from provisa.core.cache_ttl import NEVER_EXPIRES
+
+        if ttl == NEVER_EXPIRES:
+            _TABLE_EXISTS_CACHE[key] = math.inf  # REQ-2031: never dropped
+        elif ttl is not None and ttl > _TABLE_EXISTS_SAFETY_MARGIN:
             _TABLE_EXISTS_CACHE[key] = time.monotonic() + ttl - _TABLE_EXISTS_SAFETY_MARGIN
         elif ttl is not None:
             _TABLE_EXISTS_CACHE[key] = time.monotonic() + max(ttl - 5, 1)
@@ -671,8 +676,11 @@ def schedule_drop(  # REQ-318, REQ-309, REQ-327
 
     REQ-1882: the delay is held by the background timer thread, not by a sleeping task — the drop
     runs on a background worker at expiry, acquiring a fresh engine connection then."""
+    from provisa.core.cache_ttl import NEVER_EXPIRES
     from provisa.core.connection_loop import spawn_after
 
+    if ttl == NEVER_EXPIRES:
+        return  # REQ-2031: kept for good
     spawn_after(
         ttl,
         drop_cache_table(engine, loc, table_name, ttl, redirect_config),

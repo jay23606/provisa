@@ -30,7 +30,7 @@ import pytest
 
 from provisa.core.models import Source, SourceType
 from provisa.federation.engine import build_engine
-from provisa.federation.replica_address import address_replicas
+from provisa.federation.replica_address import ReplicaRoutes, address_replicas
 from provisa.federation.replica_routing import replica_routes
 from provisa.federation.strategy import Strategy, federate
 from tests.helpers import no_engine_store, no_promoted_tables
@@ -303,6 +303,7 @@ async def test_duckdb_reads_the_replica_once_a_live_attached_table_is_floored(
         """The engine's attach walk over the registry, as a query triggers it."""
         state = _state(monkeypatch, engine, source, registered, catalog="src", plane=control_plane)
         state.runtime_sources, state.tables = {}, registered
+        state.replica_routes = ReplicaRoutes()
         backend._runtime_for(state)
         return state
 

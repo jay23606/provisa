@@ -71,6 +71,7 @@ def _state(monkeypatch, runtime: _Runtime):
         "table_name": "orders",
         "replicate": 0,
         "load_protected": None,
+        "cache_ttl": None,
         "region": None,  # REQ-1921: a registration always carries its region
         "columns": [{"column_name": "id", "native_filter_type": None}],
     }
@@ -91,7 +92,9 @@ def _state(monkeypatch, runtime: _Runtime):
     monkeypatch.setattr(replica_routing, "_registry", _registry)
     monkeypatch.setattr("provisa.federation.registry_view.registered_sources", _sources)
     monkeypatch.setattr("provisa.core.secrets_store._decrypted", _decrypted)
-    table = SimpleNamespace(source_id="pg", schema_name="public", table_name="orders")
+    table = SimpleNamespace(
+        source_id="pg", schema_name="public", table_name="orders", cache_ttl=None
+    )
     return SimpleNamespace(
         org_id="default",
         active_org_id="default",

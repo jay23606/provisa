@@ -39,6 +39,7 @@ from provisa.federation.engine import (
     live_source_types,
     reachable_source_types,
 )
+from provisa.federation.replica_address import ReplicaRoutes
 from provisa.federation.strategy import Strategy, engine_attaches, federate
 from provisa.runtime_deps import pgwire_bundles as rd
 from tests.helpers import ready_org_folder
@@ -1559,10 +1560,13 @@ def test_the_engines_attach_pass_never_waits_on_a_source_whose_catalog_is_being_
             federation_hints={},
             mapping={},
             max_live_concurrency=None,  # REQ-1909: a source always carries its cap
+            cache_ttl=None,
         )
 
     def _tbl(sid: str, table: str):
-        return SimpleNamespace(source_id=sid, schema_name="sec", table_name=table, region=None)
+        return SimpleNamespace(
+            source_id=sid, schema_name="sec", table_name=table, region=None, cache_ttl=None
+        )
 
     backend = build_duckdb_engine().backend
     backend._runtime = _Runtime()
@@ -1571,6 +1575,7 @@ def test_the_engines_attach_pass_never_waits_on_a_source_whose_catalog_is_being_
         tables=[_tbl("pg-a", "orders"), _tbl("aa", "financial_facts"), _tbl("pg-b", "items")],
     )
     state = SimpleNamespace(
+        replica_routes=ReplicaRoutes(),
         runtime_sources={},
         tables=[],
         source_catalogs={"pg-a": "pg_a", "aa": "aa", "pg-b": "pg_b"},

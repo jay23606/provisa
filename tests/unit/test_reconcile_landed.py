@@ -53,6 +53,7 @@ def _rtbl(sid, tname, cols):
         # the per-table overrides every registry row carries (None = inherit the source's)
         "replicate": None,
         "load_protected": None,
+        "cache_ttl": None,
     }
 
 
@@ -63,6 +64,7 @@ def _src(sid, stype):
         change_signal="ttl",
         replicate=None,
         load_protected=False,
+        cache_ttl=None,
     )
 
 
@@ -114,6 +116,7 @@ def _state(cfg, registered, monkeypatch):
                 "change_signal": src.change_signal,
                 "replicate": src.replicate,
                 "load_protected": src.load_protected,
+                "cache_ttl": src.cache_ttl,
                 "password_ref": "",
             }
             for src in cfg.sources

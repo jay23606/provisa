@@ -378,7 +378,9 @@ async def land_rows(
         )
     await conn.execute_core(CreateTable(table, if_not_exists=True))
     stamp_now = now if now is not None else datetime.datetime.now(datetime.timezone.utc)
-    expires_at = stamp_now + datetime.timedelta(seconds=resolved_cache_ttl)
+    from provisa.core.cache_ttl import expires_after
+
+    expires_at = expires_after(stamp_now, resolved_cache_ttl)  # REQ-2031: -1 never
     json_cols = _json_columns(table)
     for row in rows:
         stamped = {

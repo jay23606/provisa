@@ -21,6 +21,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from provisa.federation.native_backend import NativeEngineBackend
+from provisa.federation.replica_address import ReplicaRoutes
 
 
 class _Runtime:
@@ -58,6 +59,7 @@ def _src(source_id: str):
         federation_hints={},
         mapping={},
         max_live_concurrency=None,  # REQ-1909: a source always carries its cap
+        cache_ttl=None,
     )
 
 
@@ -76,6 +78,7 @@ def test_two_sources_same_named_tables_are_each_attached(monkeypatch):
         ],
     )
     state = SimpleNamespace(
+        replica_routes=ReplicaRoutes(),
         runtime_sources={},
         tables=[],
         model_db=None,
@@ -107,6 +110,7 @@ def test_one_source_is_attached_under_each_environments_catalog(monkeypatch):
     )
     for catalog in ("org_acme__sales", "org_acme_env_qa__sales"):
         state = SimpleNamespace(
+            replica_routes=ReplicaRoutes(),
             runtime_sources={},
             tables=[],
             model_db=None,

@@ -8,6 +8,7 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
+import { ttlText } from "../../components/form/cacheTtl";
 import { Alert, Text } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import type { RefreshPolicySummary, RegisteredTable, Source } from "../../types/admin";
@@ -159,10 +160,10 @@ export function LoadRead({ table, source }: { table: RegisteredTable; source?: S
             label: t("tableEditForm.cacheTtlLabel"),
             value:
               table.cacheTtl != null
-                ? String(table.cacheTtl)
+                ? ttlText(table.cacheTtl, t)
                 : unset(
                     source?.cacheTtl != null
-                      ? t("tableSections.fromSource", { value: source.cacheTtl })
+                      ? t("tableSections.fromSource", { value: ttlText(source.cacheTtl, t) })
                       : t("tableReadView.none"),
                   ),
           },

@@ -58,7 +58,7 @@ Todos los orígenes comparten un conjunto común de campos. [tool-verified: `pro
 | `base_url` | `null` | URL base para orígenes de API |
 | `pool_min` / `pool_max` | `1` / `5` | Límites del pool de conexiones |
 | `cache_enabled` | `true` | Activa/desactiva la caché para todas las tablas de este origen |
-| `cache_ttl` | `null` | Segundos; `null` hereda el valor global por defecto |
+| `cache_ttl` | `null` | Segundos; `null` hereda el valor global por defecto; `-1` nunca caduca |
 | `federation_hints` | `{}` | Parámetros extendidos por conector (dict[str,str]); ver referencia de tipos abajo. REQ-281 |
 | `mapping` | `{}` | DSL de mapeo para redis, elasticsearch, prometheus. REQ-251 |
 | `allowed_domains` | `[]` | Restringe este origen a IDs de dominio específicos; vacío = sin restricción |

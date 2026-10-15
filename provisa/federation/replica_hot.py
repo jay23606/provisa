@@ -251,7 +251,7 @@ def hot_candidates(
     at most one tier, and the hot tier wins (REQ-241)."""
     from provisa.federation.replica_converge import builds_here, home_region, whole_copy
     from provisa.federation.replica_routing import has_live_attach, owns_replica
-    from provisa.federation.role_ttl import missing_landing_ttl
+    from provisa.federation.role_ttl import missing_landing_ttl, never_expires
 
     candidates: list[HotCandidate] = []
     skipped: dict[tuple[str, str, str], str] = {}
@@ -265,6 +265,8 @@ def hot_candidates(
         # never succeed, and was retried for ever (REQ-1443, REQ-1934).
         if not owns_replica(source):
             continue
+        if never_expires(reg, source):
+            continue  # REQ-2031: always read from its replica, landed once; never promoted
         threshold = threshold_of(source, reg, default_threshold)
         if threshold is None:
             continue

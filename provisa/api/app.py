@@ -1366,8 +1366,17 @@ async def _load_and_build(
         # catalogs do not outlive it (REQ-1900). REQ-1619: with no coordinator they are reissued
         # from state.config by restore_shared_terminal on the first query.
         if apply and not engine_deferred:
+            from provisa.federation.replica_routing import kept_sources
+
+            # REQ-2031: a source all of whose tables never expire and have landed is not contacted.
+            _kept = await kept_sources(state)
             async with bound_to_request_org():
-                await attach_store_sources(config, state.federation_engine)
+                await attach_store_sources(
+                    config.model_copy(
+                        update={"sources": [s for s in config.sources if s.id not in _kept]}
+                    ),
+                    state.federation_engine,
+                )
 
     _mark("load_config")
 
@@ -1383,7 +1392,14 @@ async def _load_and_build(
 
     state.source_dsns["provisa-admin"] = f"{pg_host}:{pg_port}/{pg_database}"
 
-    await _build_source_pools_and_enums(config)
+    from provisa.federation.replica_routing import kept_sources as _kept_sources
+
+    _kept_at_boot = await _kept_sources(state)  # REQ-2031: no pool, no credential
+    await _build_source_pools_and_enums(
+        config.model_copy(
+            update={"sources": [s for s in config.sources if s.id not in _kept_at_boot]}
+        )
+    )
 
     # REQ-1730: Trino's prometheus connector exposes a FIXED per-metric schema (labels
     # MAP(VARCHAR,VARCHAR), timestamp, value) — a registered label column like "job" is only
@@ -2224,9 +2240,20 @@ async def _build_org_runtime(
             # attaches each source under the org's own catalog name (not the bare, default-org
             # name) — the cross-org collision guard (REQ-1266).
             _populate_source_catalog_names(org_config)
+            from provisa.federation.replica_routing import kept_sources
+
+            # REQ-2031: a source all of whose tables never expire and have landed is never
+            # contacted: no engine catalog, no pool, no credential.
+            uncontacted = unbound | await kept_sources(state)
             async with bound_to_request_org():
                 failed_catalogs = await attach_store_sources(
-                    org_config, state.federation_engine, catalog_names=rt.source_catalogs
+                    org_config.model_copy(
+                        update={
+                            "sources": [s for s in org_config.sources if s.id not in uncontacted]
+                        }
+                    ),
+                    state.federation_engine,
+                    catalog_names=rt.source_catalogs,
                 )
             # REQ-1448: this build IS the repair a wake performs — a source whose catalog did not
             # come back leaves the org dispatching at a coordinator that has never heard of it, and
@@ -2238,10 +2265,11 @@ async def _build_org_runtime(
                     f"org {org_id!r}: {len(failed_catalogs)} source catalog(s) could not be issued "
                     f"on its engine: {', '.join(sorted(failed_catalogs))}"
                 )
-            # REQ-1491: a source reached through no connection gets no pool.
+            # REQ-1491: a source reached through no connection gets no pool (nor, REQ-2031, one
+            # that is never contacted).
             await _build_source_pools_and_enums(
                 org_config.model_copy(
-                    update={"sources": [s for s in org_config.sources if s.id not in unbound]}
+                    update={"sources": [s for s in org_config.sources if s.id not in uncontacted]}
                 )
             )
             await _resolve_pk_from_sources()

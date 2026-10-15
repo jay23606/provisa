@@ -58,7 +58,7 @@ Toutes les sources partagent un jeu de champs commun. [tool-verified: `provisa/c
 | `base_url` | `null` | URL de base pour les sources API |
 | `pool_min` / `pool_max` | `1` / `5` | Bornes du pool de connexions |
 | `cache_enabled` | `true` | Active ou coupe le cache pour toutes les tables de cette source |
-| `cache_ttl` | `null` | Secondes ; `null` hérite du défaut global |
+| `cache_ttl` | `null` | Secondes ; `null` hérite du défaut global ; `-1` n'expire jamais |
 | `federation_hints` | `{}` | Paramètres étendus propres au connecteur (dict[str,str]) ; voir la référence par type ci-dessous. REQ-281 |
 | `mapping` | `{}` | DSL de mapping pour redis, elasticsearch, prometheus. REQ-251 |
 | `allowed_domains` | `[]` | Restreint cette source à des identifiants de domaine précis ; vide = sans restriction |

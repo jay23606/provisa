@@ -369,3 +369,26 @@ describe("SourceLoadManagementPanel", () => {
     asked.mockRestore();
   });
 });
+
+describe("the source's Cache TTL editor (REQ-2031)", () => {
+  it("takes -1 and says the source's tables never expire", () => {
+    const seen: SourceFormState[] = [];
+    renderInForm(<Harness onForm={(f) => seen.push(f)} />);
+    const input = screen.getByTestId("cache-ttl-input");
+    expect(screen.getByText("-1: never expires")).toBeTruthy();
+    fireEvent.change(input, { target: { value: "-1" } });
+    expect(seen.at(-1)?.cacheTtl).toBe("-1");
+    expect(
+      screen.getByText("Never expires: lands once."),
+    ).toBeTruthy();
+  });
+
+  it("goes no lower than -1", () => {
+    const seen: SourceFormState[] = [];
+    renderInForm(<Harness onForm={(f) => seen.push(f)} />);
+    const input = screen.getByTestId("cache-ttl-input");
+    fireEvent.change(input, { target: { value: "-5" } });
+    fireEvent.blur(input);
+    expect(seen.at(-1)?.cacheTtl).toBe("-1");
+  });
+});
