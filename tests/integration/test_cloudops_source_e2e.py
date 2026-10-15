@@ -51,6 +51,8 @@ import os
 
 import pytest
 
+from tests.conftest import as_deployment_org
+
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.requires_cloudops,
@@ -108,9 +110,14 @@ def _serving(source, data_dir):
     previous = os.environ.get("PROVISA_DATA_DIR")
     os.environ["PROVISA_DATA_DIR"] = str(data_dir)
     try:
-        yield pr.ensure_endpoint(source)
+        # A module fixture runs before the per-test org binding: the endpoint is the
+        # deployment org's, as its runtime's boot starts it (REQ-1266).
+        with as_deployment_org():
+            served = pr.ensure_endpoint(source)
+        yield served
     finally:
-        pr.stop_endpoint(source.id)
+        with as_deployment_org():
+            pr.stop_endpoint(source.id)
         if previous is None:
             del os.environ["PROVISA_DATA_DIR"]
         else:
