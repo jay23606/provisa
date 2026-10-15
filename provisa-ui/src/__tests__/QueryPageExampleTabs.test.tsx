@@ -118,4 +118,53 @@ describe("the GraphQL explorer's example tabs", () => {
     // Back in weblogs, its saved tabs are what GraphiQL opens; the examples are not offered again.
     expect(new StorageAPI(graphiql.props?.storage as never).get("tabState")).not.toBeNull();
   });
+
+  it("starts nowhere in particular the first time, so GraphiQL opens the first example", () => {
+    bindStorageScope({ controlPlaneId: "cp-first", orgId: "default" });
+    open(EXAMPLES);
+    expect(graphiql.props?.initialQuery).toBeUndefined();
+    expect(graphiql.props?.initialVariables).toBeUndefined();
+    expect(graphiql.props?.initialHeaders).toBeUndefined();
+  });
+
+  it("opened again, starts on the tab it last had open, never a new empty one", () => {
+    // GraphiQL reopens its saved tabs on the one equal to its starting query, variables and
+    // headers, and adds an empty "<untitled>" tab when none is: the seeded examples never wrote
+    // the starting query, so the explorer reopened on an empty tab.
+    bindStorageScope({ controlPlaneId: "cp-again", orgId: "default" });
+    const first = open(EXAMPLES);
+    const saved = new StorageAPI(graphiql.props?.storage as never);
+    saved.set(
+      "tabState",
+      JSON.stringify({
+        activeTabIndex: 1,
+        tabs: [
+          {
+            id: "a",
+            title: "SlowestPages",
+            query: "query SlowestPages { a }",
+            variables: null,
+            headers: null,
+            operationName: "SlowestPages",
+            response: null,
+          },
+          {
+            id: "b",
+            title: "Errors",
+            query: "query Errors { b }",
+            variables: '{"n":1}',
+            headers: null,
+            operationName: "Errors",
+            response: null,
+          },
+        ],
+      }),
+    );
+    first.unmount();
+
+    open(EXAMPLES);
+    expect(graphiql.props?.initialQuery).toBe("query Errors { b }");
+    expect(graphiql.props?.initialVariables).toBe('{"n":1}');
+    expect(graphiql.props?.initialHeaders).toBe("");
+  });
 });

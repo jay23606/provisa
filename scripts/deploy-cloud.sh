@@ -391,9 +391,9 @@ services:
       - ${OVERLAY_DIR}/provisa:/app/provisa
       - ${OVERLAY_DIR}/config:/app/config
     environment:
-      # The demos cloud.provisa.dev offers (first-launch.sh's default since alpha.486; a node set
-      # up by an earlier release offers its own list until it is set up again).
-      PROVISA_DEMO_BUNDLES: "weblogs,files"
+      # The demos cloud.provisa.dev offers (first-launch.sh's default; a node set up
+      # by an earlier release offers its own list until it is set up again).
+      PROVISA_DEMO_BUNDLES: "weblogs,files,sonnets,reviews"
 YAML
   local want have
   want="$(shasum -a 256 "$STAGE/docker-compose.overlay.yml" | cut -d' ' -f1)"

@@ -437,3 +437,18 @@ class TestSwaggerSpecDownload:
         assert 'headers["x-provisa-role"] = role' in identity
         assert '"Bearer " + token' in identity
         assert 'headers["X-Org-Provisa"] = orgId' in identity
+
+    def test_a_demo_visitors_identity_is_read_where_the_app_keeps_it(self):
+        """A demo sandbox's visitor holds the tab's token, org and role in sessionStorage under
+        ``visitor:`` (provisa-ui browserStorage.ts); read from localStorage they were absent, and
+        the spec request was refused 401."""
+        from provisa.api.rest.openapi_spec import swagger_ui_html
+
+        html = swagger_ui_html("light")
+        identity = html[html.index("const visitor") : html.index("const bar =")]
+        assert 'sessionStorage.getItem("provisa_visitor") === "true"' in identity
+        assert 'sessionStorage.getItem("visitor:" + key)' in identity
+        # Every read goes through identity().
+        assert 'localStorage.getItem("provisa_' not in identity
+        for key in ("provisa_role", "provisa_su_token", "provisa_token", "provisa_org"):
+            assert f'identity("{key}")' in identity
