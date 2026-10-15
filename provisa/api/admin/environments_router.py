@@ -1302,6 +1302,10 @@ async def decide_merge_request(
                 deployed_stamp=None,  # a deploy: not known exactly (see the direct deploy)
                 redo_sha=None,
             )
+            if decided["source_ref"] == f"origin/{decided['target_env']}":
+                # REQ-1547: an approved PULL lands as a pull does -- the branch moves onto the
+                # fetched commit, so the lines it reconciled stay reconciled.
+                await _land(org_id, decided["target_env"], decided["source_sha"], actor)
         # REQ-1544: an approved request is applied by ``env_approvals``, so the target's cached
         # runtime is stale the moment the approval returns exactly as it is after a direct call.
         refreshed = await _refresh(
@@ -1520,28 +1524,43 @@ async def _remote_of(org_id: str) -> str:
 
 
 def _track_pushed(org_id: str, env: str, sha: str) -> None:
-    """Record that the remote now holds ``sha`` on ``env``, so the status stops saying unsynced.
+    """Record that the remote now holds ``sha`` on ``env`` (REQ-1546)."""
+    from provisa.core.env_repo import mark_pushed
 
-    A push that returned is a push the remote accepted, so the tracking ref is written from what we
-    sent rather than from a second round trip. This is the ONE place a tracking ref is written
-    outside a fetch, and it still never touches ``refs/heads``: what the remote holds and what an
-    environment holds stay separate namespaces (REQ-1541).
-    """
-    from dulwich.objects import ObjectID
-
-    from provisa.core.env_repo import ensure_repo, remote_ref
-
-    ensure_repo(org_id).refs[remote_ref(env)] = ObjectID(sha.encode())
+    mark_pushed(org_id, env, sha)
 
 
 def _forget_pushed(org_id: str, env: str) -> None:
     """Drop the tracking ref for a branch that is gone from the remote, so no status claims it."""
-    from provisa.core.env_repo import ensure_repo, remote_ref
+    from provisa.core.env_repo import forget_pushed
 
-    refs = ensure_repo(org_id).refs
-    ref = remote_ref(env)
-    if ref in refs.as_dict():
-        del refs[ref]
+    forget_pushed(org_id, env)
+
+
+async def _land(org_id: str, name: str, sha: str, actor: str | None) -> str | None:
+    """Move ``name``'s branch onto the fetched commit its model was just made from (REQ-1547).
+
+    The branch moves because the write-through commits the model the apply produced, and it
+    commits it ONTO the commit that was applied: the branch then contains what the remote holds,
+    so the pull that reconciled the two lines leaves them reconciled, and a second pull of the
+    same commit finds nothing behind.
+    """
+    from provisa.api.admin.orgs_router import _org_model_db
+    from provisa.core.env_repo import write_through
+    from provisa.core.environments import org_schema
+
+    db = await _org_model_db(org_id)
+    async with db.acquire() as conn:
+        return await write_through(
+            conn,
+            _admin_pool(),
+            org_id,
+            name,
+            org_schema(org_id, name),
+            f"pull {name} from the remote at {sha[:12]}",
+            actor,
+            onto=sha,
+        )
 
 
 @router.get("/-/repo-integration/sync")
@@ -1767,6 +1786,7 @@ async def pull_environment(request: Request, org_id: str, name: str) -> dict:
     await set_position(
         _admin_pool(), org_id, name, deployed_sha=sha, deployed_stamp=None, redo_sha=None
     )
+    await _land(org_id, name, sha, actor)
     await _audit(org_id, actor, "environment.repo_pull", name, {"sha": sha, **report.as_dict()})
     refreshed = await _refresh(org_id, name, connectivity=report.delta.touches_connectivity)
     return {

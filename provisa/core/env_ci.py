@@ -225,6 +225,11 @@ async def announce(
             # it goes: a slow remote must not hold the request that made the edit.
             await asyncio.to_thread(push, org_id, env, integration.remote)
             pushed = True
+            # REQ-1546: the remote took it, so the tracking ref says so -- exactly as an explicit
+            # push records it. Without this the branch just mirrored still reads as unsynced.
+            from provisa.core.env_repo import mark_pushed
+
+            mark_pushed(org_id, env, sha)
         except Exception:  # noqa: BLE001 — REQ-1527: an unreachable remote is not a failed edit
             log.exception("could not push %s/%s to the configured remote", org_id, env)
     if integration.status_webhook is None:

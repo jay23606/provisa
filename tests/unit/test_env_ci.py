@@ -118,6 +118,31 @@ class TestTheStatusSaysWhatHappened:
         assert Repo(str(remote)).refs[b"refs/heads/prod"].decode() == sha
 
 
+class TestAMirroredBranchStopsReadingAsUnsynced:
+    """REQ-1546: a push that returned is a push the remote accepted, so the tracking ref is written
+    from what was sent -- by the automatic mirror exactly as by an explicit push. Without it the
+    branch the mirror just sent still reads as holding work the remote does not."""
+
+    @pytest.mark.asyncio
+    async def test_the_mirror_records_what_the_remote_now_holds(self, monkeypatch, remote):
+        from provisa.core.env_repo import remote_branches, sync_state
+
+        _integration(monkeypatch, remote=str(remote))
+        sha = commit_files(ensure_repo(ORG), "prod", MODEL, "seed", None)
+        await announce(None, ORG, "prod", sha, False)
+        assert remote_branches(ORG) == {"prod": sha}
+        assert sync_state(ORG, "prod")["unsynced"] is False
+
+    @pytest.mark.asyncio
+    async def test_a_push_that_failed_records_nothing(self, monkeypatch, tmp_path):
+        from provisa.core.env_repo import remote_branches
+
+        _integration(monkeypatch, remote=str(tmp_path / "no-such-remote.git"))
+        sha = commit_files(ensure_repo(ORG), "prod", MODEL, "seed", None)
+        await announce(None, ORG, "prod", sha, False)
+        assert remote_branches(ORG) == {}
+
+
 class TestADeploymentWithNoRemoteAndNoCI:
     @pytest.mark.asyncio
     async def test_nothing_is_pushed_and_nothing_is_posted(self, monkeypatch, posted):
