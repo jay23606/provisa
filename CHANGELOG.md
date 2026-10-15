@@ -3,6 +3,34 @@
 All notable changes to Provisa are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## v0.1.0-alpha.486
+
+Released 2026-10-15.
+
+### Changes
+
+#### boot
+
+- The platform fake key is held before the engine is woken
+
+#### deploy
+
+- The cloud sandbox tier runs the deployed app tree and offers weblogs and files
+
+#### deps
+
+- Bound sqlglot to 30.23, and run on it (scope set_operation_scopes, lineage schema)
+
+#### federation
+
+- An org on its own engine is walked by its own registry, not the deployment's file
+
+#### sandbox
+
+- A sandbox's AI uses the tier's one endpoint and model, its key from the deployment org's vault
+- A visitor cannot choose the model the deployment's AI endpoint runs
+- The sandbox tier never provisions an engine
+
 ## v0.1.0-alpha.485
 
 Released 2026-10-14.

@@ -1,114 +1,39 @@
 {
-  "version": "v0.1.0-alpha.485",
-  "previous": "v0.1.0-alpha.484",
-  "date": "2026-10-14",
+  "version": "v0.1.0-alpha.486",
+  "previous": "v0.1.0-alpha.485",
+  "date": "2026-10-15",
   "features": [],
   "changes": [
     {
-      "scope": "demo",
+      "scope": "boot",
       "entries": [
-        "Publish the sonnets demo, its card the echo network",
-        "The sonnets run-time stores say where the config reads them",
-        "The sonnets run-time Qdrant is the build's version, so its snapshot restores"
+        "The platform fake key is held before the engine is woken"
       ]
     },
     {
-      "scope": "demos",
+      "scope": "deploy",
       "entries": [
-        "A demo's own sources are read live, from stores the sandbox tier's node runs",
-        "Qdrant 1.19.1, the server the 1.19 client supports",
-        "A refusal names no requirement id",
-        "A demo's setup.yaml runs in its bundle build, and Qdrant stores are carried as snapshots",
-        "The node pulls with the package's own module; the sandbox data is a host directory",
-        "The weblogs run-time database publishes on the loopback only",
-        "A bundle in an older demo format is refused by name at load, not per request",
-        "The sonnets run-time stores publish on the loopback only",
-        "A live demo runs as its own visitor, never as the browser's Provisa login",
-        "A live demo is opened anonymously, the browser's login is not sent",
-        "The pull's help text names no requirement id",
-        "The files demo, an instant data lake"
+        "The cloud sandbox tier runs the deployed app tree and offers weblogs and files"
       ]
     },
     {
-      "scope": "events",
+      "scope": "deps",
       "entries": [
-        "The event loop types a view's columns from its governed build"
+        "Bound sqlglot to 30.23, and run on it (scope set_operation_scopes, lineage schema)"
       ]
     },
     {
-      "scope": "freshness",
+      "scope": "federation",
       "entries": [
-        "An abandoned logical slot is dropped at start; the kafka signal on a database source is received",
-        "A load-protected table is refreshed only in its off-peak window",
-        "The signal change signal's receiver is a webhook"
+        "An org on its own engine is walked by its own registry, not the deployment's file"
       ]
     },
     {
-      "scope": "graphql",
+      "scope": "sandbox",
       "entries": [
-        "A view column named like another type's join is not counted as one (#265)"
-      ]
-    },
-    {
-      "scope": "launcher",
-      "entries": [
-        "Starting a named demo stops every other demo's stores first"
-      ]
-    },
-    {
-      "scope": "mcp",
-      "entries": [
-        "The glossary, data product, metric and proposal tools read the model store"
-      ]
-    },
-    {
-      "scope": "mv",
-      "entries": [
-        "An aggregate is answered from a view that pre-aggregates its table, re-aggregated exactly",
-        "/data/sql is answered from materialized views through the one pipeline"
-      ]
-    },
-    {
-      "scope": "polly",
-      "entries": [
-        "Cap every model call's output, and search the catalog before saying there is no tool",
-        "Claim nothing beside the call that does it, explain a failure only from its error",
-        "Never show the text the model writes beside a tool call",
-        "Rows with every file, an answer from the last round, and a bake-off that resumes",
-        "The last round carries no tools, and the built-in tables say whose record they are",
-        "A blank final reply ends with a note, and a page opens besides the answer",
-        "The last round is told to answer, and neither a late call nor a written one stands"
-      ]
-    },
-    {
-      "scope": "search",
-      "entries": [
-        "Each read of a search table is read under its own arguments"
-      ]
-    },
-    {
-      "scope": "site",
-      "entries": [
-        "Every page carries the home page's navigation, with a test that keeps them in step"
-      ]
-    },
-    {
-      "scope": "tour",
-      "entries": [
-        "A named demo's tour ends on a choice: the Deep Dives, or the demo's own page"
-      ]
-    },
-    {
-      "scope": "vector",
-      "entries": [
-        "A local embedding model is used by one request at a time",
-        "A local model's version is read once the model is fetched"
-      ]
-    },
-    {
-      "scope": "views",
-      "entries": [
-        "A view named in a string literal is not expanded"
+        "A sandbox's AI uses the tier's one endpoint and model, its key from the deployment org's vault",
+        "A visitor cannot choose the model the deployment's AI endpoint runs",
+        "The sandbox tier never provisions an engine"
       ]
     }
   ]
