@@ -1,0 +1,9 @@
+# Every landed batch and how many of its checks passed and failed.
+query EveryBatchAndItsOutcome {
+  s__viewDqResultsGroupBy(by: [batchId, outcome], order_by: [{ groupKey: { batchId: asc } }]) {
+    groupKey
+    aggregate {
+      count
+    }
+  }
+}

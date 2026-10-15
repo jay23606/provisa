@@ -1,0 +1,14 @@
+# Which checks admitted this version of silver: a silver sale, the check run that admitted its
+# batch, and that run's every check, along the relationship ADMITTED_BY.
+query ChecksThatAdmittedSilver {
+  s__viewSilver(limit: 1, order_by: [{ saleId: asc }]) {
+    saleId
+    runId
+    viewDqResults {
+      checkName
+      definition
+      failingRows
+      outcome
+    }
+  }
+}

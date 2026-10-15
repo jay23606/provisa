@@ -487,6 +487,46 @@
       "insuranceRest": {
         "title": "La même réponse par REST",
         "description": "La vue est aussi un point de terminaison REST, groupé et sommé sur le serveur. Tout client qui parle HTTP obtient la réponse sans écrire de SQL."
+      },
+      "qualityIntro": {
+        "title": "Des données dignes de confiance",
+        "description": "Une chaîne de cinq boutiques envoie ses ventes sous forme de flux, un lot par jour, déposé en bronze dans <strong>sales</strong>, la base de données de la chaîne. Tout ce qui suit le bronze est une vue matérialisée : les contrôles, l'argent et l'or, actualisés par le seul dépôt. La question : puis-je faire confiance à ces données avant qu'elles n'atteignent l'or ?"
+      },
+      "qualityBronze": {
+        "title": "Bronze : typé là où c'est propre",
+        "description": "<strong>bronze</strong> contient chaque lot tel qu'il a été déposé, jamais modifié. Les données propres sont typées au dépôt : l'identifiant de vente, le moment de la vente, la quantité. Les champs désordonnés, code de boutique, produit et prix, restent bruts jusqu'à l'argent. Une sonde le surveille : un nouveau lot actualise chaque vue qui le suit."
+      },
+      "qualityRaw": {
+        "title": "Brut, comme le flux l'a écrit",
+        "description": "Les produits du premier lot tels qu'ils ont été déposés : un produit en plusieurs graphies, comme COFFEE, Coffee et cofee. L'argent les réunit."
+      },
+      "qualityChecks": {
+        "title": "Les contrôles, sur chaque lot",
+        "description": "<strong>dq_results</strong> est une vue matérialisée qui calcule les contrôles en SQL sur chaque lot déposé : combien de lignes échouent à chacun, et réussi ou échoué. Le lot 1 les réussit tous ; le lot 2 en échoue trois."
+      },
+      "qualityAdmitted": {
+        "title": "D'une ligne aux contrôles qui l'ont admise",
+        "description": "Chaque ligne d'argent porte l'identifiant d'exécution des contrôles qui ont admis son lot. La relation ADMITTED_BY la relie à ces contrôles dans dq_results."
+      },
+      "qualityWhichChecks": {
+        "title": "Quels contrôles ont admis l'argent",
+        "description": "Une vente en argent et, via ADMITTED_BY, chaque contrôle de l'exécution qui l'a admise : tous ont réussi, sans ligne en échec."
+      },
+      "qualityRefused": {
+        "title": "Sur quoi le mauvais lot a échoué",
+        "description": "Les lignes du lot 2 qui échouent à un contrôle, toujours en bronze telles qu'elles ont été déposées : une boutique que la chaîne n'a pas, des quantités négatives, des prix qui ne sont pas des nombres. Rien du lot 2 n'atteint l'argent ; le lot 1 reste."
+      },
+      "qualitySilver": {
+        "title": "Argent : nettoyé",
+        "description": "L'argent est le bronze nettoyé, à partir des seuls lots réussis : codes de boutique rognés et en majuscules, une graphie par produit, le prix en nombre, le jour dérivé, et une vente envoyée deux fois gardée une fois, dans sa version la plus récente."
+      },
+      "qualityGold": {
+        "title": "Or : les totaux",
+        "description": "L'or est un GROUP BY sur l'argent : ventes, articles, chiffre d'affaires et fourchette de prix par jour et par produit, à partir de données contrôlées seulement."
+      },
+      "qualityDone": {
+        "title": "Une confiance que l'on peut interroger",
+        "description": "Déposer un lot a actualisé les contrôles, l'argent et l'or, sans rien exécuter d'autre. Le lot propre a atteint l'or ; le mauvais s'est arrêté au bronze, et pourquoi, c'est une requête."
       }
     },
     "status": {
@@ -519,6 +559,10 @@
       "insurance": {
         "title": "Exposition des biens et risque de catastrophe",
         "summary": "La question d'un assureur dommages, où son exposition se concentre face au risque : ses propres polices jointes par comté aux données de la FEMA, des feux de forêt et des tempêtes, avec la réponse en SQL, GraphQL et REST."
+      },
+      "quality": {
+        "title": "Des données dignes de confiance",
+        "summary": "Le flux de ventes d'une chaîne de boutiques, raffiné du bronze à l'argent puis à l'or par des vues matérialisées contrôlées : il suffit de déposer un lot, et un lot qui échoue à un contrôle n'atteint jamais l'argent."
       }
     }
   }

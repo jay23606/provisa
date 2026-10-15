@@ -1,0 +1,10 @@
+# The batches landed into bronze, as delivered, and how many lines each holds: the bad batch is
+# here, though it never reached silver.
+query BatchesLandedInBronze {
+  s__bronzeGroupBy(by: [batchId], order_by: [{ groupKey: { batchId: asc } }]) {
+    groupKey
+    aggregate {
+      count
+    }
+  }
+}

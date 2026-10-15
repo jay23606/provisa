@@ -1,0 +1,53 @@
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+#
+# The quality demo where it runs from its bundle (start-ui-install.sh --demo quality; REQ-2051,
+# REQ-2049). Its database is read live (config.yaml sales), holding what the bundle's build left in
+# it -- its setup.yaml had run: the clean batch promoted to gold, the bad batch landed and refused at
+# silver, every check's result recorded.
+#
+#   postgres  the chain's database, loaded from dump/postgres.sql, with the role Provisa reads it as,
+#             read only (db/run-access.sql): the store is shared by every sandbox of the demo.
+#
+# Port: 28632 the database, on the loopback only; moved by its variable. Set empty, it is published
+# on a free one (the sandbox tier's node runs several versions at once), still on the loopback.
+x-demo-labels: &demo-labels
+  com.provisa.demo: quality
+
+name: provisa-demo-quality-run
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    labels:
+      <<: *demo-labels
+      com.provisa.demo.role: rdb
+      # Where the config reads it (the sandbox tier's node writes stores.env from these).
+      com.provisa.demo.host_env: QUALITY_PG_HOST
+      com.provisa.demo.port_env: QUALITY_PG_PORT
+      com.provisa.demo.port: "5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: sales
+    ports:
+      - "127.0.0.1:${QUALITY_PG_PORT-28632}:5432"
+    volumes:
+      - quality_run_pg:/var/lib/postgresql/data
+      - ./dump/postgres.sql:/docker-entrypoint-initdb.d/10-sales.sql:ro
+      - ./db/run-access.sql:/docker-entrypoint-initdb.d/20-access.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sales"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+
+volumes:
+  quality_run_pg:

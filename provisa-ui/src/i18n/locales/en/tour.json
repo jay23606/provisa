@@ -487,6 +487,46 @@
       "insuranceRest": {
         "title": "The same answer over REST",
         "description": "The view is a REST endpoint too, grouped and summed on the server. Any client that speaks HTTP gets the answer without writing SQL."
+      },
+      "qualityIntro": {
+        "title": "Data you can trust",
+        "description": "A chain of five shops sends its sales as a feed, a batch a day, landed as bronze into <strong>sales</strong>, the chain's database. Everything after bronze is a materialized view: the checks, silver and gold, refreshed by landing alone. The question: can I trust this data before it reaches gold?"
+      },
+      "qualityBronze": {
+        "title": "Bronze: typed where it is clean",
+        "description": "<strong>bronze</strong> holds every batch as it landed, never changed. Clean data is typed on landing: the sale id, when it was sold, the quantity. The messy fields, shop code, product and price, stay raw until silver. Its probe watches it, so a new batch refreshes every view after it."
+      },
+      "qualityRaw": {
+        "title": "Raw, as the feed spelled it",
+        "description": "The products of the first batch as they landed: one product in several spellings, such as COFFEE, Coffee and cofee. Silver makes them one."
+      },
+      "qualityChecks": {
+        "title": "The checks, on every batch",
+        "description": "<strong>dq_results</strong> is a materialized view that computes the checks in SQL on every landed batch: how many rows fail each, and pass or fail. Batch 1 passes them all; batch 2 fails three."
+      },
+      "qualityAdmitted": {
+        "title": "From a row to the checks that admitted it",
+        "description": "Every silver row carries the run id of the checks that admitted its batch. The relationship ADMITTED_BY joins it to those checks in dq_results."
+      },
+      "qualityWhichChecks": {
+        "title": "Which checks admitted silver",
+        "description": "A silver sale and, along ADMITTED_BY, every check of the run that admitted it: each one passed, with no failing rows."
+      },
+      "qualityRefused": {
+        "title": "What the bad batch failed on",
+        "description": "The rows of batch 2 that fail a check, still in bronze as they landed: a shop the chain does not have, negative quantities, prices that are not numbers. None of batch 2 reaches silver; batch 1 stays."
+      },
+      "qualitySilver": {
+        "title": "Silver: cleaned",
+        "description": "Silver is bronze cleaned, from the passing batches only: shop codes trimmed and upper-cased, one spelling a product, the price a number, the day derived, and a sale sent twice kept once, at its latest."
+      },
+      "qualityGold": {
+        "title": "Gold: the totals",
+        "description": "Gold is one GROUP BY over silver: sales, items, revenue and the price range by day and product, from checked data only."
+      },
+      "qualityDone": {
+        "title": "Trust you can query",
+        "description": "Landing a batch refreshed the checks, silver and gold, with nothing else run. The clean batch reached gold; the bad one stopped at bronze, and why is a query."
       }
     },
     "status": {
@@ -519,6 +559,10 @@
       "insurance": {
         "title": "Property exposure and hazard risk",
         "summary": "A property insurer's question, where its exposure is concentrated against hazard risk: its own policies joined by county to FEMA, wildfire and storm data, answered in SQL, GraphQL and REST."
+      },
+      "quality": {
+        "title": "Data you can trust",
+        "summary": "A chain of shops' sales feed refined from bronze to silver and gold by checked materialized views: landing a batch is all it takes, and a batch that fails a check never reaches silver."
       }
     }
   }

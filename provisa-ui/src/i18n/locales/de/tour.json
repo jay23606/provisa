@@ -487,6 +487,46 @@
       "insuranceRest": {
         "title": "Dieselbe Antwort über REST",
         "description": "Die Sicht ist auch ein REST-Endpunkt, auf dem Server gruppiert und summiert. Jeder Client, der HTTP spricht, erhält die Antwort, ohne SQL zu schreiben."
+      },
+      "qualityIntro": {
+        "title": "Daten, denen Sie vertrauen können",
+        "description": "Eine Kette von fünf Läden sendet ihre Verkäufe als Feed, einen Stapel pro Tag, abgelegt als Bronze in <strong>sales</strong>, der Datenbank der Kette. Alles nach Bronze ist eine materialisierte Ansicht: die Prüfungen, Silber und Gold, aktualisiert allein durch das Ablegen. Die Frage: Kann ich diesen Daten vertrauen, bevor sie Gold erreichen?"
+      },
+      "qualityBronze": {
+        "title": "Bronze: typisiert, wo es sauber ist",
+        "description": "<strong>bronze</strong> enthält jeden Stapel so, wie er abgelegt wurde, nie geändert. Saubere Daten werden beim Ablegen typisiert: die Verkaufs-ID, der Verkaufszeitpunkt, die Menge. Die unsauberen Felder, Ladencode, Produkt und Preis, bleiben roh bis Silber. Eine Abfrage überwacht es, sodass ein neuer Stapel jede Ansicht danach aktualisiert."
+      },
+      "qualityRaw": {
+        "title": "Roh, wie der Feed es schrieb",
+        "description": "Die Produkte des ersten Stapels, wie sie abgelegt wurden: ein Produkt in mehreren Schreibweisen, etwa COFFEE, Coffee und cofee. Silber macht daraus eine."
+      },
+      "qualityChecks": {
+        "title": "Die Prüfungen, auf jedem Stapel",
+        "description": "<strong>dq_results</strong> ist eine materialisierte Ansicht, die die Prüfungen in SQL auf jedem abgelegten Stapel berechnet: wie viele Zeilen jede nicht bestehen, und bestanden oder nicht. Stapel 1 besteht alle; Stapel 2 scheitert an drei."
+      },
+      "qualityAdmitted": {
+        "title": "Von einer Zeile zu den Prüfungen, die sie zuließen",
+        "description": "Jede Silber-Zeile trägt die Lauf-ID der Prüfungen, die ihren Stapel zugelassen haben. Die Beziehung ADMITTED_BY verbindet sie mit diesen Prüfungen in dq_results."
+      },
+      "qualityWhichChecks": {
+        "title": "Welche Prüfungen Silber zuließen",
+        "description": "Ein Silber-Verkauf und, über ADMITTED_BY, jede Prüfung des Laufs, der ihn zugelassen hat: Jede wurde bestanden, ohne fehlerhafte Zeilen."
+      },
+      "qualityRefused": {
+        "title": "Woran der fehlerhafte Stapel scheiterte",
+        "description": "Die Zeilen von Stapel 2, die eine Prüfung nicht bestehen, noch in Bronze, wie sie abgelegt wurden: ein Laden, den die Kette nicht hat, negative Mengen, Preise, die keine Zahlen sind. Nichts von Stapel 2 erreicht Silber; Stapel 1 bleibt."
+      },
+      "qualitySilver": {
+        "title": "Silber: bereinigt",
+        "description": "Silber ist bereinigte Bronze, nur aus bestandenen Stapeln: Ladencodes gekürzt und in Großbuchstaben, eine Schreibweise pro Produkt, der Preis eine Zahl, der Tag abgeleitet und ein doppelt gesendeter Verkauf einmal behalten, in seiner neuesten Fassung."
+      },
+      "qualityGold": {
+        "title": "Gold: die Summen",
+        "description": "Gold ist ein GROUP BY über Silber: Verkäufe, Artikel, Umsatz und Preisspanne nach Tag und Produkt, nur aus geprüften Daten."
+      },
+      "qualityDone": {
+        "title": "Vertrauen, das sich abfragen lässt",
+        "description": "Das Ablegen eines Stapels aktualisierte die Prüfungen, Silber und Gold, ohne dass sonst etwas lief. Der saubere Stapel erreichte Gold; der fehlerhafte blieb in Bronze, und warum, ist eine Abfrage."
       }
     },
     "status": {
@@ -519,6 +559,10 @@
       "insurance": {
         "title": "Sachexposure und Gefahrenrisiko",
         "summary": "Die Frage eines Sachversicherers, wo sich sein Exposure gegenüber dem Gefahrenrisiko konzentriert: seine eigenen Policen, über das County mit FEMA-, Waldbrand- und Sturmdaten verknüpft, beantwortet in SQL, GraphQL und REST."
+      },
+      "quality": {
+        "title": "Daten, denen Sie vertrauen können",
+        "summary": "Der Verkaufsfeed einer Ladenkette, von Bronze zu Silber und Gold veredelt durch geprüfte materialisierte Ansichten: Ein Stapel muss nur abgelegt werden, und ein Stapel, der eine Prüfung nicht besteht, erreicht Silber nie."
       }
     }
   }

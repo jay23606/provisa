@@ -487,6 +487,46 @@
       "insuranceRest": {
         "title": "La misma respuesta por REST",
         "description": "La vista también es un endpoint REST, agrupado y sumado en el servidor. Cualquier cliente que hable HTTP obtiene la respuesta sin escribir SQL."
+      },
+      "qualityIntro": {
+        "title": "Datos en los que puede confiar",
+        "description": "Una cadena de cinco tiendas envía sus ventas como un flujo, un lote al día, depositado como bronce en <strong>sales</strong>, la base de datos de la cadena. Todo lo que viene después del bronce es una vista materializada: los controles, plata y oro, actualizados solo con depositar. La pregunta: ¿puedo confiar en estos datos antes de que lleguen a oro?"
+      },
+      "qualityBronze": {
+        "title": "Bronce: tipado donde está limpio",
+        "description": "<strong>bronze</strong> guarda cada lote tal como se depositó, sin cambios. Los datos limpios se tipan al depositarse: el id de venta, cuándo se vendió, la cantidad. Los campos desordenados, código de tienda, producto y precio, quedan en bruto hasta plata. Un sondeo lo vigila, así que un lote nuevo actualiza cada vista posterior."
+      },
+      "qualityRaw": {
+        "title": "En bruto, como lo escribió el flujo",
+        "description": "Los productos del primer lote tal como se depositaron: un producto en varias grafías, como COFFEE, Coffee y cofee. Plata los unifica."
+      },
+      "qualityChecks": {
+        "title": "Los controles, en cada lote",
+        "description": "<strong>dq_results</strong> es una vista materializada que calcula los controles en SQL sobre cada lote depositado: cuántas filas falla cada uno, y si pasa o falla. El lote 1 los pasa todos; el lote 2 falla tres."
+      },
+      "qualityAdmitted": {
+        "title": "De una fila a los controles que la admitieron",
+        "description": "Cada fila de plata lleva el id de ejecución de los controles que admitieron su lote. La relación ADMITTED_BY la une a esos controles en dq_results."
+      },
+      "qualityWhichChecks": {
+        "title": "Qué controles admitieron plata",
+        "description": "Una venta de plata y, por ADMITTED_BY, cada control de la ejecución que la admitió: todos se superaron, sin filas fallidas."
+      },
+      "qualityRefused": {
+        "title": "En qué falló el lote defectuoso",
+        "description": "Las filas del lote 2 que fallan un control, aún en bronce tal como se depositaron: una tienda que la cadena no tiene, cantidades negativas, precios que no son números. Nada del lote 2 llega a plata; el lote 1 se queda."
+      },
+      "qualitySilver": {
+        "title": "Plata: limpia",
+        "description": "Plata es el bronce limpio, solo de los lotes que pasaron: códigos de tienda recortados y en mayúsculas, una grafía por producto, el precio como número, el día derivado y una venta enviada dos veces conservada una vez, en su versión más reciente."
+      },
+      "qualityGold": {
+        "title": "Oro: los totales",
+        "description": "Oro es un GROUP BY sobre plata: ventas, artículos, ingresos y rango de precios por día y producto, solo de datos controlados."
+      },
+      "qualityDone": {
+        "title": "Confianza que se puede consultar",
+        "description": "Depositar un lote actualizó los controles, plata y oro, sin ejecutar nada más. El lote limpio llegó a oro; el defectuoso se quedó en bronce, y el porqué es una consulta."
       }
     },
     "status": {
@@ -519,6 +559,10 @@
       "insurance": {
         "title": "Exposición de bienes y riesgo de catástrofes",
         "summary": "La pregunta de una aseguradora de daños, dónde se concentra su exposición frente al riesgo: sus propias pólizas unidas por condado con datos de FEMA, incendios forestales y tormentas, respondida en SQL, GraphQL y REST."
+      },
+      "quality": {
+        "title": "Datos en los que puede confiar",
+        "summary": "El flujo de ventas de una cadena de tiendas, refinado de bronce a plata y oro por vistas materializadas con controles: basta con depositar un lote, y un lote que falla un control nunca llega a plata."
       }
     }
   }

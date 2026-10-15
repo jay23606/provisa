@@ -487,6 +487,46 @@
       "insuranceRest": {
         "title": "La stessa risposta via REST",
         "description": "La vista è anche un endpoint REST, raggruppato e sommato sul server. Qualsiasi client che parla HTTP ottiene la risposta senza scrivere SQL."
+      },
+      "qualityIntro": {
+        "title": "Dati di cui fidarsi",
+        "description": "Una catena di cinque negozi invia le sue vendite come flusso, un lotto al giorno, depositato come bronzo in <strong>sales</strong>, il database della catena. Tutto ciò che segue il bronzo è una vista materializzata: i controlli, argento e oro, aggiornati dal solo deposito. La domanda: posso fidarmi di questi dati prima che arrivino all'oro?"
+      },
+      "qualityBronze": {
+        "title": "Bronzo: tipizzato dove è pulito",
+        "description": "<strong>bronze</strong> contiene ogni lotto così come è stato depositato, mai modificato. I dati puliti vengono tipizzati al deposito: l'id di vendita, il momento della vendita, la quantità. I campi disordinati, codice negozio, prodotto e prezzo, restano grezzi fino all'argento. Una sonda lo sorveglia, così un nuovo lotto aggiorna ogni vista successiva."
+      },
+      "qualityRaw": {
+        "title": "Grezzo, come lo ha scritto il flusso",
+        "description": "I prodotti del primo lotto così come sono stati depositati: un prodotto in più grafie, come COFFEE, Coffee e cofee. L'argento li unifica."
+      },
+      "qualityChecks": {
+        "title": "I controlli, su ogni lotto",
+        "description": "<strong>dq_results</strong> è una vista materializzata che calcola i controlli in SQL su ogni lotto depositato: quante righe falliscono ciascuno, e superato o fallito. Il lotto 1 li supera tutti; il lotto 2 ne fallisce tre."
+      },
+      "qualityAdmitted": {
+        "title": "Da una riga ai controlli che l'hanno ammessa",
+        "description": "Ogni riga d'argento porta l'id di esecuzione dei controlli che hanno ammesso il suo lotto. La relazione ADMITTED_BY la collega a quei controlli in dq_results."
+      },
+      "qualityWhichChecks": {
+        "title": "Quali controlli hanno ammesso l'argento",
+        "description": "Una vendita d'argento e, tramite ADMITTED_BY, ogni controllo dell'esecuzione che l'ha ammessa: tutti superati, senza righe fallite."
+      },
+      "qualityRefused": {
+        "title": "Su cosa è fallito il lotto difettoso",
+        "description": "Le righe del lotto 2 che falliscono un controllo, ancora in bronzo così come sono state depositate: un negozio che la catena non ha, quantità negative, prezzi che non sono numeri. Nulla del lotto 2 arriva all'argento; il lotto 1 resta."
+      },
+      "qualitySilver": {
+        "title": "Argento: pulito",
+        "description": "L'argento è il bronzo pulito, solo dai lotti superati: codici negozio rifilati e in maiuscolo, una grafia per prodotto, il prezzo come numero, il giorno derivato e una vendita inviata due volte tenuta una volta, nella versione più recente."
+      },
+      "qualityGold": {
+        "title": "Oro: i totali",
+        "description": "L'oro è un GROUP BY sull'argento: vendite, articoli, ricavi e fascia di prezzo per giorno e prodotto, solo da dati controllati."
+      },
+      "qualityDone": {
+        "title": "Fiducia che si può interrogare",
+        "description": "Depositare un lotto ha aggiornato i controlli, l'argento e l'oro, senza eseguire altro. Il lotto pulito è arrivato all'oro; quello difettoso si è fermato al bronzo, e il perché è una query."
       }
     },
     "status": {
@@ -519,6 +559,10 @@
       "insurance": {
         "title": "Esposizione dei beni e rischio catastrofale",
         "summary": "La domanda di un assicuratore danni, dove si concentra la sua esposizione rispetto al rischio: le sue polizze unite per contea ai dati di FEMA, incendi boschivi e tempeste, con la risposta in SQL, GraphQL e REST."
+      },
+      "quality": {
+        "title": "Dati di cui fidarsi",
+        "summary": "Il flusso di vendite di una catena di negozi, raffinato da bronzo ad argento e oro da viste materializzate controllate: basta depositare un lotto, e un lotto che fallisce un controllo non arriva mai all'argento."
       }
     }
   }

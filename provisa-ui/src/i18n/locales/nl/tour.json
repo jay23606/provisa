@@ -487,6 +487,46 @@
       "insuranceRest": {
         "title": "Hetzelfde antwoord via REST",
         "description": "De view is ook een REST-endpoint, gegroepeerd en opgeteld op de server. Elke client die HTTP spreekt, krijgt het antwoord zonder SQL te schrijven."
+      },
+      "qualityIntro": {
+        "title": "Data die u kunt vertrouwen",
+        "description": "Een keten van vijf winkels stuurt haar verkopen als een feed, één batch per dag, geland als brons in <strong>sales</strong>, de database van de keten. Alles na brons is een gematerialiseerde view: de controles, zilver en goud, ververst door alleen te landen. De vraag: kan ik deze data vertrouwen voordat ze goud bereikt?"
+      },
+      "qualityBronze": {
+        "title": "Brons: getypeerd waar het schoon is",
+        "description": "<strong>bronze</strong> bevat elke batch zoals die geland is, nooit gewijzigd. Schone data wordt bij het landen getypeerd: het verkoop-id, wanneer verkocht, het aantal. De rommelige velden, winkelcode, product en prijs, blijven ruw tot zilver. Een probe houdt het in de gaten, dus een nieuwe batch ververst elke view erna."
+      },
+      "qualityRaw": {
+        "title": "Ruw, zoals de feed het schreef",
+        "description": "De producten van de eerste batch zoals ze geland zijn: één product in meerdere spellingen, zoals COFFEE, Coffee en cofee. Zilver maakt er één van."
+      },
+      "qualityChecks": {
+        "title": "De controles, op elke batch",
+        "description": "<strong>dq_results</strong> is een gematerialiseerde view die de controles in SQL op elke gelande batch berekent: hoeveel rijen elke controle niet doorstaan, en geslaagd of niet. Batch 1 doorstaat ze allemaal; batch 2 faalt op drie."
+      },
+      "qualityAdmitted": {
+        "title": "Van een rij naar de controles die haar toelieten",
+        "description": "Elke zilveren rij draagt het run-id van de controles die haar batch toelieten. De relatie ADMITTED_BY koppelt haar aan die controles in dq_results."
+      },
+      "qualityWhichChecks": {
+        "title": "Welke controles zilver toelieten",
+        "description": "Een zilveren verkoop en, via ADMITTED_BY, elke controle van de run die haar toeliet: elke controle slaagde, zonder mislukte rijen."
+      },
+      "qualityRefused": {
+        "title": "Waarop de slechte batch faalde",
+        "description": "De rijen van batch 2 die een controle niet doorstaan, nog in brons zoals ze geland zijn: een winkel die de keten niet heeft, negatieve aantallen, prijzen die geen getallen zijn. Niets van batch 2 bereikt zilver; batch 1 blijft."
+      },
+      "qualitySilver": {
+        "title": "Zilver: opgeschoond",
+        "description": "Zilver is opgeschoond brons, alleen uit geslaagde batches: winkelcodes ingekort en in hoofdletters, één spelling per product, de prijs een getal, de dag afgeleid, en een twee keer gestuurde verkoop één keer bewaard, in de nieuwste versie."
+      },
+      "qualityGold": {
+        "title": "Goud: de totalen",
+        "description": "Goud is één GROUP BY over zilver: verkopen, artikelen, omzet en prijsbereik per dag en product, alleen uit gecontroleerde data."
+      },
+      "qualityDone": {
+        "title": "Vertrouwen dat u kunt opvragen",
+        "description": "Een batch landen verversten de controles, zilver en goud, zonder dat er iets anders draaide. De schone batch bereikte goud; de slechte bleef in brons, en waarom is een query."
       }
     },
     "status": {
@@ -519,6 +559,10 @@
       "insurance": {
         "title": "Blootstelling van eigendommen en natuurrisico",
         "summary": "De vraag van een schadeverzekeraar waar zijn blootstelling zich concentreert ten opzichte van het risico: zijn eigen polissen per county gekoppeld aan gegevens over FEMA, bosbranden en stormen, beantwoord in SQL, GraphQL en REST."
+      },
+      "quality": {
+        "title": "Data die u kunt vertrouwen",
+        "summary": "De verkoopfeed van een winkelketen, van brons naar zilver en goud verfijnd door gecontroleerde gematerialiseerde views: een batch landen is genoeg, en een batch die een controle niet doorstaat, bereikt zilver nooit."
       }
     }
   }
