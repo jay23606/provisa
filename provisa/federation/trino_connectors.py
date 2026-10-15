@@ -311,7 +311,10 @@ class TrinoCassandraConnector(_TrinoConnector):
     trino_connector = "cassandra"
 
     def capability(self) -> Capability:
-        return Capability(predicate_pushdown=True)
+        # Trino's Cassandra connector writes the keyspace it attaches: INSERT is supported (UPDATE
+        # is not, and DELETE only by partition key, so the source takes inserts — see
+        # executor/write_capability._INSERT_ONLY).
+        return Capability(predicate_pushdown=True, write=True)
 
     def details(self, source: Source) -> dict:
         from provisa.core.secrets import resolve_secrets

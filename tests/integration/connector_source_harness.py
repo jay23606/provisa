@@ -245,6 +245,7 @@ async def register_table(
     alias: str,
     columns: list[str],
     column_types: dict[str, str] | None = None,
+    writable_by: list[str] | None = None,
 ) -> None:
     """Register a table with UNTYPED columns, forcing source introspection.
 
@@ -264,9 +265,15 @@ async def register_table(
     connector source: there it would hide the introspection failure this harness exists to catch.
     """
     types = column_types or {}
+    # ``writable_by`` names the roles that may write every column — a write test registers the
+    # table writable; a read test leaves it unwritable, as a registration does by default.
+    writable = (
+        ", writableBy: [" + ", ".join(f'"{r}"' for r in writable_by) + "]" if writable_by else ""
+    )
     cols = ", ".join(
         f'{{ name: "{c}", visibleTo: {_VISIBLE_TO_LITERAL}'
         + (f', dataType: "{types[c]}"' if c in types else "")
+        + writable
         + " }"
         for c in columns
     )
@@ -337,6 +344,7 @@ async def assert_registration_and_query(
     alias: str | None = None,
     settle_seconds: float = 0,
     seed_after_create_source: Callable[[str], None] | None = None,
+    writable_by: list[str] | None = None,
 ) -> None:
     """Drive the whole path and assert the served rows.
 
@@ -384,6 +392,7 @@ async def assert_registration_and_query(
         alias=alias,
         columns=columns,
         column_types=column_types,
+        writable_by=writable_by,
     )
     await rebuild_schemas(client)
 

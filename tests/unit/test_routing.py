@@ -68,19 +68,38 @@ class TestRoutingDecisions:
         assert decision.source_id is None
 
     def test_mutation_always_routes_direct(self):
-        """Mutations are never routed via Trino — always direct."""
+        """A mutation on a source with its own driver goes to that driver (REQ-031)."""
         decision = decide_route({"pg-main"}, _TYPES, _DIALECTS, is_mutation=True, operator_floor={})
         assert decision.route == Route.DIRECT
         assert decision.source_id == "pg-main"
         assert "mutation" in decision.reason.lower()
 
     def test_mutation_always_routes_direct_even_with_nosql(self):
-        """Even a NoSQL-sourced mutation routes direct (not Trino)."""
+        """With no engine bound there is no engine write route: a NoSQL-sourced mutation is
+        routed direct (and the terminal refuses it by name when no connection holds it)."""
         decision = decide_route(
             {"mongo-events"}, _TYPES, _DIALECTS, is_mutation=True, operator_floor={}
         )
         assert decision.route == Route.DIRECT
         assert decision.source_id == "mongo-events"
+
+    def test_a_mutation_with_no_direct_driver_goes_through_the_engines_connector(self):
+        """REQ-031 as amended, REQ-910: a source the engine writes through its connector — and
+        that has no driver of its own — takes its writes on the engine route."""
+        from provisa.federation.engine import build_engine
+
+        trino = build_engine("trino")
+        types = {**_TYPES, "cass": "cassandra"}
+        engine_write = decide_route(
+            {"cass"}, types, _DIALECTS, is_mutation=True, operator_floor={}, engine=trino
+        )
+        assert engine_write.route == Route.ENGINE
+        assert "engine" in engine_write.reason
+        # A source with its own driver keeps it, whatever the engine could reach.
+        direct = decide_route(
+            {"pg-main"}, types, _DIALECTS, is_mutation=True, operator_floor={}, engine=trino
+        )
+        assert (direct.route, direct.source_id) == (Route.DIRECT, "pg-main")
 
     def test_cache_hit_routes_cache(self):
         """An opted-in result-cache hit resolves to Route.CACHE as the first candidate (REQ-865)."""

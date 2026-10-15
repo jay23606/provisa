@@ -134,7 +134,7 @@ flowchart TD
 | **Direct** | Single source + has native driver + has federation connector |
 | **Federation** | Multi-source federation, or source has connector but no driver |
 | **Materialize** | Source has no federation connector — fetch and cache to S3/PG first |
-| **Mutation** | GraphQL mutation — always direct, never federated |
+| **Mutation** | A write: the source's own driver when it has one; otherwise the engine, through a connector that writes the source (REQ-031, REQ-910) |
 
 Routing consumes the output of the post-governance optimization stage, never the pre-optimization governed SQL. Governance may ADD sources (RLS subquery predicates); the optimization stage may REMOVE them (hot-table VALUES-CTE inlining, API-cache rewrites, union-branch pruning). A federated query that collapses to a single live source after inlining is therefore re-routed as direct. (REQ-863)
 

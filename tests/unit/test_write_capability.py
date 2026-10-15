@@ -38,6 +38,19 @@ def test_a_source_type_offers_what_it_can_carry(source_type, offered):
     assert table_write_ops({"table_name": "t"}, source_type, None, source_path=None) == offered
 
 
+def test_cassandra_through_trino_takes_inserts_only():
+    # Trino's Cassandra connector writes the keyspace it attaches; it inserts, has no UPDATE, and
+    # deletes only by whole partition key. The bound Trino engine is the write route.
+    from provisa.executor.writable import WritePath, resolve_write_path
+    from provisa.federation.engine import build_engine
+
+    trino = build_engine("trino")
+    assert resolve_write_path("cassandra", trino) is WritePath.ENGINE
+    assert table_write_ops({"table_name": "t"}, "cassandra", trino, source_path=None) == {"insert"}
+    # With no engine bound there is no route at all: Cassandra has no direct driver.
+    assert table_write_ops({"table_name": "t"}, "cassandra", None, source_path=None) == frozenset()
+
+
 def test_a_view_takes_no_writes():
     assert (
         table_write_ops({"view_sql": "SELECT 1"}, "postgresql", None, source_path=None)
