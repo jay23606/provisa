@@ -3657,7 +3657,7 @@ requires-dist = [
     { name = "google-cloud-kms", marker = "extra == 'gcp'" },
     { name = "google-cloud-kms", marker = "extra == 'kms-all'" },
     { name = "google-cloud-storage" },
-    { name = "graphql-core", specifier = ">=3.2" },
+    { name = "graphql-core", specifier = ">=3.2.9,<3.3" },
     { name = "great-expectations", extras = ["postgresql"], marker = "extra == 'demo'" },
     { name = "great-expectations", extras = ["postgresql"], marker = "extra == 'gx'" },
     { name = "grpcio" },

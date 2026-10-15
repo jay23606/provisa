@@ -28,7 +28,7 @@ dependencies = [
     "pydantic>=2",
     "strawberry-graphql[fastapi]",
     "pyyaml",
-    "graphql-core>=3.2",
+    "graphql-core>=3.2.9,<3.3",
     # Bounded to the release the suite runs on: an unbounded pin installed 30.23 into alpha.485's
     # image while every test ran 30.9, and a renamed scope attribute failed every query there.
     "sqlglot>=30.23,<30.24",
