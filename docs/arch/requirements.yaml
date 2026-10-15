@@ -83007,7 +83007,7 @@
   priority: SHOULD
   type: behavioral
   description: 'An industry vertical demo, insurance: Where is our property exposure concentrated against hazard
-    risk? Private data (generated): policies by county. Public data (govdata): fema_nri_* and weather_daily_by_county.
+    risk? Private data (generated): policies by county. Public data (govdata): disasters.fema_nri_earthquake_by_county (the NRI all-hazard composite risk and expected annual loss, with building value), wildfire_risk_by_county and disasters_storm_impact_by_county (county by year property damage); no daily weather (maintainer 2026-10-15).
     Pattern for every vertical demo: one focused business question, answered by joining generated private company
     data with public government data from govdata; one private source, two or three govdata tables and one materialized
     view. Its tour follows the settled demo tour shape: the scenario and the features it exercises; how its sources,

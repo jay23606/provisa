@@ -23392,6 +23392,20 @@ A Qdrant search table ([REQ-1983](#REQ-1983)) can be registered from the full Qd
 
 **Tests:** —
 
+## 10. UI & Admin Surfaces
+
+### REQ-2030 · UI {#REQ-2030}
+
+**Status:** ⚙ in-progress · **Priority:** SHOULD · **Type:** behavioral
+
+The reviews named demo: an electronics shop's three NoSQL stores, read live and joined on the product id they share. MongoDB holds the catalog (about 200 product documents, specs nested) and the star ratings; ratings_by_product is an aggregation-pipeline table over the ratings ([REQ-1980](#REQ-1980)), a row a product. Elasticsearch holds about 5,000 reviews; reviews_matching is a native search table ([REQ-2017](#REQ-2017)) whose phrase is its parameter, each row a review whose text holds the phrase, the phrase highlighted. Neo4j holds about 2,000 customers and (:Customer)-[:BOUGHT]->(:Product); bought_together is a Cypher table, for each product each other product its buyers bought and how many did. Relationships join reviews, ratings and purchases to the catalog's products, and reviews and purchases to the customers. Every value is invented by the demo's seeder from a fixed seed (no licensed data): a few battery products have reviews that say the battery dies, lower ratings, and buyers who also bought power banks. The demo ships 4-6 example queries, and its tour follows the named-demo shape: the scenario and its three stores; the pipeline, search and Cypher tables and the relationships; then the shop's question answered over several surfaces -- the battery complaints by product in SQL, what the buyers of the lowest-rated products also bought in Cypher, the search over REST and in GraphQL -- and a recap. Its tour's words are in every language the UI speaks.
+
+**Use case:** A visitor opens the reviews demo and sees three NoSQL stores answer one question together: the reviews that say the battery dies, the products they are about, and what those products' buyers bought with them.
+
+**Code:** `demo/named/reviews/config.yaml`, `demo/named/reviews/seed.py`, `demo/named/reviews/docker-compose.yml`, `demo/named/reviews/tour.yaml`
+
+**Tests:** `tests/integration/test_reviews_demo.py`, `tests/unit/test_named_demo_tour.py`
+
 ## 3. Source Registration & Data Modeling
 
 ### REQ-2031 · Table Registration {#REQ-2031}
@@ -23472,7 +23486,7 @@ A named demo, vulnerabilities (Are we shipping an exploited vulnerability?): A d
 
 **Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
 
-An industry vertical demo, insurance: Where is our property exposure concentrated against hazard risk? Private data (generated): policies by county. Public data (govdata): fema_nri_* and weather_daily_by_county. Pattern for every vertical demo: one focused business question, answered by joining generated private company data with public government data from govdata; one private source, two or three govdata tables and one materialized view. Its tour follows the settled demo tour shape: the scenario and the features it exercises; how its sources, tables, commands, views and relationships fit, each step on its real row; then the solution in whatever form best answers the question: predesigned queries and views run over the transports that suit it (SQL, GraphQL, REST, JSON:API, gRPC, Cypher, or an external client over pgwire or Arrow Flight), with a Polly question (answered at template build and served stored, [REQ-2012](#REQ-2012)) only where a conversational answer is the natural fit; then a recap. Data is landed at build as TTL -1 replicas ([REQ-2031](#REQ-2031)); the build fails, naming the table, when a govdata table it needs is empty. A per-vertical glossary uses the industry's own terms.
+An industry vertical demo, insurance: Where is our property exposure concentrated against hazard risk? Private data (generated): policies by county. Public data (govdata): disasters.fema_nri_earthquake_by_county (the NRI all-hazard composite risk and expected annual loss, with building value), wildfire_risk_by_county and disasters_storm_impact_by_county (county by year property damage); no daily weather (maintainer 2026-10-15). Pattern for every vertical demo: one focused business question, answered by joining generated private company data with public government data from govdata; one private source, two or three govdata tables and one materialized view. Its tour follows the settled demo tour shape: the scenario and the features it exercises; how its sources, tables, commands, views and relationships fit, each step on its real row; then the solution in whatever form best answers the question: predesigned queries and views run over the transports that suit it (SQL, GraphQL, REST, JSON:API, gRPC, Cypher, or an external client over pgwire or Arrow Flight), with a Polly question (answered at template build and served stored, [REQ-2012](#REQ-2012)) only where a conversational answer is the natural fit; then a recap. Data is landed at build as TTL -1 replicas ([REQ-2031](#REQ-2031)); the build fails, naming the table, when a govdata table it needs is empty. A per-vertical glossary uses the industry's own terms.
 
 **Use case:** A insurance buyer opens the insurance demo and sees their own kind of question answered across company and public data.
 
