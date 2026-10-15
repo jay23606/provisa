@@ -29,7 +29,8 @@
     "all": "Tous",
     "role": "Rôle : {{role}}",
     "dev": "DEV",
-    "checking": "Vérification…"
+    "checking": "Vérification…",
+    "claimRoles": "Rôles de revendication"
   },
   "localUsers": {
     "colUsername": "Nom d'utilisateur",

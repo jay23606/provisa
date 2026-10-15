@@ -587,6 +587,12 @@
     },
     "engine": {
       "write_conflict": "對同一資料的另一項更改同時被寫入。請重試。"
+    },
+    "claim_roles": {
+      "name_invalid": "宣告類型 '{{name}}' 只可包含字母、數字及底線，且不可以數字開頭",
+      "name_missing": "宣告類型需要名稱",
+      "name_reserved": "'{{name}}' 在每個請求中由當前操作的身分繫結，不能作為宣告類型",
+      "database_not_connected": "數據庫未連線"
     }
   }
 }

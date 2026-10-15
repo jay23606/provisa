@@ -29,7 +29,8 @@
     "all": "Tutti",
     "role": "Ruolo: {{role}}",
     "dev": "DEV",
-    "checking": "Verifica in corso…"
+    "checking": "Verifica in corso…",
+    "claimRoles": "Ruoli di attestazione"
   },
   "localUsers": {
     "colUsername": "Nome utente",

@@ -43,6 +43,13 @@ class MockProvider(AuthProvider):
         raise ValueError("Invalid token")
 
 
+@pytest.fixture(autouse=True)
+def _no_claim_types(monkeypatch):
+    """These apps run with no deployment config; none declares a claim type (REQ-2057) unless a
+    test says so."""
+    monkeypatch.setattr("provisa.auth.middleware._loaded_claim_roles", lambda: [])
+
+
 def _make_app(
     provider=None,
     mapping_rules=None,
@@ -636,7 +643,7 @@ def test_a_role_set_header_acts_as_the_sets_meta_role(monkeypatch):
     # held roles now acts as its meta-role (security/meta_role.py), built for exactly that set.
     built: list[list[str]] = []
 
-    def _ensure(_state, members):
+    def _ensure(_state, members, qualifiers=()):
         built.append(sorted(members))
         return "meta:" + "+".join(sorted(members))
 
@@ -702,7 +709,7 @@ def test_a_request_naming_no_role_acts_as_the_default_role_alone():
 def test_a_named_set_acts_as_every_role_in_it(monkeypatch):
     monkeypatch.setattr(
         "provisa.security.meta_role.ensure_meta_role",
-        lambda _state, members: "meta:" + "+".join(sorted(members)),
+        lambda _state, members, qualifiers=(): "meta:" + "+".join(sorted(members)),
     )
     assert sorted(_acting({"X-Provisa-Role": "analyst,editor"})["acting"]) == ["analyst", "editor"]
 

@@ -20,6 +20,7 @@ vi.mock("../context/AuthContext", () => ({
   useAuth: () => ({
     role: { id: "analyst" },
     selectedRoles: [{ id: "analyst" }, { id: "org_admin" }],
+    actingRoles: "analyst,org_admin",
   }),
 }));
 vi.mock("../context/DomainFilterContext", () => ({

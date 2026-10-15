@@ -18,7 +18,16 @@ import type { Role } from "../types/auth";
  *  navigation, focus management, and correct `menuitem` roles (REQ-1013). */
 export function RoleSelector() {
   const { t } = useTranslation();
-  const { selectedRole, availableRoles, selectRole, devMode, loading } = useAuth();
+  const {
+    selectedRole,
+    availableRoles,
+    selectRole,
+    devMode,
+    loading,
+    pseudoRoles,
+    selectedPseudoRoles,
+    togglePseudoRole,
+  } = useAuth();
 
   // REQ-1430: an in-flight bootstrap has no roles yet. "No roles configured" states a settled fact
   // about the account, so it must wait until the roles have actually been fetched.
@@ -27,7 +36,9 @@ export function RoleSelector() {
   if (availableRoles.length === 0) return <span>{t("roleSelector.none")}</span>;
 
   const allSelected = selectedRole === "all";
-  const label = allSelected ? t("roleSelector.all") : (selectedRole as Role).id;
+  const roleLabel = allSelected ? t("roleSelector.all") : (selectedRole as Role).id;
+  // REQ-2057: the pseudo-roles selected beside the roles are part of what every request names.
+  const label = [roleLabel, ...selectedPseudoRoles].join(" + ");
 
   function handleSelect(value: Role | "all") {
     selectRole(value);
@@ -73,6 +84,29 @@ export function RoleSelector() {
             </Menu.Item>
           );
         })}
+        {pseudoRoles.length > 0 && (
+          <>
+            <Menu.Divider />
+            <Menu.Label>{t("roleSelector.claimRoles")}</Menu.Label>
+            {pseudoRoles.map((p) => {
+              const on = selectedPseudoRoles.includes(p.id);
+              return (
+                <Menu.Item
+                  key={p.id}
+                  aria-label={p.id}
+                  aria-checked={on}
+                  role="menuitemcheckbox"
+                  closeMenuOnClick={false}
+                  leftSection={on ? <Check size={14} aria-hidden /> : undefined}
+                  onClick={() => togglePseudoRole(p.id)}
+                  data-testid={`role-selector-claim-${p.id}`}
+                >
+                  {p.id}
+                </Menu.Item>
+              );
+            })}
+          </>
+        )}
       </Menu.Dropdown>
     </Menu>
   );

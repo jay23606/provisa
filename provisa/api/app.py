@@ -775,6 +775,11 @@ class AppState:
         return self._active_runtime().meta_roles
 
     @property
+    def meta_qualifiers(self) -> dict:
+        """meta-role id -> the pseudo-roles it was named with (OrgRuntime.meta_qualifiers)."""
+        return self._active_runtime().meta_qualifiers
+
+    @property
     def api_sources(self) -> dict[str, Any]:
         """source id → ApiSource: the organisation's API sources, with their addresses and
         credentials (OrgRuntime.api_sources)."""
@@ -4174,6 +4179,9 @@ def create_app() -> FastAPI:
     from provisa.api.admin.roles_router import router as roles_router
 
     app.include_router(roles_router)
+    from provisa.api.admin.claim_roles_router import router as claim_roles_router
+
+    app.include_router(claim_roles_router)  # REQ-2057
     from provisa.api.admin.creation_requests_router import router as creation_requests_router
 
     app.include_router(creation_requests_router)

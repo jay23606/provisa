@@ -80,6 +80,14 @@
     "tagPrefix": "etiqueta:",
     "labelTag": "Etiqueta:",
     "tagTableCount_one": "en {{count}} tabla",
-    "tagTableCount_other": "en {{count}} tablas"
+    "tagTableCount_other": "en {{count}} tablas",
+    "claimRolesButton": "Roles de notificación",
+    "claimRolesTitle": "Roles de notificación",
+    "claimRolesIntro": "Cada tipo de notificación de aquí se convierte en un rol, y cada valor que le dan los atributos de un miembro, en un subrol: region se convierte en region y region__eu. Los roles de notificación no tienen derechos. Conceda una columna o levante una máscara para uno como para cualquier rol; una solicitud actúa como él solo cuando lo nombra.",
+    "claimTypes": "Tipos de notificación",
+    "claimTypesPlaceholder": "Escriba un tipo de notificación y pulse Intro",
+    "claimRolesFromOrg": "La lista propia de esta organización.",
+    "claimRolesFromDeployment": "De la configuración de la implementación hasta que esta organización guarde la suya.",
+    "claimRolesHelp": "El valor de un miembro procede de lo que la organización registra para él en la página Equipo o, si no, de la notificación del mismo nombre de su proveedor de identidades."
   }
 }

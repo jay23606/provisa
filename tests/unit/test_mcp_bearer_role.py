@@ -71,13 +71,17 @@ async def test_valid_bearer_sets_request_role(monkeypatch):
 
     async def _fake_validate(token, state):
         assert token == "good-token"
-        return SimpleNamespace(user_id="alice")
+        return SimpleNamespace(user_id="alice", raw_claims={})
 
     monkeypatch.setattr(mcp_server, "_validate_mcp_token", _fake_validate)
     monkeypatch.setattr(mcp_server, "_role_for_identity", lambda identity, state: "analyst")
     downstream = _Recorder()
     app = mcp_server._wrap_role_auth(
-        downstream, SimpleNamespace(org_id="default"), require_token=True
+        downstream,
+        SimpleNamespace(
+            org_id="default", user_attributes={}, settings_overrides={"claim_roles": []}
+        ),
+        require_token=True,
     )
 
     sent = await _drain(app, _http_scope([(b"authorization", b"Bearer good-token")]))
@@ -99,7 +103,11 @@ async def test_invalid_bearer_is_401_fail_closed(monkeypatch):
     monkeypatch.setattr(mcp_server, "_validate_mcp_token", _reject)
     downstream = _Recorder()
     app = mcp_server._wrap_role_auth(
-        downstream, SimpleNamespace(org_id="default"), require_token=True
+        downstream,
+        SimpleNamespace(
+            org_id="default", user_attributes={}, settings_overrides={"claim_roles": []}
+        ),
+        require_token=True,
     )
 
     sent = await _drain(app, _http_scope([(b"authorization", b"Bearer bad")]))
@@ -112,7 +120,11 @@ async def test_invalid_bearer_is_401_fail_closed(monkeypatch):
 async def test_no_bearer_off_loopback_is_401():
     downstream = _Recorder()
     app = mcp_server._wrap_role_auth(
-        downstream, SimpleNamespace(org_id="default"), require_token=True
+        downstream,
+        SimpleNamespace(
+            org_id="default", user_attributes={}, settings_overrides={"claim_roles": []}
+        ),
+        require_token=True,
     )
 
     sent = await _drain(app, _http_scope([]))
@@ -125,7 +137,11 @@ async def test_no_bearer_off_loopback_is_401():
 async def test_no_bearer_loopback_passes_through():
     downstream = _Recorder()
     app = mcp_server._wrap_role_auth(
-        downstream, SimpleNamespace(org_id="default"), require_token=False
+        downstream,
+        SimpleNamespace(
+            org_id="default", user_attributes={}, settings_overrides={"claim_roles": []}
+        ),
+        require_token=False,
     )
 
     sent = await _drain(app, _http_scope([]))

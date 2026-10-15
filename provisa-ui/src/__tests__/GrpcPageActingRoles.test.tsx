@@ -19,7 +19,11 @@ import { MemoryRouter } from "react-router-dom";
 
 const auth = vi.hoisted(() => ({ selectedRoles: [{ id: "analyst" }, { id: "org_admin" }] }));
 vi.mock("../context/AuthContext", () => ({
-  useAuth: () => ({ role: auth.selectedRoles[0], selectedRoles: auth.selectedRoles }),
+  useAuth: () => ({
+    role: auth.selectedRoles[0],
+    selectedRoles: auth.selectedRoles,
+    actingRoles: auth.selectedRoles.map((r) => r.id).join(","),
+  }),
 }));
 vi.mock("../context/DomainFilterContext", () => ({
   useDomainFilter: () => ({ checkedDomains: new Set<string>(["pets", "ops"]) }),

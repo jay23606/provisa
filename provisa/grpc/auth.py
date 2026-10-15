@@ -163,9 +163,13 @@ def _authenticate(rpc, context, state, credential: str, requested: str | None) -
         context.abort(grpc.StatusCode.PERMISSION_DENIED, str(exc))
         raise  # as above: never proceed as an unauthorized role
 
+    from provisa.auth.pseudo_roles import bind_principal_session_vars
+
     async def _publish() -> None:
         _authorized_role.set(role)
         _identity.set(identity)
+        # REQ-1682/REQ-1382: what a row filter reads for this caller, as on every transport.
+        bind_principal_session_vars(state, identity, role)
         # REQ-074/REQ-1386: the acting principal the pipeline's audit write records, published in
         # the RPC's context alongside the role so every governed statement is attributed.
         set_audit_identity(AuditIdentity(user_id=identity.user_id, surface="grpc"))

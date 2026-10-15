@@ -587,6 +587,12 @@
     },
     "engine": {
       "write_conflict": "Another change to the same data was written at the same time. Try again."
+    },
+    "claim_roles": {
+      "name_invalid": "Claim type '{{name}}' must be letters, digits and underscores, and must not start with a digit",
+      "name_missing": "A claim type needs a name",
+      "name_reserved": "'{{name}}' is bound from the acting identity on every request and cannot be a claim type",
+      "database_not_connected": "Database not connected"
     }
   }
 }

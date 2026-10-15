@@ -587,6 +587,12 @@
     },
     "engine": {
       "write_conflict": "Outra alteração nos mesmos dados foi gravada ao mesmo tempo. Tente novamente."
+    },
+    "claim_roles": {
+      "name_invalid": "O tipo de declaração '{{name}}' deve conter apenas letras, dígitos e sublinhados, e não pode começar com um dígito",
+      "name_missing": "Um tipo de declaração precisa de um nome",
+      "name_reserved": "'{{name}}' é definido a partir da identidade atuante em cada solicitação e não pode ser um tipo de declaração",
+      "database_not_connected": "Banco de dados não conectado"
     }
   }
 }

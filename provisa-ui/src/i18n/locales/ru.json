@@ -29,7 +29,8 @@
     "all": "Все",
     "role": "Роль: {{role}}",
     "dev": "DEV",
-    "checking": "Проверка…"
+    "checking": "Проверка…",
+    "claimRoles": "Роли утверждений"
   },
   "localUsers": {
     "colUsername": "Имя пользователя",

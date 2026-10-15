@@ -50,7 +50,6 @@ import { Explorer } from "graphiql-explorer";
 import { useDomains } from "../hooks/useAdminQueries";
 import { serverMessage } from "../i18n/serverMessage";
 import { domainGqlAlias } from "../types/admin";
-import { actingRoleHeader } from "../lib/actingRole";
 import { localizedStreamFrame } from "./streamErrors";
 import { getStored, scopedStorage, setStored, storageKey } from "../lib/browserStorage";
 import { useNamedDemo } from "../context/NamedDemoContext";
@@ -583,10 +582,10 @@ export function QueryPage() {
   const { colorScheme } = useMantineColorScheme();
   // GraphiQL has its own light/dark theme — force it to follow the app scheme.
   const graphiqlTheme = colorScheme === "light" ? "light" : "dark";
-  const { role, selectedRoles } = useAuth();
+  const { role, actingRoles } = useAuth();
   // REQ-1620: the acting role set -- under "Role: All", every active role, which the server serves
   // as their meta-role. The explorer's schema, its queries and its tools all run as that set.
-  const roleHeader = actingRoleHeader(selectedRoles);
+  const roleHeader = actingRoles;
   const { checkedDomains } = useDomainFilter();
   const [domainSchema, setDomainSchema] = useState<GraphQLSchema | null>(null);
   // A query handed to the page (NL "Open in GraphQL", Polly), whether the page was just opened or

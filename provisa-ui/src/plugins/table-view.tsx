@@ -26,7 +26,6 @@ import { lastQueryElapsedMs } from "../query-timing";
 import { setCurrentQueryStats, subscribeQueryStats, type QueryStats } from "../query-stats";
 import { useAuth } from "../context/AuthContext";
 import { MermaidDiagram } from "../components/MermaidDiagram";
-import { actingRoleHeader } from "../lib/actingRole";
 import { Tip } from "../components/Tip";
 
 type ViewMode = "json" | "table" | "stats";
@@ -210,9 +209,9 @@ export function ResponseTableOverlay() {
   const strippingRef = useRef(false);
   const lastStrippedRef = useRef<string | null>(null);
   const editorContext = useEditorContext();
-  const { selectedRoles } = useAuth();
+  const { actingRoles } = useAuth();
   // REQ-1620: the acting role set (the meta-role under "Role: All"), as the explorer sends it.
-  const roleHeader = actingRoleHeader(selectedRoles);
+  const roleHeader = actingRoles;
   const [page, setPage] = useState(0);
   const [pagedResponseText, setPagedResponseText] = useState<string | null>(null);
 

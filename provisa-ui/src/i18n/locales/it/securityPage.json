@@ -80,6 +80,14 @@
     "tagPrefix": "tag:",
     "labelTag": "Tag:",
     "tagTableCount_one": "su {{count}} tabella",
-    "tagTableCount_other": "su {{count}} tabelle"
+    "tagTableCount_other": "su {{count}} tabelle",
+    "claimRolesButton": "Ruoli di attestazione",
+    "claimRolesTitle": "Ruoli di attestazione",
+    "claimRolesIntro": "Ogni tipo di attestazione indicato qui diventa un ruolo, e ogni valore che gli danno gli attributi di un membro un sottoruolo: region diventa region e region__eu. I ruoli di attestazione non hanno diritti. Concedi una colonna o rimuovi una maschera per uno di essi come per qualsiasi ruolo; una richiesta agisce come tale solo quando lo nomina.",
+    "claimTypes": "Tipi di attestazione",
+    "claimTypesPlaceholder": "Digita un tipo di attestazione e premi Invio",
+    "claimRolesFromOrg": "L'elenco proprio di questa organizzazione.",
+    "claimRolesFromDeployment": "Dalla configurazione della distribuzione finché questa organizzazione non salva il proprio.",
+    "claimRolesHelp": "Il valore di un membro deriva da ciò che l'organizzazione registra per lui nella pagina Team, altrimenti dall'attestazione con lo stesso nome del suo provider di identità."
   }
 }

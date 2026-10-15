@@ -172,6 +172,14 @@ def _loaded_roles() -> dict[str, dict]:  # REQ-1337
     return getattr(state, "roles", {})
 
 
+def _loaded_claim_roles() -> list[str]:  # REQ-2057
+    """The claim types the bound org declares as pseudo-roles."""
+    from provisa.api.app import state
+    from provisa.auth.pseudo_roles import declared_claim_roles
+
+    return declared_claim_roles(state)
+
+
 def _loaded_user_attributes(user_id: str) -> dict[str, str]:  # REQ-1382
     """What the bound org records for ``user_id``, from its runtime build. A member nobody
     recorded anything for has no attributes."""
@@ -300,12 +308,9 @@ def request_session_vars(  # REQ-1682
             lk = key.lower()
             if lk.startswith(_SESSION_HEADER_PREFIX):
                 out[lk[len(_SESSION_HEADER_PREFIX) :].replace("-", "_")] = val
-    user_id = getattr(identity, "user_id", None)
-    if user_id and user_id != "anonymous":
-        out["user_id"] = str(user_id)
-    if role_id:
-        out["role"] = str(role_id)
-    return out
+    from provisa.auth.pseudo_roles import principal_session_vars
+
+    return principal_session_vars(getattr(identity, "user_id", None), out, role_id)
 
 
 class AuthMiddleware:  # REQ-120, REQ-125, REQ-273
@@ -457,8 +462,13 @@ class AuthMiddleware:  # REQ-120, REQ-125, REQ-273
         return []
 
     @staticmethod
-    def _meta_role(acting_set: list[str], org_binding: tuple[str, str | None] | None) -> str:
-        """The meta-role acting as ``acting_set``, built in the request's org runtime."""
+    def _meta_role(
+        acting_set: list[str],
+        org_binding: tuple[str, str | None] | None,
+        qualifiers: tuple[str, ...] = (),
+    ) -> str:
+        """The meta-role acting as ``acting_set`` qualified by the pseudo-roles ``qualifiers``,
+        built in the request's org runtime."""
         from provisa.api.app import state as _app_state
         from provisa.core.request_context import (
             reset_current_env,
@@ -468,12 +478,18 @@ class AuthMiddleware:  # REQ-120, REQ-125, REQ-273
         )
         from provisa.security.meta_role import ensure_meta_role
 
-        if org_binding is None:
+        def build() -> str:
+            # A set naming no pseudo-role is built as it always was, from its roles alone.
+            if qualifiers:
+                return ensure_meta_role(_app_state, acting_set, qualifiers)
             return ensure_meta_role(_app_state, acting_set)
+
+        if org_binding is None:
+            return build()
         org_token = set_current_org(org_binding[0])
         env_token = set_current_env(org_binding[1]) if org_binding[1] is not None else None
         try:
-            return ensure_meta_role(_app_state, acting_set)
+            return build()
         finally:
             if env_token is not None:
                 reset_current_env(env_token)
@@ -586,6 +602,7 @@ class AuthMiddleware:  # REQ-120, REQ-125, REQ-273
                 acting_roles=list(unsecured_roles),
                 # No member to have a record of: the session headers are this deployment's context.
                 org_attributes={},
+                pseudo_roles={},
             )
             request.state.role = unsecured_role
             request.state.assignments = [
@@ -640,6 +657,7 @@ class AuthMiddleware:  # REQ-120, REQ-125, REQ-273
                 su_identity.acting_roles = list(su_identity.roles)
                 # Break-glass is no org's member, so no org records anything of it.
                 su_identity.org_attributes = {}
+                su_identity.pseudo_roles = {}
                 request.state.identity = su_identity
                 # REQ-1618: break-glass holds platform_admin, so it IS the control plane, and this
                 # branch returns before the platform read below that publishes the same fact for
@@ -807,6 +825,7 @@ class AuthMiddleware:  # REQ-120, REQ-125, REQ-273
             active_org_id = self._default_org_id
             assignments = platform_assignments
             org_attributes = _loaded_user_attributes(identity.user_id)
+            claim_types = _loaded_claim_roles()
         else:
             # REQ-1327: EVERYONE is confined to orgs they belong to — including platform admins.
             # platform_admin is a control-plane role (org lifecycle, infra, audited recovery
@@ -996,6 +1015,7 @@ class AuthMiddleware:  # REQ-120, REQ-125, REQ-273
                     # The org's own role definitions decide what its assignments carry (below).
                     tenant_roles = _loaded_roles()
                     org_attributes = _loaded_user_attributes(identity.user_id)
+                    claim_types = _loaded_claim_roles()
                 finally:
                     if env_token is not None:
                         reset_current_env(env_token)
@@ -1003,6 +1023,7 @@ class AuthMiddleware:  # REQ-120, REQ-125, REQ-273
             else:
                 assignments = platform_assignments
                 org_attributes = _loaded_user_attributes(identity.user_id)
+                claim_types = _loaded_claim_roles()
 
             # REQ-1297: platform_admin is actively ignored in a tenant org. The role is seeded into
             # every org schema (it is the FK target for the retired-id rewrite), so a tenant schema
@@ -1027,6 +1048,11 @@ class AuthMiddleware:  # REQ-120, REQ-125, REQ-273
                 ]
 
         identity.org_attributes = org_attributes
+        from provisa.auth.pseudo_roles import principal_bindings
+
+        identity.pseudo_roles = principal_bindings(
+            identity.raw_claims, org_attributes, claim_types
+        )[1]
         role = resolve_role(identity, self._mapping_rules, self._default_role)
         # REQ-1338: the acting role must be one the caller actually holds. resolve_role answers from
         # the IdP claims and falls back to the deployment's default_role, which in assignments_source
@@ -1085,6 +1111,10 @@ class AuthMiddleware:  # REQ-120, REQ-125, REQ-273
             r.strip() for r in (request.headers.get("x-provisa-role") or "").split(",") if r.strip()
         ]
         acting_set: list[str] = []
+        # REQ-2057: the pseudo-roles the request names, with the parent of each sub-role (a grant
+        # to the parent reaches it). They qualify what the named roles are granted.
+        qualifiers: list[str] = []
+        held_pseudo = identity.pseudo_roles or {}
         if requested_roles:
             assigned_role_ids = {a.role_id for a in assignments}
             for requested_role in requested_roles:
@@ -1099,12 +1129,23 @@ class AuthMiddleware:  # REQ-120, REQ-125, REQ-273
                 elif requested_role in assigned_role_ids:
                     if requested_role not in acting_set:
                         acting_set.append(requested_role)
+                elif requested_role in held_pseudo:
+                    for q in (requested_role, held_pseudo[requested_role]):
+                        if q and q not in qualifiers:
+                            qualifiers.append(q)
                 else:
                     return JSONResponse(
                         status_code=403,
                         content={"detail": f"Role {requested_role!r} is not assigned to this user"},
                     )
-            if len(acting_set) > 1:
+            if qualifiers:
+                # A set naming pseudo-roles acts as its meta-role even with one data role. Named
+                # with no data role it reaches no data, and is refused as such.
+                try:
+                    role = self._meta_role(acting_set, _org_binding, tuple(qualifiers))
+                except PermissionError as refused:
+                    return _deny(request, 403, str(refused))
+            elif len(acting_set) > 1:
                 # Several held roles: the request acts as their meta-role, an ephemeral child of
                 # all of them built on first use in this model generation (security/meta_role).
                 role = self._meta_role(acting_set, _org_binding)

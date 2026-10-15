@@ -107,6 +107,8 @@ async def me(request: Request):
             "assignments": [{"role_id": rid, "domain_id": "*"} for rid in sorted(all_role_ids)],
             # REQ-1528: the dev principal owns no environment; every role is already its own.
             "env_capabilities": [],
+            # REQ-2057: no member, so no attributes and no pseudo-role.
+            "pseudo_roles": [],
         }
 
     # REQ-1297: platform_admin is seeded into every org schema, so it normally IS in all_role_ids —
@@ -178,7 +180,22 @@ async def me(request: Request):
         # REQ-1528: what the caller holds by OWNING the environment this request is bound to --
         # the same set the capability check reads, so the UI offers what the server will accept.
         "env_capabilities": sorted(identity.env_capabilities),
+        # REQ-2057: the pseudo-roles the caller holds, which a request names like any role.
+        "pseudo_roles": [
+            {"id": rid, "parent": parent or None}
+            for rid, parent in sorted(_bound_pseudo_roles(identity).items())
+        ],
     }
+
+
+def _bound_pseudo_roles(identity) -> dict[str, str]:
+    """The pseudo-roles the auth middleware bound for ``identity`` (REQ-2057)."""
+    if identity.pseudo_roles is None:
+        raise RuntimeError(
+            f"identity {identity.user_id!r} has no pseudo-roles bound: the auth middleware binds "
+            "them with its attributes"
+        )
+    return identity.pseudo_roles
 
 
 class AcknowledgeJoinRequest(BaseModel):

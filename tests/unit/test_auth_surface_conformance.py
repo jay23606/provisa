@@ -124,6 +124,13 @@ def _state(pool) -> SimpleNamespace:
 
 
 @pytest.fixture(autouse=True)
+def _no_claim_types(monkeypatch):
+    """The HTTP surface's app runs with no deployment config: no claim type is declared
+    (REQ-2057)."""
+    monkeypatch.setattr("provisa.auth.middleware._loaded_claim_roles", lambda: [])
+
+
+@pytest.fixture(autouse=True)
 def fake_pat_store():
     """Every surface builds its own provider, so the store is faked where it is constructed."""
     with patch("provisa.auth.pat.PersonalAccessTokenStore", _FakePatStore):

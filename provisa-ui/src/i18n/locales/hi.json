@@ -29,7 +29,8 @@
     "all": "सभी",
     "role": "भूमिका: {{role}}",
     "dev": "DEV",
-    "checking": "जाँच की जा रही है…"
+    "checking": "जाँच की जा रही है…",
+    "claimRoles": "दावा भूमिकाएँ"
   },
   "localUsers": {
     "colUsername": "उपयोगकर्ता नाम",

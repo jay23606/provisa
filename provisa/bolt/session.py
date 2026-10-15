@@ -95,6 +95,9 @@ class BoltSession:
         # REQ-1235: the org the presented credential was issued for (a personal access token's),
         # or None for a credential that names no org. It is the only org such a credential opens.
         self._credential_org: str | None = None
+        # The validated identity of a secured session (None unsecured): the principal its RUNs
+        # bind attributes and pseudo-roles for (REQ-1382, REQ-2057).
+        self._identity: Any = None
         # All role_ids the authenticated user holds; each surfaces as a "provisa_<role>" database.
         self.roles: list[str] = []
         # Active role for the current tx/run, chosen via the Bolt `db` field. Defaults to roles[0].
@@ -242,6 +245,7 @@ class BoltSession:
                 if principal and principal in app_state.contexts
                 else all_roles
             )
+            self._identity = None
             return (principal or "anonymous", ordered) if ordered else None
 
         identity = await self._authenticate(app_state, scheme, principal, credentials)
@@ -251,6 +255,7 @@ class BoltSession:
         if not roles:
             return None
         self._credential_org = identity.active_org_id
+        self._identity = identity
         return identity.user_id, roles
 
     @staticmethod
@@ -322,9 +327,28 @@ class BoltSession:
 
         token = set_current_org(self._bound_org())
         try:
-            return resolve_requested_role(app_state, set(self.roles), named)
+            # REQ-2057: a pseudo-role the session's identity holds is named like any role.
+            identity = self._identity
+            if identity is None:  # an unsecured session holds no pseudo-role
+                return resolve_requested_role(app_state, set(self.roles), named)
+            from provisa.auth.pseudo_roles import principal_of
+
+            return resolve_requested_role(
+                app_state, set(self.roles), named, lambda: principal_of(app_state, identity)[1]
+            )
         finally:
             reset_current_org(token)
+
+    def _principal_scope(self, app_state: Any, role_id: str) -> Any:
+        """REQ-1682/REQ-1382: what a row filter reads for the session's principal during a RUN, as
+        on every transport. An unsecured session has no principal: nothing is bound."""
+        import contextlib
+
+        if self._identity is None:
+            return contextlib.nullcontext()
+        from provisa.auth.pseudo_roles import principal_scope
+
+        return principal_scope(app_state, self._identity, role_id)
 
     def _resolve_db(self, db: Any) -> tuple[str, bool] | None:
         """Map a Bolt `db` value to (role_id, include_ops), or None if unauthorized.
@@ -422,6 +446,7 @@ class BoltSession:
     def handle_logoff(self) -> None:
         self.user_id = None
         self._credential_org = None
+        self._identity = None
         self.roles = []
         self.role_id = None
         self.state = State.AUTHENTICATION
@@ -636,7 +661,12 @@ class BoltSession:
         try:
             # REQ-1350: one collector for the RUN; what its statements' answers say about
             # themselves is sent as notifications with the RUN's SUCCESS.
-            with _audit_scope, request_deadline.bound(deadline), collecting() as run_warnings:
+            with (
+                _audit_scope,
+                self._principal_scope(_app_state, role_id),
+                request_deadline.bound(deadline),
+                collecting() as run_warnings,
+            ):
                 columns, rows, redirect = await _execute_cypher(
                     cypher,
                     parameters,

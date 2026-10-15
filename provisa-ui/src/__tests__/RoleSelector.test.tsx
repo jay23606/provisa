@@ -13,7 +13,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, within } from "../test-utils/render";
 import i18n from "../i18n";
 import { RoleSelector } from "../components/RoleSelector";
-import type { Role, Capability } from "../types/auth";
+import type { Role, Capability, PseudoRole } from "../types/auth";
 
 const t = i18n.getFixedT("en");
 
@@ -44,6 +44,9 @@ function makeAuthValue(overrides: {
   selectRole?: (role: Role | "all") => void;
   devMode?: boolean;
   loading?: boolean;
+  pseudoRoles?: PseudoRole[];
+  selectedPseudoRoles?: string[];
+  togglePseudoRole?: (id: string) => void;
 }) {
   const selectedRole = overrides.selectedRole ?? "all";
   const availableRoles = overrides.availableRoles ?? [ADMIN_ROLE, ANALYST_ROLE];
@@ -78,6 +81,10 @@ function makeAuthValue(overrides: {
     multitenancy: false,
     billing: false,
     controlPlaneId: "test-cp",
+    pseudoRoles: overrides.pseudoRoles ?? [],
+    selectedPseudoRoles: overrides.selectedPseudoRoles ?? [],
+    togglePseudoRole: overrides.togglePseudoRole ?? vi.fn(),
+    actingRoles: null,
   };
 }
 
@@ -205,5 +212,44 @@ describe("RoleSelector", () => {
     expect(trigger).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(trigger);
     await waitFor(() => expect(trigger).toHaveAttribute("aria-expanded", "true"));
+  });
+});
+
+describe("RoleSelector claim roles", () => {
+  it("offers the held pseudo-roles as switches beside the roles, and names the selected ones", async () => {
+    const toggle = vi.fn();
+    mockUseAuth.mockReturnValue(
+      makeAuthValue({
+        selectedRole: ANALYST_ROLE,
+        pseudoRoles: [
+          { id: "region", parent: null },
+          { id: "region__eu", parent: "region" },
+        ],
+        selectedPseudoRoles: ["region__eu"],
+        togglePseudoRole: toggle,
+      }),
+    );
+    render(<RoleSelector />);
+    const trigger = screen.getByTestId("role-selector-trigger");
+    expect(trigger).toHaveTextContent(`${ANALYST_ROLE.id} + region__eu`);
+    fireEvent.click(trigger);
+    const eu = await screen.findByTestId("role-selector-claim-region__eu");
+    expect(eu).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByTestId("role-selector-claim-region")).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+    fireEvent.click(screen.getByTestId("role-selector-claim-region"));
+    expect(toggle).toHaveBeenCalledWith("region");
+    // A switch leaves the menu open: several may be picked in one visit.
+    expect(screen.getByTestId("role-selector-claim-region__eu")).toBeInTheDocument();
+  });
+
+  it("shows no claim roles section to a user who holds none", async () => {
+    mockUseAuth.mockReturnValue(makeAuthValue({}));
+    render(<RoleSelector />);
+    fireEvent.click(screen.getByTestId("role-selector-trigger"));
+    await screen.findByRole("menu");
+    expect(screen.queryByText("Claim roles")).toBeNull();
   });
 });

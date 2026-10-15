@@ -8,7 +8,7 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
-import type { Role, RoleAssignment, OrgMembership } from "../types/auth";
+import type { Role, RoleAssignment, OrgMembership, PseudoRole } from "../types/auth";
 import type { ViewerRequest } from "../components/nativeParams";
 import type { Paging, PagingKind } from "../types/admin";
 import { ORG_HEADER } from "../lib/authFetch";
@@ -46,6 +46,8 @@ export async function fetchMe(): Promise<{
   assignments: RoleAssignment[];
   // REQ-1528: rights held by OWNING the environment the request was served by.
   env_capabilities: string[];
+  // REQ-2057: the pseudo-roles the caller holds, named like any role.
+  pseudo_roles: PseudoRole[];
 }> {
   let res: Response;
   try {
@@ -1876,6 +1878,32 @@ export async function removeUserAssignment(userId: string, assignmentId: number)
     method: "DELETE",
   });
   if (!res.ok) throw httpError("remove assignment", res.status);
+}
+
+/** The claim types the org declares as pseudo-roles, and whether the list is the org's own or the
+ *  deployment configuration's (REQ-2057). */
+export interface ClaimRoles {
+  claim_types: string[];
+  source: "org" | "deployment";
+}
+
+export async function fetchClaimRoles(): Promise<ClaimRoles> {
+  const res = await fetch(`${API_BASE}/admin/claim-roles`);
+  if (!res.ok) throw httpError("fetch claim roles", res.status);
+  return res.json();
+}
+
+export async function saveClaimRoles(claimTypes: string[]): Promise<ClaimRoles> {
+  const res = await fetch(`${API_BASE}/admin/claim-roles`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ claim_types: claimTypes }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(serverMessage(data, requestFailed("save claim roles", res.status)));
+  }
+  return res.json();
 }
 
 /** One attribute of a member: the org's record, or what their identity provider supplied at their

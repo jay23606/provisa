@@ -80,6 +80,14 @@
     "tagPrefix": "タグ:",
     "labelTag": "タグ:",
     "tagTableCount_one": "{{count}} 個のテーブルに付与",
-    "tagTableCount_other": "{{count}} 個のテーブルに付与"
+    "tagTableCount_other": "{{count}} 個のテーブルに付与",
+    "claimRolesButton": "要求ロール",
+    "claimRolesTitle": "要求ロール",
+    "claimRolesIntro": "ここに挙げた要求の種類はそれぞれロールになり、メンバーの属性が与える値はそれぞれサブロールになります: region からは region と region__eu ができます。要求ロールには権限がありません。ほかのロールと同じように列を付与したりマスクを解除したりできます。リクエストはその名前を指定したときだけそのロールとして動作します。",
+    "claimTypes": "要求の種類",
+    "claimTypesPlaceholder": "要求の種類を入力して Enter キーを押します",
+    "claimRolesFromOrg": "この組織独自のリスト。",
+    "claimRolesFromDeployment": "この組織が独自のリストを保存するまでは、デプロイ構成のリストです。",
+    "claimRolesHelp": "メンバーの値は、組織が [チーム] ページで記録した値、なければ ID プロバイダーの同名の要求から取られます。"
   }
 }

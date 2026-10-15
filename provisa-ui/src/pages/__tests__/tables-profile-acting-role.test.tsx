@@ -35,6 +35,7 @@ vi.mock("../../context/AuthContext", async (importOriginal) => ({
     role: { id: "analyst" },
     // "Role: All": the user acts as both roles they hold.
     selectedRoles: [{ id: "analyst" }, { id: "trader" }],
+    actingRoles: "analyst,trader",
     // REQ-1944: the table editor's right -- without it the page is the governance-only view.
     capabilities: ["admin", "table_registration"],
     domainAccess: ["*"],

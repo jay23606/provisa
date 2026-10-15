@@ -225,6 +225,7 @@ def _bolt_session(org_id: str | None):
     session = BoltSession.__new__(BoltSession)
     session.org_id = org_id
     session.roles = ["analyst", "steward"]
+    session._identity = None  # an unsecured session, as __init__ leaves it
     return session
 
 

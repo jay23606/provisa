@@ -16,7 +16,6 @@ import { useComputedColorScheme } from "@mantine/core";
 import { useAuth } from "../context/AuthContext";
 import { useDomainFilter } from "../context/DomainFilterContext";
 import "./OpenApiPage.css";
-import { actingRoleHeader } from "../lib/actingRole";
 
 // How long a driven call's response may take: a query on a loaded demo answers in seconds.
 const RESPONSE_WAIT_MS = 60000;
@@ -26,10 +25,10 @@ export function OpenApiPage() {
   // Computed, not the raw setting: the raw value is "auto" when the user follows the system, and
   // "auto" is not "light", so the docs frame rendered dark on a light app.
   const colorScheme = useComputedColorScheme("light");
-  const { selectedRoles, loading: authLoading } = useAuth();
+  const { loading: authLoading, actingRoles } = useAuth();
   const { checkedDomains } = useDomainFilter();
   // REQ-1620: the ACTIVE roles — one, or under "Role: All" the set served as their meta-role.
-  const roleId = actingRoleHeader(selectedRoles) ?? "";
+  const roleId = actingRoles ?? "";
   const domainsParam = checkedDomains.size > 0 ? [...checkedDomains].join(",") : "";
   const theme = colorScheme === "light" ? "light" : "dark";
   const params = new URLSearchParams();

@@ -148,6 +148,8 @@ def _seeded_roles(monkeypatch):
     monkeypatch.setattr("provisa.auth.middleware._loaded_roles", lambda: seeded)
     # The platform plane's definitions are the deployment org's, the same seed (REQ-1327).
     monkeypatch.setattr("provisa.auth.middleware._platform_roles", lambda: seeded)
+    # These apps run with no deployment config: none declares a claim type (REQ-2057).
+    monkeypatch.setattr("provisa.auth.middleware._loaded_claim_roles", lambda: [])
 
 
 class _State:

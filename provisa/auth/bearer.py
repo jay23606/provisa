@@ -99,8 +99,13 @@ def authorize_role(state, identity, requested: str | None) -> str:
     if not default_role:
         # No admin default: an identity matching no mapping rule is refused, not escalated.
         raise PermissionError("identity matched no role and no default_role is configured")
+    from provisa.auth.pseudo_roles import principal_of
+
     mapped = resolve_role(identity, auth_config.get("role_mapping", []), default_role)
     if not requested:
         return mapped
     permitted = {a.role_id for a in resolve_assignments(identity)} | {mapped}
-    return resolve_requested_role(state, permitted, requested)
+    # REQ-2057: a pseudo-role the identity holds is named like any role.
+    return resolve_requested_role(
+        state, permitted, requested, lambda: principal_of(state, identity)[1]
+    )

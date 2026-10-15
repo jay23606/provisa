@@ -587,6 +587,12 @@
     },
     "engine": {
       "write_conflict": "Otro cambio en los mismos datos se escribió al mismo tiempo. Inténtelo de nuevo."
+    },
+    "claim_roles": {
+      "name_invalid": "El tipo de notificación '{{name}}' debe tener solo letras, dígitos y guiones bajos, y no puede empezar por un dígito",
+      "name_missing": "Un tipo de notificación necesita un nombre",
+      "name_reserved": "'{{name}}' se asigna desde la identidad que actúa en cada solicitud y no puede ser un tipo de notificación",
+      "database_not_connected": "Base de datos no conectada"
     }
   }
 }

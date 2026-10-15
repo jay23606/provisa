@@ -80,6 +80,14 @@
     "tagPrefix": "תגית:",
     "labelTag": "תגית:",
     "tagTableCount_one": "על טבלה {{count}}",
-    "tagTableCount_other": "על {{count}} טבלאות"
+    "tagTableCount_other": "על {{count}} טבלאות",
+    "claimRolesButton": "תפקידי תביעות",
+    "claimRolesTitle": "תפקידי תביעות",
+    "claimRolesIntro": "כל סוג תביעה כאן הופך לתפקיד, וכל ערך שהמאפיינים של חבר נותנים לו הופך לתת־תפקיד: region הופך ל־region ול־region__eu. לתפקידי תביעות אין הרשאות. הענק עמודה או הסר מיסוך עבור אחד מהם כמו עבור כל תפקיד; בקשה פועלת בשמו רק כשהיא נוקבת בו.",
+    "claimTypes": "סוגי תביעות",
+    "claimTypesPlaceholder": "הקלד סוג תביעה והקש Enter",
+    "claimRolesFromOrg": "הרשימה של הארגון הזה עצמו.",
+    "claimRolesFromDeployment": "מתצורת הפריסה עד שהארגון הזה ישמור רשימה משלו.",
+    "claimRolesHelp": "הערך של חבר מגיע ממה שהארגון רושם עבורו בדף הצוות, ואחרת מהתביעה באותו שם של ספק הזהויות שלו."
   }
 }

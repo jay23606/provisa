@@ -53,6 +53,7 @@ ORG_OVERRIDABLE_KEYS: frozenset[str] = frozenset(
         "naming",
         "redirect",
         "cache",
+        "claim_roles",  # REQ-2057: the claim types that become the org's pseudo-roles
     }
 )
 

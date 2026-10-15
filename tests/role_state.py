@@ -43,6 +43,11 @@ class RoleState(SimpleNamespace):
             from provisa.mv.registry import MVRegistry
 
             attrs["mv_registry"] = MVRegistry()
+        # As the real state of an org that records no member attributes, declares no claim type
+        # (its own empty list) and has named no pseudo-role (REQ-1382, REQ-2057).
+        attrs.setdefault("user_attributes", {})
+        attrs.setdefault("settings_overrides", {"claim_roles": []})
+        attrs.setdefault("meta_qualifiers", {})
         super().__init__(surfaces=surfaces, **attrs)
         for name, values in parts.items():
             set_part(self, _PARTS[name], values)

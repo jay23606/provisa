@@ -142,6 +142,8 @@ def test_overridable_keys_exclude_every_deployment_wide_concern():
         "naming",
         "redirect",
         "cache",
+        # REQ-2057: the claim types that become the org's pseudo-roles are the org's own.
+        "claim_roles",
     }
     for deployment_wide in (
         "federation",

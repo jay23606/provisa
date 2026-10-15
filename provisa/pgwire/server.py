@@ -873,6 +873,11 @@ class ProvisaSession(Session):  # REQ-001, REQ-002, REQ-266
         # their meta-role, made again in this session's org before each statement (a model rebuild
         # drops it).
         self.role_set: tuple[str, ...] | None = None
+        # REQ-2057: the pseudo-roles the session named; its meta-role is made with them.
+        self.role_quals: tuple[str, ...] = ()
+        # The validated identity of a secured session (None in trust mode): the principal whose
+        # attributes each statement binds as session variables (REQ-1682, REQ-1382).
+        self.identity: Any = None
         # REQ-074/REQ-1386: the authenticated principal this session acts as — the audit log's
         # user_id. Set wherever role_id is set (trust mode: the startup packet's user; secured
         # modes: the validated identity), so an authenticated session always has both.
@@ -1040,22 +1045,37 @@ class ProvisaSession(Session):  # REQ-001, REQ-002, REQ-266
         try:
             if self.org_id is None:
                 self._ensure_acting_role()
-                return fn()
+                return self._as_principal(fn)
             from provisa.core.request_context import reset_current_org, set_current_org
 
             token = set_current_org(self.org_id)
             try:
                 self._ensure_acting_role()
-                return fn()
+                return self._as_principal(fn)
             finally:
                 reset_current_org(token)
         finally:
             temp_tables.unbind(temp_token)
 
-    def act_as(self, role_id: str, members: tuple[str, ...]) -> None:
-        """Act as ``role_id``; ``members`` are the held roles it stands for (one: itself)."""
+    def _as_principal(self, fn: Callable[[], Any]) -> Any:
+        """Run ``fn`` with the session principal's session variables bound (REQ-1682, REQ-1382),
+        as on every transport. A trust-mode session has no validated principal: none are."""
+        if self.identity is None:
+            return fn()
+        from provisa.api.app import state
+        from provisa.auth.pseudo_roles import principal_scope
+
+        with principal_scope(state, self.identity, self.role_id):
+            return fn()
+
+    def act_as(
+        self, role_id: str, members: tuple[str, ...], qualifiers: tuple[str, ...] = ()
+    ) -> None:
+        """Act as ``role_id``; ``members`` are the held roles it stands for (one: itself), and
+        ``qualifiers`` the pseudo-roles it was named with (REQ-2057)."""
         self.role_id = role_id
-        self.role_set = members if len(members) > 1 else None
+        self.role_set = members if len(members) > 1 or qualifiers else None
+        self.role_quals = qualifiers
 
     def bind_role(self) -> None:
         """Make this session's role current in its org before a statement that does not pass
@@ -1068,7 +1088,10 @@ class ProvisaSession(Session):  # REQ-001, REQ-002, REQ-266
         from provisa.api.app import state
         from provisa.security.meta_role import ensure_meta_role
 
-        self.role_id = ensure_meta_role(state, list(self.role_set))
+        if self.role_quals:
+            self.role_id = ensure_meta_role(state, list(self.role_set), self.role_quals)
+        else:
+            self.role_id = ensure_meta_role(state, list(self.role_set))
 
     def _execute_sql_bound(
         self, sql: str, params=None, result_fmt=None, *, prepared=None, shape=None
@@ -2089,6 +2112,7 @@ class ProvisaHandler(BuenaVistaHandler):  # REQ-120, REQ-124, REQ-125, REQ-273
         # REQ-1452: attribute this connection's writes from here on.
         self._meter.bind_org(getattr(ctx.session, "org_id", None))
         members: tuple[str, ...] = (role,)
+        qualifiers: tuple[str, ...] = ()
         try:
             requested = requested_role(ctx.params)
         except PermissionError as exc:
@@ -2108,8 +2132,14 @@ class ProvisaHandler(BuenaVistaHandler):  # REQ-120, REQ-124, REQ-125, REQ-273
 
                 org_token = set_current_org(org_id)
             try:
-                role = resolve_requested_role(_state, permitted, requested)
+                from provisa.auth.pseudo_roles import principal_of
+
+                # REQ-2057: a pseudo-role the identity holds is named like any role.
+                role = resolve_requested_role(
+                    _state, permitted, requested, lambda: principal_of(_state, identity)[1]
+                )
                 members = acting_roles(_state, role)
+                qualifiers = tuple(_state.meta_qualifiers.get(role, ()))
             except PermissionError as exc:
                 self._send_pg_error("FATAL", "28000", str(exc))
                 return
@@ -2118,8 +2148,9 @@ class ProvisaHandler(BuenaVistaHandler):  # REQ-120, REQ-124, REQ-125, REQ-273
                     from provisa.core.request_context import reset_current_org
 
                     reset_current_org(org_token)
-        ctx.session.act_as(role, members)  # type: ignore[attr-defined]
+        ctx.session.act_as(role, members, qualifiers)  # type: ignore[attr-defined]
         ctx.session.user_id = identity.user_id  # type: ignore[attr-defined]  # REQ-074
+        ctx.session.identity = identity  # type: ignore[attr-defined]
         self.send_authentication_ok()
         self.handle_post_auth(ctx)
 
