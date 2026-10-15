@@ -439,6 +439,25 @@ describe("BillingTab", () => {
     expect(screen.getByTestId("billing-trial-terms")).not.toHaveTextContent("per active hour");
   });
 
+  // A billing date is a calendar day sent as midnight UTC: west of UTC its local date is the day
+  // before, so the page reads the day in UTC.
+  it("shows a billing date as its calendar day in any time zone", async () => {
+    const zone = process.env.TZ;
+    process.env.TZ = "America/Los_Angeles";
+    try {
+      mockSummary.mockResolvedValue(
+        summary({
+          period_start: "2026-10-01T00:00:00+00:00",
+          period_end: "2026-11-01T00:00:00+00:00",
+        }),
+      );
+      render(<BillingTab />);
+      expect(await screen.findByText("Oct 1, 2026 to Nov 1, 2026")).toBeInTheDocument();
+    } finally {
+      process.env.TZ = zone;
+    }
+  });
+
   it("shows month-to-date usage as quantities, not as a metered total", async () => {
     mockSummary.mockResolvedValue(
       summary({ active_hours: 7, egress_bytes: 2 * 1024 ** 3, plan: "starter" }),

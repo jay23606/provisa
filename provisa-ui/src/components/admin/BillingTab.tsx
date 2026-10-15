@@ -51,11 +51,15 @@ function formatBytes(n: number): string {
   return `${(n / GIB).toFixed(2)} GB`;
 }
 
+/** A billing date: the merchant of record's periods start and renew on calendar days, sent as
+ *  midnight UTC, so the day is read in UTC -- in a browser west of UTC the local date of that
+ *  instant is the day before. */
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
     year: "numeric",
     month: "short",
     day: "numeric",
+    timeZone: "UTC",
   });
 }
 
