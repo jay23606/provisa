@@ -35,12 +35,68 @@ PGCONFIG="$CACHE/pg162/bin/pg_config"
 PREFIX="$CACHE/mongo_fdw_deps"     # mongo-c-driver + json-c install prefix
 SRC="$CACHE/mongo_fdw_src"
 SHIM="$CACHE/_shim"
+# When set: also put mongo_fdw and its two driver libraries into the bundle tree at $OUT (lib/,
+# share/extension/ and their manifest.json rows), each loading the others from beside itself --
+# the tree scripts/ci/build_pg_extensions.sh writes there first (tests/embedded_pg.py stages it).
+OUT="${OUT:-}"
+
+emit_bundle() {
+  [ -n "$OUT" ] || return 0
+  [ -f "$OUT/manifest.json" ] || { echo "FAIL: $OUT has no manifest.json (build_pg_extensions.sh writes it first)"; exit 1; }
+  local pkglib extdir libs
+  pkglib="$("$PGCONFIG" --pkglibdir)"; extdir="$("$PGCONFIG" --sharedir)/extension"
+  mkdir -p "$OUT/lib" "$OUT/share/extension"
+  cp "$pkglib/mongo_fdw.$MODULE_SUFFIX" "$OUT/lib/"
+  cp "$extdir"/mongo_fdw.control "$extdir"/mongo_fdw--*.sql "$OUT/share/extension/"
+  if [ "$MODULE_SUFFIX" = dylib ]; then
+    # The modules reference @rpath/lib{mongoc,bson}-1.0.0.dylib; ship those names.
+    libs="libmongoc-1.0.0.dylib libbson-1.0.0.dylib"
+    cp -L "$PREFIX/lib/$MONGOC_LIB" "$PREFIX/lib/$BSON_LIB" "$OUT/lib/"
+    for f in mongo_fdw.dylib $libs; do
+      chmod 755 "$OUT/lib/$f"
+      otool -l "$OUT/lib/$f" | grep -q "path @loader_path " || install_name_tool -add_rpath "@loader_path" "$OUT/lib/$f"
+      codesign -f -s - "$OUT/lib/$f"
+    done
+  else
+    # The sonames end .so.0, which the stager's *.so glob does not copy: ship them as .so.
+    libs="libmongoc-1.0.so libbson-1.0.so"
+    local libdir="$PREFIX/lib"; [ -e "$libdir/$MONGOC_LIB" ] || libdir="$PREFIX/lib64"
+    cp -L "$libdir/$MONGOC_LIB" "$OUT/lib/libmongoc-1.0.so"
+    cp -L "$libdir/$BSON_LIB" "$OUT/lib/libbson-1.0.so"
+    patchelf --set-soname libmongoc-1.0.so "$OUT/lib/libmongoc-1.0.so"
+    patchelf --set-soname libbson-1.0.so "$OUT/lib/libbson-1.0.so"
+    patchelf --replace-needed "$BSON_LIB" libbson-1.0.so "$OUT/lib/libmongoc-1.0.so"
+    patchelf --replace-needed "$MONGOC_LIB" libmongoc-1.0.so "$OUT/lib/mongo_fdw.so"
+    patchelf --replace-needed "$BSON_LIB" libbson-1.0.so "$OUT/lib/mongo_fdw.so"
+    for f in mongo_fdw.so $libs; do patchelf --set-rpath '$ORIGIN' "$OUT/lib/$f"; done
+  fi
+  # Their manifest rows: the stager copies only a module the manifest names, by its sha256.
+  python3 - "$OUT" "mongo_fdw.$MODULE_SUFFIX" $libs <<'EOF'
+import hashlib, json, sys
+from pathlib import Path
+
+out, files = Path(sys.argv[1]), sys.argv[2:]
+manifest = json.loads((out / "manifest.json").read_text())
+named = {a["file"] for a in manifest["artifacts"]}
+for name in files:
+    rel = f"lib/{name}"
+    if rel in named:
+        continue
+    manifest["artifacts"].append({
+        "name": name.split(".")[0], "key": "mongo_fdw", "file": rel,
+        "sha256": hashlib.sha256((out / rel).read_bytes()).hexdigest(),
+        "redistribution": "test-only", "runtime_deps": "",
+    })
+(out / "manifest.json").write_text(json.dumps(manifest, indent=1))
+EOF
+}
 
 # Already built? (both driver dylibs + the FDW module + its control file present)
 if [ -f "$PREFIX/lib/$MONGOC_LIB" ] \
    && [ -f "$CACHE/pg162/lib/postgresql/mongo_fdw.$MODULE_SUFFIX" ] \
    && [ -f "$CACHE/pg162/share/postgresql/extension/mongo_fdw.control" ]; then
   echo "mongo_fdw artifacts already cached — nothing to build"
+  emit_bundle
   exit 0
 fi
 
@@ -87,4 +143,5 @@ make USE_PGXS=1 PG_CONFIG="$PGCONFIG" LDFLAGS_SL="$RPATH_FLAGS" install
 echo "=== artifacts ==="
 ls -la "$($PGCONFIG --pkglibdir)"/mongo_fdw* "$($PGCONFIG --sharedir)/extension"/mongo_fdw*
 ls -la "$PREFIX/lib/$MONGOC_LIB" "$PREFIX/lib/$BSON_LIB"
+emit_bundle
 echo "BUILD_OK"

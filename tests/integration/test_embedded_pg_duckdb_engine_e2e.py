@@ -6,65 +6,61 @@
 
 """E2E: pg_duckdb attaches csv + parquet IN PLACE inside a stock embedded PG, federated natively (REQ-901, REQ-902).
 
-No docker. Provisions a pgserver embedded PG 16, stages pg_duckdb v1.0.0 into it the way the product's
-embedded tier does (stage_bundled_pg_extensions, from the provisa-pg-ext wheel's bundle for this
-platform: darwin-arm64, linux-x64), then drives the REAL connectors — PgDuckdbCsvConnector +
-PgDuckdbParquetConnector — whose read_csv/read_parquet views expose the demo files as native PG
-relations. A native orders table joins BOTH file sources with a governance (RLS) predicate; pg_duckdb
-executes the whole join inside PG via its embedded DuckDB, so the DuckDB engine's file reach collapses
-into one containerless Postgres engine.
+No docker. Runs an embedded PG 16.2 from a private pginstall (tests/embedded_pg.py) with pg_duckdb
+v1.0.0 staged into it from the provisa-pg-ext wheel's bundle for this platform, the way the
+product's embedded tier stages it, then drives the
+REAL connectors — PgDuckdbCsvConnector + PgDuckdbParquetConnector — whose read_csv/read_parquet views
+expose the demo files as native PG relations. A native orders table joins BOTH file sources with a
+governance (RLS) predicate; pg_duckdb executes the whole join inside PG via its embedded DuckDB, so the
+DuckDB engine's file reach collapses into one containerless Postgres engine.
 
-Scope / honest boundary: this proves the CONNECTORS + in-engine federation + governance filtering. It
+Scope: this proves the CONNECTORS + in-engine federation + governance filtering. It
 does NOT run the compiler's nested-JSON GraphQL shape through pg_duckdb: pg_duckdb's transparent path
 needs SQL that PG parses AND DuckDB executes, and the pipeline's SQL/JSON JSON_OBJECT(k : v) output
 satisfies neither (DuckDB rejects the colon form; PG rejects DuckDB's comma json_object; pg_duckdb does
 not map json_build_object). Federating the nested pipeline through pg_duckdb needs a pg_duckdb-specific
 JSON emission in the transpiler — separate compiler work, not built here.
-
-A platform the wheel ships no bundle for fails loudly (BundledPgExtensionsMissing), never skips.
 """
 
 from __future__ import annotations
 
 import json
-import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
-pytestmark = [pytest.mark.integration, pytest.mark.asyncio(loop_scope="session")]
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.local_platform,
+    pytest.mark.asyncio(loop_scope="session"),
+]
 
 asyncpg = pytest.importorskip("asyncpg")
-pgserver = pytest.importorskip("pgserver")
+
+import psycopg  # noqa: E402
 
 from provisa.federation.connector_duckdb import (  # noqa: E402
     PgDuckdbCsvConnector,
     PgDuckdbJsonConnector,
     PgDuckdbParquetConnector,
 )
-from provisa.pg_extensions.staging import stage_bundled_pg_extensions  # noqa: E402
+from tests.embedded_pg import LocalPostgres, start_local_postgres  # noqa: E402
 
 _FILES = Path(__file__).parent.parent.parent / "demo" / "files"
 
 
-def _install_pg_duckdb_into_pgserver() -> None:
-    """Stage the wheel's pg_duckdb + libduckdb into pgserver's install, as the embedded tier does
-    at control-plane bootstrap (control_plane_pg). The bundle's pg_duckdb carries an @loader_path /
-    $ORIGIN rpath, so the sibling libduckdb resolves with no patching."""
-    stage_bundled_pg_extensions(Path(pgserver.__file__).parent / "pginstall")
+def _create_pg_duckdb(pg: LocalPostgres) -> None:
+    with psycopg.connect(pg.dsn(), autocommit=True) as c:
+        c.execute("CREATE EXTENSION pg_duckdb")
 
 
 @pytest.fixture(scope="session")
 def embedded_pg_duckdb():
-    _install_pg_duckdb_into_pgserver()
-    base = tempfile.mkdtemp(prefix="provisa_pgduckdb_")
-    server = pgserver.get_server(base)
-    server.psql("ALTER SYSTEM SET shared_preload_libraries = 'pg_duckdb';")
-    server.cleanup()  # stop (mode 'stop' keeps pgdata); restart picks up the preload
-    server = pgserver.get_server(base)
-    server.psql("CREATE EXTENSION pg_duckdb;")
-    yield server
+    pg = start_local_postgres(preload=("pg_duckdb",), fdws=True)
+    _create_pg_duckdb(pg)
+    yield pg
+    pg.stop()
 
 
 def _view_ddl_from_connector(
@@ -82,7 +78,7 @@ async def test_pg_duckdb_connectors_federate_csv_and_parquet(embedded_pg_duckdb)
     The views wrap read_csv/read_parquet (DuckDB-only functions), so pg_duckdb MUST execute the join in
     its embedded DuckDB — returning rows at all proves both files are read in place, not landed.
     """
-    conn = await asyncpg.connect(dsn=embedded_pg_duckdb.get_uri())
+    conn = await asyncpg.connect(dsn=embedded_pg_duckdb.dsn())
     try:
         await conn.execute("CREATE SCHEMA IF NOT EXISTS e2e_files")
         # ---- attach customers.csv + products.parquet via the REAL pg_duckdb connectors ----
@@ -149,11 +145,10 @@ async def test_discover_reports_pg_duckdb_only_after_preload():
     """
     from provisa.federation.engine import build_pg_engine
 
-    _install_pg_duckdb_into_pgserver()  # the extension files are present the whole test
-    base = tempfile.mkdtemp(prefix="provisa_pgduckdb_probe_")
-    server = pgserver.get_server(base)  # started WITHOUT preload
-
-    conn = await asyncpg.connect(dsn=server.get_uri())
+    server = start_local_postgres(
+        fdws=True
+    )  # the extension files are present, but it is NOT preloaded
+    conn = await asyncpg.connect(dsn=server.dsn())
     try:
         report = await build_pg_engine().discover(conn.fetch)
         assert report["pg_duckdb_parquet"].available is False
@@ -161,18 +156,19 @@ async def test_discover_reports_pg_duckdb_only_after_preload():
     finally:
         await conn.close()
 
-    server.psql("ALTER SYSTEM SET shared_preload_libraries = 'pg_duckdb';")
-    server.cleanup()
-    server = pgserver.get_server(base)  # restart with preload
-    server.psql("CREATE EXTENSION pg_duckdb;")
-    conn = await asyncpg.connect(dsn=server.get_uri())
     try:
-        eng = build_pg_engine()
-        report = await eng.discover(conn.fetch)
-        assert report["pg_duckdb_parquet"].available is True  # same files, now functional
-        assert eng.reachable("parquet") is True and eng.reachable("json") is True
+        server.restart(preload=("pg_duckdb",))
+        _create_pg_duckdb(server)
+        conn = await asyncpg.connect(dsn=server.dsn())
+        try:
+            eng = build_pg_engine()
+            report = await eng.discover(conn.fetch)
+            assert report["pg_duckdb_parquet"].available is True  # same files, now functional
+            assert eng.reachable("parquet") is True and eng.reachable("json") is True
+        finally:
+            await conn.close()
     finally:
-        await conn.close()
+        server.stop()
 
 
 async def test_pg_duckdb_reads_json_file(embedded_pg_duckdb, tmp_path):
@@ -183,7 +179,7 @@ async def test_pg_duckdb_reads_json_file(embedded_pg_duckdb, tmp_path):
         {"id": 2, "kind": "placed", "state": "CA"},
         {"id": 3, "kind": "shipped", "state": "TX"},
     ]))  # fmt: skip
-    conn = await asyncpg.connect(dsn=embedded_pg_duckdb.get_uri())
+    conn = await asyncpg.connect(dsn=embedded_pg_duckdb.dsn())
     try:
         await conn.execute("CREATE SCHEMA IF NOT EXISTS e2e_json")
         await conn.execute(
