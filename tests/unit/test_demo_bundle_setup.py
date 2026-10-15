@@ -97,8 +97,8 @@ def test_a_qdrant_store_is_saved_as_one_snapshot_a_collection(tmp_path, monkeypa
     ("has_setup", "replicates", "expected"),
     [
         (True, False, ["up", "set up", "dump", "down"]),  # sonnets: its sources are read live
-        (True, True, ["up", "set up", "seed", "dump", "down"]),
-        (False, True, ["up", "seed", "dump", "down"]),
+        (True, True, ["up", "set up", "seed", "no empty replica", "dump", "down"]),
+        (False, True, ["up", "seed", "no empty replica", "dump", "down"]),
     ],
     ids=["setup-live", "setup-replicated", "no-setup"],
 )
@@ -117,6 +117,9 @@ def test_a_demo_s_setup_runs_after_its_stores_come_up_and_before_its_seed(
     monkeypatch.setattr(builder.Stores, "down", lambda self: done.append("down"))
     monkeypatch.setattr(builder, "_set_up", lambda *_a: done.append("set up"))
     monkeypatch.setattr(builder, "_seed", lambda *_a: done.append("seed"))
+    monkeypatch.setattr(
+        builder, "_refuse_empty_replicas", lambda *_a: done.append("no empty replica")
+    )
     monkeypatch.setattr(builder, "_replicates", lambda *_a: replicates)
     monkeypatch.setattr(builder.bundles, "pack", lambda _demo, _manifest: b"bundle")
     args = argparse.Namespace(
@@ -273,3 +276,60 @@ def test_the_reviews_run_time_compose_loads_what_its_build_saves():
         if s["id"] == "catalog"
     )  # fmt: skip
     assert f'user: "{catalog["username"]}"' in reader and f'pwd: "{catalog["password"]}"' in reader
+
+
+def test_the_build_hands_its_servers_the_variables_the_config_reads_and_no_other(
+    tmp_path, monkeypatch
+):
+    """A govdata source is landed in the build with the account key its config reads; the
+    servers the build starts get that variable from the build's environment, and nothing else of
+    it."""
+    (tmp_path / "config.yaml").write_text(
+        "sources:\n- username: ${env:ASKAMERICA_API_KEY:-}\n  host: ${env:X_PG_HOST:-localhost}\n"
+    )
+    monkeypatch.setenv("ASKAMERICA_API_KEY", "key-1")
+    monkeypatch.setenv("UNRELATED_SECRET", "not-handed-on")
+    monkeypatch.delenv("X_PG_HOST", raising=False)
+    assert builder._config_env(tmp_path) == {"ASKAMERICA_API_KEY": "key-1"}
+
+
+def _seeded(tmp_path, rows: dict[str, int | None]):
+    seeded = tmp_path / "insurance" / "seeded"
+    seeded.mkdir(parents=True)
+    (seeded / "replicas.json").write_text(
+        json.dumps(
+            {
+                "replicas": [
+                    {
+                        "source_id": "govdata",
+                        "schema_name": "disasters",
+                        "table_name": name,
+                        "completed_rows": count,
+                    }
+                    for name, count in rows.items()
+                ]
+            }
+        )
+    )
+    return tmp_path / "insurance"
+
+
+def test_a_replica_that_landed_no_rows_fails_the_build_by_name(tmp_path):
+    """REQ-2037: a TTL -1 replica is landed once; an empty one would be served empty for good."""
+    demo = _seeded(tmp_path, {"wildfire_risk_by_county": 3144, "storm": 0, "nri": None})
+    with pytest.raises(SystemExit) as refused:
+        builder._refuse_empty_replicas(demo)
+    assert str(refused.value) == (
+        "insurance: these replicas landed no rows: govdata.disasters.nri, govdata.disasters.storm"
+    )
+
+
+def test_replicas_that_all_landed_rows_pass(tmp_path):
+    builder._refuse_empty_replicas(_seeded(tmp_path, {"nri": 3142, "wildfire": 3144}))
+
+
+def test_the_bundle_job_carries_the_key_a_demo_lands_a_govdata_table_with():
+    workflow = yaml.safe_load((_REPO / ".github" / "workflows" / "demo-bundles.yml").read_text())
+    assert workflow["jobs"]["bundle"]["env"] == {
+        "ASKAMERICA_API_KEY": "${{ secrets.ASKAMERICA_API_KEY }}"
+    }
