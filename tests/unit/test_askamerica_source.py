@@ -1031,7 +1031,8 @@ def test_a_sibling_whose_server_starts_in_seconds_is_still_waited_for(monkeypatc
 
     monkeypatch.setattr(pr, "_endpoint_replica", lambda source: _Replica())
     pr.ensure_endpoint(Source(id="docs", type=SourceType.files, path="/data"))
-    assert waited == [None]
+    # Within the statement's bound: an attach runs on a statement's request (REQ-1824).
+    assert waited == [pr.STATEMENT_START_WAIT_SECONDS]
 
 
 @pytest.mark.parametrize(
@@ -1241,7 +1242,7 @@ def test_a_statement_reading_a_starting_source_is_refused_as_starting(monkeypatc
         _replica_with_server(healthy=False, exit_code=None),
     )
     with pytest.raises(pr.SourceStillStartingError, match="STARTING: 'test-askamerica'"):
-        pr.require_serving("test-askamerica", "govdata")
+        pr.await_serving("test-askamerica", "govdata", 0)
 
 
 def test_a_statement_reading_a_source_whose_server_exited_is_told_why(monkeypatch):
@@ -1251,7 +1252,7 @@ def test_a_statement_reading_a_source_whose_server_exited_is_told_why(monkeypatc
         _replica_with_server(healthy=False, exit_code=3),
     )
     with pytest.raises(pr.ServerExited, match=r"(?s)exited with code 3.*the log's end") as raised:
-        pr.require_serving("test-askamerica", "govdata")
+        pr.await_serving("test-askamerica", "govdata", 0)
     assert "aa-key" not in str(raised.value)
 
 
@@ -1261,27 +1262,92 @@ def test_a_serving_source_and_a_source_with_no_server_yet_are_not_refused(monkey
         source_key("test-askamerica"),
         _replica_with_server(healthy=True, exit_code=None),
     )
-    pr.require_serving("test-askamerica", "govdata")
-    pr.require_serving("never-started", "govdata")
-    pr.require_serving("some-pg", "postgresql")
+    pr.await_serving("test-askamerica", "govdata", 0)
+    pr.await_serving("never-started", "govdata", 0)
+    pr.await_serving("some-pg", "postgresql", 0)
 
 
-def test_the_pipeline_asks_only_for_a_statement_the_engine_computes(monkeypatch):
+def _pipeline_state(attached: list[str]):
+    async def _attached_runtime(_state):
+        attached.append("walked")
+
+    backend = SimpleNamespace(_attached_runtime=_attached_runtime)
+    return SimpleNamespace(
+        source_types={"test-askamerica": "govdata", "lake": "files", "pg": "postgresql"},
+        federation_engine=SimpleNamespace(engine=SimpleNamespace(backend=backend)),
+    )
+
+
+async def test_the_pipeline_waits_only_for_a_served_source_of_a_statement_the_engine_computes(
+    monkeypatch,
+):
     from provisa.pgwire import _pipeline
     from provisa.transpiler.router import Route
 
     asked: list[tuple[str, str]] = []
-    monkeypatch.setattr(pr, "require_serving", lambda sid, stype: asked.append((sid, stype)))
-    state = SimpleNamespace(source_types={"test-askamerica": "govdata", "pg": "postgresql"})
-    sources = {"test-askamerica", "pg"}
-    _pipeline._refuse_while_source_server_starts(
-        SimpleNamespace(route=Route.DIRECT), sources, state
+    monkeypatch.setattr(pr, "await_serving", lambda sid, stype, _t: asked.append((sid, stype)))
+    attached: list[str] = []
+    state = _pipeline_state(attached)
+    sources = {"test-askamerica", "lake", "pg"}
+    await _pipeline._await_source_servers(SimpleNamespace(route=Route.DIRECT), sources, state)
+    assert asked == [] and attached == []
+    await _pipeline._await_source_servers(SimpleNamespace(route=Route.ENGINE), sources, state)
+    # The engine attaches first (which starts a server not yet started), then the statement waits.
+    assert attached == ["walked"]
+    assert asked == [("lake", "files"), ("test-askamerica", "govdata")]
+
+
+@pytest.mark.parametrize("stype", ["govdata", "files"])
+async def test_a_statement_on_a_source_still_starting_past_the_wait_is_refused_naming_it(
+    monkeypatch, stype
+):
+    # Never a binder error naming a catalog nobody attached, never a statement left to run out
+    # its request timeout: the source's starting state, by name.
+    from provisa.pgwire import _pipeline
+    from provisa.transpiler.router import Route
+
+    source_id = "test-askamerica"  # the helper's replica's source
+    monkeypatch.setitem(
+        pr._ENDPOINTS, source_key(source_id), _replica_with_server(healthy=False, exit_code=None)
     )
-    assert asked == []
-    _pipeline._refuse_while_source_server_starts(
-        SimpleNamespace(route=Route.ENGINE), sources, state
-    )
-    assert asked == [("pg", "postgresql"), ("test-askamerica", "govdata")]
+    monkeypatch.setattr(pr, "STATEMENT_START_WAIT_SECONDS", 0.6)
+    state = _pipeline_state([])
+    state.source_types[source_id] = stype
+    with pytest.raises(pr.SourceStillStartingError, match=f"STARTING: '{source_id}'"):
+        await _pipeline._await_source_servers(
+            SimpleNamespace(route=Route.ENGINE), {source_id}, state
+        )
+
+
+def test_a_server_that_comes_up_within_the_wait_is_read(monkeypatch):
+    replica = _replica_with_server(healthy=False, exit_code=None)
+    monkeypatch.setitem(pr._ENDPOINTS, source_key("lake"), replica)
+    calls = {"n": 0}
+
+    def _require_serving():
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise pr.SourceStillStartingError("lake")
+
+    monkeypatch.setattr(replica, "require_serving", _require_serving)
+    pr.await_serving("lake", "files", 5)
+    assert calls["n"] == 3
+
+
+def test_an_attach_waits_only_the_statements_bound_for_a_quick_starting_server(monkeypatch):
+    # A files server is waited for at most STATEMENT_START_WAIT_SECONDS by an attach, which runs
+    # on a statement's request; past it the source is still starting, by name.
+    waited: list[float | None] = []
+
+    class _Replica:
+        def endpoint(self, *, timeout=None):
+            waited.append(timeout)
+            raise pr.ServerLifecycleError("not listening")
+
+    monkeypatch.setattr(pr, "_endpoint_replica", lambda _s: _Replica())
+    with pytest.raises(pr.SourceStillStartingError, match="STARTING: 'lake'"):
+        pr.ensure_endpoint(SimpleNamespace(id="lake", type=SourceType.files))
+    assert waited == [pr.STATEMENT_START_WAIT_SECONDS]
 
 
 # -- subscriptions: as a sibling's -------------------------------------------------------------
@@ -1423,8 +1489,8 @@ def test_every_sibling_waits_for_its_catalog_within_the_bound_it_waits_for_its_p
     monkeypatch, stype
 ):
     """The family shares the server and its row counting. A sibling's server starts in seconds
-    and is still waited for; its catalog is now waited for too, within the same bound, where
-    the attach used to wait on it with none."""
+    and is still waited for; its catalog too, within the same bound -- for an attach, the
+    statement's (an attach runs on a statement's request)."""
     waits: list[tuple[str, float | None]] = []
 
     class _Replica:
@@ -1439,8 +1505,8 @@ def test_every_sibling_waits_for_its_catalog_within_the_bound_it_waits_for_its_p
     pr.ensure_endpoint(Source(id="docs", type=SourceType(stype)))
     pr.ensure_endpoint(Source(id="docs", type=SourceType(stype)), timeout=3)
     assert waits == [
-        ("port", None),
-        ("catalog", pr.SERVER_READY_SECONDS),
+        ("port", pr.STATEMENT_START_WAIT_SECONDS),
+        ("catalog", pr.STATEMENT_START_WAIT_SECONDS),
         ("port", 3),
         ("catalog", 3),
     ]

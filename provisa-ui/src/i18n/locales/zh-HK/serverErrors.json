@@ -125,7 +125,8 @@
       "replica_building": "{{replica}} 的副本仍在建立中。建立會繼續；完成後請再次開啟預覽。",
       "address_invalid": "無法解析該地址：{{reason}}",
       "address_not_found": "沒有可解析的內容：{{reason}}",
-      "mixed_resolve_and_other_fields": "resolve 不能在同一操作中與其他根欄位組合使用"
+      "mixed_resolve_and_other_fields": "resolve 不能在同一操作中與其他根欄位組合使用",
+      "source_starting": "來源 {{source}} 仍在啟動。請稍後再試。"
     },
     "discovery": {
       "adapter_missing_discover_schema": "「{{source_type}}」的配接器未實作 discover_schema",

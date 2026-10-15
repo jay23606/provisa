@@ -125,7 +125,8 @@
       "replica_building": "La copia di {{replica}} è ancora in fase di creazione. La creazione continua; riapri l'anteprima al termine.",
       "address_invalid": "L'indirizzo non può essere risolto: {{reason}}",
       "address_not_found": "Niente da risolvere: {{reason}}",
-      "mixed_resolve_and_other_fields": "resolve non può essere combinato con altri campi radice nella stessa operazione"
+      "mixed_resolve_and_other_fields": "resolve non può essere combinato con altri campi radice nella stessa operazione",
+      "source_starting": "L'origine {{source}} è ancora in fase di avvio. Riprova tra un momento."
     },
     "discovery": {
       "adapter_missing_discover_schema": "L'adattatore per '{{source_type}}' non implementa discover_schema",

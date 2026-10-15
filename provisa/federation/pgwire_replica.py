@@ -1413,20 +1413,6 @@ def start_when_saved(source: Any) -> None:
     spawn_background(asyncio.to_thread(start_endpoint, source), name=f"pgwire-server:{source.id}")
 
 
-def require_serving(source_id: str, source_type: str) -> None:
-    """Refuse, by name, a statement that reads a source whose server takes minutes to start
-    (``STARTED_WHEN_SAVED``) while that server is not yet serving — rather than hand the engine
-    a statement naming a relation it could not attach. No server started for the source in this
-    process is not a refusal: the engine's attach starts one."""
-    if source_type not in STARTED_WHEN_SAVED:
-        return
-    from provisa.core.org_scope import source_key
-
-    replica = _ENDPOINTS.get(source_key(source_id))
-    if replica is not None:
-        replica.require_serving()
-
-
 def serve_for_build(source: Any) -> None:
     """Return once ``source``'s server serves, for a replica build that reads the source through
     the engine. A type whose server takes minutes to start (``STARTED_WHEN_SAVED``) is skipped by
@@ -1438,6 +1424,35 @@ def serve_for_build(source: Any) -> None:
     if _source_type(source) not in STARTED_WHEN_SAVED:
         return
     ensure_endpoint(source, timeout=LAND_FETCH_SECONDS)
+
+
+#: How long a statement waits for a source's server that is still starting, in all: below the
+#: default request timeout, so a statement on such a source answers "still starting" by name
+#: (503) instead of running out its request (REQ-1824).
+STATEMENT_START_WAIT_SECONDS = 20
+
+
+def await_serving(source_id: str, source_type: str, timeout: float) -> None:
+    """Return once the server this process started for the source serves, waiting at most
+    ``timeout`` seconds; past it ``SourceStillStartingError`` names the source, and a server that
+    exited is ``ServerExited`` with its log's end. A type with no server of its own, or a source
+    no server was started for, is answered at once: the engine's attach starts it."""
+    if source_type not in PGWIRE_REPLICA_TYPES:
+        return
+    from provisa.core.org_scope import source_key
+
+    replica = _ENDPOINTS.get(source_key(source_id))
+    if replica is None:
+        return
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            replica.require_serving()
+            return
+        except SourceStillStartingError:
+            if time.monotonic() >= deadline:
+                raise
+            time.sleep(0.5)
 
 
 def server_start_errors() -> tuple[type[BaseException], ...]:
@@ -1512,10 +1527,16 @@ def ensure_endpoint(source: Any, *, timeout: float | None = None) -> PortPair:
     once rather than holding its caller — and the engine's attach pass — for the wait."""
     replica = _endpoint_replica(source)
     if _source_type(source) not in STARTED_WHEN_SAVED:
-        # A server that starts in seconds is waited for, as before — and its catalog within the
-        # same bound, where an attach used to wait for it without one.
-        ports = replica.endpoint(timeout=timeout)
-        replica.await_catalog(ports, SERVER_READY_SECONDS if timeout is None else timeout)
+        # A server that starts in seconds is waited for -- and its catalog within the same bound.
+        # An attach (no timeout) runs on a statement's request, so it waits at most
+        # STATEMENT_START_WAIT_SECONDS: past it the server is still starting, which the
+        # statement answers by name (await_serving) rather than outliving its request timeout.
+        wait = STATEMENT_START_WAIT_SECONDS if timeout is None else timeout
+        try:
+            ports = replica.endpoint(timeout=wait)
+        except ServerLifecycleError as exc:
+            raise SourceStillStartingError(source.id) from exc
+        replica.await_catalog(ports, wait)
         return ports
     if timeout is None:
         # An attach: answered at once, never holding the engine's attach pass.

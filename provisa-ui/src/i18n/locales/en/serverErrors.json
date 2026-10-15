@@ -125,7 +125,8 @@
       "replica_building": "The copy of {{replica}} is still being built. The build continues; open the preview again once it has finished.",
       "address_invalid": "The address cannot be resolved: {{reason}}",
       "address_not_found": "Nothing to resolve: {{reason}}",
-      "mixed_resolve_and_other_fields": "resolve cannot be combined with other root fields in one operation"
+      "mixed_resolve_and_other_fields": "resolve cannot be combined with other root fields in one operation",
+      "source_starting": "The source {{source}} is still starting. Try again in a moment."
     },
     "discovery": {
       "adapter_missing_discover_schema": "Adapter for '{{source_type}}' does not implement discover_schema",

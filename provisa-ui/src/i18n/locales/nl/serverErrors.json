@@ -125,7 +125,8 @@
       "replica_building": "De kopie van {{replica}} wordt nog opgebouwd. De opbouw gaat door; open het voorbeeld opnieuw zodra deze klaar is.",
       "address_invalid": "Het adres kan niet worden opgelost: {{reason}}",
       "address_not_found": "Niets op te lossen: {{reason}}",
-      "mixed_resolve_and_other_fields": "resolve kan in één bewerking niet met andere rootvelden worden gecombineerd"
+      "mixed_resolve_and_other_fields": "resolve kan in één bewerking niet met andere rootvelden worden gecombineerd",
+      "source_starting": "De bron {{source}} wordt nog gestart. Probeer het zo opnieuw."
     },
     "discovery": {
       "adapter_missing_discover_schema": "Adapter voor '{{source_type}}' implementeert discover_schema niet",
