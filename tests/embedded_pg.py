@@ -20,6 +20,12 @@ synchronous_commit, full_page_writes).
 A test that needs Postgres gets its own server here rather than whatever listens on the machine's
 5432, which other jobs start and stop.
 
+A test that needs the FDW set (``start_local_postgres(fdws=True)``) runs from a PRIVATE copy of
+pgserver's ``pginstall`` with the provisa-pg-ext wheel's bundle (postgres_fdw, file_fdw,
+sqlite_fdw, pg_duckdb, ...) staged into it by ``provisa.pg_extensions.staging``, as the product
+stages it; ``mongo_fdw=True`` adds mongo_fdw, built by scripts/build_mongo_fdw.sh. The copy is
+cached under ``~/.cache/provisa-test-pg``; the venv's own pgserver package is never written to.
+
 A server does not outlive the process that started it. A session ended by a signal (a stopped job,
 a runner's timeout) runs no teardown, and its server kept running, holding the machine's shared
 memory until no further one could start. Each server's directory records its starter's pid
@@ -56,7 +62,114 @@ _SETTINGS = {
 }
 
 
-def _bin(name: str) -> str:
+_REPO = Path(__file__).resolve().parent.parent
+_CACHE = Path(os.environ.get("PROVISA_FDW_CACHE", Path.home() / ".cache" / "provisa-fdw"))
+#: The PostgreSQL mongo_fdw is built against: pgserver's major, its minor ABI-compatible within 16.
+_PG_VERSION = "16.2"
+
+
+def _build_pg_source() -> Path:
+    """PostgreSQL built from source once (cached under the FDW cache, restart-safe): the
+    ``pg_config`` scripts/build_mongo_fdw.sh builds against. Returns its prefix."""
+    prefix = _CACHE / f"pg{_PG_VERSION.replace('.', '')}"
+    if (prefix / "bin" / "pg_config").exists():
+        return prefix
+    _CACHE.mkdir(parents=True, exist_ok=True)
+    src = _CACHE / f"postgresql-{_PG_VERSION}"
+    if not src.exists():
+        tarball = _CACHE / f"postgresql-{_PG_VERSION}.tar.bz2"
+        url = (
+            f"https://ftp.postgresql.org/pub/source/v{_PG_VERSION}/postgresql-{_PG_VERSION}.tar.bz2"
+        )
+        subprocess.run(["curl", "-fsSL", "-o", str(tarball), url], check=True)
+        subprocess.run(["tar", "xj", "-C", str(_CACHE), "-f", str(tarball)], check=True)
+    with open(_CACHE / "build.log", "w") as log:
+        for cmd in (
+            ["./configure", "--without-icu", "--without-readline", "--without-zlib",
+             "--without-gssapi", f"--prefix={prefix}"],
+            ["make", f"-j{os.cpu_count() or 2}"],
+            ["make", "install"],
+        ):  # fmt: skip
+            subprocess.run(cmd, cwd=src, check=True, stdout=log, stderr=log)
+    return prefix
+
+
+def _build_mongo_fdw(bundle: Path) -> None:
+    """mongo_fdw and its driver libraries as a bundle tree at ``bundle``, its own manifest rows
+    included (scripts/build_mongo_fdw.sh with OUT)."""
+    _build_pg_source()
+    bundle.mkdir(parents=True)
+    (bundle / "manifest.json").write_text('{"artifacts": []}')
+    log = bundle.parent / "mongo_fdw.log"
+    with open(log, "w") as out:
+        done = subprocess.run(
+            ["bash", str(_REPO / "scripts" / "build_mongo_fdw.sh")],
+            env={**os.environ, "OUT": str(bundle)},
+            stdout=out,
+            stderr=subprocess.STDOUT,
+            check=False,
+        )
+    if done.returncode != 0:
+        tail = log.read_text(errors="replace")[-4000:]
+        raise RuntimeError(
+            f"build_mongo_fdw.sh failed (exit {done.returncode}); log {log}:\n{tail}"
+        )
+
+
+def private_pginstall(*, mongo_fdw: bool = False) -> Path:
+    """A private pginstall: pgserver's own files (as its wheel installed them, so nothing copied
+    into the venv comes along) with the provisa-pg-ext wheel's FDW bundle staged into it as the
+    product stages it -- and, with ``mongo_fdw``, mongo_fdw (REQ-1177's conformance target, not in
+    the product's set) built and staged too. Built once per (pgserver, provisa-pg-ext, platform,
+    mongo_fdw build script) under ``~/.cache/provisa-test-pg``, under an exclusive lock so
+    concurrent sessions build it once. The venv's pgserver package is never written to."""
+    import fcntl
+    import hashlib
+    import importlib.metadata as metadata
+
+    from provisa.pg_extensions.staging import (
+        bundle_platform,
+        stage_bundled_pg_extensions,
+        stage_pg_extension_bundle,
+    )
+
+    key = (
+        f"pgserver-{metadata.version('pgserver')}_pgext-{metadata.version('provisa-pg-ext')}"
+        f"_{bundle_platform()}"
+    )
+    if mongo_fdw:
+        script = (_REPO / "scripts" / "build_mongo_fdw.sh").read_bytes()
+        key += f"_mongo-{hashlib.sha256(script).hexdigest()[:12]}"
+    home = Path.home() / ".cache" / "provisa-test-pg" / key
+    home.mkdir(parents=True, exist_ok=True)
+    site = home / "site"
+    pginstall = site / "pgserver" / "pginstall"
+    with open(home / ".lock", "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        if not (home / ".complete").exists():
+            for stale in (site, home / "mongo_fdw"):  # an earlier build that did not complete
+                if stale.exists():
+                    shutil.rmtree(stale)
+            # The wheel's own layout: its binaries load their bundled libraries relative to
+            # themselves (pgserver/.dylibs on macOS, pgserver.libs on Linux).
+            dist = metadata.distribution("pgserver")
+            for f in dist.files or []:
+                if Path(f).parts[0].startswith("pgserver"):
+                    out = site / f
+                    out.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(dist.locate_file(f), out)
+            stage_bundled_pg_extensions(pginstall)
+            if mongo_fdw:
+                _build_mongo_fdw(home / "mongo_fdw")
+                stage_pg_extension_bundle(home / "mongo_fdw", pginstall)
+            (home / ".complete").touch()
+    return pginstall
+
+
+def _bin(name: str, pginstall: Path | None = None) -> str:
+    """``name`` from ``pginstall`` (the private FDW install), else from pgserver's own."""
+    if pginstall is not None:
+        return str(pginstall / "bin" / name)
     from pgserver.postgres_server import POSTGRES_BIN_PATH
 
     return str(POSTGRES_BIN_PATH / name)
@@ -70,6 +183,8 @@ class LocalPostgres:
     root: Path
     # Server settings over the defaults this session's clusters run with (e.g. wal_level).
     settings: dict[str, str] = field(default_factory=dict)
+    # The private FDW install it runs from (private_pginstall), or None for pgserver's own.
+    pginstall: Path | None = None
 
     @property
     def data(self) -> Path:
@@ -93,7 +208,9 @@ class LocalPostgres:
 
     def _ctl(self, *args: str) -> None:
         subprocess.run(
-            [_bin("pg_ctl"), "-D", str(self.data), "-w", *args], check=True, capture_output=True
+            [_bin("pg_ctl", self.pginstall), "-D", str(self.data), "-w", *args],
+            check=True,
+            capture_output=True,
         )
 
     def _start(self, preload: tuple[str, ...]) -> None:
@@ -105,7 +222,7 @@ class LocalPostgres:
         options = " ".join(f"-c {k}={v}" for k, v in settings.items())
         started = subprocess.run(
             [
-                _bin("pg_ctl"),
+                _bin("pg_ctl", self.pginstall),
                 "-D",
                 str(self.data),
                 "-l",
@@ -170,25 +287,41 @@ def start_local_postgres(
     *,
     preload: tuple[str, ...] = (),
     settings: dict[str, str] | None = None,
+    fdws: bool = False,
+    mongo_fdw: bool = False,
 ) -> LocalPostgres:
     """Init a fresh cluster in a directory of its own and start it on ``127.0.0.1:port`` (a
     leased port when none is given), with ``preload`` as its ``shared_preload_libraries`` and
-    ``settings`` over the session's defaults."""
+    ``settings`` over the session's defaults. With ``fdws``, it runs from a private install with
+    the product's FDW bundle staged, and with ``mongo_fdw`` mongo_fdw too
+    (:func:`private_pginstall`)."""
     from tests.port_lease import lease_port
 
     _stop_orphans()
     root = Path(tempfile.mkdtemp(prefix=_PREFIX))
     (root / _OWNER).write_text(str(os.getpid()))
     pg = LocalPostgres(
-        port=lease_port() if port is None else port, root=root, settings=dict(settings or {})
+        port=lease_port() if port is None else port,
+        root=root,
+        settings=dict(settings or {}),
+        pginstall=private_pginstall(mongo_fdw=mongo_fdw) if fdws or mongo_fdw else None,
     )
     subprocess.run(
-        [_bin("initdb"), "-D", str(pg.data), "-U", "postgres", "--auth=trust", "-E", "UTF8"],
+        [
+            _bin("initdb", pg.pginstall),
+            "-D",
+            str(pg.data),
+            "-U",
+            "postgres",
+            "--auth=trust",
+            "-E",
+            "UTF8",
+        ],
         check=True,
         capture_output=True,
     )
     pg._start(preload)
-    psql = [_bin("psql"), "-h", "127.0.0.1", "-p", str(pg.port), "-U", "postgres"]
+    psql = [_bin("psql", pg.pginstall), "-h", "127.0.0.1", "-p", str(pg.port), "-U", "postgres"]
     for sql in (
         f"CREATE ROLE {ROLE} LOGIN SUPERUSER PASSWORD '{PASSWORD}'",
         f"CREATE DATABASE {DATABASE} OWNER {ROLE}",

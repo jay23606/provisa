@@ -6,27 +6,27 @@
 
 """E2E: sqlite_fdw attaches a SQLite file IN PLACE inside a stock embedded PG (REQ-907).
 
-No docker. Provisions a pgserver embedded PG 16.2, stages the sqlite_fdw the product ships (the
-provisa-pg-ext wheel's bundle for this platform; its only runtime dep is the OS libsqlite3), then drives the REAL SqliteFdwConnector DDL to
-attach the demo orders.sqlite and reads it through the REAL compiler pipeline with an RLS predicate —
-asserting on returned rows. Unlike pg_duckdb, an FDW executes in Postgres, so the postgres dialect (with
-nested SQL/JSON) runs unchanged.
-
-A platform the wheel ships no bundle for fails loudly (BundledPgExtensionsMissing), never skips.
+No docker. Runs the embedded PG 16.2 from the test platform's private pginstall, whose staged
+provisa-pg-ext bundle carries sqlite_fdw (its only runtime dep is the OS libsqlite3; tests/embedded_pg.py), then drives the REAL
+SqliteFdwConnector DDL to attach the demo orders.sqlite and reads it through the REAL compiler
+pipeline with an RLS predicate — asserting on returned rows. Unlike pg_duckdb, an FDW executes in
+Postgres, so the postgres dialect (with nested SQL/JSON) runs unchanged.
 """
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
-pytestmark = [pytest.mark.integration, pytest.mark.asyncio(loop_scope="session")]
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.local_platform,
+    pytest.mark.asyncio(loop_scope="session"),
+]
 
 asyncpg = pytest.importorskip("asyncpg")
-pgserver = pytest.importorskip("pgserver")
 
 from tests.helpers import registry_write_ops, registry_write_returns_rows  # noqa: E402
 from provisa.compiler.introspect import ColumnMetadata  # noqa: E402
@@ -38,8 +38,8 @@ from provisa.compiler.context import build_context  # noqa: E402
 from provisa.compiler.sql_rewrite import rewrite_semantic_to_physical  # noqa: E402
 from provisa.compiler.stage2 import apply_governance, build_governance_context  # noqa: E402
 from provisa.federation.connector_duckdb import SqliteFdwConnector  # noqa: E402
-from provisa.pg_extensions.staging import stage_bundled_pg_extensions  # noqa: E402
 from provisa.transpiler.transpile import transpile  # noqa: E402
+from tests.embedded_pg import start_local_postgres  # noqa: E402
 from tests.helpers import ALL_DATA_CAPABILITIES  # noqa: E402
 
 _SQLITE = Path(__file__).parent.parent.parent / "demo" / "files" / "orders.sqlite"
@@ -48,12 +48,9 @@ _ADMIN = {"id": "admin", "capabilities": ALL_DATA_CAPABILITIES, "domain_access":
 
 @pytest.fixture(scope="session")
 def embedded_pg_sqlite_fdw():
-    # The sqlite_fdw the product ships: the provisa-pg-ext wheel's bundle for this platform,
-    # staged as the embedded tier stages it. A platform with no bundle fails
-    # (BundledPgExtensionsMissing); it does not skip.
-    stage_bundled_pg_extensions(Path(pgserver.__file__).parent / "pginstall")
-    server = pgserver.get_server(tempfile.mkdtemp(prefix="provisa_sqlite_fdw_"))
-    yield server
+    pg = start_local_postgres(fdws=True)
+    yield pg
+    pg.stop()
 
 
 def _col(n: str, d: str = "varchar", nl: bool = True) -> ColumnMetadata:
@@ -97,7 +94,7 @@ def _compile(si: SchemaInput, gql: str, rls: RLSContext) -> str:
 
 async def test_sqlite_fdw_connector_attaches_and_reads(embedded_pg_sqlite_fdw):
     """The REAL SqliteFdwConnector DDL attaches orders.sqlite; a governed read runs in place."""
-    conn = await asyncpg.connect(dsn=embedded_pg_sqlite_fdw.get_uri())
+    conn = await asyncpg.connect(dsn=embedded_pg_sqlite_fdw.dsn())
     try:
         det = SqliteFdwConnector().details(
             SimpleNamespace(id="ord", catalog="ord", path=str(_SQLITE))

@@ -104,3 +104,33 @@ def test_a_module_without_a_manifest_row_is_a_packaging_defect(tmp_path, monkeyp
     _install_fake_package(monkeypatch, pkg)
     with pytest.raises(BundledPgExtensionsMissing, match="without a manifest row"):
         stage_bundled_pg_extensions(tmp_path / "pginstall")
+
+
+def test_a_bundle_tree_is_staged_from_where_it_lies(tmp_path):
+    """stage_pg_extension_bundle stages a bundle tree that is no wheel's -- the tree a build
+    script writes to its OUT, which the test platform's private pginstall stages (mongo_fdw)."""
+    from provisa.pg_extensions.staging import stage_pg_extension_bundle
+
+    platform = bundle_platform()
+    suffix = "dylib" if platform.startswith("darwin") else "so"
+    _seed_bundle(tmp_path / "out", platform, suffix)
+    bundle = tmp_path / "out" / platform
+
+    pginstall = tmp_path / "pginstall"
+    pkglibdir = stage_pg_extension_bundle(bundle, pginstall)
+
+    assert (pkglibdir / f"sqlite_fdw.{suffix}").read_bytes() == b"FAKE-SO"
+    assert (pginstall / "share" / "postgresql" / "extension" / "sqlite_fdw.control").exists()
+
+
+def test_a_bundle_module_with_no_manifest_row_is_refused(tmp_path):
+    from provisa.pg_extensions.staging import stage_pg_extension_bundle
+
+    platform = bundle_platform()
+    suffix = "dylib" if platform.startswith("darwin") else "so"
+    _seed_bundle(tmp_path / "out", platform, suffix)
+    bundle = tmp_path / "out" / platform
+    (bundle / "lib" / f"mongo_fdw.{suffix}").write_bytes(b"UNLISTED")
+
+    with pytest.raises(BundledPgExtensionsMissing, match="without a manifest row"):
+        stage_pg_extension_bundle(bundle, tmp_path / "pginstall")
