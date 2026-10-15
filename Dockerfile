@@ -53,6 +53,12 @@ COPY --from=graph-render /build/provisa-ui/graph-render/dist ./provisa/_graph_re
 COPY --from=graph-render /build/provisa-ui/graph-render/node_modules ./provisa/_graph_render/node_modules
 RUN apt-get update && apt-get install -y --no-install-recommends fonts-dejavu-core \
  && rm -rf /var/lib/apt/lists/*
+# A files source is served by the Calcite pgwire connector server, which runs in a JVM (JPype
+# finds it by JAVA_HOME). The connector is built for Java 21 (askamerica-engine, release 21).
+COPY --from=eclipse-temurin:21-jre-noble@sha256:000fd431958bc81a24abe1e8e5f0f0fd3ae365a594bd50aadb20696805f9408c \
+     /opt/java/openjdk /opt/java/openjdk
+ENV JAVA_HOME=/opt/java/openjdk
+ENV PATH="/opt/java/openjdk/bin:${PATH}"
 # static/ contains the built React SPA; may be empty in dev builds
 COPY static/ ./static/
 # Bake ONLY the shipped runtime configs — NEVER the whole config/ dir. A blanket copy also
