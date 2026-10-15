@@ -20,7 +20,7 @@ It is a lightweight version of Provisa. The same product, with these limits:
 | Engine | A single-process DuckDB engine, not the engine production organizations use | |
 | Memory | 256 MB for the sandbox's engine; a query that needs more is refused | `sandbox.memory_limit` |
 | Disk | 512 MB for the sandbox's data and uploaded files together; a write past that is refused | `sandbox.disk_limit` |
-| Inactivity | Deleted, with everything in it, after 1 day without use | `sandbox.idle_ttl` |
+| Inactivity | Deleted, with everything in it, after 1 hour without use | `sandbox.idle_ttl` |
 | Open at once | 10 sandboxes; past that, a visitor is asked to try again shortly | `sandbox.max_concurrent` |
 
 The sandbox also holds back what reaches past it:
