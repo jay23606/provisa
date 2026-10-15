@@ -131,7 +131,7 @@ def _source(stype, **more):
     return SimpleNamespace(id="src", type=stype, **more)
 
 
-TABLE = SimpleNamespace(schema_name="public", table_name="orders", columns=[])
+TABLE = SimpleNamespace(schema_name="public", table_name="orders", columns=[], landing_filter=None)
 
 
 def test_each_source_type_is_given_its_own_kind_of_read(monkeypatch):

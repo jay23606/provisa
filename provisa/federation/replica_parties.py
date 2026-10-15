@@ -77,6 +77,7 @@ class PgStatementCopy:
         address: ReplicaAddress,
         columns: list[tuple[str, str]],
         projection: str = "*",
+        where: str = "",
     ) -> None:
         self._backend = backend
         self._state = state
@@ -84,6 +85,7 @@ class PgStatementCopy:
         self._address = address
         self._columns = columns
         self._projection = projection
+        self._where = where  # REQ-2062: the table's landing filter, " WHERE ..." or ""
 
     async def copy(self, prior_hash: str | None) -> BuildOutcome:
         import asyncio
@@ -121,6 +123,7 @@ class PgStatementCopy:
                 columns=self._columns,
                 prior_hash=prior_hash,
                 projection=self._projection,
+                where=self._where,
             )
         finally:
             with shield.lock:

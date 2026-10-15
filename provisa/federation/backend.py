@@ -1060,7 +1060,7 @@ class TrinoBackend(EngineBackend):
         from provisa.federation.replica_routing import landing_worklist
 
         reconciled: list[tuple[str, str]] = []
-        for src, schema_name, table_name, columns, pk_columns in await landing_worklist(
+        for src, schema_name, table_name, columns, pk_columns, _filter in await landing_worklist(
             self.engine, state
         ):
             address = self.replica_address(

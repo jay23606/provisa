@@ -276,7 +276,16 @@ async def register_openapi_endpoint(
     (:func:`register_openapi_source`) is written before it."""
     match = openapi_operation(spec, table.source_id, table.table_name, table.pagination)
     columns = endpoint_columns(match, (table.table_name, list(table.columns)))
-    defaults = default_params_from_spec(spec, match.path)
+    # REQ-2061: the table's fixed arguments are sent on every call, over the spec's defaults; each
+    # must be one of the operation's parameters, or it would be sent as nothing.
+    taken = {p["name"] for p in [*match.path_params, *match.query_params]}
+    unknown = sorted(set(table.arguments) - taken)
+    if unknown:
+        raise ValueError(
+            f"table {table.table_name!r}: argument(s) {', '.join(unknown)} are not parameters of "
+            f"its operation {match.operation_id!r} (it takes {', '.join(sorted(taken)) or 'none'})"
+        )
+    defaults = {**default_params_from_spec(spec, match.path), **table.arguments}
     await conn.upsert(
         api_endpoints,
         {

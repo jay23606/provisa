@@ -54,6 +54,7 @@ def test_landing_resolves_a_native_nested_column_as_json(stored):
         change_signal=None,
         watermark_column=None,
         probe_type=None,
+        landing_filter=None,
         live=None,
         columns=[_col("id", "bigint", pk=True), _col("tags", stored)],
     )
@@ -71,6 +72,7 @@ async def test_the_reconcile_worklist_resolves_a_native_nested_column_as_json(mo
     registered = {
         "schema_name": "main",
         "table_name": "orders",
+        "landing_filter": None,
         "columns": [
             {
                 "column_name": "id",
@@ -94,7 +96,7 @@ async def test_the_reconcile_worklist_resolves_a_native_nested_column_as_json(mo
 
     work = await replica_routing.landing_worklist(SimpleNamespace(name="duckdb"), object())
 
-    assert work == [(source, "main", "orders", [("id", "bigint"), ("tags", "json")], ["id"])]
+    assert work == [(source, "main", "orders", [("id", "bigint"), ("tags", "json")], ["id"], None)]
 
 
 @pytest.mark.parametrize("stored", _STORED)

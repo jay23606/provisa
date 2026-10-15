@@ -69,6 +69,7 @@ def _table():
         live=None,
         watermark_column=None,
         probe_type=None,
+        landing_filter=None,
     )
 
 

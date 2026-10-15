@@ -264,8 +264,8 @@ async def test_a_table_whose_replica_cannot_be_reconciled_is_not_read(monkeypatc
         src = SimpleNamespace(id="src", type=SourceType.postgresql)
         other = SimpleNamespace(id="other", type=SourceType.postgresql)
         return [
-            (src, "public", "orders", [("id", "integer")], ["id"]),
-            (other, "public", "customers", [("id", "integer")], ["id"]),
+            (src, "public", "orders", [("id", "integer")], ["id"], None),
+            (other, "public", "customers", [("id", "integer")], ["id"], None),
         ]
 
     monkeypatch.setattr(replica_routing, "landing_worklist", _worklist)

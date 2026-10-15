@@ -519,6 +519,22 @@ def _validate_neo4j_sources(config: ProvisaConfig) -> None:  # REQ-1668, REQ-168
             )
 
 
+#: REQ-2061: the sources whose tables take arguments by name, which a table may fix.
+_ARGUMENT_SOURCE_TYPES = frozenset({"graphql_remote", "openapi"})
+
+
+def _validate_table_arguments(config: ProvisaConfig) -> None:  # REQ-2061
+    """A table fixes arguments only where its source takes them by name: a GraphQL root field's
+    arguments, an OpenAPI operation's parameters. Anywhere else it is refused by name."""
+    types = {s.id: s.type.value for s in config.sources}
+    for tbl in config.tables:
+        if tbl.arguments and types.get(tbl.source_id) not in _ARGUMENT_SOURCE_TYPES:
+            raise ValueError(
+                f"table {tbl.table_name!r}: arguments are fixed only on a table of a "
+                f"graphql_remote or openapi source, not {types.get(tbl.source_id)!r}"
+            )
+
+
 async def _handle_neo4j_table(conn: "Connection", tbl: Table, src: Source) -> None:  # REQ-1668
     """Persist the config table's Cypher as an api_endpoints row (plus its api_sources row)."""
     from provisa.neo4j.persist import persist_neo4j_table
@@ -999,6 +1015,7 @@ async def _apply_in_txn(  # REQ-012, REQ-013, REQ-016, REQ-041, REQ-250, REQ-126
     _validate_probe_type(config)
     _validate_watermark_columns(config)
     _validate_neo4j_sources(config)
+    _validate_table_arguments(config)
     _validate_row_materialize(config)
     _validate_file_globs(config)
     _validate_delta(config)

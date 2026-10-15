@@ -1141,6 +1141,7 @@ async def _load_graphql_remote_sources_from_db() -> None:
                                 _registered_tables_t.c.table_name,
                                 _registered_tables_t.c.domain_id,
                                 _registered_tables_t.c.description,
+                                _registered_tables_t.c.arguments,  # REQ-2061
                             ).where(
                                 _registered_tables_t.c.source_id == source_id,
                                 _registered_tables_t.c.schema_name == "graphql",
@@ -1179,6 +1180,23 @@ async def _load_graphql_remote_sources_from_db() -> None:
                             brand.label,
                             source_id,
                             tr["table_name"],
+                        )
+                        continue
+                    # REQ-2061: the table's fixed arguments, each one its root field takes.
+                    table["arguments"] = dict(tr["arguments"] or {})
+                    taken = {
+                        a["name"]
+                        for a in [*table.get("required_args", []), *table.get("optional_args", [])]
+                    }
+                    unknown = sorted(set(table["arguments"]) - taken)
+                    if unknown:
+                        log.error(
+                            "[GQL REMOTE] source %s: table %s fixes argument(s) %s its root field "
+                            "%r does not take, and cannot be read",
+                            source_id,
+                            tr["table_name"],
+                            ", ".join(unknown),
+                            table.get("field_name") or table.get("name"),
                         )
                         continue
                     tables.append(table)

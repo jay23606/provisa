@@ -212,7 +212,9 @@ async def build_replica(state: Any, key: ReplicaKey, progress: Progress) -> Buil
         # store ``replica_target`` writes the whole copy to, for every engine (REQ-1912).
         store_dsn = eng.materialize_store()
         store_applies = make_url(store_dsn).get_backend_name() in ("postgresql", "duckdb")
-        this_def = definition_hash(source, address, args.columns, args.pk_columns)
+        this_def = definition_hash(
+            source, address, args.columns, args.pk_columns, landing_filter=args.landing_filter
+        )
         cursor_raw = record.delta_cursor if record is not None else None
         has_cursor = (
             record is not None
@@ -302,7 +304,9 @@ async def build_replica(state: Any, key: ReplicaKey, progress: Progress) -> Buil
         # What it was built from: the next convergence compares the model with this.
         return replace(
             outcome,
-            definition_hash=definition_hash(source, address, args.columns, args.pk_columns),
+            definition_hash=definition_hash(
+                source, address, args.columns, args.pk_columns, landing_filter=args.landing_filter
+            ),
             built_columns=[[name, ir_type] for name, ir_type in args.columns],
         )
 
@@ -353,7 +357,9 @@ async def _build_by_pipeline(
             )
     return replace(
         outcome,
-        definition_hash=definition_hash(source, address, args.columns, args.pk_columns),
+        definition_hash=definition_hash(
+            source, address, args.columns, args.pk_columns, landing_filter=args.landing_filter
+        ),
         built_columns=[[name, ir_type] for name, ir_type in args.columns],
     )
 
@@ -729,7 +735,9 @@ async def _group_results(
             # What it was built from: the next convergence compares the model with this.
             results[key] = replace(
                 outcome,
-                definition_hash=definition_hash(src, address, args.columns, args.pk_columns),
+                definition_hash=definition_hash(
+                    src, address, args.columns, args.pk_columns, landing_filter=args.landing_filter
+                ),
                 built_columns=[[name, ir_type] for name, ir_type in args.columns],
             )
     return results
@@ -759,7 +767,9 @@ async def _kept_in_place(
                 record is not None
                 and record.exists_in(store)
                 and record.definition_hash
-                != definition_hash(src, address, args.columns, args.pk_columns)
+                != definition_hash(
+                    src, address, args.columns, args.pk_columns, landing_filter=args.landing_filter
+                )
             ):
                 return False
     return True
@@ -803,7 +813,9 @@ async def _land_units(
         for _src, table, args, address in prepared.values()
     }
     hashes = {
-        key: definition_hash(src, address, args.columns, args.pk_columns)
+        key: definition_hash(
+            src, address, args.columns, args.pk_columns, landing_filter=args.landing_filter
+        )
         for key, (src, _t, args, address) in prepared.items()
     }
     first: dict[ReplicaKey, bool] = {}

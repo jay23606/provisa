@@ -288,6 +288,7 @@ class SourceRowLoader:
         import sqlglot.expressions as exp
 
         from provisa.compiler.naming import source_to_catalog
+        from provisa.core.landing_filter import where as landing_where
         from provisa.core.operator_floor import floor_setting
         from provisa.executor.direct import open_direct_stream
         from provisa.federation.replica_source import (
@@ -311,9 +312,16 @@ class SourceRowLoader:
             relation = exp.table_(table.table_name, db=table.schema_name).sql(dialect=dialect)
             # REQ-1965: a natively array/struct/map column is copied as JSON the source produces.
             projection = _projection(table, lambda: dialect)
-            sql = f"SELECT {projection} FROM {relation}"
+            sql = f"SELECT {projection} FROM {relation}{landing_where(table, lambda: dialect)}"
             return DirectTableSource(lambda: open_direct_stream(pools, source.id, sql, []), columns)
         loader = self._adapter_loaders.get(stype) or _floored_file_loader(source, stype)
+        if loader is not None and table.landing_filter is not None:
+            # REQ-2062: a landing filter is applied by a SQL read of the source; an adapter's
+            # read is no SQL statement to apply it to.
+            raise UnsupportedSourceFetch(
+                f"table {source.id}.{table.table_name}: its landing_filter is applied by a SQL read "
+                f"of its source, and a {stype} source is read by its adapter"
+            )
         if loader is not None:
             # An adapter whose client has a cursor carries its own stream (``replica_source``,
             # set where the adapter is made); one without is read whole, as a single document.
@@ -332,6 +340,7 @@ class SourceRowLoader:
             ref,
             in_place=engine_attaches(self._engine, stype),
             projection=_projection(table, lambda: self._engine.dialect),
+            where=landing_where(table, lambda: self._engine.dialect),  # REQ-2062
         )
 
     async def load_keys(
@@ -1759,6 +1768,13 @@ def make_graphql_remote_loader(gql_sources: dict[str, Any], max_rows: int) -> Ad
                         "columns": col_selections,
                         "rows_path": tbl.get("rows_path"),
                         "error_policy": reg.get("error_policy") or NO_POLICY,
+                        # REQ-2061: the table's fixed arguments, sent on every read of it.
+                        "variables": dict(tbl.get("arguments") or {}) or None,
+                        "required_args": [
+                            *(tbl.get("required_args") or []),
+                            *(tbl.get("optional_args") or []),
+                        ]
+                        or None,
                     }
         raise UnsupportedSourceFetch(
             f"graphql_remote source {source.id!r} table {table.table_name!r}: no matching "
@@ -1783,6 +1799,8 @@ def make_graphql_remote_loader(gql_sources: dict[str, Any], max_rows: int) -> Ad
             # REQ-318: the table's own bound where it set one (registry row), else the operator's.
             max_rows=connection_max_rows(table.pagination, max_rows),
             error_policy=request["error_policy"],
+            variables=request["variables"],
+            required_args=request["required_args"],
         )
 
     async def _load(source: Any, table: Any) -> list[dict]:

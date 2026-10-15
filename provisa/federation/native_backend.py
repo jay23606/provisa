@@ -608,7 +608,7 @@ class NativeEngineBackend(EngineBackend):
         landed: list[LandedTable] = []
         addresses: dict[str, tuple[str, str]] = {}
         views: dict[str, tuple[str, str]] = {}
-        for src, schema_name, table_name, columns, pk_columns in await landing_worklist(
+        for src, schema_name, table_name, columns, pk_columns, _filter in await landing_worklist(
             self.engine, state
         ):
             address = self.replica_address(

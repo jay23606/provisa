@@ -410,6 +410,8 @@ async def _upsert(conn: "Connection", table: Table) -> int | None:
         "cache_ttl": getattr(table, "cache_ttl", None),
         "role_ttl": dict(table.role_ttl),  # REQ-1907
         "pagination": paging_row(table.pagination),  # REQ-318
+        "arguments": dict(table.arguments) or None,  # REQ-2061
+        "landing_filter": table.landing_filter,  # REQ-2062
         # REQ-1919: every setting a configuration can give a table is the store's to hold.
         "approval_hook": table.approval_hook,
         "hot": table.hot,
@@ -471,6 +473,8 @@ async def _upsert(conn: "Connection", table: Table) -> int | None:
         "cache_ttl",  # REQ-1865
         "role_ttl",  # REQ-1907
         "pagination",  # REQ-318
+        "arguments",  # REQ-2061
+        "landing_filter",  # REQ-2062
         "approval_hook",  # REQ-1919
         "hot",
         "kafka_sink",
@@ -657,6 +661,8 @@ async def _upsert(conn: "Connection", table: Table) -> int | None:
 #: column. An edit through the form keeps each as the store holds it.
 KEPT_ON_FORM_EDIT: tuple[str, ...] = (
     "approval_hook",
+    "arguments",  # REQ-2061
+    "landing_filter",  # REQ-2062
     "hot",
     "kafka_sink",
     "promotions",
@@ -700,6 +706,7 @@ async def keep_unedited(conn: "Connection", table: Table) -> Table:
     if kept["kafka_sink"] is not None:
         kept["kafka_sink"] = KafkaSinkAttachment.model_validate(kept["kafka_sink"])
     kept["promotions"] = list(kept["promotions"])
+    kept["arguments"] = dict(kept["arguments"] or {})  # REQ-2061: NULL is none
     return table.model_copy(update={**kept, "columns": columns})
 
 

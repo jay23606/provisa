@@ -150,7 +150,7 @@ class _Model:
 
         async def landing_worklist(engine, state, *, draft=False):
             return [
-                (src, key[1], key[2], cols, pk)
+                (src, key[1], key[2], cols, pk, None)
                 for key, (src, cols, pk) in model.tables.items()
                 if key not in model.unresolved and (key in model.drafts) == draft
             ]
@@ -181,7 +181,7 @@ class _Model:
     def wanted_hash(self, key) -> str:
         src, cols, pk = self.tables[key]
         address = ReplicaAddress("org_org1_replicas", replica_table_name(*key))
-        return definition_hash(src, address, cols, pk)
+        return definition_hash(src, address, cols, pk, landing_filter=None)
 
     async def build(self, key, *, stamp_hash=True) -> None:
         """Complete the requested build of ``key`` as the runner would."""

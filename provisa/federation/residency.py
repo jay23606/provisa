@@ -37,6 +37,8 @@ class LandingArgs:  # REQ-932
     probe_type: str = (
         "none"  # REQ-982: resolved input-probe method (drives the injected event shape)
     )
+    # REQ-2062: the table's landing filter, a predicate its replica's rows pass; None = all rows.
+    landing_filter: str | None = None
 
 
 #: Engines whose replica of a table with an embedding column holds it as an indexed vector
@@ -109,4 +111,4 @@ def resolve_landing_args(
         change_signal=sig,
         has_watermark=watermark is not None,
     )
-    return LandingArgs(columns, sig, watermark, pk_columns, probe_type)
+    return LandingArgs(columns, sig, watermark, pk_columns, probe_type, table.landing_filter)

@@ -31,6 +31,7 @@ def _table():
         schema_name="main",
         table_name="orders",
         columns=[SimpleNamespace(name=c, native_filter_type=None) for c, _ in COLUMNS],
+        landing_filter=None,
     )
 
 

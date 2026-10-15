@@ -150,6 +150,7 @@ def _state(*, ready=True):
             "source_id": "api",
             "schema_name": "default",
             "table_name": "events",
+            "landing_filter": None,
             "columns": [_rcol("id", "bigint", pk=True)],
             "dq_contract": None,
             "query_template": None,
@@ -274,6 +275,7 @@ def _state_with_mv(*, column_types, probed: list | None = None):
                 "domain_id": "sales",
                 "schema_name": "public",
                 "table_name": "orders",
+                "landing_filter": None,
                 "alias": None,
             }
         ],
@@ -326,6 +328,7 @@ async def test_registered_checker_table_carries_its_contract_to_the_loop(monkeyp
                 "source_id": "dq",
                 "schema_name": "quality",
                 "table_name": "pets_scan",
+                "landing_filter": None,
                 "columns": [_rcol("scan_id", "varchar", pk=True)],
                 "dq_contract": contract,
                 "query_template": None,

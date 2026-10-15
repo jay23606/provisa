@@ -949,6 +949,7 @@ def pg_statement_copy(
     columns: list[tuple[str, str]],
     prior_hash: str | None,
     projection: str = "*",
+    where: str = "",
 ) -> tuple[int, str, bool]:
     """Build the replica ``schema.table`` from ``source_relation`` as PostgreSQL's own statements,
     in one transaction on ``cur``'s connection: fill a build table with ``INSERT ... SELECT``,
@@ -964,6 +965,7 @@ def pg_statement_copy(
     of a row, the other Provisa's — so it is prefixed and only ever compared with the hash of
     this replica's previous engine-side build.
 
+    ``where`` is the table's landing filter (REQ-2062), `` WHERE ...``, or ``""``.
     ``projection`` is the select list over ``source_relation`` when it is not the columns by
     name: a natively array, struct or map column read as the JSON PostgreSQL produces
     (REQ-1965)."""
@@ -984,7 +986,9 @@ def pg_statement_copy(
         cur.execute(f"DROP TABLE IF EXISTS {target}")
         cur.execute(ddl)
         selected = names if projection == "*" else projection
-        cur.execute(f"INSERT INTO {target} ({names}) SELECT {selected} FROM {source_relation}")
+        cur.execute(
+            f"INSERT INTO {target} ({names}) SELECT {selected} FROM {source_relation}{where}"
+        )
         copied = cur.rowcount
         cur.execute(
             "SELECT count(*), "
