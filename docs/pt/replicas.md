@@ -114,6 +114,7 @@ Fontes corporativas raramente suportam tempo real. Os dados chegam por carga em 
 | TTL por papel | `role_ttl` em uma tabela | Um papel listado aceita uma réplica até o seu próprio TTL; o `cache_ttl` da tabela continua sendo o piso | Menos reconstruções: a leitura de um papel tolerante não pede nenhuma |
 | Proteção de carga | `load_protected: true`, com `cache_ttl`, uma sonda ou uma `off_peak_window` | As consultas nunca leem a fonte; só o executor atualiza a réplica, e com uma janela fora de pico só enquanto ela está aberta | Apenas as atualizações agendadas |
 | Freshness gate | `freshness_gate: true` em uma fonte | Cada leitura é antes conferida com o `change_signal` e o `cache_ttl` da fonte; um veredito de desatualizada atualiza antes da leitura | Uma atualização no caminho de leitura quando desatualizada |
+| Nunca expira | `cache_ttl: -1` em uma fonte ou tabela | Carregada uma vez; toda leitura é respondida pela réplica, e a leitura de uma tabela ainda não carregada é recusada pelo nome | Apenas essa carga: uma fonte cujas tabelas foram todas carregadas nunca mais é anexada, sondada ou lida, e não precisa de credencial |
 
 [tool-verified: `provisa/core/replicate.py`; `provisa/federation/replica_builds.py` `_next_refresh_at`, `_probe_decides`; `provisa/federation/query_residency.py` `freshness_verdict`, `is_stale_of`; `provisa/federation/role_ttl.py` `effective_ttl`; `provisa/freshness/source_gate.py` `gate_source`; `provisa/events/push_wiring.py` `wire_push_listeners`, `_run_change_stream`]
 

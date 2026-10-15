@@ -58,7 +58,7 @@ sources:
 | `base_url` | `null` | API 数据源的基础 URL |
 | `pool_min` / `pool_max` | `1` / `5` | 连接池边界 |
 | `cache_enabled` | `true` | 切换此数据源下所有表的缓存 |
-| `cache_ttl` | `null` | 秒；`null` 表示继承全局默认值 |
+| `cache_ttl` | `null` | 秒；`null` 表示继承全局默认值；`-1` 永不过期 |
 | `federation_hints` | `{}` | 每种连接器的扩展参数（dict[str,str]）；参见下方的类型参考。REQ-281 |
 | `mapping` | `{}` | 用于 redis、elasticsearch、prometheus 的映射 DSL。REQ-251 |
 | `allowed_domains` | `[]` | 将此数据源限制在特定的域 ID 内；为空表示不受限制 |

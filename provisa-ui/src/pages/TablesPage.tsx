@@ -8,6 +8,7 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
+import { NEVER_EXPIRES, ttlText } from "../components/form/cacheTtl";
 import { resultRedirectText } from "../components/resultRedirectText";
 import { Tip } from "../components/Tip";
 import { useSetTableDraft, useSetTableRegion, useRegionChoices } from "../hooks/useRegionQueries";
@@ -350,8 +351,20 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
   }, [tables]);
 
   const getEffectiveTableTtl = (t: RegisteredTable): string => {
-    if (t.cacheTtl != null) return `${t.cacheTtl}s (custom)`;
     const source = sources.find((s) => s.id === t.sourceId);
+    const ttl = t.cacheTtl ?? source?.cacheTtl;
+    if (ttl === NEVER_EXPIRES) {
+      // REQ-2031: a replica that never goes stale says when it landed, where its TTL would.
+      const landed = buildOf(replicaBuilds?.builds, t)?.completedAt;
+      const said = ttlText(ttl, translate);
+      return landed
+        ? translate("cacheTtl.asOf", {
+            ttl: said,
+            when: new Date(landed).toLocaleString(i18n.language),
+          })
+        : said;
+    }
+    if (t.cacheTtl != null) return `${t.cacheTtl}s (custom)`;
     if (source?.cacheTtl != null) return `${source.cacheTtl}s (from source)`;
     if (settings) return `${settings.cache.default_ttl}s (global)`;
     return "default";
@@ -1313,7 +1326,7 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
                           </Table.Td>
                           <Table.Td style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
                             {t.cacheTtl != null
-                              ? `${t.cacheTtl}s`
+                              ? ttlText(t.cacheTtl, translate)
                               : translate("tablesPage.inherit")}
                           </Table.Td>
                           <Table.Td style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>

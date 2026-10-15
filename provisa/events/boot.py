@@ -171,6 +171,12 @@ def build_source_node_spec(
     # succeed, retried for ever (REQ-1443, REQ-1934).
     if not owns_replica(src):
         return None
+    from provisa.federation.role_ttl import never_expires
+
+    if never_expires(tbl, src):
+        # REQ-2031: a table that never expires lands once, by the model's own build
+        # (replica_converge); nothing probes, polls or re-lands it, so it has no node.
+        return None
     try:
         if federate(src, engine) is not Strategy.MATERIALIZED:
             return None  # live/scan federates in place — not landed, not a source processor

@@ -20,6 +20,8 @@ from __future__ import annotations
 
 from enum import Enum
 
+from provisa.core.cache_ttl import NEVER_EXPIRES
+
 
 class CachePolicy(str, Enum):  # REQ-544
     NONE = "none"  # no caching
@@ -69,6 +71,10 @@ def resolve_policy(  # REQ-544
         else default_ttl
     )
 
+    # REQ-2031: -1 never expires -- kept until a change to a table it reads drops it.
+    if resolved_ttl == NEVER_EXPIRES:
+        return CachePolicy.TTL, NEVER_EXPIRES
+
     # TTL ≤ 0 means caching disabled
     if resolved_ttl <= 0:
         return CachePolicy.NONE, 0
@@ -86,8 +92,11 @@ def opt_in_ttl(request_ttl: int | None, operator_ttls: list[int]) -> int:  # REQ
     gave one — it can only choose how long it accepts a result it already opted to take stale;
     an entry is never fresher than the replica it was read from — else the shortest operator TTL.
     """
-    if not operator_ttls or any(t <= 0 for t in operator_ttls):
+    if not operator_ttls or any(t <= 0 and t != NEVER_EXPIRES for t in operator_ttls):
         return 0
     if request_ttl is not None:
         return max(request_ttl, 0)
-    return min(operator_ttls)
+    # REQ-2031: a table that never expires sets no limit; the result is held as long as the
+    # shortest of the others, or for good when every table it reads never expires.
+    finite = [t for t in operator_ttls if t != NEVER_EXPIRES]
+    return min(finite) if finite else NEVER_EXPIRES

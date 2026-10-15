@@ -114,6 +114,7 @@ Enterprise sources rarely support real time. Data arrives by batch load or night
 | Per-role TTL | `role_ttl` on a table | A listed role accepts a replica up to its own TTL; the table's `cache_ttl` stays the floor | Fewer rebuilds: a tolerant role's read never asks for one |
 | Load protection | `load_protected: true`, with `cache_ttl`, a probe or an `off_peak_window` | Queries never read the source; the runner alone refreshes the replica, and with an off-peak window only while it is open | Only the scheduled refreshes |
 | Freshness gate | `freshness_gate: true` on a source | Each read is checked against the source's `change_signal` and `cache_ttl` first; a stale verdict refreshes before the read | A refresh in the read path when stale |
+| Never expires | `cache_ttl: -1` on a source or a table | Landed once; every read is answered from the replica, and a read of a table that has not landed is refused by name | Only the one landing: a source whose tables have all landed is never attached, probed or read again, and needs no credential |
 
 [tool-verified: `provisa/core/replicate.py`; `provisa/federation/replica_builds.py` `_next_refresh_at`, `_probe_decides`; `provisa/federation/query_residency.py` `freshness_verdict`, `is_stale_of`; `provisa/federation/role_ttl.py` `effective_ttl`; `provisa/freshness/source_gate.py` `gate_source`; `provisa/events/push_wiring.py` `wire_push_listeners`, `_run_change_stream`]
 

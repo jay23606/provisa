@@ -1,6 +1,6 @@
 {
   "index.md": "4cbac363f6fa23ce33689fd4ee8a34483a8c801858556d9b144335e18998a9e2",
-  "configuration.md": "7ee6219ca9aaf389927dceb5d3a98f6b4331cfb54765ef08cfbae33c34d90c1a",
+  "configuration.md": "f4c846a7ca0c34e433fae78fa1a1624356e490cbea586810a98cfdefd9c5f09d",
   "api-reference.md": "666f81b1f5abf24fada591a5451fac61ef9092c8506f17cd214927c9faf83253",
   "sources.md": "9e54f09895edf8c49c9894df5b4eb1116af10daff520159d416b364bccfd085a",
   "python-client.md": "54a48f28498d40aaba91b5c4163d55dcd7d3b35122cb0a4c1e3feca1d68c2bcd",
@@ -26,6 +26,6 @@
   "glossary.md": "eabb5db20b3b1af1b33747cbb3de11aa2ea6877146622d21619fcc9b1298f64a",
   "environments.md": "523782dd3fc1ece2bb7f34c226ec5ecd67fc199acd3c875656d91986ae358687",
   "data-products.md": "e4e3f97573bc72cfc6b28c38addd323c88b4d6aa662228a78c9628be42bb7834",
-  "replicas.md": "2501f0f4e5468dd7af3d27ac92160743cc2a248a9268a07cc11c989717910167",
+  "replicas.md": "a268c0f79aea8ca50c2ad746cca6503b089e5ab49e34268e4ef85e8fa5bc2d13",
   "sizing.md": "c8c6f94e2ad84a9b9889f4fef2cf56c721bac02f8afa398511446e759615bcf0"
 }

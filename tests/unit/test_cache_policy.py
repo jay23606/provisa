@@ -30,9 +30,14 @@ class TestResolvePolicy:
         assert ttl == 0
 
     def test_approved_with_negative_ttl_disables_caching(self):
-        policy, ttl = resolve_policy(stable_id="abc-123", cache_ttl=-1)
+        policy, ttl = resolve_policy(stable_id="abc-123", cache_ttl=-2)
         assert policy == CachePolicy.NONE
         assert ttl == 0
+
+    def test_a_ttl_of_minus_one_never_expires(self):  # REQ-2031
+        policy, ttl = resolve_policy(stable_id="abc-123", cache_ttl=-1)
+        assert policy == CachePolicy.TTL
+        assert ttl == -1
 
     def test_approved_without_ttl_uses_default(self):
         policy, ttl = resolve_policy(stable_id="abc-123", cache_ttl=None)

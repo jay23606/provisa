@@ -471,7 +471,7 @@ async def test_register_table_takes_the_cache_ttl_the_registration_states(contro
             ),
         ):
             negative = await ops.register_table(
-                MagicMock(), _table_input(table_name="payments", cache_ttl=-1)
+                MagicMock(), _table_input(table_name="payments", cache_ttl=-2)
             )
             with patch("provisa.api.admin._landing_ttl.landing_ttl_refusal", new=judge):
                 await ops.register_table(

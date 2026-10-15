@@ -170,6 +170,8 @@ def _walk_attaches(monkeypatch, row_cap: int | None) -> list[dict]:
     the details each attach was given."""
     from types import SimpleNamespace
 
+    from provisa.federation.replica_address import ReplicaRoutes
+
     from provisa.federation.native_backend import NativeEngineBackend
 
     monkeypatch.setattr("provisa.core.operator_floor.floor_setting", lambda _src: None)
@@ -205,16 +207,22 @@ def _walk_attaches(monkeypatch, row_cap: int | None) -> list[dict]:
         "replicate": None,
         "load_protected": False,
         "max_live_concurrency": row_cap,
+        "cache_ttl": None,
     }
     config = SimpleNamespace(
         sources=[],
         tables=[
             SimpleNamespace(
-                source_id="shop-db", schema_name="shop", table_name="orders", region=None
+                source_id="shop-db",
+                schema_name="shop",
+                table_name="orders",
+                region=None,
+                cache_ttl=None,
             )
         ],
     )
     state = SimpleNamespace(
+        replica_routes=ReplicaRoutes(),
         runtime_sources={"shop-db": row},
         tables=[],
         model_db=None,

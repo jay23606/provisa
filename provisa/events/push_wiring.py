@@ -227,10 +227,15 @@ async def wire_push_listeners(*, state: Any, log: Any) -> list[LongLived]:
     wired: set[str] = set()  # every node this pass wants running, started now or before
     # REQ-929: each PostgreSQL source with tables on the native signal, read from one slot.
     logical: dict[str, tuple[Any, list[tuple[str, str, int]]]] = {}
+    from provisa.federation.replica_routing import resolved_cache_ttl
+    from provisa.core.cache_ttl import NEVER_EXPIRES
+
     for tbl in tables:
         src = sources.get(tbl["source_id"])
         if src is None:
             continue
+        if resolved_cache_ttl(src, tbl) == NEVER_EXPIRES:
+            continue  # REQ-2031: lands once; no change at its source is listened for
         source_type = src.type.value if hasattr(src.type, "value") else str(src.type)
         if source_type == "postgresql" and _effective_signal(src, tbl) == _CHANGE_FEED_SIGNAL:
             followed = logical.setdefault(src.id, (src, []))[1]

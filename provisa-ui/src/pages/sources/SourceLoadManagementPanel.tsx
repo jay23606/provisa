@@ -12,6 +12,7 @@
 // governs how hard Provisa leans on this source and how fresh its data is — caching, the change
 // signal, replication and load protection (REQ-826/1141), grouped and collapsed by default.
 
+import { NEVER_EXPIRES, cacheTtlHint } from "../../components/form/cacheTtl";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Checkbox, NumberInput, Select, Text, TextInput } from "@mantine/core";
@@ -81,10 +82,10 @@ export function SourceLoadManagementPanel({
             </FormField>
           )}
           {/* Medium, not short: its error is a sentence. */}
-          <FormField size="medium">
+          <FormField hint={cacheTtlHint(form.cacheTtl, t)} size="medium">
             <NumberInput
+              min={NEVER_EXPIRES}
               label={t("sourceFormFieldsExtended.cacheTtlSeconds")}
-              min={0}
               value={form.cacheTtl === "" ? "" : Number(form.cacheTtl)}
               onChange={(v) => setForm({ ...form, cacheTtl: v === "" ? "" : String(v) })}
               placeholder={t("sourceFormFieldsExtended.cacheTtlPlaceholder")}

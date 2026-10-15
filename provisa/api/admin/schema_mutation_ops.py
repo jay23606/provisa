@@ -318,10 +318,13 @@ async def register_table(
     # REQ-1907: a table that lands needs its clock to be registered at all, so the registration
     # may state the table's own cache_ttl (#208). Afterwards updateTableCache changes it.
     if input.cache_ttl is not None:
-        if input.cache_ttl < 0:
+        from provisa.core.cache_ttl import cache_ttl_refusal  # REQ-2031
+
+        _ttl_err = cache_ttl_refusal(input.cache_ttl)
+        if _ttl_err is not None:
             return MutationResult(
                 success=False,
-                message="cache_ttl must be 0 or more seconds",
+                message=_ttl_err,
                 code="schema.invalid_cache_ttl",
                 params={"table": input.table_name},
             )

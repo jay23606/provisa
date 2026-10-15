@@ -1,0 +1,10 @@
+{
+  "cacheTtl": {
+    "neverExpires": "n'expire jamais",
+    "inputHint": "-1 : n'expire jamais",
+    "neverExpiresHint": "N'expire jamais : chargée une fois.",
+    "asOf": "{{ttl}}, au {{when}}",
+    "roleTtlUnlisted": "Le TTL du cache n'expire jamais, pour tous les rôles.",
+    "roleTtlNoEffect": "Le TTL du cache n'expire jamais, cette entrée n'a donc aucun effet."
+  }
+}

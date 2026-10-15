@@ -30,6 +30,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 import threading
 import time
 from dataclasses import dataclass
@@ -199,9 +200,14 @@ def fill_table(state: Any, endpoint: ApiEndpoint, api_source: Any) -> FillTable:
 
 
 def _mark_fresh(table: FillTable, phash: str, ttl: int) -> None:
+    from provisa.core.cache_ttl import NEVER_EXPIRES
+
     now = time.monotonic()
     with _mem_fresh_lock:
-        _mem_fresh[(table.loc.schema, table.name, phash)] = now + ttl
+        # REQ-2031: a fill kept for good is fresh for as long as this process runs.
+        _mem_fresh[(table.loc.schema, table.name, phash)] = (
+            math.inf if ttl == NEVER_EXPIRES else now + ttl
+        )
         for key in [k for k, expiry in _mem_fresh.items() if expiry <= now]:
             del _mem_fresh[key]
 

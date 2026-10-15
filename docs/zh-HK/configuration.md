@@ -58,7 +58,7 @@ sources:
 | `base_url` | `null` | API 數據來源的基底 URL |
 | `pool_min` / `pool_max` | `1` / `5` | 連線集區上下限 |
 | `cache_enabled` | `true` | 切換此數據來源所有表的快取 |
-| `cache_ttl` | `null` | 秒；`null` 沿用全域預設 |
+| `cache_ttl` | `null` | 秒；`null` 沿用全域預設；`-1` 永不過期 |
 | `federation_hints` | `{}` | 各連接器的延伸參數（dict[str,str]）；見下方類型參考。REQ-281 |
 | `mapping` | `{}` | redis、elasticsearch、prometheus 的對應 DSL。REQ-251 |
 | `allowed_domains` | `[]` | 將此數據來源限制於特定網域 ID；空值 = 不限制 |

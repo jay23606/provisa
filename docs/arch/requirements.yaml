@@ -82643,7 +82643,7 @@
     accepts only collection, query, using, filter, limit, score_threshold, model; provisa/qdrant/table.py _KEYS).
     Lead''s elaboration: the list of request features and the text-to-vector rule.'
 - id: REQ-2031
-  status: proposed
+  status: complete
   since: 2026-10
   group: 3. Source Registration & Data Modeling
   category: Table Registration
@@ -82656,7 +82656,11 @@
     the source. The UI shows the replica''s landing time ("as of") where freshness would show. Provisa contacts
     a source only to land a table that needs landing: a source whose tables are all TTL -1 and landed is never attached,
     probed, reconciled or landed, at boot or later, and needs no credential to be read. Other negative TTLs are
-    refused. A TTL of 0 keeps its REQ-2003 meaning.'
+    refused. A TTL of 0 keeps its REQ-2003 meaning. -1 means never expires everywhere a TTL applies
+    (amended 2026-10-15, lead ruling): rows a per-statement table keeps under their arguments (REQ-2003),
+    and a response-cache entry reading only such tables, are kept for good. A per-statement table avoids
+    contacting its source only for argument sets it has already kept; a new argument set still reads
+    the source.'
   use_case: 'A demo is built in CI against real Salesforce, ServiceNow and Jira accounts: its sources are registered
     with TTL -1, each table lands once, and the model plus the replica store are packaged into the demo template.
     Every visitor''s sandbox then reads only the replicas, with no credentials and no call to any live account.'
@@ -82685,6 +82689,34 @@
 
 
     Then it is refused'
+  code:
+  - provisa/core/cache_ttl.py
+  - provisa/core/models.py
+  - provisa/federation/role_ttl.py
+  - provisa/federation/replica_routing.py
+  - provisa/federation/query_residency.py
+  - provisa/federation/replica_state.py
+  - provisa/federation/replica_builds.py
+  - provisa/federation/replica_converge.py
+  - provisa/federation/replica_hot.py
+  - provisa/federation/native_backend.py
+  - provisa/events/boot.py
+  - provisa/events/push_wiring.py
+  - provisa/api/app.py
+  - provisa/api/startup_seed.py
+  - provisa/api/admin/schema_mutation.py
+  - provisa/cache/policy.py
+  - provisa/cache/store.py
+  - provisa/freshness/predicate.py
+  - provisa-ui/src/components/form/cacheTtl.ts
+  - provisa-ui/src/pages/TablesPage.tsx
+  tests:
+  - tests/unit/test_cache_ttl_never_expires.py
+  - tests/unit/test_query_residency.py
+  - tests/unit/federation/test_off_peak_window_builds.py
+  - tests/integration/test_never_expires_e2e.py
+  - provisa-ui/src/components/form/__tests__/cacheTtl.test.ts
+  - provisa-ui/src/pages/sources/__tests__/SourceLoadManagementPanel.test.tsx
   related_reqs:
   - REQ-2003
   - REQ-2006

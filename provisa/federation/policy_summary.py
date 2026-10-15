@@ -196,6 +196,18 @@ def describe_refresh_policy(
     from provisa.federation.replica_hot import threshold_of
 
     policy = resolve_refresh_policy(source, table)
+
+    # 0. Never expires (REQ-2031): landed once, read only from the replica, the source not asked
+    # again.
+    from provisa.core.cache_ttl import NEVER_EXPIRES
+
+    if policy.cadence == NEVER_EXPIRES:
+        return PolicySummary(
+            "Never expires — landed once; reads come from the replica and the source is not "
+            "asked again.",
+            Serving.FROZEN,
+        )
+
     live = _live_reachable(source, engine)
 
     # The effective read-through TTL: explicit cache_ttl (table→source, == policy.cadence) else the

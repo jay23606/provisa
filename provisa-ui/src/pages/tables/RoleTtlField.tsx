@@ -12,6 +12,7 @@
 // reader's effective TTL is always max(cache_ttl, role_ttl(role)), where cache_ttl is the table's
 // resolved TTL (table, else source, else global) and is the operator's floor.
 
+import { NEVER_EXPIRES } from "../../components/form/cacheTtl";
 import { useTranslation } from "react-i18next";
 import { Button, NumberInput, Select, Text } from "@mantine/core";
 import { X } from "lucide-react";
@@ -85,7 +86,12 @@ export function RoleTtlField({ rows, onChange, roles, floorTtl }: RoleTtlFieldPr
                 </Button>
               </FieldGroup>
             </FormLayout>
-            {error === null && (
+            {error === null && floorTtl === NEVER_EXPIRES && (
+              <Text size="xs" c="var(--warning, #d19a00)" data-testid="role-ttl-no-effect">
+                {t("cacheTtl.roleTtlNoEffect")}
+              </Text>
+            )}
+            {error === null && floorTtl !== NEVER_EXPIRES && (
               <Text size="xs" c="dimmed" data-testid="role-ttl-effective">
                 {t("tableEditForm.roleTtlEffective", { sec: Math.max(floorTtl ?? 0, row.ttl) })}
                 {floorTtl !== null && row.ttl < floorTtl && (
@@ -113,7 +119,9 @@ export function RoleTtlField({ rows, onChange, roles, floorTtl }: RoleTtlFieldPr
       {floorTtl !== null && (
         <FormField size="full">
           <Text size="xs" c="dimmed" data-testid="role-ttl-unlisted">
-            {t("tableEditForm.roleTtlUnlisted", { sec: floorTtl })}
+            {floorTtl === NEVER_EXPIRES
+              ? t("cacheTtl.roleTtlUnlisted")
+              : t("tableEditForm.roleTtlUnlisted", { sec: floorTtl })}
           </Text>
         </FormField>
       )}

@@ -33,6 +33,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
+from provisa.core.cache_ttl import NEVER_EXPIRES
 from provisa.freshness.decision import Decision, Freshness, failed, fresh, stale
 from provisa.freshness.subject import FreshnessSubject
 
@@ -64,6 +65,8 @@ class Ttl:  # REQ-858
             return gate
         ts = subject.last_refresh_at()
         assert ts is not None  # guaranteed by _refresh_state
+        if self.ttl_seconds == NEVER_EXPIRES:
+            return fresh("cache_ttl -1: never expires")  # REQ-2031
         age = now - ts
         if age < self.ttl_seconds:
             return fresh(f"age {age:.0f}s < ttl {self.ttl_seconds:.0f}s")

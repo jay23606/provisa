@@ -57,7 +57,7 @@ Todas as fontes compartilham um conjunto comum de campos. [tool-verified: `provi
 | `base_url` | `null` | URL base para fontes de API |
 | `pool_min` / `pool_max` | `1` / `5` | Limites do pool de conexão |
 | `cache_enabled` | `true` | Alterna o cache para todas as tabelas desta fonte |
-| `cache_ttl` | `null` | Segundos; `null` herda o padrão global |
+| `cache_ttl` | `null` | Segundos; `null` herda o padrão global; `-1` nunca expira |
 | `federation_hints` | `{}` | Parâmetros estendidos por conector (dict[str,str]); ver referência de tipos abaixo. REQ-281 |
 | `mapping` | `{}` | DSL de mapeamento para redis, elasticsearch, prometheus. REQ-251 |
 | `allowed_domains` | `[]` | Restringe esta fonte a IDs de domínio específicos; vazio = irrestrito |

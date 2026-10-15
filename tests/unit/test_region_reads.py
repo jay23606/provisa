@@ -156,6 +156,7 @@ async def test_a_table_kept_in_another_region_is_read_where_that_region_reads_it
             "table_name": "orders",
             "replicate": replicate,
             "load_protected": None,
+            "cache_ttl": None,
             "region": "eu",
             "columns": [{"column_name": "id", "data_type": "bigint", "native_filter_type": None}],
         }

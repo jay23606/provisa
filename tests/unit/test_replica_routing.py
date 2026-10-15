@@ -77,7 +77,7 @@ def _replicated_only(**settings) -> Source:
 
 
 def _table(source_id: str = "pg", **settings) -> SimpleNamespace:
-    base = {"replicate": None, "load_protected": None}
+    base = {"replicate": None, "load_protected": None, "cache_ttl": None}
     base.update(settings)
     return SimpleNamespace(source_id=source_id, **base)
 
@@ -306,6 +306,7 @@ async def test_a_promoted_table_is_the_replicators_before_its_reads_go_to_the_re
         "table_name": "orders",
         "replicate": 500,
         "load_protected": None,
+        "cache_ttl": None,
         "columns": [{"column_name": "id", "native_filter_type": None}],
     }
     key = ("pg", "public", "orders")
@@ -358,6 +359,7 @@ async def test_a_deployment_with_no_store_and_nothing_replicated_reads_its_route
         "table_name": "orders",
         "replicate": None,
         "load_protected": None,
+        "cache_ttl": None,
         "columns": [{"column_name": "id", "native_filter_type": None}],
     }
 

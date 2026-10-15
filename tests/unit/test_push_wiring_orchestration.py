@@ -34,6 +34,7 @@ def _kafka_table(table_name: str = "orders", with_pk: bool = True) -> dict:
         "table_name": table_name,
         "live": {"kafka": {"topic": "orders-topic"}},
         "change_signal": None,
+        "cache_ttl": None,
         "push_debounce_quiet": 0.5,
         "push_debounce_max_delay": 5.0,
         "columns": [

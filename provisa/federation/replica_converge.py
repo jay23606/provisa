@@ -199,7 +199,12 @@ async def converge_replicas(state: Any) -> Converged:
     (see the module's docstring). Raises what fails; :func:`converge_logged` is the entry that
     records and logs a failure instead."""
     from provisa.federation import replica_builds
-    from provisa.federation.replica_routing import draft_replica_tables, replica_tables
+    from provisa.core.cache_ttl import NEVER_EXPIRES
+    from provisa.federation.replica_routing import (
+        draft_replica_tables,
+        replica_tables,
+        resolved_cache_ttl,
+    )
     from provisa.federation.replica_state_view import view_for
 
     engine = state.federation_engine.engine
@@ -228,6 +233,9 @@ async def converge_replicas(state: Any) -> Converged:
     # Of those, the ones a build makes: a row-level or parameterized table is declared (its
     # table at the resolver's address is never retired) and never built.
     whole = {key for key, src, reg in served if whole_copy(src, reg, engine)}
+    kept_for_good = {
+        key for key, src, reg in served if resolved_cache_ttl(src, reg) == NEVER_EXPIRES
+    }
     # The tables of those whose columns are all resolved: what a build needs. One whose type
     # is not resolved yet is declared (never retired) and built once it is.
     shapes = await wanted_shapes(state, whole)
@@ -256,6 +264,10 @@ async def converge_replicas(state: Any) -> Converged:
             if built and not serving:
                 done.not_serving.append(key)
             if key in drafts or (built and record.definition_hash == wanted_hash):  # type: ignore[union-attr]
+                continue
+            if built and key in kept_for_good:
+                # REQ-2031: a table that never expires lands once; its source is not asked again,
+                # not even for a definition the model changed since.
                 continue
             reason = replica_state.REASON_DEFINITION if built else replica_state.REASON_MODEL
             if await replica_state.request_build(

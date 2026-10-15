@@ -114,6 +114,7 @@ Le origini aziendali raramente supportano il tempo reale. I dati arrivano con ca
 | TTL per ruolo | `role_ttl` su una tabella | Un ruolo elencato accetta una replica fino al proprio TTL; il `cache_ttl` della tabella resta il minimo | Meno ricostruzioni: la lettura di un ruolo tollerante non ne richiede una |
 | Protezione dal carico | `load_protected: true`, con `cache_ttl`, una sonda o una `off_peak_window` | Le query non leggono mai l'origine; solo il runner aggiorna la replica, e con una finestra fuori picco solo mentre è aperta | Solo gli aggiornamenti pianificati |
 | Freshness gate | `freshness_gate: true` su un'origine | Ogni lettura è prima verificata rispetto a `change_signal` e `cache_ttl` dell'origine; un verdetto di obsolescenza aggiorna prima della lettura | Un aggiornamento nel percorso di lettura quando obsoleta |
+| Non scade mai | `cache_ttl: -1` su un'origine o una tabella | Caricata una volta; ogni lettura è servita dalla replica, e la lettura di una tabella non ancora caricata è rifiutata indicandone il nome | Solo quel caricamento: un'origine le cui tabelle sono tutte caricate non viene più collegata, sondata né letta, e non richiede credenziali |
 
 [tool-verified: `provisa/core/replicate.py`; `provisa/federation/replica_builds.py` `_next_refresh_at`, `_probe_decides`; `provisa/federation/query_residency.py` `freshness_verdict`, `is_stale_of`; `provisa/federation/role_ttl.py` `effective_ttl`; `provisa/freshness/source_gate.py` `gate_source`; `provisa/events/push_wiring.py` `wire_push_listeners`, `_run_change_stream`]
 

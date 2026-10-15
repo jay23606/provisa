@@ -406,9 +406,11 @@ def _next_refresh_at(state: Any) -> Any:
     one whose probe decides (:func:`_probe_decides`), and for one that left the model while it
     was built. A load-protected table with an off-peak window and no TTL is due at the window's
     next opening: once per window (REQ-1141). A table on the ``signal`` change signal is never due
-    on a clock: it is rebuilt when a signal says its source changed (REQ-1149)."""
+    on a clock: it is rebuilt when a signal says its source changed (REQ-1149). A table whose
+    cache_ttl never expires is never due: it lands once (REQ-2031)."""
 
     async def due(key: ReplicaKey, now: datetime) -> datetime | None:
+        from provisa.core.cache_ttl import NEVER_EXPIRES
         from provisa.core.change_signal import is_trigger
         from provisa.federation.role_ttl import declared_cache_ttl
         from provisa.federation.scheduled_refresh import next_window_open
@@ -421,6 +423,8 @@ def _next_refresh_at(state: Any) -> Any:
         if is_trigger(signal) or await _probe_decides(state, key, source, table):
             return None
         ttl = declared_cache_ttl(table, source)
+        if ttl == NEVER_EXPIRES:
+            return None  # REQ-2031: landed once, never due again
         if ttl:
             return now + timedelta(seconds=ttl)
         window = _off_peak_window(source, table)
@@ -1053,6 +1057,10 @@ async def request_if_replicated(state: Any, table_id: int, source_id: str, reaso
     if not owns_replica(source):
         return False  # read where it is written (NO_REPLICA_TYPES, live-only): never replicated
     table = {t.id: t for t in await registered_tables(state)}[table_id]
+    from provisa.federation.role_ttl import never_expires
+
+    if never_expires(table, source):
+        return False  # REQ-2031: landed once; a change at its source is never read again
     served_from_replica = table.id in state.replica_routes.floored or not engine_attaches(
         engine, source.type.value
     )

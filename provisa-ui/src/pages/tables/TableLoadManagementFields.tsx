@@ -11,7 +11,8 @@
 // The load and recency controls of the table edit form: the cache lifetime and its per-role list,
 // paging, replication and load protection with its off-peak window.
 
-import { NumberInput, Text } from "@mantine/core";
+import { NEVER_EXPIRES, cacheTtlHint } from "../../components/form/cacheTtl";
+import { Text, NumberInput } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import type { RegisteredTable, Source } from "../../types/admin";
 import type { Role } from "../../types/auth";
@@ -62,10 +63,14 @@ export function TableLoadManagementFields({
         </Text>
         <FormLayout>
           {/* The three settings share a line; what each one lists or reports follows beneath. */}
-          <FormField help={t("tableEditForm.cacheTtlHelp")} size="short">
+          <FormField
+            hint={cacheTtlHint(cacheTtlEdits[editingTable.id]?.value ?? editingTable.cacheTtl, t)}
+            help={t("tableEditForm.cacheTtlHelp")}
+            size="short"
+          >
             <NumberInput
+              min={NEVER_EXPIRES}
               label={t("tableEditForm.cacheTtlLabel")}
-              min={0}
               value={
                 cacheTtlEdits[editingTable.id]?.value ??
                 (editingTable.cacheTtl != null ? editingTable.cacheTtl : "")

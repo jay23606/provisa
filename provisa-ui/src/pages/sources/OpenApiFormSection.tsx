@@ -8,18 +8,19 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
+import { NEVER_EXPIRES, cacheTtlHint } from "../../components/form/cacheTtl";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
   Button,
   Group,
-  NumberInput,
   PasswordInput,
   Radio,
   Select,
   Text,
   TextInput,
   Textarea,
+  NumberInput,
 } from "@mantine/core";
 import { API_AUTH_TYPES } from "./constants";
 import { AuthUserPass } from "./AuthUserPass";
@@ -138,10 +139,10 @@ export function OpenApiFormSection({
           data-testid="openapi-base-url-input"
         />
       </FormField>
-      <FormField size="short">
+      <FormField hint={cacheTtlHint(openapiCacheTtl, t)} size="short">
         <NumberInput
+          min={NEVER_EXPIRES}
           label={t("openApiFormSection.cacheTtlLabel")}
-          min={0}
           value={openapiCacheTtl === "" ? "" : Number(openapiCacheTtl)}
           onChange={(v) => setOpenapiCacheTtl(v === "" ? "" : String(v))}
           placeholder={t("openApiFormSection.cacheTtlPlaceholder")}

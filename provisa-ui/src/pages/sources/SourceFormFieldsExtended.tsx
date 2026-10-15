@@ -8,6 +8,7 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
+import { NEVER_EXPIRES, cacheTtlHint } from "../../components/form/cacheTtl";
 import { useRegionChoices } from "../../hooks/useRegionQueries";
 import { useTranslation } from "react-i18next";
 import {
@@ -308,10 +309,10 @@ export function SourceFormFieldsExtended({
               data-testid="graphql-namespace-input"
             />
           </FormField>
-          <FormField size="short">
+          <FormField hint={cacheTtlHint(gqlCacheTtl, t)} size="short">
             <NumberInput
+              min={NEVER_EXPIRES}
               label={t("sourceFormFieldsExtended.cacheTtlSeconds")}
-              min={0}
               value={gqlCacheTtl === "" ? "" : Number(gqlCacheTtl)}
               onChange={(v) => setGqlCacheTtl(v === "" ? "" : String(v))}
               placeholder="300"
@@ -383,10 +384,10 @@ export function SourceFormFieldsExtended({
               data-testid="grpc-namespace-input"
             />
           </FormField>
-          <FormField size="short">
+          <FormField hint={cacheTtlHint(grpcCacheTtl, t)} size="short">
             <NumberInput
+              min={NEVER_EXPIRES}
               label={t("sourceFormFieldsExtended.cacheTtlSeconds")}
-              min={0}
               value={grpcCacheTtl === "" ? "" : Number(grpcCacheTtl)}
               onChange={(v) => setGrpcCacheTtl(v === "" ? "" : String(v))}
               placeholder="300"

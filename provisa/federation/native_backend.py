@@ -418,7 +418,9 @@ class NativeEngineBackend(EngineBackend):
             key = (state.source_catalogs[src.id], src.id, schema_name, table_name)
             if key in tried:
                 return
-            if floor_setting(src) is not None:
+            kept = state.replica_routes.kept_for_good
+            if floor_setting(src) is not None or (src.id, schema_name, table_name) in kept:
+                # REQ-2031: a table that never expires and has landed is not contacted either.
                 # REQ-030/826/1141: the operator's floor. A floored source is read only from its
                 # replica, which a read addresses in the store's replicas schema (REQ-1912). It
                 # has no live attach: nothing on the engine can then read the source, whatever a

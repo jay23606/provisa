@@ -40,7 +40,14 @@ COLUMNS = [("id", "bigint"), ("name", "text")]
 
 def _source(sid="src", **kw):
     base = dict(
-        id=sid, type="postgresql", host="h", port=5432, database="d", path=None, region=None
+        id=sid,
+        type="postgresql",
+        host="h",
+        port=5432,
+        database="d",
+        path=None,
+        region=None,
+        cache_ttl=None,
     )
     base.update(kw)
     return SimpleNamespace(**base)
@@ -126,6 +133,7 @@ class _Model:
                         "table_name": key[2],
                         "row_materialize": key in model.row_level,
                         "region": model.regions.get(key),
+                        "cache_ttl": None,
                         "columns": [{"name": name, "native_filter_type": None} for name, _ in cols]
                         + [
                             {"name": name, "native_filter_type": "query_param"}

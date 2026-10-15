@@ -57,7 +57,7 @@ Alle Quellen teilen sich einen gemeinsamen Feldsatz. [tool-verified: `provisa/co
 | `base_url` | `null` | Basis-URL für API-Quellen |
 | `pool_min` / `pool_max` | `1` / `5` | Grenzen des Connection-Pools |
 | `cache_enabled` | `true` | Caching für alle Tabellen dieser Quelle umschalten |
-| `cache_ttl` | `null` | Sekunden; `null` erbt den globalen Standard |
+| `cache_ttl` | `null` | Sekunden; `null` erbt den globalen Standard; `-1` läuft nie ab |
 | `federation_hints` | `{}` | Pro-Connector erweiterte Parameter (dict[str,str]); siehe Typreferenz unten. REQ-281 |
 | `mapping` | `{}` | Mapping-DSL für redis, elasticsearch, prometheus. REQ-251 |
 | `allowed_domains` | `[]` | Beschränkt diese Quelle auf bestimmte Domänen-IDs; leer = uneingeschränkt |

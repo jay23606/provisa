@@ -18,6 +18,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from provisa.federation.replica_address import ReplicaRoutes
+
 from provisa.federation.engine import build_duckdb_engine
 
 pytestmark = pytest.mark.unit
@@ -53,11 +55,14 @@ def _source(sid: str, type_value: str):
         federation_hints={},
         mapping={},
         max_live_concurrency=None,  # REQ-1909: a source always carries its cap
+        cache_ttl=None,
     )
 
 
 def _table(sid: str, table: str):
-    return SimpleNamespace(source_id=sid, schema_name="api", table_name=table, region=None)
+    return SimpleNamespace(
+        source_id=sid, schema_name="api", table_name=table, region=None, cache_ttl=None
+    )
 
 
 def test_the_walk_skips_fetch_sources_and_attaches_live_ones():
@@ -78,6 +83,7 @@ def test_the_walk_skips_fetch_sources_and_attaches_live_ones():
         ],
     )
     state = SimpleNamespace(
+        replica_routes=ReplicaRoutes(),
         runtime_sources={},
         tables=[],
         source_catalogs={

@@ -238,3 +238,12 @@ async def test_a_window_only_table_is_due_once_per_window(model):
     )
     held["model"] = _model(cache_ttl=600)  # a cadence is its own clock
     assert await due(("shop", "public", "orders"), built_at) == built_at + timedelta(seconds=600)
+
+
+@pytest.mark.asyncio
+async def test_a_table_that_never_expires_is_never_due_again(model):
+    """REQ-2031: a cache_ttl of -1 lands once; its replica is never due on any clock."""
+    held, state = model
+    held["model"] = _model(cache_ttl=-1)
+    due = replica_builds._next_refresh_at(state)
+    assert await due(("shop", "public", "orders"), datetime(2026, 10, 14, 23, tzinfo=UTC)) is None
