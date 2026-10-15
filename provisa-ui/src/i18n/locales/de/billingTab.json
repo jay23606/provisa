@@ -33,7 +33,7 @@
     "trialLimitDays": "14 Tage",
     "trialLimitHours": "40 aktive Stunden – jede Stunde, in der Sie mindestens eine Abfrage ausführen",
     "trialLimitEgress": "25 GB ausgehender Datenverkehr",
-    "trialTerms": "Bei der Anmeldung wird eine Karte mit einer Autorisierung über $0 erfasst und während der Testphase nicht belastet. Die Kartendaten werden bei Lemon Squeezy, unserem Merchant of Record, eingegeben und erreichen Provisa nie. Am Ende der Testphase wird das Abonnement in das kostenpflichtige Starter umgewandelt – $1.30 pro aktive Stunde bei einem monatlichen Minimum von $25, 25 GB ausgehender Datenverkehr inklusive und $0.48 pro GB darüber hinaus. Sie können jederzeit vor der Umwandlung kündigen.",
+    "trialTerms": "Bei der Anmeldung wird eine Karte mit einer Autorisierung über $0 erfasst und während der Testphase nicht belastet. Die Kartendaten werden bei Lemon Squeezy, unserem Merchant of Record, eingegeben und erreichen Provisa nie. Am Ende der Testphase wird das Abonnement in das kostenpflichtige Starter umgewandelt; Sie können jederzeit vor der Umwandlung kündigen.",
     "startTrial": "Kostenlose Testphase starten",
     "trialTitle": "Testphase",
     "daysLeft": "Noch {{days}} Tage",
@@ -53,7 +53,7 @@
     "activeHoursMetered": "Gemessene aktive Stunden: {{hours}}",
     "egressMetered": "Gemessener ausgehender Datenverkehr: {{amount}}",
     "transferTitle": "Datenübertragung",
-    "transferIntro": "Die Datenübertragung wird über ein eigenes Abonnement abgerechnet – 25 GB pro Monat inklusive und $0.48 pro GB darüber hinaus. Diese Organisation hat noch keines, daher wird die gemessene Übertragung nicht abgerechnet.",
+    "transferIntro": "Die Datenübertragung wird über ein eigenes Abonnement abgerechnet. Diese Organisation hat noch keines, daher wird die gemessene Übertragung nicht abgerechnet.",
     "addTransfer": "Datenübertragung hinzufügen",
     "nextChargeTitle": "Nächste Belastung",
     "subCancelled": "Dieses Abonnement ist gekündigt. Es erfolgt keine weitere Belastung.",
@@ -65,6 +65,17 @@
     "renewPlus": "{{date}}, {{amount}} zuzüglich des gemessenen Verbrauchs",
     "noRenewal": "Für dieses Abonnement ist kein Verlängerungsdatum festgelegt.",
     "cardEnding": "{{brand}} mit Endziffern {{last4}}",
-    "portal": "Zahlungsmethode und Rechnungen"
+    "portal": "Zahlungsmethode und Rechnungen",
+    "trialRates": "Starter kostet {{hourly}} pro aktive Stunde bei einem Minimum von {{minimum}}, mit {{includedGb}} GB ausgehendem Datenverkehr inklusive und {{perGb}} pro GB darüber hinaus.",
+    "transferRates": "Jeden Monat sind {{includedGb}} GB inklusive, darüber hinaus werden {{perGb}} pro GB berechnet.",
+    "pricesUnavailable": "Die Starter-Preise konnten beim Merchant of Record nicht gelesen werden, daher wird hier kein Preis genannt: {{reason}}",
+    "noStarterOffer": "der Server hat keinen Starter-Tarif gesendet",
+    "billTitle": "Aktuelle Rechnung",
+    "billLineHours": "Aktive Stunden: {{posted}} gemeldet, {{included}} inklusive, {{rate}} je weitere: {{amount}}",
+    "billLineTransfer": "Datenübertragung: {{posted}} GB gemeldet, {{included}} inklusive, {{rate}} je weiteres: {{amount}}",
+    "billTotal": "Bisher in diesem Zeitraum: {{amount}}",
+    "billUnavailable": "Der Betrag kann aus den Preisen des Merchant of Record nicht angegeben werden, daher wird keiner angezeigt: {{reason}}",
+    "nextChargeAmount": "{{date}}: {{amount}} nach der bisher gemeldeten Nutzung. Bis zu diesem Datum gemeldete Nutzung kommt hinzu.",
+    "nextChargeUnstated": "{{date}}. Der Betrag kann nicht angegeben werden: {{reason}}"
   }
 }

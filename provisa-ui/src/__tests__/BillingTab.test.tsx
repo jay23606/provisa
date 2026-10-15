@@ -145,6 +145,9 @@ function summary(overrides: Partial<BillingSummary> = {}): BillingSummary {
     active_hours: 0,
     egress_bytes: 0,
     subscription: null,
+    bill: null,
+    bill_unavailable: null,
+    next_charge: null,
     has_portal: false,
     has_egress_subscription: true,
     ...overrides,
@@ -355,6 +358,85 @@ describe("BillingTab", () => {
     const card = await screen.findByTestId("billing-next-charge");
     expect(card).toHaveTextContent("There is no further charge");
     expect(card).not.toHaveTextContent("plus metered usage");
+  });
+
+  // REQ-1469: the metered half of the bill and the next charge are money, and every amount is
+  // the server's, priced by the merchant of record from the usage already posted to it.
+  it("shows the current bill and the next charge as money", async () => {
+    mockSummary.mockResolvedValue(
+      summary({
+        ...subscribed(),
+        bill: {
+          period_start: "2026-08-15T00:00:00+00:00",
+          period_end: "2026-09-15T00:00:00+00:00",
+          fixed_cents: 2500,
+          fixed_kind: "minimum",
+          lines: [
+            { kind: "active_hours", posted: 30, included: 19, rate_cents: 130, cents: 1430 },
+            { kind: "egress_gb", posted: 40, included: 25, rate_cents: 48, cents: 720 },
+          ],
+          total_cents: 4650,
+        },
+        next_charge: { date: "2026-09-15T00:00:00+00:00", cents: 4650 },
+      }),
+    );
+    render(<BillingTab />);
+    const bill = await screen.findByTestId("billing-current-bill");
+    expect(bill).toHaveTextContent("Plan minimum: $25.00");
+    expect(screen.getByTestId("billing-line-active_hours")).toHaveTextContent(
+      "Active hours: 30 posted, 19 included, $1.30 each beyond that: $14.30",
+    );
+    expect(screen.getByTestId("billing-line-egress_gb")).toHaveTextContent(
+      "Data transfer: 40 GB posted, 25 included, $0.48 each beyond that: $7.20",
+    );
+    expect(screen.getByTestId("billing-bill-total")).toHaveTextContent("$46.50");
+    expect(screen.getByTestId("billing-next-charge-amount")).toHaveTextContent("$46.50");
+  });
+
+  it("says why when the amount cannot be stated, and shows no amount", async () => {
+    mockSummary.mockResolvedValue(
+      summary({
+        ...subscribed(),
+        bill_unavailable: "the data transfer price cannot be read: the variant carries no price",
+      }),
+    );
+    render(<BillingTab />);
+    const notice = await screen.findByTestId("billing-bill-unavailable");
+    expect(notice).toHaveTextContent("the variant carries no price");
+    expect(screen.queryByTestId("billing-current-bill")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("billing-next-charge-amount")).not.toBeInTheDocument();
+    expect(screen.getByTestId("billing-next-charge")).toHaveTextContent(
+      "The amount cannot be stated",
+    );
+  });
+
+  // REQ-1469, REQ-1511: the trial card quotes the server's Starter prices, never rates of its own.
+  it("quotes the trial's conversion terms from the server's Starter prices", async () => {
+    const priced = offers();
+    priced.plans[0] = {
+      ...priced.plans[0],
+      fixed_cents: 3100,
+      hourly_cents: 145,
+      egress: { included_gb: 30, per_gb_cents: 52.5 },
+    };
+    mockPlans.mockResolvedValue(priced);
+    mockSummary.mockResolvedValue(summary());
+    render(<BillingTab />);
+    const terms = await screen.findByTestId("billing-trial-terms");
+    await waitFor(() =>
+      expect(terms).toHaveTextContent(
+        "Starter is $1.45 per active hour against a minimum of $31.00 per month, with 30 GB of egress included and $0.525 per GB beyond it.",
+      ),
+    );
+  });
+
+  it("quotes no rate when the prices cannot be read", async () => {
+    mockPlans.mockRejectedValue(new Error("Lemon Squeezy variant 7 carries no price"));
+    mockSummary.mockResolvedValue(summary());
+    render(<BillingTab />);
+    const notice = await screen.findByTestId("billing-prices-unavailable");
+    expect(notice).toHaveTextContent("carries no price");
+    expect(screen.getByTestId("billing-trial-terms")).not.toHaveTextContent("per active hour");
   });
 
   it("shows month-to-date usage as quantities, not as a metered total", async () => {

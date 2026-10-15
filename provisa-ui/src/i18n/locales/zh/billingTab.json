@@ -33,7 +33,7 @@
     "trialLimitDays": "14 天",
     "trialLimitHours": "40 个活跃小时 — 任何至少运行一次查询的小时",
     "trialLimitEgress": "25 GB 出站流量",
-    "trialTerms": "注册时会以 $0预授权方式登记银行卡，试用期间不会扣款。卡信息在我们的记录商户 Lemon Squeezy 处填写，不会到达 Provisa。试用结束时订阅转为付费 Starter — 每活跃小时 $1.30，每月最低 $25，含 25 GB 出站流量，超出部分每 GB $0.48。在转为付费之前你可以随时取消。",
+    "trialTerms": "注册时会以 $0 授权登记一张卡，试用期间不会扣款。卡信息在我们的记录商户 Lemon Squeezy 处输入，绝不会到达 Provisa。试用结束时，订阅将转为付费的 Starter；在转换之前可随时取消。",
     "startTrial": "开始免费试用",
     "trialTitle": "试用",
     "daysLeft": "剩余 {{days}} 天",
@@ -53,7 +53,7 @@
     "activeHoursMetered": "已计量活跃小时：{{hours}}",
     "egressMetered": "已计量出站流量：{{amount}}",
     "transferTitle": "数据传输",
-    "transferIntro": "数据传输通过单独的订阅计费 — 每月含 25 GB，超出部分每 GB $0.48。该组织尚未订阅，因此正在计量的传输未被计费。",
+    "transferIntro": "数据传输通过单独的订阅计费。该组织尚未订阅，因此正在计量的传输不会计费。",
     "addTransfer": "添加数据传输",
     "nextChargeTitle": "下次扣款",
     "subCancelled": "此订阅已取消，不会再扣款。",
@@ -65,6 +65,17 @@
     "renewPlus": "{{date}}，{{amount}} 加计量用量",
     "noRenewal": "此订阅未设置续订日期。",
     "cardEnding": "{{brand}} 尾号 {{last4}}",
-    "portal": "付款方式和发票"
+    "portal": "付款方式和发票",
+    "trialRates": "Starter 为每活跃小时 {{hourly}}，最低消费 {{minimum}}，包含 {{includedGb}} GB 出站流量，超出部分每 GB {{perGb}}。",
+    "transferRates": "每月包含 {{includedGb}} GB，超出部分每 GB 收取 {{perGb}}。",
+    "pricesUnavailable": "无法从记录商户读取 Starter 的价格，因此此处不显示费率：{{reason}}",
+    "noStarterOffer": "服务器未发送 Starter 套餐",
+    "billTitle": "当前账单",
+    "billLineHours": "活跃小时：已上报 {{posted}}，包含 {{included}}，超出部分每小时 {{rate}}：{{amount}}",
+    "billLineTransfer": "数据传输：已上报 {{posted}} GB，包含 {{included}}，超出部分每 GB {{rate}}：{{amount}}",
+    "billTotal": "本期至今：{{amount}}",
+    "billUnavailable": "无法根据记录商户的价格得出金额，因此不显示金额：{{reason}}",
+    "nextChargeAmount": "{{date}}：按目前已上报的用量为 {{amount}}。该日期前上报的用量将计入。",
+    "nextChargeUnstated": "{{date}}。无法得出金额：{{reason}}"
   }
 }

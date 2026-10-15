@@ -33,7 +33,7 @@
     "trialLimitDays": "14 dias",
     "trialLimitHours": "40 horas ativas — qualquer hora em que execute pelo menos uma consulta",
     "trialLimitEgress": "25 GB de saída de dados",
-    "trialTerms": "No registo é capturado um cartão com uma autorização de $0, que não é cobrado durante o período experimental. Os dados do cartão são introduzidos na Lemon Squeezy, o nosso comerciante registado, e nunca chegam à Provisa. No fim do período experimental, a subscrição passa para o Starter pago — $1.30 por hora ativa com um mínimo mensal de $25, 25 GB de saída de dados incluídos e $0.48 por GB adicional. Pode cancelar em qualquer momento antes da conversão.",
+    "trialTerms": "No cadastro, um cartão é registrado com uma autorização de $0 e não é cobrado durante o teste. Os dados do cartão são inseridos na Lemon Squeezy, nosso merchant of record, e nunca chegam à Provisa. No fim do teste a assinatura passa para o Starter pago; você pode cancelar a qualquer momento antes da conversão.",
     "startTrial": "Iniciar período experimental gratuito",
     "trialTitle": "Período experimental",
     "daysLeft": "Faltam {{days}} dias",
@@ -53,7 +53,7 @@
     "activeHoursMetered": "Horas ativas medidas: {{hours}}",
     "egressMetered": "Saída de dados medida: {{amount}}",
     "transferTitle": "Transferência de dados",
-    "transferIntro": "A transferência de dados é faturada numa subscrição própria — 25 GB incluídos por mês e $0.48 por GB adicional. Esta organização ainda não tem uma, pelo que a transferência que está a medir não está a ser faturada.",
+    "transferIntro": "A transferência de dados é cobrada em uma assinatura própria. Esta organização ainda não tem uma, então a transferência medida não está sendo cobrada.",
     "addTransfer": "Adicionar transferência de dados",
     "nextChargeTitle": "Próxima cobrança",
     "subCancelled": "Esta subscrição está cancelada. Não haverá mais cobranças.",
@@ -65,6 +65,17 @@
     "renewPlus": "{{date}}, {{amount}} mais o consumo medido",
     "noRenewal": "Não está definida nenhuma data de renovação para esta subscrição.",
     "cardEnding": "{{brand}} terminado em {{last4}}",
-    "portal": "Método de pagamento e faturas"
+    "portal": "Método de pagamento e faturas",
+    "trialRates": "O Starter custa {{hourly}} por hora ativa com um mínimo de {{minimum}}, com {{includedGb}} GB de saída incluídos e {{perGb}} por GB adicional.",
+    "transferRates": "Todo mês {{includedGb}} GB estão incluídos e {{perGb}} é cobrado por GB adicional.",
+    "pricesUnavailable": "Os preços do Starter não puderam ser lidos no merchant of record, então nenhuma tarifa é informada aqui: {{reason}}",
+    "noStarterOffer": "o servidor não enviou nenhum plano Starter",
+    "billTitle": "Fatura atual",
+    "billLineHours": "Horas ativas: {{posted}} lançadas, {{included}} incluídas, {{rate}} cada uma adicional: {{amount}}",
+    "billLineTransfer": "Transferência de dados: {{posted}} GB lançados, {{included}} incluídos, {{rate}} cada um adicional: {{amount}}",
+    "billTotal": "Até agora neste período: {{amount}}",
+    "billUnavailable": "O valor não pode ser informado a partir dos preços do merchant of record, então nenhum é exibido: {{reason}}",
+    "nextChargeAmount": "{{date}}: {{amount}} com base no uso lançado até agora. O uso lançado antes dessa data é somado.",
+    "nextChargeUnstated": "{{date}}. O valor não pode ser informado: {{reason}}"
   }
 }

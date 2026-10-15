@@ -69,6 +69,29 @@ export interface SubscriptionSummary {
   fixed_interval: string | null;
 }
 
+/** One metered line of the current bill (REQ-1469): what was posted, and what it adds. */
+export interface BillLine {
+  kind: "active_hours" | "egress_gb";
+  /** Units already posted to the merchant of record in this billing period. */
+  posted: number;
+  /** Units the fixed component already covers. */
+  included: number;
+  /** Cents per unit past the included ones; may carry decimal places. */
+  rate_cents: number;
+  /** What this line adds to the fixed component, in whole cents. */
+  cents: number;
+}
+
+/** The charge accrued in the subscription's current billing period, in integer cents (REQ-1469). */
+export interface CurrentBill {
+  period_start: string;
+  period_end: string;
+  fixed_cents: number;
+  fixed_kind: "minimum" | "fee";
+  lines: BillLine[];
+  total_cents: number;
+}
+
 export interface BillingSummary {
   org_id: string;
   plan: string;
@@ -80,6 +103,12 @@ export interface BillingSummary {
   active_hours: number;
   egress_bytes: number;
   subscription: SubscriptionSummary | null;
+  /** Null with no subscription, and when a price could not be read (see `bill_unavailable`). */
+  bill: CurrentBill | null;
+  /** Why the bill cannot be stated. No amount is shown from a rate kept anywhere else. */
+  bill_unavailable: string | null;
+  /** Null when the subscription will not charge: cancelled, expired, past due. */
+  next_charge: { date: string; cents: number } | null;
   has_portal: boolean;
   /** REQ-1482: whether the separate data transfer subscription has been ordered. */
   has_egress_subscription: boolean;
