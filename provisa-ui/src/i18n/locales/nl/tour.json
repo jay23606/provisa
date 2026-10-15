@@ -635,6 +635,58 @@
       "vulnerabilitiesRecap": {
         "title": "Wat u zag",
         "description": "De eigen codegegevens van het bedrijf, live gelezen, en openbare kwetsbaarheidsgegevens, één keer geladen en alleen zoveel als de meldingen nodig hebben, via de CVE gekoppeld in één beheerd model: één view beantwoordt welke misbruikte kwetsbaarheden in de code zitten en hoe ver elk over tijd is, in SQL, GraphQL, Cypher en REST."
+      },
+      "testdataScenario": {
+        "title": "Kan ik testen met realistische gegevens zonder productie aan te raken?",
+        "description": "<strong>shop-db</strong> is de productiedatabase van een winkel: klanten, producten en bestellingen. Ontwikkelaars en testers hebben gegevens van dezelfde vorm nodig, maar namen, e-mails en woonplaatsen van klanten zijn persoonsgegevens, en kopieën van productie verouderen. De gegevens hier zijn zelf gegenereerd, in plaats van een echte winkel."
+      },
+      "testdataTables": {
+        "title": "Elke kolom declareert zijn nepwaarde",
+        "description": "Elke kolom van <strong>customers</strong> noemt het soort waarde dat hij bevat, zijn nepwaarde: een persoonsnaam, een e-mailadres, een stad, een van vier regio's, een datum binnen een bereik. Het model draagt het mee met de kolom, dus de nepwaarde wordt één keer gedefinieerd, waar de kolom is."
+      },
+      "testdataJoin": {
+        "title": "Gelijk vervalste sleutels joinen nog",
+        "description": "De <strong>customer_id</strong> van een bestelling en de <strong>id</strong> van de klant worden allebei als hash vervalst. Eén echte waarde geeft altijd dezelfde nepwaarde, dus een bestelling vindt haar klant ook als beide nepwaarden zijn."
+      },
+      "testdataProd": {
+        "title": "Productie: de echte rijen",
+        "description": "In prod, de omgeving die een verzoek zonder naam bedient, worden de klanten gelezen zoals ze zijn."
+      },
+      "testdataToDev": {
+        "title": "Naar dev wisselen",
+        "description": "dev en test zijn omgevingen van het model: takken ervan, zoals in git. Beide zijn testomgevingen (nepwaarden). Hierna gaat de schakelaar in de kop naar dev; elke lezing daarna wordt daar bediend."
+      },
+      "testdataDev": {
+        "title": "Dezelfde query in dev",
+        "description": "Dezelfde opdracht, gelezen in dev: elke kolom is zijn nepwaarde, door de engine berekend bij het lezen. Namen, e-mails, steden en data zien er echt uit en zijn het niet. Er is niets uit productie gekopieerd."
+      },
+      "testdataDevAnswer": {
+        "title": "Views en joins werken op de nepwaarden",
+        "description": "Een view die bestellingen, hun regels, klanten en producten verbindt, antwoordt ook in dev. Groeperen, verbinden en optellen gebeuren allemaal op de nepwaarden, dus een test oefent dezelfde queries als productie."
+      },
+      "testdataDevGraphql": {
+        "title": "Ook via GraphQL",
+        "description": "Elke bestelling met de klant die haar plaatste, via de relatie. Elke API leest de omgeving waar hij uit bediend wordt, dus een testsuite via GraphQL, REST of SQL ziet dezelfde gegenereerde gegevens."
+      },
+      "testdataToTest": {
+        "title": "Naar test wisselen",
+        "description": "Hierna gaat de schakelaar naar test, de tweede testomgeving (nepwaarden)."
+      },
+      "testdataTest": {
+        "title": "Dezelfde nepwaarden in test",
+        "description": "Een echte waarde toont overal waar hij gelezen wordt dezelfde nepwaarde, dus dev en test komen overeen: een test die in dev is geschreven vindt in test dezelfde rijen."
+      },
+      "testdataToProd": {
+        "title": "Terug naar productie",
+        "description": "Hierna keert de schakelaar terug naar prod."
+      },
+      "testdataProdAnswer": {
+        "title": "Het echte antwoord, alleen in productie",
+        "description": "Dezelfde view, gelezen in prod: de echte omzet per regio en categorie. Alleen prod krijgt echte rijen; dev en test zien ze nooit."
+      },
+      "testdataDone": {
+        "title": "Wat dit is",
+        "description": "Omgevingen zijn takken van één model, en een nepwaarde wordt één keer per kolom gedeclareerd. Een testomgeving (nepwaarden) beantwoordt elke query met realistische gegenereerde waarden, houdt sleutels koppelbaar en wordt geweigerd zolang een kolom met persoonsgegevens geen nepwaarde heeft. Productiegegevens verlaten productie nooit."
       }
     },
     "status": {
@@ -679,6 +731,10 @@
       "vulnerabilities": {
         "title": "Misbruikte kwetsbaarheden in onze code",
         "summary": "De Dependabot-meldingen van een softwarebedrijf, via de CVE gekoppeld aan de NVD en CISA's catalogus van Known Exploited Vulnerabilities: welke misbruikte kwetsbaarheden zitten in onze code, en hoe ver zijn ze over CISA's termijn?"
+      },
+      "testdata": {
+        "title": "Testgegevens",
+        "summary": "De productiedatabase van een winkel, in prod gelezen zoals hij is en in twee testomgevingen als realistische gegenereerde gegevens; dezelfde queries en joins antwoorden in alle drie."
       }
     }
   }

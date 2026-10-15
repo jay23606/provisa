@@ -635,6 +635,58 @@
       "vulnerabilitiesRecap": {
         "title": "Ce que vous avez vu",
         "description": "Les données de code de l'entreprise, lues en direct, et des données publiques de vulnérabilités, chargées une fois et seulement ce dont les alertes ont besoin, jointes par CVE dans un modèle gouverné : une vue répond aux questions de savoir quelles vulnérabilités exploitées se trouvent dans le code et de combien chacune est en retard, en SQL, GraphQL, Cypher et REST."
+      },
+      "testdataScenario": {
+        "title": "Puis-je tester sur des données réalistes sans toucher à la production ?",
+        "description": "<strong>shop-db</strong> est la base de production d'une boutique : ses clients, produits et commandes. Développeurs et testeurs ont besoin de données de même forme, mais les noms, e-mails et villes des clients sont des données personnelles, et les copies de production vieillissent. Les données ici sont elles-mêmes générées, à la place d'une vraie boutique."
+      },
+      "testdataTables": {
+        "title": "Chaque colonne déclare sa valeur fictive",
+        "description": "Chaque colonne de <strong>customers</strong> nomme le genre de valeur qu'elle contient, sa valeur fictive : un nom de personne, une adresse e-mail, une ville, une région parmi quatre, une date dans une plage. Le modèle le porte avec la colonne, donc la valeur fictive est définie une fois, là où est la colonne."
+      },
+      "testdataJoin": {
+        "title": "Des clés falsifiées de même façon joignent toujours",
+        "description": "Le <strong>customer_id</strong> d'une commande et l'<strong>id</strong> du client sont tous deux falsifiés en hash. Une valeur réelle donne toujours la même valeur fictive, donc une commande retrouve son client même quand les deux sont fictives."
+      },
+      "testdataProd": {
+        "title": "Production : les vraies lignes",
+        "description": "En prod, l'environnement qui sert une requête n'en nommant aucun, les clients se lisent tels qu'ils sont."
+      },
+      "testdataToDev": {
+        "title": "Passer à dev",
+        "description": "dev et test sont des environnements du modèle : des branches de celui-ci, comme dans git. Tous deux sont des environnements de test (valeurs fictives). Ensuite, le sélecteur de l'en-tête passe à dev ; chaque lecture qui suit est servie de là."
+      },
+      "testdataDev": {
+        "title": "La même requête en dev",
+        "description": "La même instruction, lue en dev : chaque colonne est sa valeur fictive, calculé par le moteur à la lecture. Noms, e-mails, villes et dates ont l'air vrais et ne le sont pas. Rien n'a été copié hors de la production."
+      },
+      "testdataDevAnswer": {
+        "title": "Vues et jointures fonctionnent sur les valeurs fictives",
+        "description": "Une vue joignant commandes, lignes, clients et produits répond aussi en dev. Regrouper, joindre et additionner se font sur les valeurs fictives, donc un test exerce les mêmes requêtes que la production."
+      },
+      "testdataDevGraphql": {
+        "title": "Aussi en GraphQL",
+        "description": "Chaque commande avec le client qui l'a passée, via la relation. Chaque API lit l'environnement qui la sert, donc une suite de tests en GraphQL, REST ou SQL voit les mêmes données générées."
+      },
+      "testdataToTest": {
+        "title": "Passer à test",
+        "description": "Ensuite, le sélecteur passe à test, le second environnement de test (valeurs fictives)."
+      },
+      "testdataTest": {
+        "title": "Les mêmes valeurs fictives en test",
+        "description": "Une valeur réelle montre la même valeur fictive partout où elle est lue, donc dev et test concordent : un test écrit en dev trouve les mêmes lignes en test."
+      },
+      "testdataToProd": {
+        "title": "Retour à la production",
+        "description": "Ensuite, le sélecteur revient à prod."
+      },
+      "testdataProdAnswer": {
+        "title": "La vraie réponse, en production seulement",
+        "description": "La même vue, lue en prod : le vrai chiffre d'affaires par région et catégorie. Seule prod reçoit les vraies lignes ; dev et test ne les voient jamais."
+      },
+      "testdataDone": {
+        "title": "Ce que c'est",
+        "description": "Les environnements sont des branches d'un modèle, et une valeur fictive se déclare une fois par colonne. Un environnement de test (valeurs fictives) répond à chaque requête avec des valeurs générées réalistes, garde les clés joignables, et est refusé tant qu'une colonne de données personnelles n'a pas de valeur fictive. Les données de production ne quittent jamais la production."
       }
     },
     "status": {
@@ -679,6 +731,10 @@
       "vulnerabilities": {
         "title": "Vulnérabilités exploitées dans notre code",
         "summary": "Les alertes Dependabot d'un éditeur de logiciels jointes par CVE à la NVD et au catalogue Known Exploited Vulnerabilities de la CISA : quelles vulnérabilités exploitées se trouvent dans notre code, et de combien ont-elles dépassé l'échéance de la CISA ?"
+      },
+      "testdata": {
+        "title": "Données de test",
+        "summary": "La base de production d'une boutique, lue en prod telle quelle et dans deux environnements de test comme des données générées réalistes ; les mêmes requêtes et jointures répondent dans les trois."
       }
     }
   }

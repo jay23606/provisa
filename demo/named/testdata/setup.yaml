@@ -1,0 +1,16 @@
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+#
+# What the testdata demo runs once, in order, after the server is up (REQ-2016, REQ-2053;
+# scripts/run_demo_setup.py): its two Test (fake) environments, dev and test, each a branch of
+# the model whose reads are answered with every column's fake. prod is the environment a request
+# naming none is served, with the real rows.
+steps:
+- environment: {name: dev, data_mode: test_fake}
+- environment: {name: test, data_mode: test_fake}

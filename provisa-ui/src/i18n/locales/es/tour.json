@@ -635,6 +635,58 @@
       "vulnerabilitiesRecap": {
         "title": "Lo que ha visto",
         "description": "Los datos de código propios de la empresa, leídos en vivo, y datos públicos de vulnerabilidades, cargados una vez y solo los que las alertas necesitan, unidos por CVE en un modelo gobernado: una vista responde qué vulnerabilidades explotadas hay en el código y cuánto está vencida cada una, en SQL, GraphQL, Cypher y REST."
+      },
+      "testdataScenario": {
+        "title": "¿Puedo probar con datos realistas sin tocar producción?",
+        "description": "<strong>shop-db</strong> es la base de datos de producción de una tienda: sus clientes, productos y pedidos. Desarrolladores y testers necesitan datos con la misma forma, pero los nombres, correos y ciudades de los clientes son datos personales, y las copias de producción se desactualizan. Los datos aquí son generados, en lugar de una tienda real."
+      },
+      "testdataTables": {
+        "title": "Cada columna declara su valor ficticio",
+        "description": "Cada columna de <strong>customers</strong> indica el tipo de valor que contiene, su valor ficticio: un nombre de persona, una dirección de correo, una ciudad, una de cuatro regiones, una fecha en un rango. El modelo lo lleva con la columna, así que el valor ficticio se define una vez, donde está la columna."
+      },
+      "testdataJoin": {
+        "title": "Claves falsificadas igual siguen uniendo",
+        "description": "El <strong>customer_id</strong> de un pedido y el <strong>id</strong> del cliente se falsifican ambos como hash. Un valor real siempre da el mismo valor ficticio, así que un pedido encuentra a su cliente aunque ambos sean ficticios."
+      },
+      "testdataProd": {
+        "title": "Producción: las filas reales",
+        "description": "En prod, el entorno que atiende una solicitud que no nombra ninguno, los clientes se leen tal como son."
+      },
+      "testdataToDev": {
+        "title": "Cambiar a dev",
+        "description": "dev y test son entornos del modelo: ramas de él, como en git. Ambos son entornos de prueba (valores ficticios). A continuación, el selector de la cabecera pasa a dev; cada lectura posterior se atiende desde ahí."
+      },
+      "testdataDev": {
+        "title": "La misma consulta en dev",
+        "description": "La misma instrucción, leída en dev: cada columna es su valor ficticio, calculado por el motor al leer. Nombres, correos, ciudades y fechas parecen reales y no lo son. No se copió nada de producción."
+      },
+      "testdataDevAnswer": {
+        "title": "Vistas y joins funcionan sobre los valores ficticios",
+        "description": "Una vista que une pedidos, sus líneas, clientes y productos también responde en dev. Agrupar, unir y sumar se hacen sobre los valores ficticios, así que una prueba ejercita las mismas consultas que ejecuta producción."
+      },
+      "testdataDevGraphql": {
+        "title": "También por GraphQL",
+        "description": "Cada pedido con el cliente que lo hizo, a través de la relación. Cada API lee el entorno desde el que se sirve, así que una batería de pruebas por GraphQL, REST o SQL ve los mismos datos generados."
+      },
+      "testdataToTest": {
+        "title": "Cambiar a test",
+        "description": "A continuación, el selector pasa a test, el segundo entorno de prueba (valores ficticios)."
+      },
+      "testdataTest": {
+        "title": "Los mismos valores ficticios en test",
+        "description": "Un valor real muestra el mismo valor ficticio dondequiera que se lea, así que dev y test coinciden: una prueba escrita en dev encuentra las mismas filas en test."
+      },
+      "testdataToProd": {
+        "title": "De vuelta a producción",
+        "description": "A continuación, el selector vuelve a prod."
+      },
+      "testdataProdAnswer": {
+        "title": "La respuesta real, solo en producción",
+        "description": "La misma vista, leída en prod: los ingresos reales por región y categoría. Solo prod recibe filas reales; dev y test nunca las ven."
+      },
+      "testdataDone": {
+        "title": "Qué es esto",
+        "description": "Los entornos son ramas de un modelo, y un valor ficticio se declara una vez por columna. Un entorno de prueba (valores ficticios) responde cada consulta con valores generados realistas, mantiene las claves unibles y se rechaza mientras una columna de datos personales no tenga valor ficticio. Los datos de producción nunca salen de producción."
       }
     },
     "status": {
@@ -679,6 +731,10 @@
       "vulnerabilities": {
         "title": "Vulnerabilidades explotadas en nuestro código",
         "summary": "Las alertas de Dependabot de una empresa de software unidas por CVE a la NVD y al catálogo de Known Exploited Vulnerabilities de CISA: ¿qué vulnerabilidades explotadas hay en nuestro código y cuánto han superado el plazo de CISA?"
+      },
+      "testdata": {
+        "title": "Datos de prueba",
+        "summary": "La base de datos de producción de una tienda, leída en prod tal cual y en dos entornos de prueba como datos generados realistas; las mismas consultas y joins responden en los tres."
       }
     }
   }

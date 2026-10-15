@@ -635,6 +635,58 @@
       "vulnerabilitiesRecap": {
         "title": "你看到了什么",
         "description": "公司自身的代码数据（实时读取）和公开的漏洞数据（只加载一次，且只加载告警需要的部分）按 CVE 关联到一个受治理的模型中：一个视图用 SQL、GraphQL、Cypher 和 REST 回答代码中有哪些被利用的漏洞，以及各自逾期多久。"
+      },
+      "testdataScenario": {
+        "title": "能否在不触碰生产的情况下用逼真的数据测试？",
+        "description": "<strong>shop-db</strong> 是一家商店的生产数据库：客户、商品和订单。开发和测试人员需要相同形态的数据，但客户的姓名、邮箱和城市是个人数据，而生产的副本会过时。这里的数据本身也是生成的，代替一家真实的商店。"
+      },
+      "testdataTables": {
+        "title": "每一列声明自己的虚构值",
+        "description": "<strong>customers</strong> 的每一列都说明它保存的值的种类，即它的虚构值：人名、邮箱地址、城市、四个地区之一、某个范围内的日期。模型把它与列放在一起，所以虚构值只在列所在之处定义一次。"
+      },
+      "testdataJoin": {
+        "title": "以相同方式替换的键仍能连接",
+        "description": "订单的 <strong>customer_id</strong> 和客户的 <strong>id</strong> 都被替换为哈希值。同一个真实值总是得到同一个虚构值，所以即使两者都是虚构的，订单也能找到它的客户。"
+      },
+      "testdataProd": {
+        "title": "生产：真实的行",
+        "description": "在 prod，即服务未指明环境的请求的环境中，客户按原样读取。"
+      },
+      "testdataToDev": {
+        "title": "切换到 dev",
+        "description": "dev 和 test 是模型的环境：它的分支，就像在 git 中一样。两者都是测试（虚构值）环境。接下来，页眉中的切换器切到 dev；之后的每次读取都由那里提供。"
+      },
+      "testdataDev": {
+        "title": "dev 中的同一查询",
+        "description": "同一语句在 dev 中读取：每一列都是它的虚构值，由引擎在读取时计算。姓名、邮箱、城市和日期看起来真实却并非如此。没有从生产复制任何东西。"
+      },
+      "testdataDevAnswer": {
+        "title": "视图和连接基于虚构值工作",
+        "description": "连接订单、订单行、客户和商品的视图在 dev 中同样给出答案。分组、连接和求和都在虚构值上进行，所以测试运行的正是生产运行的查询。"
+      },
+      "testdataDevGraphql": {
+        "title": "GraphQL 也一样",
+        "description": "每个订单及下单的客户，经由关系获得。每个 API 读取为它提供服务的环境，所以通过 GraphQL、REST 或 SQL 的测试套件看到的是相同的生成数据。"
+      },
+      "testdataToTest": {
+        "title": "切换到 test",
+        "description": "接下来，切换器切到 test，第二个测试（虚构值）环境。"
+      },
+      "testdataTest": {
+        "title": "test 中相同的虚构值",
+        "description": "一个真实值无论在哪里读取都显示相同的虚构值，所以 dev 和 test 一致：在 dev 中写的测试在 test 中找到相同的行。"
+      },
+      "testdataToProd": {
+        "title": "回到生产",
+        "description": "接下来，切换器回到 prod。"
+      },
+      "testdataProdAnswer": {
+        "title": "真实的答案，只在生产中",
+        "description": "同一视图在 prod 中读取：按地区和类别的真实收入。只有 prod 收到真实的行；dev 和 test 永远看不到。"
+      },
+      "testdataDone": {
+        "title": "这是什么",
+        "description": "环境是一个模型的分支，虚构值按列声明一次。测试（虚构值）环境用逼真的生成值回答每个查询，保持键可连接，并且在个人数据列没有虚构值时拒绝创建。生产数据从不离开生产。"
       }
     },
     "status": {
@@ -679,6 +731,10 @@
       "vulnerabilities": {
         "title": "我们代码中被利用的漏洞",
         "summary": "一家软件公司的 Dependabot 告警按 CVE 关联到 NVD 和 CISA 的 Known Exploited Vulnerabilities 目录：我们的代码中有哪些被利用的漏洞，它们已超过 CISA 截止日期多久？"
+      },
+      "testdata": {
+        "title": "测试数据",
+        "summary": "一家商店的生产数据库：在 prod 中按原样读取，在两个测试环境中作为逼真的生成数据读取；相同的查询和连接在三者中都能给出答案。"
       }
     }
   }

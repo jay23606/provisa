@@ -1,0 +1,14 @@
+# Each order with the customer who placed it, through the relationship: in prod the real customers,
+# in dev and test their fakes -- the join still matches, because both keys are faked alike.
+query OrdersByCustomer {
+  s__orders(order_by: [{ placedAt: desc }], limit: 10) {
+    id
+    placedAt
+    status
+    customer {
+      name
+      email
+      city
+    }
+  }
+}

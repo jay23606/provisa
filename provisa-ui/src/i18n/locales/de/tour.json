@@ -635,6 +635,58 @@
       "vulnerabilitiesRecap": {
         "title": "Was Sie gesehen haben",
         "description": "Die eigenen Codedaten des Unternehmens, live gelesen, und öffentliche Schwachstellendaten, einmal geladen und nur so viel davon, wie die Warnungen brauchen, über die CVE in einem gesteuerten Modell verknüpft: Eine Sicht beantwortet, welche ausgenutzten Schwachstellen im Code stecken und wie überfällig jede ist, in SQL, GraphQL, Cypher und REST."
+      },
+      "testdataScenario": {
+        "title": "Kann ich mit realistischen Daten testen, ohne die Produktion anzufassen?",
+        "description": "<strong>shop-db</strong> ist die Produktionsdatenbank eines Shops: Kunden, Produkte und Bestellungen. Entwickler und Tester brauchen Daten derselben Form, aber Namen, E-Mails und Städte der Kunden sind personenbezogen, und Kopien der Produktion veralten. Die Daten hier sind selbst generiert und stehen für einen echten Shop."
+      },
+      "testdataTables": {
+        "title": "Jede Spalte deklariert ihren Fake-Wert",
+        "description": "Jede Spalte von <strong>customers</strong> nennt die Art von Wert, die sie enthält, ihren Fake-Wert: ein Personenname, eine E-Mail-Adresse, eine Stadt, eine von vier Regionen, ein Datum in einem Bereich. Das Modell trägt sie mit der Spalte, also wird der Fake-Wert einmal definiert, dort wo die Spalte ist."
+      },
+      "testdataJoin": {
+        "title": "Gleich gefälschte Schlüssel joinen weiter",
+        "description": "Die <strong>customer_id</strong> einer Bestellung und die <strong>id</strong> des Kunden werden beide als Hash gefälscht. Ein echter Wert ergibt immer denselben Fake-Wert, also findet eine Bestellung ihren Kunden auch, wenn beide gefälscht sind."
+      },
+      "testdataProd": {
+        "title": "Produktion: die echten Zeilen",
+        "description": "In prod, der Umgebung, die eine Anfrage ohne Angabe bedient, werden die Kunden so gelesen, wie sie sind."
+      },
+      "testdataToDev": {
+        "title": "Zu dev wechseln",
+        "description": "dev und test sind Umgebungen des Modells: Zweige davon, wie in git. Beide sind Test-Umgebungen (Fake-Werte). Als Nächstes wechselt der Umschalter in der Kopfzeile zu dev; jedes Lesen danach wird von dort bedient."
+      },
+      "testdataDev": {
+        "title": "Dieselbe Abfrage in dev",
+        "description": "Dieselbe Anweisung, in dev gelesen: Jede Spalte ist ihr Fake-Wert, von der Engine beim Lesen berechnet. Namen, E-Mails, Städte und Daten wirken echt und sind es nicht. Nichts wurde aus der Produktion kopiert."
+      },
+      "testdataDevAnswer": {
+        "title": "Ansichten und Joins arbeiten auf den Fake-Werten",
+        "description": "Eine Ansicht, die Bestellungen, ihre Positionen, Kunden und Produkte verbindet, antwortet auch in dev. Gruppieren, Verbinden und Summieren laufen alle auf den Fake-Werten, also prüft ein Test dieselben Abfragen, die die Produktion ausführt."
+      },
+      "testdataDevGraphql": {
+        "title": "Auch über GraphQL",
+        "description": "Jede Bestellung mit dem Kunden, der sie aufgegeben hat, über die Beziehung. Jede API liest die Umgebung, aus der sie bedient wird, also sieht eine Testsuite über GraphQL, REST oder SQL dieselben generierten Daten."
+      },
+      "testdataToTest": {
+        "title": "Zu test wechseln",
+        "description": "Als Nächstes wechselt der Umschalter zu test, der zweiten Test-Umgebung (Fake-Werte)."
+      },
+      "testdataTest": {
+        "title": "Dieselben Fake-Werte in test",
+        "description": "Ein echter Wert zeigt überall, wo er gelesen wird, denselben Fake-Wert, also stimmen dev und test überein: Ein in dev geschriebener Test findet in test dieselben Zeilen."
+      },
+      "testdataToProd": {
+        "title": "Zurück zur Produktion",
+        "description": "Als Nächstes kehrt der Umschalter zu prod zurück."
+      },
+      "testdataProdAnswer": {
+        "title": "Die echte Antwort, nur in der Produktion",
+        "description": "Dieselbe Ansicht, in prod gelesen: der echte Umsatz nach Region und Kategorie. Nur prod erhält echte Zeilen; dev und test sehen sie nie."
+      },
+      "testdataDone": {
+        "title": "Was das ist",
+        "description": "Umgebungen sind Zweige eines Modells, und ein Fake-Wert wird einmal pro Spalte deklariert. Eine Test-Umgebung (Fake-Werte) beantwortet jede Abfrage mit realistischen generierten Werten, hält Schlüssel verknüpfbar und wird verweigert, solange eine Spalte mit personenbezogenen Daten keinen Fake-Wert hat. Produktionsdaten verlassen die Produktion nie."
       }
     },
     "status": {
@@ -679,6 +731,10 @@
       "vulnerabilities": {
         "title": "Ausgenutzte Schwachstellen in unserem Code",
         "summary": "Die Dependabot-Warnungen eines Softwareunternehmens, über die CVE mit der NVD und CISAs Katalog der Known Exploited Vulnerabilities verknüpft: Welche ausgenutzten Schwachstellen stecken in unserem Code, und wie weit sind sie über CISAs Frist hinaus?"
+      },
+      "testdata": {
+        "title": "Testdaten",
+        "summary": "Die Produktionsdatenbank eines Shops, in prod so gelesen, wie sie ist, und in zwei Testumgebungen als realistische generierte Daten; dieselben Abfragen und Joins antworten in allen dreien."
       }
     }
   }

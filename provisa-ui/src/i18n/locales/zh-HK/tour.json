@@ -635,6 +635,58 @@
       "vulnerabilitiesRecap": {
         "title": "你看到了甚麼",
         "description": "公司自身的程式碼資料（即時讀取）和公開的漏洞資料（只載入一次，且只載入警示需要的部分）按 CVE 關聯到一個受管治的模型中：一個檢視以 SQL、GraphQL、Cypher 和 REST 回答程式碼中有哪些被利用的漏洞，以及各自逾期多久。"
+      },
+      "testdataScenario": {
+        "title": "能否在不觸碰生產的情況下用逼真的數據測試？",
+        "description": "<strong>shop-db</strong> 是一間商店的生產數據庫：客戶、商品和訂單。開發和測試人員需要相同形態的數據，但客戶的姓名、電郵和城市是個人資料，而生產的副本會過時。這裏的數據本身也是生成的，代替一間真實的商店。"
+      },
+      "testdataTables": {
+        "title": "每一欄聲明自己的虛構值",
+        "description": "<strong>customers</strong> 的每一欄都說明它保存的值的種類，即它的虛構值：人名、電郵地址、城市、四個地區之一、某個範圍內的日期。模型把它與欄放在一起，所以虛構值只在欄所在之處定義一次。"
+      },
+      "testdataJoin": {
+        "title": "以相同方式替換的鍵仍能連接",
+        "description": "訂單的 <strong>customer_id</strong> 和客戶的 <strong>id</strong> 都被替換為雜湊值。同一個真實值總是得到同一個虛構值，所以即使兩者都是虛構的，訂單也能找到它的客戶。"
+      },
+      "testdataProd": {
+        "title": "生產：真實的行",
+        "description": "在 prod，即服務未指明環境的請求的環境中，客戶按原樣讀取。"
+      },
+      "testdataToDev": {
+        "title": "切換到 dev",
+        "description": "dev 和 test 是模型的環境：它的分支，就像在 git 中一樣。兩者都是測試（虛構值）環境。接下來，頁首的切換器切到 dev；之後的每次讀取都由那裏提供。"
+      },
+      "testdataDev": {
+        "title": "dev 中的同一查詢",
+        "description": "同一語句在 dev 中讀取：每一欄都是它的虛構值，由引擎在讀取時計算。姓名、電郵、城市和日期看起來真實卻並非如此。沒有從生產複製任何東西。"
+      },
+      "testdataDevAnswer": {
+        "title": "視圖和連接基於虛構值運作",
+        "description": "連接訂單、訂單行、客戶和商品的視圖在 dev 中同樣給出答案。分組、連接和求和都在虛構值上進行，所以測試運行的正是生產運行的查詢。"
+      },
+      "testdataDevGraphql": {
+        "title": "GraphQL 也一樣",
+        "description": "每張訂單及下單的客戶，經由關係取得。每個 API 讀取為它提供服務的環境，所以透過 GraphQL、REST 或 SQL 的測試套件看到的是相同的生成數據。"
+      },
+      "testdataToTest": {
+        "title": "切換到 test",
+        "description": "接下來，切換器切到 test，第二個測試（虛構值）環境。"
+      },
+      "testdataTest": {
+        "title": "test 中相同的虛構值",
+        "description": "一個真實值無論在哪裏讀取都顯示相同的虛構值，所以 dev 和 test 一致：在 dev 中寫的測試在 test 中找到相同的行。"
+      },
+      "testdataToProd": {
+        "title": "回到生產",
+        "description": "接下來，切換器回到 prod。"
+      },
+      "testdataProdAnswer": {
+        "title": "真實的答案，只在生產中",
+        "description": "同一視圖在 prod 中讀取：按地區和類別的真實收入。只有 prod 收到真實的行；dev 和 test 永遠看不到。"
+      },
+      "testdataDone": {
+        "title": "這是甚麼",
+        "description": "環境是一個模型的分支，虛構值按欄聲明一次。測試（虛構值）環境用逼真的生成值回答每個查詢，保持鍵可連接，並且在個人資料欄沒有虛構值時拒絕建立。生產數據從不離開生產。"
       }
     },
     "status": {
@@ -679,6 +731,10 @@
       "vulnerabilities": {
         "title": "我們程式碼中被利用的漏洞",
         "summary": "一家軟件公司的 Dependabot 警示按 CVE 關聯到 NVD 和 CISA 的 Known Exploited Vulnerabilities 目錄：我們的程式碼中有哪些被利用的漏洞，它們已超過 CISA 限期多久？"
+      },
+      "testdata": {
+        "title": "測試數據",
+        "summary": "一間商店的生產數據庫：在 prod 中按原樣讀取，在兩個測試環境中作為逼真的生成數據讀取；相同的查詢和連接在三者中都能給出答案。"
       }
     }
   }

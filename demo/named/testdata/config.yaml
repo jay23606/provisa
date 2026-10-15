@@ -1,0 +1,132 @@
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+#
+# The WHOLE config of the named demo "testdata" (start-ui-install.sh --demo testdata; REQ-2053).
+# docker-compose.yml in this directory brings up its database.
+#
+# The question: can I test against realistic data without touching production? The shop's
+# database is production. Every column declares its fake -- the kind of value it holds -- and two
+# environments, dev and test (setup.yaml), are Test (fake) environments: a read there is answered
+# with each column's fake, computed by the engine at the read, while prod answers with the real
+# rows. The keys are faked alike (hash), so a join through a relationship still matches.
+#
+#   shop-db   the shop's Postgres, read live as provisa_reader (db/init.sql).
+auth:
+  assignments_source: provisa
+  default_assignments:
+  - domain_id: '*'
+    role_id: org_admin
+  provider: none
+cache:
+  default_ttl: 300
+  enabled: true
+domains:
+- id: shop
+  description: The shop's production database -- customers, products, orders and their lines
+  steward: org_admin
+federation_engine: duckdb
+naming:
+  domain_prefix: true
+  rules: []
+roles:
+- id: analyst
+  capabilities:
+  - query_development
+  domain_access:
+  - shop
+server:
+  limits:
+    default_row_limit: 100
+    request_timeout: 60
+    trino_query_timeout: 120
+sources:
+- id: shop-db
+  type: postgresql
+  host: ${env:TESTDATA_PG_HOST:-localhost}
+  port: ${env:TESTDATA_PG_PORT:-28332}
+  database: testdata
+  username: provisa_reader
+  password: provisa_reader
+  description: The shop's production database
+tables:
+- source_id: shop-db
+  domain_id: shop
+  schema: public
+  table: customers
+  description: Who has signed up, and where they live
+  columns:
+  - {name: id, data_type: integer, is_primary_key: true, description: 'The customer''s id', fake: "hash()", visible_to: [org_admin, analyst]}
+  - {name: name, data_type: varchar, description: 'The customer''s name', fake: "name()", visible_to: [org_admin, analyst]}
+  - {name: email, data_type: varchar, description: 'The customer''s email address', fake: "email()", visible_to: [org_admin, analyst]}
+  - {name: city, data_type: varchar, description: 'Where the customer lives', fake: "city()", visible_to: [org_admin, analyst]}
+  - {name: region, data_type: varchar, description: 'The customer''s sales region', fake: "categories((North, South, East, West))", visible_to: [org_admin, analyst]}
+  - {name: joined_on, data_type: date, description: 'When the customer signed up', fake: "uniform(min='2024-01-01', max='2026-06-30')", visible_to: [org_admin, analyst]}
+- source_id: shop-db
+  domain_id: shop
+  schema: public
+  table: products
+  description: What the shop sells
+  columns:
+  - {name: id, data_type: integer, is_primary_key: true, description: 'The product''s id', fake: "hash()", visible_to: [org_admin, analyst]}
+  - {name: name, data_type: varchar, description: 'The product''s name', fake: "word()", visible_to: [org_admin, analyst]}
+  - {name: category, data_type: varchar, description: 'The product''s category', fake: "categories((Books, Games, Garden, Kitchen))", visible_to: [org_admin, analyst]}
+  - {name: price, data_type: 'decimal(8,2)', description: 'The price in USD', fake: "uniform(min=5, max=60)", visible_to: [org_admin, analyst]}
+  - {name: stock, data_type: integer, description: 'Units in stock', fake: "poisson(mean=40)", visible_to: [org_admin, analyst]}
+  - {name: description, data_type: varchar, description: 'The product''s description', fake: "sentence()", visible_to: [org_admin, analyst]}
+- source_id: shop-db
+  domain_id: shop
+  schema: public
+  table: orders
+  description: Each order a customer placed
+  columns:
+  - {name: id, data_type: integer, is_primary_key: true, description: 'The order''s id', fake: "hash()", visible_to: [org_admin, analyst]}
+  - {name: customer_id, data_type: integer, description: 'The customer who placed it', fake: "hash()", visible_to: [org_admin, analyst]}
+  - {name: placed_at, data_type: timestamp, description: 'When it was placed', fake: "uniform(min='2026-01-01', max='2026-09-30')", visible_to: [org_admin, analyst]}
+  - {name: status, data_type: varchar, description: 'placed, paid, shipped, delivered or cancelled', fake: "categories((placed, paid, shipped, delivered, cancelled))", visible_to: [org_admin, analyst]}
+- source_id: shop-db
+  domain_id: shop
+  schema: public
+  table: order_items
+  description: The lines of each order
+  columns:
+  - {name: id, data_type: integer, is_primary_key: true, description: 'The line''s id', fake: "hash()", visible_to: [org_admin, analyst]}
+  - {name: order_id, data_type: integer, description: 'The order the line is on', fake: "hash()", visible_to: [org_admin, analyst]}
+  - {name: product_id, data_type: integer, description: 'The product ordered', fake: "hash()", visible_to: [org_admin, analyst]}
+  - {name: quantity, data_type: integer, description: 'Units ordered', fake: "poisson(mean=2)", visible_to: [org_admin, analyst]}
+  - {name: unit_price, data_type: 'decimal(8,2)', description: 'The price of one unit when ordered', fake: "uniform(min=5, max=60)", visible_to: [org_admin, analyst]}
+# The customers' personal data is pii: a Test (fake) environment is refused while a pii column has
+# no fake, and every read of one is in the record (ops.pii_access).
+tag_assignments:
+- {tag_id: pii, object_type: column, table_ref: shop-db.public.customers, column_name: name}
+- {tag_id: pii, object_type: column, table_ref: shop-db.public.customers, column_name: email}
+- {tag_id: pii, object_type: column, table_ref: shop-db.public.customers, column_name: city}
+relationships:
+- {id: order-customer, alias: PLACED_BY, graphql_alias: customer, cardinality: many-to-one, source_table_id: orders, source_column: customer_id, target_table_id: customers, target_column: id}
+- {id: item-order, alias: ON_ORDER, cardinality: many-to-one, source_table_id: order_items, source_column: order_id, target_table_id: orders, target_column: id}
+- {id: item-product, alias: OF_PRODUCT, cardinality: many-to-one, source_table_id: order_items, source_column: product_id, target_table_id: products, target_column: id}
+views:
+# What each region spends, by category: the tour's answer, the same query in every environment.
+- id: sales_by_region
+  domain_id: shop
+  enable_aggregates: true
+  enable_group_by: true
+  description: Sales by customer region and product category
+  columns:
+  - {name: region, data_type: varchar, description: The customers' sales region, visible_to: [org_admin, analyst]}
+  - {name: category, data_type: varchar, description: The products' category, visible_to: [org_admin, analyst]}
+  - {name: orders, data_type: bigint, description: Orders with a line of the category, visible_to: [org_admin, analyst]}
+  - {name: revenue, data_type: decimal, description: What those lines came to in USD, visible_to: [org_admin, analyst]}
+  sql: >-
+    SELECT c.region, p.category, COUNT(DISTINCT o.id) AS orders,
+    SUM(i.quantity * i.unit_price) AS revenue
+    FROM "shop"."order_items" AS i
+    JOIN "shop"."orders" AS o ON o.id = i.order_id
+    JOIN "shop"."customers" AS c ON c.id = o.customer_id
+    JOIN "shop"."products" AS p ON p.id = i.product_id
+    GROUP BY c.region, p.category
