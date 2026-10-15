@@ -1,7 +1,7 @@
 # Each open critical alert with its CVE's CVSS score, the weakness it is an instance of, and
 # whether attackers are known to exploit it: a severity score alone does not say which to fix first.
 query OpenAlertsWithTheirWeaknesses {
-  dependabotAlerts(
+  s__dependabotAlerts(
     where: { state: { eq: "open" }, severity: { eq: "critical" } }
     order_by: [{ cveId: asc }]
     limit: 30

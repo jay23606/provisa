@@ -37,7 +37,7 @@ domains:
     them, with the NVD's CVE records, MITRE's weaknesses and CISA's known exploited vulnerabilities
 federation_engine: duckdb
 naming:
-  domain_prefix: false
+  domain_prefix: true
   rules: []
 roles:
 - id: analyst

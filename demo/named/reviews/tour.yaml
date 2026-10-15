@@ -57,7 +57,7 @@ steps:
   route: /graph
   capability: query_development
   cypher: >-
-    MATCH (r:RatingsByProduct)-[g:RATINGS_OF]->(p:Products)<-[w:BOUGHT_WITH]-(t:BoughtTogether)-[a:ALSO_BOUGHT]->(o:Products)
+    MATCH (r:S__RatingsByProduct)-[g:RATINGS_OF]->(p:S__Products)<-[w:BOUGHT_WITH]-(t:S__BoughtTogether)-[a:ALSO_BOUGHT]->(o:S__Products)
     WHERE r.avgStars < 3 AND t.customers >= 5 RETURN r, g, p, w, t, a, o
 - key: reviewsRest
   route: /openapi
