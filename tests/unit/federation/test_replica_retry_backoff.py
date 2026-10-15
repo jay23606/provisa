@@ -277,7 +277,7 @@ def test_the_admin_record_of_a_failed_replica_says_when_it_is_tried_next(monkeyp
         waiting_on=None, feed_down_since=None, feed_error=None, delta_skipped=None,
         delta_cursor=None, build_notes=[], verified_at=None,
         build_wait=None,
-        build_progress=None, partial=False,
+        build_progress=None, partial=False, index_state=None,
     )  # fmt: skip
     assert build_view(record, T0)["next_attempt_at"] == "2026-10-09T12:04:00+00:00"
     record.build_state = "idle"

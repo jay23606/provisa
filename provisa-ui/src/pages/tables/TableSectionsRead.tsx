@@ -16,6 +16,8 @@ import { replicateLabel } from "../../components/admin/replicate";
 import { useRegionChoices } from "../../hooks/useRegionQueries";
 import { NAMING_CONVENTIONS } from "./constants";
 import { DetailFields, type DetailField } from "../../components/detail/DetailFields";
+import { useSourceKind } from "../sources/sourceKind";
+import { ReplicaBuildLine } from "./ReplicaBuildLine";
 import {
   changeSignalChoices,
   isCheckerSource,
@@ -120,6 +122,7 @@ export function LoadRead({ table, source }: { table: RegisteredTable; source?: S
   const signal = table.changeSignal ?? "";
   const probing = signal === "probe" || signal === "ttl_probe";
   const loadProtected = table.loadProtected ?? source?.loadProtected ?? false;
+  const liveOnly = useSourceKind(source?.type ?? "")?.live_only === true;
   const fields: DetailField[] = [
     {
       label: t("tableEditForm.changeSignalLabel"),
@@ -215,6 +218,14 @@ export function LoadRead({ table, source }: { table: RegisteredTable; source?: S
     <>
       {table.refreshPolicySummary && <RefreshPolicyAlert policy={table.refreshPolicySummary} />}
       <DetailFields fields={fields} testId="table-load" />
+      {/* Where the table's replica stands, its indexes with it: as the section's form shows it. */}
+      {!isView && !liveOnly && (
+        <ReplicaBuildLine
+          sourceId={table.sourceId}
+          schemaName={table.schemaName}
+          tableName={table.tableName}
+        />
+      )}
     </>
   );
 }
