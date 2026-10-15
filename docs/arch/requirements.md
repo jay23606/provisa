@@ -23717,3 +23717,15 @@ A trigger says when something runs, and what runs is an ordinary command (python
 **Code:** `provisa/core/models.py`, `provisa/core/schema_org.py`, `provisa/core/repositories/scheduled_trigger.py`, `provisa/scheduler/trigger_runs.py`, `provisa/scheduler/table_triggers.py`, `provisa/scheduler/jobs.py`, `provisa/federation/replica_runner.py`, `provisa/events/push_wiring.py`, `provisa/events/processor.py`, `provisa/api/data/table_written.py`, `provisa/api/admin/schema_mutation_ops.py`, `provisa/api/admin/schema_query.py`
 
 **Tests:** `tests/unit/test_table_triggers.py`, `tests/unit/test_scheduled_triggers.py`, `tests/integration/test_triggers_on_change_e2e.py`
+
+### REQ-2055 · Change Signals {#REQ-2055}
+
+**Status:** ✅ complete · **Priority:** SHOULD · **Type:** behavioral
+
+A table read where it lies (not replicated) that declares a probing change signal -- probe or ttl_probe, its own else its source's -- is a signal-only node of the event loop: its probe (MAX of its watermark column, a count, or its probe_query) runs on its cache TTL, and a change is posted to the materialized views that read it, which recompute and ripple on to theirs. Nothing is landed or replicated; reads of the table stay live. The boot seed asks the views over it for their first build. A live table on the default ttl signal has no node: it is current at every read, and the views over it refresh on their own cadence.
+
+**Use case:** A landing into a table read live refreshes the views over it without replicating the table: the data quality demo lands a batch into bronze, and its checks, silver and gold follow.
+
+**Code:** `provisa/events/boot.py`, `provisa/events/handlers.py`
+
+**Tests:** `tests/unit/test_live_table_signal_node.py`

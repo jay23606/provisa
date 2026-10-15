@@ -415,6 +415,32 @@ def replica_write_lock_factory(state: Any) -> Callable[[tuple[str, str, str]], A
     return lock
 
 
+def registry_marking(registry: Any) -> Any:
+    """``mv -> mark(change)``: a view's refresh by the event loop, recorded in the MV registry a
+    read asks whether the view is fresh. ``change`` is the committed event -- a change marks it
+    fresh, with its rows when a full replace knows them (a delta or a bitemporal seal does not);
+    ``("error", payload)`` marks the refresh failed -- or None when its content was unchanged,
+    which keeps it fresh. Without it a view the loop keeps current is still read as stale, from
+    its definition."""
+
+    def mv_refreshed(mv: Any) -> Any:
+        def mark(change: tuple[str, dict] | None) -> None:
+            if change is None:
+                registry.mark_unchanged(mv.id)
+                return
+            event_type, payload = change
+            if event_type == "error":
+                registry.mark_refresh_failed(mv.id, payload["error"])
+            elif event_type == "replace" and "rows" in payload:
+                registry.mark_refreshed(mv.id, payload["rows"])
+            else:
+                registry.mark_refreshed(mv.id, None)
+
+        return mark
+
+    return mv_refreshed
+
+
 def _replica_nodes(specs: list[Any]) -> dict[tuple[str, str, str], str]:
     """The event-loop node of each replica a source node asks the replicator to build: the
     build runner posts a completed, changed build to that node so its dependents ripple."""
@@ -624,6 +650,8 @@ async def wire_event_loop(scheduler: Any, *, state: Any, log: Any, seed: bool = 
 
             return _append
 
+        mv_refreshed = registry_marking(state.mv_registry)
+
         # Drive the loop off the design-time REGISTERED tables (semantic sql names + resolved types),
         # not the raw YAML — the landed replica name must match what the schema-currency reconcile
         # created, and the types the YAML omits are resolved in the control plane at registration.
@@ -691,6 +719,7 @@ async def wire_event_loop(scheduler: Any, *, state: Any, log: Any, seed: bool = 
             # against the model like its edges.
             expected_events_of=lambda mv: expected_event_nodes(mv, state, graph),
             mv_admit_deltas=mv_admit_deltas,  # REQ-1921/1922
+            mv_refreshed=mv_refreshed,
         )
         processors = build_processors(
             specs, db=db, dependents_of=dependents_of, on_event=node_event_triggers(state)

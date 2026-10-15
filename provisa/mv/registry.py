@@ -94,7 +94,9 @@ class MVRegistry:  # REQ-133, REQ-135, REQ-158, REQ-159, REQ-160
         if mv:
             mv.status = MVStatus.REFRESHING
 
-    def mark_refreshed(self, mv_id: str, row_count: int) -> None:  # REQ-543
+    def mark_refreshed(self, mv_id: str, row_count: int | None) -> None:  # REQ-543
+        """Fresh as of now, holding ``row_count`` rows -- None when the refresh that made it current
+        does not know its whole count (a delta applied, a bitemporal version sealed)."""
         mv = self._mvs.get(self._key(mv_id))
         if mv:
             mv.status = MVStatus.FRESH

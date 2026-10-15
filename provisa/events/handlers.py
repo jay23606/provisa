@@ -98,6 +98,26 @@ async def _held(write_lock: Callable[[], Any] | None) -> AsyncIterator[None]:
         yield
 
 
+def make_source_signal() -> Callable[..., Awaitable[tuple[str, dict, str | None]]]:
+    """Build the handle of a table read where it lies, whose declared probe watches it for its
+    views: it lands nothing -- the table is read live -- and reports the change its claimed events
+    carry, so the views over it are recomputed. Its events come from its probe (a token that
+    moved) or the boot seed (the views' first build)."""
+
+    async def signal(
+        pending: list[dict],
+        *,
+        prior_hash: str | None = None,
+        ctx: Any | None = None,
+        preprocess: Callable[..., Any] | None = None,
+        forced: bool = False,
+    ) -> tuple[str, dict, str | None]:
+        del prior_hash, ctx, preprocess, forced  # nothing is landed, so nothing is gated or checked
+        return "replace", {"signals": len(pending), "landed": None}, None
+
+    return signal
+
+
 def make_source_land(
     engine: Any,
     *,
