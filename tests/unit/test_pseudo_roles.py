@@ -75,15 +75,20 @@ class TestNaming:
         )
         held = {"region": "", "region__eu": "region"}
         assert (
-            meta_role.resolve_requested_role(None, {"analyst"}, "analyst,region__eu", held)
+            meta_role.resolve_requested_role(None, {"analyst"}, "analyst,region__eu", lambda: held)
             == "meta:x"
         )
         assert built == [(["analyst"], ("region", "region__eu"))]
 
+    def test_the_pseudo_roles_are_read_only_when_a_named_role_is_not_assigned(self, monkeypatch):
+        monkeypatch.setattr(meta_role, "ensure_meta_role", lambda _s, members: "meta:x")
+        unread = lambda: pytest.fail("no named role is unassigned")  # noqa: E731
+        assert meta_role.resolve_requested_role(None, {"analyst"}, "analyst", unread) == "analyst"
+
     def test_a_pseudo_role_not_held_is_refused_by_name(self):
         with pytest.raises(PermissionError, match="region__us"):
             meta_role.resolve_requested_role(
-                None, {"analyst"}, "analyst,region__us", {"region__eu": "region"}
+                None, {"analyst"}, "analyst,region__us", lambda: {"region__eu": "region"}
             )
 
     def test_named_with_no_data_role_it_reaches_no_data(self):
