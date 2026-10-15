@@ -40,11 +40,14 @@ def _require_tier() -> None:
 
 
 @router.post("/{name}")
-async def open_demo(name: str) -> dict:
+async def open_demo(name: str, request: Request) -> dict:
     from provisa.api.demo_sandbox import VISITOR, open_sandbox
+    from provisa.api.demo_warmup import warm_tour
 
     _require_tier()
     opened = await open_sandbox(name, kind=VISITOR)
+    assert opened.token is not None  # a visitor's sandbox is always opened with its token
+    warm_tour(request.app, opened.org_id, opened.demo, {"Authorization": f"Bearer {opened.token}"})
     return {"org_id": opened.org_id, "demo": opened.demo, "token": opened.token}
 
 
@@ -54,6 +57,7 @@ async def open_named(name: str, request: Request) -> dict:
     have open, from any of their devices, or a new one. Nobody else can be admitted to it -- the
     sandbox role holds no user_management (REQ-1597)."""
     from provisa.api.demo_sandbox import NAMED, named_sandbox_of, open_sandbox
+    from provisa.api.demo_warmup import warm_tour
 
     _require_tier()
     identity = getattr(request.state, "identity", None)
@@ -63,6 +67,9 @@ async def open_named(name: str, request: Request) -> dict:
     if existing is not None:
         return {"org_id": existing, "demo": name}
     opened = await open_sandbox(name, kind=NAMED, user_id=identity.user_id)
+    warm_tour(
+        request.app, opened.org_id, opened.demo, {"Authorization": request.headers["authorization"]}
+    )
     return {"org_id": opened.org_id, "demo": opened.demo}
 
 
