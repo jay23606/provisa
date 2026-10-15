@@ -527,6 +527,66 @@
       "qualityDone": {
         "title": "Vertrouwen dat u kunt opvragen",
         "description": "Een batch landen verversten de controles, zilver en goud, zonder dat er iets anders draaide. De schone batch bereikte goud; de slechte bleef in brons, en waarom is een query."
+      },
+      "insiderIntro": {
+        "title": "Insidercontrole bij een bank",
+        "description": "Northgate Partners, een verzonnen bank, houdt een watchlist bij van de deals waaraan ze werkt. De vraag: stuurt iemand dealgevoelige of klantgegevens de bank uit? <strong>bank</strong> is haar database: de watchlist, de medewerkers en hun mail, en de klanten en wie hun gegevens las. Elke naam en elk record hier is gegenereerd."
+      },
+      "insiderWatchList": {
+        "title": "De watchlist",
+        "description": "<strong>deal</strong> is de watchlist van de control room: per deal het bedrijf, de namen waaronder het bekend is, de ticker, de projectcodenaam en of de deal al openbaar is. Het is de strengst afgeschermde tabel: de control room leest hem, een dealteam alleen de eigen deal, een eerstelijnsbeoordelaar nooit."
+      },
+      "insiderMail": {
+        "title": "De mail",
+        "description": "<strong>message</strong> bevat de uitgaande mail van de medewerkers: wie hem stuurde, wanneer, en hoeveel ontvangers buiten de bank of op een privéadres zaten."
+      },
+      "insiderMatch": {
+        "title": "Elk bericht tegen elke deal",
+        "description": "<strong>deal_match</strong> is wat het commando match_deals vond: per bericht en deal of het het bedrijf, een alias, de ticker of de codenaam noemt, en hoe dicht het via een lokaal embeddingmodel bij de beschrijving van de deal ligt. Een parafrase die elke naam vermijdt, scoort toch."
+      },
+      "insiderQueue": {
+        "title": "De beoordelingswachtrij",
+        "description": "Eén gematerialiseerde view rangschikt elke zaak. De match wordt gewogen naar context: een afzender buiten het dealteam, een ontvanger buiten de bank of op een privéadres en een bericht van vóór de aankondiging verhogen hem; een lid van het dealteam dat de eigen tegenpartijen van de deal mailt, verlaagt hem."
+      },
+      "insiderLeak": {
+        "title": "Een parafrase overtreft de verwachte mail",
+        "description": "Twee van de berichten achter de wachtrij. Een handelaar die niet op deal Falcon zit, vertelt er een privéadres over in eigen woorden, zonder naam, ticker of codenaam, en staat bijna bovenaan. De mail van het dealteam aan de advocaten van de deal noemt alles, en staat laag."
+      },
+      "insiderCustomerData": {
+        "title": "Klantgegevens",
+        "description": "Dezelfde mail wordt met SQL-patronen op klantgegevens gecontroleerd: burgerservice- en rekeningnummers. De kolommen van de klantentabel zijn als pii gemarkeerd, dus ook dit lezen wordt vastgelegd."
+      },
+      "insiderPiiAccess": {
+        "title": "Wie klantgegevens las",
+        "description": "<strong>ops.pii_access</strong> toont elke lezing van een als pii gemarkeerde tabel: hier de lezing die u net deed. De wachtrij doet hetzelfde voor het personeel van de bank uit het eigen toegangslogboek van de bank: de medewerker van operations die die week klantgegevens las en daarna klantgegevens naar buiten mailde, staat bovenaan."
+      },
+      "insiderAsReviewer": {
+        "title": "Als eerstelijnsbeoordelaar",
+        "description": "Hierna draait de SQL-verkenner als reviewer_ben, de eerstelijnsbeoordelaar van de trading-, research- en operationsdesks."
+      },
+      "insiderReviewerQueue": {
+        "title": "Alleen de eigen zaken",
+        "description": "Dezelfde wachtrij, gelezen als de beoordelaar: alleen de zaken van de desks die hij beoordeelt, met de gemarkeerde entiteit zichtbaar en de deal achtergehouden. Rijregels op de mail en de matches ervan doen dit; er wordt niets gekopieerd. De watchlist zelf wordt hem geweigerd."
+      },
+      "insiderAsControlRoom": {
+        "title": "Terug naar de control room",
+        "description": "Hierna draait de SQL-verkenner weer als elke rol."
+      },
+      "insiderAudit": {
+        "title": "Elke lezing wordt vastgelegd",
+        "description": "<strong>ops.queries</strong> legt elke opdracht vast: wie hem uitvoerde, in welke rol, over welke tabel. De lezingen van de beoordelaar van de wachtrij en de watchlist staan hier, net als de uwe."
+      },
+      "insiderWhyFlagged": {
+        "title": "Waarom werd het gemarkeerd?",
+        "description": "Polly helpt de menselijke beoordelaar achteraf. Het antwoord werd gemaakt toen de demo werd gebouwd en wordt opgeslagen getoond."
+      },
+      "insiderOverTheWall": {
+        "title": "Zat de afzender over de wall?",
+        "description": "Wie voor de deal over de wall werd gehaald, en dus ervan kon weten. De gemarkeerde afzender hoort daar niet bij."
+      },
+      "insiderDone": {
+        "title": "Wat dit is, en wat niet",
+        "description": "Deals van de watchlist werden op naam en op betekenis vergeleken met uitgaande mail, gerangschikt voor beoordeling, en de lijst zelf werd nooit aan de beoordelaar getoond. Dit is analyse voor beoordeling achteraf, achter realtime controles, geen vervanging voor preventie van gegevensverlies. Bijlagen, afbeeldingen, gecodeerde tekst en privékanalen vallen erbuiten. Toezicht op medewerkers vraagt om openheid en, in sommige landen, om instemming van de ondernemingsraad."
       }
     },
     "status": {
@@ -563,6 +623,10 @@
       "quality": {
         "title": "Data die u kunt vertrouwen",
         "summary": "De verkoopfeed van een winkelketen, van brons naar zilver en goud verfijnd door gecontroleerde gematerialiseerde views: een batch landen is genoeg, en een batch die een controle niet doorstaat, bereikt zilver nooit."
+      },
+      "insider": {
+        "title": "Insidercontrole",
+        "summary": "De uitgaande mail van een bank vergeleken met haar watchlist van lopende deals en gecontroleerd op klantgegevens, gerangschikt in één beoordelingswachtrij die een eerstelijnsbeoordelaar leest zonder de lijst ooit te zien."
       }
     }
   }

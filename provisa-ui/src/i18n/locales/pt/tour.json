@@ -527,6 +527,66 @@
       "qualityDone": {
         "title": "Confiança que se pode consultar",
         "description": "Depositar um lote atualizou as verificações, a prata e o ouro, sem executar mais nada. O lote limpo chegou ao ouro; o ruim parou no bronze, e o porquê é uma consulta."
+      },
+      "insiderIntro": {
+        "title": "Revisão de informação privilegiada em um banco",
+        "description": "Northgate Partners, um banco inventado, mantém uma lista de observação das operações em que está trabalhando. A pergunta: alguém está enviando dados sensíveis de operações ou de clientes para fora do banco? <strong>bank</strong> é seu banco de dados: a lista de observação, os funcionários e seus e-mails, e os clientes e quem leu seus registros. Cada nome e registro aqui é gerado."
+      },
+      "insiderWatchList": {
+        "title": "A lista de observação",
+        "description": "<strong>deal</strong> é a lista de observação do control room: de cada operação, a empresa, os nomes pelos quais é conhecida, seu ticker, seu codinome de projeto e se já é pública. É a tabela mais restrita: o control room a lê, uma equipe de operação só a própria, e um revisor de primeiro nível nunca."
+      },
+      "insiderMail": {
+        "title": "Os e-mails",
+        "description": "<strong>message</strong> contém os e-mails de saída dos funcionários: quem enviou, quando e quantos destinatários estavam fora do banco ou em um endereço pessoal."
+      },
+      "insiderMatch": {
+        "title": "Cada mensagem contra cada operação",
+        "description": "<strong>deal_match</strong> é o que o comando match_deals encontrou: para cada mensagem e operação, se ela cita a empresa, um alias, o ticker ou o codinome, e quão perto ela está da descrição da operação segundo um modelo de embeddings local. Uma paráfrase que evita todo nome ainda pontua."
+      },
+      "insiderQueue": {
+        "title": "A fila de revisão",
+        "description": "Uma visão materializada ordena cada caso. A correspondência é ponderada pelo contexto: um remetente fora da equipe da operação, um destinatário fora do banco ou em um endereço pessoal e uma mensagem enviada antes do anúncio a elevam; um membro da equipe escrevendo às contrapartes da própria operação a reduz."
+      },
+      "insiderLeak": {
+        "title": "Uma paráfrase supera o e-mail esperado",
+        "description": "Duas das mensagens por trás da fila. Um operador que não está na operação Falcon conta sobre ela a um endereço pessoal com suas próprias palavras, sem nome, ticker ou codinome, e fica perto do topo. O e-mail da equipe aos advogados da operação cita tudo, e fica embaixo."
+      },
+      "insiderCustomerData": {
+        "title": "Dados de clientes",
+        "description": "Os mesmos e-mails são verificados para dados de clientes por padrões SQL: números de seguro social e de conta. As colunas da tabela de clientes estão marcadas como pii, então esta leitura também é registrada."
+      },
+      "insiderPiiAccess": {
+        "title": "Quem leu dados de clientes",
+        "description": "<strong>ops.pii_access</strong> lista cada leitura de uma tabela marcada como pii: aqui, a leitura que você acabou de fazer. A fila faz o mesmo para o pessoal do banco a partir do próprio registro de acessos do banco: o funcionário de operações que leu registros de clientes naquela semana e depois enviou dados de clientes para fora fica em primeiro."
+      },
+      "insiderAsReviewer": {
+        "title": "Como revisor de primeiro nível",
+        "description": "Em seguida, o explorador SQL executa como reviewer_ben, o revisor de primeiro nível das mesas de trading, pesquisa e operações."
+      },
+      "insiderReviewerQueue": {
+        "title": "Só os próprios casos",
+        "description": "A mesma fila, lida como o revisor: só os casos das mesas que ele revisa, com a entidade sinalizada visível e a operação oculta. Regras de linha sobre os e-mails e suas correspondências fazem isso; nada é copiado. A própria lista de observação lhe é recusada."
+      },
+      "insiderAsControlRoom": {
+        "title": "De volta ao control room",
+        "description": "Em seguida, o explorador SQL volta a executar como todos os papéis."
+      },
+      "insiderAudit": {
+        "title": "Cada leitura é registrada",
+        "description": "<strong>ops.queries</strong> registra cada instrução: quem a executou, com qual papel, sobre qual tabela. As leituras do revisor da fila e da lista de observação estão aqui, assim como as suas."
+      },
+      "insiderWhyFlagged": {
+        "title": "Por que foi sinalizada?",
+        "description": "Polly ajuda o revisor humano depois do fato. Sua resposta foi gerada quando a demo foi construída e é mostrada como armazenada."
+      },
+      "insiderOverTheWall": {
+        "title": "O remetente estava do outro lado do muro?",
+        "description": "Quem foi trazido para o outro lado do muro para a operação e, portanto, podia saber dela. O remetente sinalizado não está entre eles."
+      },
+      "insiderDone": {
+        "title": "O que é, e o que não é",
+        "description": "As operações da lista de observação foram confrontadas com os e-mails de saída por nome e por significado, ordenadas para revisão, e a lista nunca foi mostrada ao revisor. É análise de revisão posterior por trás de controles em tempo real, não um substituto da prevenção de perda de dados. Anexos, imagens, texto codificado e canais pessoais ficam de fora. Monitorar funcionários exige transparência e, em alguns lugares, acordo com a comissão de trabalhadores."
       }
     },
     "status": {
@@ -563,6 +623,10 @@
       "quality": {
         "title": "Dados em que você pode confiar",
         "summary": "O fluxo de vendas de uma rede de lojas, refinado de bronze a prata e ouro por visões materializadas verificadas: basta depositar um lote, e um lote que falha uma verificação nunca chega à prata."
+      },
+      "insider": {
+        "title": "Revisão de informação privilegiada",
+        "summary": "O e-mail de saída de um banco confrontado com sua lista de observação de operações em andamento e verificado para dados de clientes, ordenado em uma única fila de revisão que um revisor de primeiro nível lê sem nunca ver a lista."
       }
     }
   }

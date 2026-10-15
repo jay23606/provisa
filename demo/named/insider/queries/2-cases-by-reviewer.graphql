@@ -1,0 +1,12 @@
+# How many cases each first-level reviewer has, and the highest score among them.
+query CasesByReviewer {
+  b__viewReviewQueueGroupBy(by: [reviewer], order_by: [{ groupKey: { reviewer: asc } }]) {
+    groupKey
+    aggregate {
+      count
+      max {
+        score
+      }
+    }
+  }
+}

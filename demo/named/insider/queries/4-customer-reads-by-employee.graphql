@@ -1,0 +1,12 @@
+# The bank's own log of who read customer records: how many each employee read.
+query CustomerReadsByEmployee {
+  b__customerAccessGroupBy(by: [employeeId], order_by: [{ aggregate: { sum: { recordsRead: desc } } }]) {
+    groupKey
+    aggregate {
+      count
+      sum {
+        recordsRead
+      }
+    }
+  }
+}
