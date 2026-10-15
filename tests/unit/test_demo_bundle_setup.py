@@ -328,10 +328,12 @@ def test_replicas_that_all_landed_rows_pass(tmp_path):
     builder._refuse_empty_replicas(_seeded(tmp_path, {"nri": 3142, "wildfire": 3144}))
 
 
-def test_the_bundle_job_carries_the_key_a_demo_lands_a_govdata_table_with():
+def test_the_bundle_job_carries_the_keys_a_demo_s_build_uses():
+    """A govdata table landed at the build (REQ-2031) and a tour's Polly answers (REQ-2012)."""
     workflow = yaml.safe_load((_REPO / ".github" / "workflows" / "demo-bundles.yml").read_text())
     assert workflow["jobs"]["bundle"]["env"] == {
-        "ASKAMERICA_API_KEY": "${{ secrets.ASKAMERICA_API_KEY }}"
+        "ASKAMERICA_API_KEY": "${{ secrets.ASKAMERICA_API_KEY }}",
+        "OPENROUTER_API_KEY": "${{ secrets.OPENROUTER_API_KEY }}",
     }
 
 
