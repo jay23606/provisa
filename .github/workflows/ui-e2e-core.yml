@@ -24,19 +24,7 @@ name: UI e2e (core lane)
 # every push to main.
 
 on:
-  push:
-    branches: [main, "release/**"]
-    tags: ["v*"]
-    # Every push to main runs this lane alongside the integration suite, filtered as that suite is
-    # (no run for a push of only the website, the docs or markdown), and a release is cut only
-    # from a main commit every UI e2e lane passed (release-cut.yml). Tag pushes ignore paths.
-    paths:
-      - "**"
-      - "!site/**"
-      - "!docs/**"
-      - "!**/*.md"
-      - "!.github/workflows/docs.yml"
-      - "!scripts/gen-site-*.mjs"
+  # During alpha the full suites run only on request (maintainer 2026-10-15): dispatch only.
   workflow_dispatch:
     # A retest of named specs: each a file or file:line under provisa-ui (e2e/x.spec.ts,
     # e2e/x.spec.ts:42), space-separated. The lane's provisioning runs as on a full run; Playwright

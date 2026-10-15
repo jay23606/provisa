@@ -221,14 +221,22 @@ def test_the_release_body_is_the_tags_notes_page():
 _UI_LANES = ("ui-e2e-core.yml", "ui-e2e-trino.yml", "ui-e2e-swap-amd64.yml")
 
 
-def test_every_ui_e2e_lane_runs_on_a_push_to_main():
-    # The maintainer's rule: the three UI e2e lanes run on every push to main, as the
-    # integration suite does, so the commit a release is cut from has a run of each.
-    suite = _on(_load("integration-suite.yml"))["push"]["paths"]
+def test_every_ui_e2e_lane_runs_only_on_request():
+    # During alpha the full suites run only when asked for (maintainer 2026-10-15): no push of a
+    # branch or a tag starts a UI e2e lane; each is dispatched.
     for name in _UI_LANES:
-        push = _on(_load(name))["push"]
-        assert "main" in push["branches"], name
-        assert push["paths"] == [p for p in suite if p != "docs/metadata-export.md"], name
+        on = _on(_load(name))
+        assert "push" not in on, name
+        assert "workflow_dispatch" in on, name
+
+
+def test_the_ui_gate_is_skipped_by_default_during_alpha():
+    ui_gate = _on(_load("release-cut.yml"))["workflow_dispatch"]["inputs"]["ui_gate"]
+    assert ui_gate["default"] == "skip"
+    assert ui_gate["options"] == ["skip", "enforce", "waived"]
+    runs = [step.get("run", "") for step in _steps()]
+    gate = runs[next(i for i, r in enumerate(runs) if "gh run list" in r)]
+    assert gate.index('if [ "$UI_GATE" = "skip" ]; then') < gate.index("for workflow in ")
 
 
 def test_a_cut_is_refused_by_name_unless_every_ui_e2e_lane_is_green_on_its_commit():
@@ -238,7 +246,8 @@ def test_a_cut_is_refused_by_name_unless_every_ui_e2e_lane_is_green_on_its_commi
     script = runs[gate]
     assert script.startswith("set -euo pipefail")
     assert "for workflow in " + " ".join(_UI_LANES) + "; do" in script
-    assert "--branch main --event push" in script and '--commit "$GITHUB_SHA"' in script
+    # Enforced, a dispatched run of the lane on the commit counts: no push starts one in alpha.
+    assert "--event push" not in script and '--commit "$GITHUB_SHA"' in script
     assert '"${run#completed success }" = "$run"' in script
     assert 'echo "::error::$workflow is not green on $GITHUB_SHA: $run"' in script
     assert 'exit "$refused"' in script
