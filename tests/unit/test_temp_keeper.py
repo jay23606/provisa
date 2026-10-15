@@ -49,6 +49,18 @@ async def _recorded(db) -> dict[str, tuple[str, datetime]]:
 
 
 @pytest.fixture
+def state_db(control_plane):
+    """The org's STATE handle, as the server binds tenant_db: it refuses a model table by name,
+    so a sweep that read the record through the wrong handle fails here as it did live."""
+    from provisa.core.database import Database
+    from provisa.core.environments import org_schema
+
+    return Database(
+        control_plane.engine(), "state", search_path=org_schema("default"), holds="state"
+    )
+
+
+@pytest.fixture
 def dropped(monkeypatch):
     dropped: list[str] = []
 
@@ -61,8 +73,8 @@ def dropped(monkeypatch):
     return dropped
 
 
-async def test_a_sessions_schema_is_recorded_renewed_and_forgotten(control_plane, dropped):
-    db = control_plane.org()
+async def test_a_sessions_schema_is_recorded_renewed_and_forgotten(state_db, dropped):
+    db = state_db
     state = _state(db)
     session = TempSession()
     await temp_keeper.note_stored(state, session, "org_default_replicas__tmp_a")
@@ -78,8 +90,8 @@ async def test_a_sessions_schema_is_recorded_renewed_and_forgotten(control_plane
     assert await temp_keeper.beat(state, later) == 0
 
 
-async def test_a_gone_sessions_schema_is_dropped_and_a_live_ones_kept(control_plane, dropped):
-    db = control_plane.org()
+async def test_a_gone_sessions_schema_is_dropped_and_a_live_ones_kept(state_db, dropped):
+    db = state_db
     state = _state(db)
     live, gone = TempSession(), TempSession()
     await temp_keeper.note_stored(state, live, "org_default_replicas__tmp_live")

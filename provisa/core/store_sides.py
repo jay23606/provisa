@@ -80,6 +80,8 @@ STATE: frozenset[str] = frozenset(
         "node_freshness_state",
         "source_catalog_cache",
         "file_source_mtimes",
+        # REQ-1926: the schemas this region's sessions hold temporary tables in, in its own store.
+        "session_temp_schemas",
     }
 )
 
