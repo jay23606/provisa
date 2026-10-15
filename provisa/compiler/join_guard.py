@@ -619,7 +619,11 @@ def _unrelated_in(
                     if key in computed:
                         edges.add(frozenset({left_one, right_one}))
                         continue
-            other_matching(touching)
+            # Judged within each choice of union branch: a condition on a union's output touches
+            # one instance per branch, and the branches are alternatives, never matched together.
+            beyond = touching - reach
+            for alt in own:
+                other_matching((touching & alt) | beyond)
         # A column of the statement around it: a correlated subquery is combined with the
         # instance it reaches out to.
         for column in _own_columns(scope):
