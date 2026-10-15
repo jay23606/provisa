@@ -23,7 +23,7 @@ from tests.role_state import RoleState
 
 def _state_with_table(**table_info_kwargs):
     tinfo = SimpleNamespace(
-        domain_id="sales", description="Order records", columns=[], **table_info_kwargs
+        table_id=1, domain_id="sales", description="Order records", columns=[], **table_info_kwargs
     )
     ctx = SimpleNamespace(table_map={"orders": tinfo})
     # A model with no tag assigned (REQ-1415).
