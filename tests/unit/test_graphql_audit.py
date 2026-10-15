@@ -180,6 +180,19 @@ def test_a_refused_request_is_audited_with_its_status(audited, monkeypatch):
     assert [(r["status_code"], r["table_ids"]) for r in audited.rows()] == [(403, [7, 9])]
 
 
+def test_a_vector_model_error_is_audited_with_the_400_it_answers(audited, monkeypatch):
+    from provisa.api.data import endpoint
+    from provisa.vector.registry import VectorModelError
+
+    async def _refuse(*args, **kwargs):
+        raise VectorModelError("Vector model 'mini' is not registered (allowlist).")
+
+    monkeypatch.setattr(endpoint, "_handle_query", _refuse)
+    with pytest.raises(VectorModelError):
+        audited.call(_QUERY)
+    assert [r["status_code"] for r in audited.rows()] == [400]
+
+
 def test_a_normalized_read_is_audited(audited, monkeypatch):
     from provisa.api.data import endpoint
 

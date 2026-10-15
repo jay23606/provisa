@@ -211,6 +211,16 @@ async def _handle_normalized(document, ctx, state, variables, role_id):
     return JSONResponse({"normalized": manifest})
 
 
+def answered_status(exc: BaseException) -> int:
+    """The HTTP status the client is answered for ``exc`` raised out of the route: its own, else
+    the app handler's 400 for a vector model it cannot use (app.py), else the catch-all's 500."""
+    from provisa.vector.registry import VectorModelError
+
+    if isinstance(exc, VectorModelError):
+        return 400
+    return getattr(exc, "status_code", 500)
+
+
 @router.post("/graphql")
 async def graphql_endpoint(  # REQ-001, REQ-002, REQ-043, REQ-047, REQ-049, REQ-288, REQ-289, REQ-290, REQ-291, REQ-300
     raw_request: Request,
@@ -483,7 +493,7 @@ async def graphql_endpoint(  # REQ-001, REQ-002, REQ-043, REQ-047, REQ-049, REQ-
                 role_id,
                 request.query,
                 ctx,
-                getattr(exc, "status_code", 500),
+                answered_status(exc),
                 _audit_started,
                 _audit_outcome,
             )
