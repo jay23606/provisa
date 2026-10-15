@@ -37,6 +37,9 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: ${REVIEWS_MONGO_ADMIN_PASSWORD:-reviews-admin}
+    # Sized for the cloud node (8 GB, every published demo's stores at once): WiredTiger's cache
+    # is capped at a quarter gigabyte.
+    command: ["mongod", "--wiredTigerCacheSizeGB", "0.25"]
     ports:
       - "127.0.0.1:${REVIEWS_MONGO_PORT-28617}:27017"
     volumes:
@@ -89,6 +92,8 @@ services:
     environment:
       NEO4J_AUTH: none
       NEO4J_server_memory_heap_max__size: 512m
+      # Sized for the cloud node, as MongoDB's cache is.
+      NEO4J_server_memory_pagecache_size: 256m
       NEO4J_dbms_databases_default__to__read__only: "true"
     ports:
       - "127.0.0.1:${REVIEWS_NEO4J_HTTP_PORT-28674}:7474"
