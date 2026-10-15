@@ -171,10 +171,16 @@ export function OpenApiPage() {
             | HTMLTextAreaElement
             | null;
           if (!input) return;
+          // The value setter of the element's own kind, from the docs frame's own window: a
+          // table's parameters are one JSON object, typed in a textarea, which the input setter
+          // refuses ("Illegal invocation").
+          const view = (input.ownerDocument.defaultView ?? window) as typeof window;
           const setter = Object.getOwnPropertyDescriptor(
             input.tagName === "SELECT"
-              ? window.HTMLSelectElement.prototype
-              : window.HTMLInputElement.prototype,
+              ? view.HTMLSelectElement.prototype
+              : input.tagName === "TEXTAREA"
+                ? view.HTMLTextAreaElement.prototype
+                : view.HTMLInputElement.prototype,
             "value",
           )?.set;
           setter?.call(input, value);
