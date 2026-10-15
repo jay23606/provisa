@@ -114,3 +114,25 @@ def bind_principal_session_vars(state: Any, identity: Any, role_id: str | None) 
 
     attributes, _held = principal_of(state, identity)
     set_session_vars(principal_session_vars(identity.user_id, attributes, role_id))
+
+
+#: The claim type a regional node's own region is carried as, on its service calls.
+REGION_CLAIM = "region"
+
+
+def service_acting_role(state: Any, role_id: str) -> str:
+    """The role a service call this node makes on its own behalf acts as (REQ-2057): ``role_id``
+    with the node's region pseudo-role -- ``region`` and ``region__<node region>`` -- in its set,
+    so a grant to the region reaches the node's own work (a trigger run). A node with no region
+    acts as ``role_id`` alone. Never for a user's request: a user's region never comes from the
+    node."""
+    from provisa.core import process_region
+    from provisa.core.regions import DEFAULT_REGION
+    from provisa.security.meta_role import ensure_meta_role
+
+    node_region = process_region.region()
+    if node_region == DEFAULT_REGION:
+        return role_id
+    return ensure_meta_role(
+        state, [role_id], (REGION_CLAIM, sub_role_id(REGION_CLAIM, node_region))
+    )

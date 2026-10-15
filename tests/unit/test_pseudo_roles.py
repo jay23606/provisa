@@ -195,3 +195,57 @@ class TestTheRequest:
         )
         assert resp.status_code == 403
         assert "region__us" in resp.json()["detail"]
+
+
+class TestTheNodesOwnWork:
+    """A service call a regional node makes on its own behalf carries the node's region
+    pseudo-role; a user's request never takes its region from the node (REQ-2057)."""
+
+    def test_on_an_eu_node_a_service_call_acts_with_region__eu(self, monkeypatch):
+        from provisa.auth.pseudo_roles import service_acting_role
+        from provisa.core import process_region
+
+        built: list = []
+        monkeypatch.setattr(process_region, "region", lambda: "eu")
+        monkeypatch.setattr(
+            meta_role,
+            "ensure_meta_role",
+            lambda _s, members, quals=(): built.append((members, quals)) or "meta:ops+region",
+        )
+        assert service_acting_role(None, "ops") == "meta:ops+region"
+        assert built == [(["ops"], ("region", "region__eu"))]
+
+    def test_on_a_node_with_no_region_it_acts_as_its_role_alone(self, monkeypatch):
+        from provisa.auth.pseudo_roles import service_acting_role
+        from provisa.core import process_region
+        from provisa.core.regions import DEFAULT_REGION
+
+        monkeypatch.setattr(process_region, "region", lambda: DEFAULT_REGION)
+        monkeypatch.setattr(
+            meta_role, "ensure_meta_role", lambda *_a: pytest.fail("no region to carry")
+        )
+        assert service_acting_role(None, "ops") == "ops"
+
+    async def test_a_trigger_command_runs_as_the_role_with_the_nodes_region(self, monkeypatch):
+        from provisa.scheduler import trigger_runs
+
+        ran: list[str] = []
+
+        async def _invoke(_name, _args, _state, role):
+            ran.append(role)
+
+        monkeypatch.setattr("provisa.api.data.action_exec.invoke_command", _invoke)
+        monkeypatch.setattr(
+            "provisa.auth.pseudo_roles.service_acting_role", lambda _s, role: f"{role}+region__eu"
+        )
+        state = SimpleNamespace(tracked_functions={"tidy": {"arguments": []}})
+        await trigger_runs._run_command({"command": "tidy", "role": "ops"}, {}, state)
+        assert ran == ["ops+region__eu"]
+
+    def test_a_users_request_takes_no_region_from_the_node(self, monkeypatch, client):
+        from provisa.core import process_region
+
+        monkeypatch.setattr(process_region, "region", lambda: "us")
+        data = client.get("/test", headers={"Authorization": "Bearer t"}).json()
+        # The org's record says eu; the node being us adds nothing.
+        assert data["pseudo"] == {"region": "", "region__eu": "region"}
