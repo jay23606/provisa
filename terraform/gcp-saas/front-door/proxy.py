@@ -74,6 +74,11 @@ _state_lock = threading.Lock()
 _last_activity = time.monotonic()
 _active_conns = 0
 _last_start_call = 0.0
+# When this proxy last STARTED a stopped coordinator (monotonic), as opposed to merely being asked
+# to. A backend that is not answering inside the boot grace after it is being woken from idle; one
+# that is not answering otherwise was started or restarted by someone else -- a deploy, an upgrade's
+# first launch, an operator's reset -- and the page says it is being updated.
+_last_woke = float("-inf")
 _status_cache = ("", 0.0)
 _health_cache: dict[int, tuple[bool, float]] = {}
 
@@ -130,7 +135,7 @@ def coordinator_uptime_seconds() -> float:
 
 
 def trigger_wake() -> None:
-    global _last_start_call
+    global _last_start_call, _last_woke
     with _state_lock:
         if time.monotonic() - _last_start_call < START_DEBOUNCE_SECONDS:
             return
@@ -140,10 +145,16 @@ def trigger_wake() -> None:
         if status in ("TERMINATED", "STOPPED", "SUSPENDED"):
             log.info("waking %s (status=%s)", INSTANCE, status)
             _compute_api("POST", f"instances/{INSTANCE}/start")
+            _last_woke = time.monotonic()
         else:
             log.info("wake requested but %s is %s; not starting", INSTANCE, status)
     except urllib.error.URLError as exc:
         log.error("wake failed: %s", exc)
+
+
+def waking_from_idle() -> bool:
+    """Whether the coordinator is down because this proxy is waking it from idle (see _last_woke)."""
+    return time.monotonic() - _last_woke < BOOT_GRACE_SECONDS
 
 
 def _touch() -> None:
@@ -275,6 +286,18 @@ def _splice(client: socket.socket, backend: socket.socket, activity: bool) -> No
                 pass
 
 
+#: What the page says: woken from idle, or being updated (an upgrade, a deploy, a restart).
+WAKING_TEXT = (
+    "Waking your instance",
+    "The environment scaled to zero while idle. It is starting now and will be ready in about two "
+    "minutes. This page refreshes automatically.",
+)
+UPDATING_TEXT = (
+    "Updating your instance",
+    "The environment is being updated or restarted. It will be back shortly. This page refreshes "
+    "automatically.",
+)
+
 WAKE_HTML = """\
 <!doctype html><html><head><title>Provisa &mdash; waking up</title>
 <meta http-equiv="refresh" content="8">
@@ -300,8 +323,8 @@ p{margin:0;color:#9aa3b5;font-size:.9rem;line-height:1.5}
 </svg>
 <div class="word">PROVISA</div>
 </div>
-<h2>Waking your instance</h2>
-<p>The environment scaled to zero while idle. It is starting now and will be ready in about two minutes. This page refreshes automatically.</p>
+<h2>__HEADING__</h2>
+<p>__MESSAGE__</p>
 </div>
 <script>
 (function(){
@@ -428,16 +451,28 @@ def _serve_wake_response(client: socket.socket, port: int) -> None:
         tls = ctx.wrap_socket(client, server_side=True)
         tls.settimeout(10)
         request = tls.recv(SPLICE_BUF)
+        waking = waking_from_idle()
         if PORTS[port]["wake_style"] == "html" and _wants_html(request):
-            body = WAKE_HTML.encode()
+            heading, message = WAKING_TEXT if waking else UPDATING_TEXT
+            body = (
+                WAKE_HTML.replace("__HEADING__", heading).replace("__MESSAGE__", message).encode()
+            )
             ctype = "text/html; charset=utf-8"
         else:
             # REQ-1350 error shape: `code` is what the UI's catalog translates, `detail` is the
             # English sentence it falls back to when the key is absent.
             body = json.dumps(
                 {
-                    "detail": "The environment is starting. It will be ready in about two minutes.",
-                    "code": "front_door.coordinator_waking",
+                    "detail": (
+                        "The environment is starting. It will be ready in about two minutes."
+                        if waking
+                        else "The environment is being updated. It will be back shortly."
+                    ),
+                    "code": (
+                        "front_door.coordinator_waking"
+                        if waking
+                        else "front_door.coordinator_updating"
+                    ),
                     "params": {"retry_after_seconds": 120},
                     "retry_after_seconds": 120,
                 }

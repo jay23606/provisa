@@ -143,7 +143,8 @@
       "in_use": "{{env}} はまだ {{count}} 件から参照されています。それぞれを削除または変更してから、もう一度削除してください。"
     },
     "front_door": {
-      "coordinator_waking": "環境を起動しています。約 2 分で準備が整います。"
+      "coordinator_waking": "環境を起動しています。約 2 分で準備が整います。",
+      "coordinator_updating": "環境を更新しています。まもなく利用できるようになります。"
     },
     "functions": {
       "approval_denied": "'{{name}}' の承認が拒否されました: {{reason}}",

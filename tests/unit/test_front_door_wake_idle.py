@@ -337,6 +337,74 @@ def test_a_splice_from_an_admitted_client_resets_the_idle_clock(proxy, monkeypat
     assert proxy._last_activity == 100_000.0
 
 
+def test_a_coordinator_this_proxy_woke_is_waking_from_idle(proxy, monkeypatch):
+    _clock(monkeypatch, proxy, 1000.0)
+    proxy.set_status("TERMINATED")
+    proxy.trigger_wake()
+    _clock(monkeypatch, proxy, 1000.0 + proxy.BOOT_GRACE_SECONDS - 1)
+    assert proxy.waking_from_idle() is True
+
+
+def test_a_coordinator_started_elsewhere_is_being_updated(proxy, monkeypatch):
+    """A deploy, an upgrade's first launch or an operator's reset restarts a box this proxy never
+    started: the page says it is being updated, not that it scaled to zero while idle."""
+    _clock(monkeypatch, proxy, 1000.0)
+    proxy.set_status("RUNNING")
+    proxy.trigger_wake()  # asked to wake, but the box is already running: no start is issued
+    assert proxy.waking_from_idle() is False
+
+
+def test_a_wake_long_past_its_boot_grace_no_longer_counts(proxy, monkeypatch):
+    _clock(monkeypatch, proxy, 1000.0)
+    proxy.set_status("TERMINATED")
+    proxy.trigger_wake()
+    _clock(monkeypatch, proxy, 1000.0 + proxy.BOOT_GRACE_SECONDS + 1)
+    assert proxy.waking_from_idle() is False
+
+
+@pytest.mark.parametrize(
+    "waking,heading,code",
+    [
+        (True, "Waking your instance", "front_door.coordinator_waking"),
+        (False, "Updating your instance", "front_door.coordinator_updating"),
+    ],
+)
+def test_the_page_and_the_api_answer_say_which(proxy, monkeypatch, waking, heading, code):
+    monkeypatch.setattr(proxy, "waking_from_idle", lambda: waking)
+    html = proxy.WAKE_HTML.replace(
+        "__HEADING__", (proxy.WAKING_TEXT if waking else proxy.UPDATING_TEXT)[0]
+    )
+    assert heading in html and "__HEADING__" not in html
+
+    sent: list[bytes] = []
+
+    class _Tls:
+        def settimeout(self, _t):
+            pass
+
+        def recv(self, _n):
+            return b"GET /x HTTP/1.1\r\nAccept: application/json\r\n\r\n"
+
+        def sendall(self, data):
+            sent.append(data)
+
+        def close(self):
+            pass
+
+    class _Ctx:
+        def load_cert_chain(self, *_a):
+            pass
+
+        def wrap_socket(self, *_a, **_k):
+            return _Tls()
+
+    monkeypatch.setattr(proxy.ssl, "SSLContext", lambda *_a: _Ctx())
+    monkeypatch.setattr(proxy, "_drain", lambda _tls: None)
+    proxy._serve_wake_response(object(), 443)
+    body = json.loads(sent[0].split(b"\r\n\r\n", 1)[1])
+    assert body["code"] == code
+
+
 class _FakeClient:
     def __init__(self):
         self.closed = False
@@ -666,6 +734,7 @@ def _wake_answer(
 
 
 def test_a_navigation_to_a_waking_instance_gets_the_waking_page(proxy, tmp_path, monkeypatch):
+    monkeypatch.setattr(proxy, "waking_from_idle", lambda: True)  # this proxy woke it
     head, body = _wake_answer(
         proxy,
         tmp_path,
@@ -679,6 +748,7 @@ def test_a_navigation_to_a_waking_instance_gets_the_waking_page(proxy, tmp_path,
 
 
 def test_an_xhr_to_a_waking_instance_gets_a_translatable_json_error(proxy, tmp_path, monkeypatch):
+    monkeypatch.setattr(proxy, "waking_from_idle", lambda: True)  # this proxy woke it
     head, body = _wake_answer(
         proxy,
         tmp_path,
@@ -699,6 +769,7 @@ def test_an_xhr_to_a_waking_instance_gets_a_translatable_json_error(proxy, tmp_p
 
 def test_a_graphql_post_to_a_waking_instance_gets_the_json_error(proxy, tmp_path, monkeypatch):
     """GraphQL is a POST whose body lands in a segment after the headers."""
+    monkeypatch.setattr(proxy, "waking_from_idle", lambda: True)  # this proxy woke it
     payload = b'{"query":"{ tables { id } }"}'
     head, body = _wake_answer(
         proxy,

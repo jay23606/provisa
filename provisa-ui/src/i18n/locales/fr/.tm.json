@@ -6396,5 +6396,6 @@
   "fr/tour.json::tour.steps.insiderOverTheWall.title": "Was the sender over the wall?",
   "fr/tour.json::tour.steps.insiderOverTheWall.description": "Who was brought over the wall for the deal, and so who could have known of it. The flagged sender is not among them.",
   "fr/tour.json::tour.steps.insiderDone.title": "What this is, and is not",
-  "fr/tour.json::tour.steps.insiderDone.description": "Watch-list deals were matched against outbound mail by name and by meaning, ranked for review, and the list itself was never shown to the reviewer. This is post-review analytics behind real-time controls, not a replacement for data-loss prevention. Attachments, images, encoded text and personal channels are outside it. Monitoring employees needs disclosure and, in places, a works-council agreement."
+  "fr/tour.json::tour.steps.insiderDone.description": "Watch-list deals were matched against outbound mail by name and by meaning, ranked for review, and the list itself was never shown to the reviewer. This is post-review analytics behind real-time controls, not a replacement for data-loss prevention. Attachments, images, encoded text and personal channels are outside it. Monitoring employees needs disclosure and, in places, a works-council agreement.",
+  "fr/serverErrors.json::serverErrors.front_door.coordinator_updating": "The environment is being updated. It will be back shortly."
 }

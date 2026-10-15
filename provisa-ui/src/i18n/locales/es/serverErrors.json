@@ -143,7 +143,8 @@
       "in_use": "{{env}} sigue siendo referido por {{count}} elemento(s). Quite o cambie cada uno y vuelva a eliminarlo."
     },
     "front_door": {
-      "coordinator_waking": "El entorno se está iniciando. Estará listo en unos dos minutos."
+      "coordinator_waking": "El entorno se está iniciando. Estará listo en unos dos minutos.",
+      "coordinator_updating": "El entorno se está actualizando. Volverá a estar disponible en breve."
     },
     "functions": {
       "approval_denied": "Aprobación denegada para '{{name}}': {{reason}}",

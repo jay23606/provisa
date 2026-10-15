@@ -143,7 +143,8 @@
       "in_use": "{{env}} is still referred to by {{count}} item(s). Remove or change each one, then delete it again."
     },
     "front_door": {
-      "coordinator_waking": "The environment is starting. It will be ready in about two minutes."
+      "coordinator_waking": "The environment is starting. It will be ready in about two minutes.",
+      "coordinator_updating": "The environment is being updated. It will be back shortly."
     },
     "functions": {
       "approval_denied": "Approval denied for '{{name}}': {{reason}}",
