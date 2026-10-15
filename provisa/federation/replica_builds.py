@@ -261,6 +261,12 @@ async def build_replica(state: Any, key: ReplicaKey, progress: Progress) -> Buil
     # REQ-1695: the build dials sources, so the vault of the org they are registered in is
     # bound here, where the build runs.
     async with org_vault(state, sources):
+        import asyncio
+
+        from provisa.federation.pgwire_replica import serve_for_build
+
+        # A source whose server takes minutes to start is attached only once it serves.
+        await asyncio.to_thread(serve_for_build, source)
         reader = loader.replica_source(state, source, table, args.columns)
         engine_party = backend.replica_engine(state, source, table, address=address, args=args)
         target = backend.replica_target(state, address=address, args=args, engine=engine_party)

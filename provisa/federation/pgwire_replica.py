@@ -1398,6 +1398,19 @@ def require_serving(source_id: str, source_type: str) -> None:
         replica.require_serving()
 
 
+def serve_for_build(source: Any) -> None:
+    """Return once ``source``'s server serves, for a replica build that reads the source through
+    the engine. A type whose server takes minutes to start (``STARTED_WHEN_SAVED``) is skipped by
+    the engine's attach until it serves, so a build that read it sooner named a catalog nobody
+    attached ("Catalog ... does not exist"). The build runs in the background and has no useful
+    way to proceed without the server, so it waits -- within the bound of one replica read
+    (``LAND_FETCH_SECONDS``) -- and the engine's next attach pass attaches it. Any other type is
+    started and waited for by the attach itself."""
+    if _source_type(source) not in STARTED_WHEN_SAVED:
+        return
+    ensure_endpoint(source, timeout=LAND_FETCH_SECONDS)
+
+
 def server_start_errors() -> tuple[type[BaseException], ...]:
     """What starting a source's server, or waiting for it, raises when the source cannot be
     read through it: the server is not serving, its bundle is not available for this host, its

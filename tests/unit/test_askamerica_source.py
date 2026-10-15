@@ -1667,3 +1667,24 @@ def test_a_server_listens_on_loopback_unless_the_deployment_names_an_address(tmp
     monkeypatch.setenv(pr.BIND_HOST_ENV, "172.17.0.1")
     listed = command()
     assert listed[listed.index("--host") + 1] == "172.17.0.1"
+
+
+def test_a_replica_build_waits_for_a_server_that_takes_minutes_to_start(monkeypatch):
+    # The engine's attach skips an AskAmerica source until its server serves, so a build that read
+    # it sooner named a catalog nobody attached ("Catalog \"govdata\" does not exist"). The build
+    # waits for the server, within the bound of one replica read.
+    waited: list[tuple[str, float | None]] = []
+    monkeypatch.setattr(
+        pr, "ensure_endpoint", lambda source, *, timeout=None: waited.append((source.id, timeout))
+    )
+    pr.serve_for_build(SimpleNamespace(id="govdata", type=SourceType.govdata))
+    assert waited == [("govdata", pr.LAND_FETCH_SECONDS)]
+
+
+def test_a_replica_build_leaves_any_other_server_to_the_attach(monkeypatch):
+    monkeypatch.setattr(
+        pr,
+        "ensure_endpoint",
+        lambda *a, **k: pytest.fail("only a slow-starting server is waited for"),
+    )
+    pr.serve_for_build(SimpleNamespace(id="sp", type=SourceType.sharepoint))
