@@ -185,6 +185,18 @@ export function LoadRead({ table, source }: { table: RegisteredTable; source?: S
                 : null,
           },
           ...pagingFields(t, table),
+          {
+            label: t("landingScope.readFilter"),
+            value: table.landingFilter ? <code>{table.landingFilter}</code> : null,
+          },
+          ...(table.arguments && Object.keys(table.arguments).length > 0
+            ? [
+                {
+                  label: t("landingScope.readArguments"),
+                  value: <code>{JSON.stringify(table.arguments)}</code>,
+                },
+              ]
+            : []),
           // A window the table does not set is its source's: said as that, not as none.
           ...(loadProtected
             ? table.offPeakWindow

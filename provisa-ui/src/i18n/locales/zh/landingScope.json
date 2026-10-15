@@ -1,0 +1,13 @@
+{
+  "landingScope": {
+    "filterLabel": "落地筛选条件",
+    "filterHelp": "针对此表自身列的 SQL 条件。其副本只保留满足该条件的行；留空则加载所有行。",
+    "filterPlaceholder": "cve_id IN ('CVE-2021-44228')",
+    "argumentsLabel": "固定参数",
+    "argumentsHelp": "API 按名称接受的参数，以 JSON 对象形式在每次读取此表时发送。所有参数均固定的表将整体加载。",
+    "argumentsNotJson": "不是有效的 JSON",
+    "argumentsNotObject": "请提供由参数名称和值组成的 JSON 对象",
+    "readFilter": "落地筛选条件",
+    "readArguments": "固定参数"
+  }
+}

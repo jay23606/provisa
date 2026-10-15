@@ -1,0 +1,13 @@
+{
+  "landingScope": {
+    "filterLabel": "Landing filter",
+    "filterHelp": "A SQL condition on this table's own columns. Its replica holds only the rows that pass it; leave empty to land every row.",
+    "filterPlaceholder": "cve_id IN ('CVE-2021-44228')",
+    "argumentsLabel": "Fixed arguments",
+    "argumentsHelp": "Arguments the API takes by name, sent on every read of this table, as a JSON object. A table whose arguments are all fixed lands whole.",
+    "argumentsNotJson": "Not valid JSON",
+    "argumentsNotObject": "Give a JSON object of argument names and values",
+    "readFilter": "Landing filter",
+    "readArguments": "Fixed arguments"
+  }
+}

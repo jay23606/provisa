@@ -30,11 +30,9 @@ def test_mcp_unique_constraints_unknown_table_returns_empty():
     assert _unique_constraints(state, "analyst", "sales", "missing") == []
 
 
-def test_table_model_from_input_maps_unique_constraints():
-    from provisa.api.admin._live_mappers import table_model_from_input
-
-    uc = SimpleNamespace(name="uq", columns=["a", "b"])
-    inp = SimpleNamespace(
+def _input(**over):
+    """A TableInput as the admin form sends it, every field set; ``over`` replaces some."""
+    fields = dict(
         source_id="s",
         domain_id="d",
         schema_name="public",
@@ -47,6 +45,8 @@ def test_table_model_from_input_maps_unique_constraints():
         load_protected=None,  # REQ-1141
         off_peak_window=None,  # REQ-1141
         off_peak_tz=None,  # REQ-1141
+        arguments=None,  # REQ-2061
+        landing_filter=None,  # REQ-2062
         view_sql=None,
         dq_contract=None,  # REQ-1443
         profiler_source_id=None,  # REQ-1934
@@ -74,9 +74,28 @@ def test_table_model_from_input_maps_unique_constraints():
         modeling_role=None,  # REQ-1320
         modeling_history=None,  # REQ-1320
         live=None,
-        unique_constraints=[uc],
+        unique_constraints=[],
     )
+    fields.update(over)
+    return SimpleNamespace(**fields)
+
+
+def test_table_model_from_input_maps_unique_constraints():
+    from provisa.api.admin._live_mappers import table_model_from_input
+
+    uc = SimpleNamespace(name="uq", columns=["a", "b"])
+    inp = _input(unique_constraints=[uc])
     model = table_model_from_input(inp, columns=[], presets=[], alias="t")
     assert len(model.unique_constraints) == 1
     assert model.unique_constraints[0].name == "uq"
     assert model.unique_constraints[0].columns == ["a", "b"]
+
+
+def test_table_model_from_input_maps_the_landing_scope():  # REQ-2061, REQ-2062
+    from provisa.api.admin._live_mappers import table_model_from_input
+
+    unset = table_model_from_input(_input(), columns=[], presets=[], alias="t")
+    assert (unset.arguments, unset.landing_filter) == ({}, None)
+    inp = _input(arguments={"org": "acme"}, landing_filter="")
+    model = table_model_from_input(inp, columns=[], presets=[], alias="t")
+    assert (model.arguments, model.landing_filter) == ({"org": "acme"}, None)

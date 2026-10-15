@@ -394,6 +394,10 @@ class RegisteredTableType:  # REQ-013, REQ-014, REQ-016, REQ-135
     source_file_column: str | None = None
     # REQ-1954: a ServiceNow table's import set (the staging table its inserts go through).
     import_set: str | None = None
+    # REQ-2061: the arguments its source takes, fixed by name for every read ({} = none).
+    arguments: JsonScalar | None = None
+    # REQ-2062: the predicate over its own columns its replica's rows pass (None = every row).
+    landing_filter: str | None = None
     change_signal: str | None = None  # REQ-929: override source change signal; None = inherit
     probe_query: str | None = None  # REQ-929: source-native freshness probe
     probe_type: str | None = None  # REQ-982: input-probe method; None = resolve per source class
@@ -1068,6 +1072,11 @@ class TableInput:  # REQ-013, REQ-016, REQ-133, REQ-135, REQ-252
     # REQ-1954: a ServiceNow table's import set: the staging table of the transform map its inserts
     # go through. None: its inserts are written to the table directly.
     import_set: str | None = None
+    # REQ-2061: the arguments its source takes, fixed by name for every read. Nullable, default
+    # null: a JSON scalar's `{}` default cannot be printed as a GraphQL default value.
+    arguments: JsonScalar | None = None
+    # REQ-2062: a SQL predicate over the table's own columns, applied when its replica lands.
+    landing_filter: str | None = None
     # REQ-1318: declarative metric-composed view definition; mutually exclusive with view_sql.
     # The server generates (and regenerates on metric change) the view SELECT from this spec.
     view_metrics: ViewMetricsInput | None = None

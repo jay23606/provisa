@@ -6424,5 +6424,14 @@
   "zh/whatsNew.json::whatsNew.features": "Features",
   "zh/whatsNew.json::whatsNew.general": "General",
   "zh/whatsNew.json::whatsNew.released": "Released {{date}}",
-  "zh/whatsNew.json::whatsNew.title": "What's new in {{version}}"
+  "zh/whatsNew.json::whatsNew.title": "What's new in {{version}}",
+  "zh/landingScope.json::landingScope.filterLabel": "Landing filter",
+  "zh/landingScope.json::landingScope.filterHelp": "A SQL condition on this table's own columns. Its replica holds only the rows that pass it; leave empty to land every row.",
+  "zh/landingScope.json::landingScope.filterPlaceholder": "cve_id IN ('CVE-2021-44228')",
+  "zh/landingScope.json::landingScope.argumentsLabel": "Fixed arguments",
+  "zh/landingScope.json::landingScope.argumentsHelp": "Arguments the API takes by name, sent on every read of this table, as a JSON object. A table whose arguments are all fixed lands whole.",
+  "zh/landingScope.json::landingScope.argumentsNotJson": "Not valid JSON",
+  "zh/landingScope.json::landingScope.argumentsNotObject": "Give a JSON object of argument names and values",
+  "zh/landingScope.json::landingScope.readFilter": "Landing filter",
+  "zh/landingScope.json::landingScope.readArguments": "Fixed arguments"
 }

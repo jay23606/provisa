@@ -1,0 +1,13 @@
+{
+  "landingScope": {
+    "filterLabel": "Filtro di caricamento",
+    "filterHelp": "Una condizione SQL sulle colonne proprie di questa tabella. La sua replica contiene solo le righe che la soddisfano; lasciare vuoto per caricare ogni riga.",
+    "filterPlaceholder": "cve_id IN ('CVE-2021-44228')",
+    "argumentsLabel": "Argomenti fissi",
+    "argumentsHelp": "Argomenti che l'API accetta per nome, inviati a ogni lettura di questa tabella, come oggetto JSON. Una tabella con tutti gli argomenti fissi viene caricata per intero.",
+    "argumentsNotJson": "JSON non valido",
+    "argumentsNotObject": "Indicare un oggetto JSON di nomi e valori degli argomenti",
+    "readFilter": "Filtro di caricamento",
+    "readArguments": "Argomenti fissi"
+  }
+}

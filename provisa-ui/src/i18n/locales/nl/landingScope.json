@@ -1,0 +1,13 @@
+{
+  "landingScope": {
+    "filterLabel": "Laadfilter",
+    "filterHelp": "Een SQL-voorwaarde op de eigen kolommen van deze tabel. De replica bevat alleen de rijen die eraan voldoen; laat leeg om elke rij te laden.",
+    "filterPlaceholder": "cve_id IN ('CVE-2021-44228')",
+    "argumentsLabel": "Vaste argumenten",
+    "argumentsHelp": "Argumenten die de API op naam accepteert, meegestuurd bij elke leesactie van deze tabel, als JSON-object. Een tabel waarvan alle argumenten vast zijn, wordt volledig geladen.",
+    "argumentsNotJson": "Geen geldige JSON",
+    "argumentsNotObject": "Geef een JSON-object met argumentnamen en waarden",
+    "readFilter": "Laadfilter",
+    "readArguments": "Vaste argumenten"
+  }
+}
