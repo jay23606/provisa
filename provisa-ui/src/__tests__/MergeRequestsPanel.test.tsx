@@ -35,7 +35,7 @@ function request(id: number, overrides: Partial<MergeRequest> = {}): MergeReques
     source_sha: null,
     seed: false,
     target_env: "prod",
-    state: "open",
+    state: "requested",
     requested_by: "sam",
     requested_at: "2026-08-01T00:00:00Z",
     decided_by: null,
@@ -87,11 +87,36 @@ describe("MergeRequestsPanel", () => {
     expect(screen.queryByTestId("merge-request-reject-7")).toBeNull();
   });
 
-  it("offers no decision on a request that is no longer open", async () => {
+  it("offers a stale request for rejection only", async () => {
+    // REQ-1504: the server refuses to approve a request whose report no longer describes the
+    // change, and still lets it be rejected -- so that is what is offered.
     mockList.mockResolvedValue([request(7, { state: "stale" })]);
     render(<MergeRequestsPanel orgId="acme" canDecide />);
     expect(await screen.findByTestId("merge-request-state-7")).toHaveTextContent("stale");
     expect(screen.queryByTestId("merge-request-approve-7")).toBeNull();
+    expect(screen.getByTestId("merge-request-reject-7")).toBeInTheDocument();
+  });
+
+  it("offers no decision on a request already decided", async () => {
+    mockList.mockResolvedValue([request(7, { state: "applied", decided_by: "lee" })]);
+    render(<MergeRequestsPanel orgId="acme" canDecide />);
+    expect(await screen.findByTestId("merge-request-state-7")).toHaveTextContent("applied");
+    expect(screen.queryByTestId("merge-request-approve-7")).toBeNull();
+    expect(screen.queryByTestId("merge-request-reject-7")).toBeNull();
+  });
+
+  it("counts the paths of a load's report", async () => {
+    // REQ-1496: a load's report lists PATHS where a merge's counts objects.
+    mockList.mockResolvedValue([
+      request(7, {
+        source_env: null,
+        source_ref: "main",
+        source_sha: "0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c",
+        report: { added: ["a.yaml", "b.yaml"], changed: [], removed: ["c.yaml"] } as never,
+      }),
+    ]);
+    render(<MergeRequestsPanel orgId="acme" canDecide />);
+    expect(await screen.findByTestId("merge-request-report-7")).toHaveTextContent("+2 / ~0 / -1");
   });
 
   it("names the branch and the pinned commit when the request is a load", async () => {

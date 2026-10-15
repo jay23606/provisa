@@ -138,6 +138,12 @@
     "mergedOverwriting": "Merge realizado en {{env}}, sobrescribiendo {{count}} objeto(s) cambiado(s) allí.",
     "pulledOverwriting": "Pull de {{env}} desde el remoto, sobrescribiendo {{count}} objeto(s) cambiado(s) aquí desde que estas líneas se separaron:",
     "expiredKept": "caducado, conservado",
-    "expiredKeptHint": "Este entorno ha caducado y se conserva porque algo todavía hace referencia a él ({{reasons}}). Quite esas referencias y se retirará en el próximo barrido."
+    "expiredKeptHint": "Este entorno ha caducado y se conserva porque algo todavía hace referencia a él ({{reasons}}). Quite esas referencias y se retirará en el próximo barrido.",
+    "selectTitle": "Objetos que este merge llevaría",
+    "selectHelp": "Marque objetos para hacer merge solo de ellos. Deje todas las casillas sin marcar para hacer merge del modelo completo.",
+    "pulledIn": "También se llevan, porque la selección los requiere:",
+    "rebuild": "Reconstruir",
+    "rebuilt": "El modelo de {{env}} se confirmó de nuevo en el repositorio.",
+    "rebuildFailed": "{{env}} sigue desviado: el commit no llegó."
   }
 }

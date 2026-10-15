@@ -36,9 +36,8 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select, update
 
-from provisa.core.env_copy import MERGE, copy_model, plan_copy
+from provisa.core.env_merge import merge_model, plan_merge
 from provisa.core.env_deploy import deploy_tree, plan_deploy
-from provisa.core.env_classes import UNBOUND
 from provisa.core.environments import PROD
 from provisa.core.schema_admin import env_merge_requests, environments
 
@@ -107,6 +106,7 @@ async def request_merge(
     requested_by: str,
     message: str = "",
     removals: bool = False,
+    selection: list[str] | None = None,
     retire_source: bool = False,
     retire_remote: bool = False,
 ) -> dict:
@@ -122,8 +122,8 @@ async def request_merge(
     """
     if source_env == target_env:
         raise MergeRequestError(f"an environment cannot be merged into itself ({source_env})")
-    report = await plan_copy(
-        model_db, org_id, source_env, target_env, mode=MERGE, removals=removals
+    report = await plan_merge(
+        model_db, org_id, source_env, target_env, removals=removals, selection=selection
     )
     async with admin_db.acquire() as conn:
         result = await conn.execute_core(
@@ -136,6 +136,8 @@ async def request_merge(
                 message=message,
                 report=report.as_dict(),
                 removals=removals,
+                # REQ-1506: what a scoped merge carries is part of what is approved.
+                selection=report.selection,
                 retire_source=retire_source,
                 retire_remote=retire_remote,
                 state=REQUESTED,
@@ -233,13 +235,13 @@ async def effective_state(model_db: "Database", org_id: str, request: dict) -> s
             seed=bool(request["seed"]),
         )
     else:
-        current = await plan_copy(
+        current = await plan_merge(
             model_db,
             org_id,
             request["source_env"],
             request["target_env"],
-            mode=MERGE,
             removals=bool(request["removals"]),
+            selection=request["selection"],
         )
     return str(request["state"]) if current.as_dict() == request["report"] else STALE
 
@@ -299,14 +301,15 @@ async def decide(
             seed=bool(request["seed"]),
         )
     else:
-        applied = await copy_model(
+        # REQ-1548: a merge lands through the one apply, which carries no connection: a row new
+        # to the target arrives unbound (REQ-1942).
+        applied = await merge_model(
             model_db,
             org_id,
             request["source_env"],
             request["target_env"],
-            mode=MERGE,
             removals=bool(request["removals"]),
-            landing=UNBOUND,  # REQ-1942: a merge copies no connection
+            selection=request["selection"],
         )
     await _set(
         admin_db,

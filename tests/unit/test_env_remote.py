@@ -240,3 +240,41 @@ def _fake_gitlab(monkeypatch, *, namespace_status: int, status: int) -> dict:
 
     _client(monkeypatch, _get, _post)
     return calls
+
+
+class TestAnExistingReviewIsFoundForTheSamePair:
+    """REQ-1551: re-asking for a review returns the OPEN request for the same pair -- the same
+    branch into the same base. A branch open against two bases has two requests, and the one for
+    another base is not where this review is happening."""
+
+    def _github(self, monkeypatch, existing: list[dict]) -> dict:
+        calls: dict = {}
+
+        def _get(url, headers=None, params=None, **_kw):
+            calls["params"] = params
+            return _Resp(200, existing)  # type: ignore[arg-type]
+
+        def _post(url, headers=None, json=None, **_kw):
+            return _Resp(422, {"message": "A pull request already exists"})
+
+        _client(monkeypatch, _get, _post)
+        return calls
+
+    def test_the_lookup_names_the_base_as_well_as_the_branch(self, monkeypatch):
+        calls = self._github(
+            monkeypatch, [{"html_url": "https://github.com/acme/model/pull/9", "number": 9}]
+        )
+        found = env_remote._pr_github(
+            "acme", "model", "tok", head="feature", base="staging", title="t", body="b"
+        )
+        assert calls["params"] == {"state": "open", "head": "acme:feature", "base": "staging"}
+        assert found == {"url": "https://github.com/acme/model/pull/9", "number": 9, "new": False}
+
+    def test_a_refusal_with_no_open_request_for_the_pair_is_reported(self, monkeypatch):
+        # 422 is also what GitHub answers for other reasons; with nothing open for this pair
+        # there is no request to return, and the refusal is what there is to say.
+        self._github(monkeypatch, [])
+        with pytest.raises(env_remote.RemoteError, match="422"):
+            env_remote._pr_github(
+                "acme", "model", "tok", head="feature", base="staging", title="t", body="b"
+            )

@@ -132,10 +132,12 @@ class DeployDelta:
         )
 
     def as_dict(self) -> dict[str, Any]:
+        # REMOVED FIRST (REQ-1496): what a load takes away is what a reader most needs to see
+        # before agreeing to it, so it is named before what the load adds or changes.
         return {
+            "removed": self.removed,
             "added": self.added,
             "changed": self.changed,
-            "removed": self.removed,
             "unchanged": self.unchanged,
         }
 
@@ -150,7 +152,10 @@ def report_touches_connectivity(report: dict[str, Any]) -> bool:
     """
     if "tables" in report:
         return any(table["table"] in CONNECTIVITY for table in report["tables"])
-    paths = (*report["added"], *report["changed"], *report["removed"])
+    # A merge's report carries its paths under ``paths`` and counts beside them; a deploy's
+    # carries the lists themselves.
+    lists = report["paths"] if "paths" in report else report
+    paths = (*lists["added"], *lists["changed"], *lists["removed"])
     return any(table_of(path) in CONNECTIVITY for path in paths)
 
 
@@ -236,12 +241,36 @@ async def _load(
     *,
     apply: bool,
 ) -> DeployReport:
-    from provisa.core.env_conflicts import against_base
-
     schema = org_schema(org_id, env)
     scope = PROJECTED if seed else PROJECTED - SEEDED_AT_CREATION
     incoming = {p: b for p, b in tree.items() if in_scope(p, scope)}
     current = {p: b for p, b in (await project(conn, schema)).items() if in_scope(p, scope)}
+    return await land(conn, org_id, env, incoming, current, ref, seed, base_sha, apply=apply)
+
+
+async def land(
+    conn: "Connection",
+    org_id: str,
+    env: str | None,
+    incoming: dict[str, dict[str, Any]],
+    current: dict[str, dict[str, Any]],
+    ref: str,
+    seed: bool,
+    base_sha: str | None,
+    *,
+    apply: bool,
+) -> DeployReport:
+    """THE ONE WAY A MODEL IS WRITTEN INTO AN ENVIRONMENT (REQ-1548): validate ``incoming`` whole,
+    report what it does to ``current``, and -- when ``apply`` -- make it the environment's model.
+
+    A deploy, an undo, a redo and a pull hand it a commit's tree; a merge hands it the tree the
+    merge produced (:mod:`provisa.core.env_merge`). Both trees are already narrowed to what this
+    apply carries, and ``current`` is this environment's own projection read on this connection.
+    """
+    from provisa.core.env_conflicts import against_base
+
+    schema = org_schema(org_id, env)
+    scope = PROJECTED if seed else PROJECTED - SEEDED_AT_CREATION
 
     # REQ-1556: which of this environment's own work the incoming tree carries away. Asked against
     # the commit the two lines last shared, because ``current`` alone cannot say whether an object

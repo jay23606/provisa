@@ -35,15 +35,20 @@ REPORT = {
     "changed": 2,
     "unchanged": 7,
     "removed": 0,
-    "tables": [
-        {
-            "table": "metrics",
-            "added": ["revenue"],
-            "changed": ["margin", "churn"],
-            "removed": [],
-            "unchanged": 7,
-        }
-    ],
+    "paths": {
+        "added": ["metrics/revenue.yaml"],
+        "changed": ["metrics/margin.yaml", "metrics/churn.yaml"],
+        "removed": [],
+    },
+    "settings": {
+        "table": "org_settings",
+        "added": [],
+        "changed": [],
+        "removed": [],
+        "unchanged": 0,
+    },
+    "selection": None,
+    "pulled_in": [],
     "base": "abc",
     "compared": True,
     "conflicts": [],
@@ -195,12 +200,36 @@ class TestDiffAndMerge:
         assert seen[0][2] == {
             "from_env": "dev",
             "removals": True,
+            "selection": None,
             "dry_run": False,
             "retire_source": False,
             "retire_remote": False,
             "message": "fix margin",
         }
         assert "APPLIED" in capsys.readouterr().out
+
+    def test_a_scoped_merge_names_its_objects_and_what_they_pulled_in(self, api, capsys):
+        # REQ-1506: the selection travels as paths, and the report says what it required.
+        seen, answers = api
+        scoped = {
+            **REPORT,
+            "selection": ["metrics/revenue.yaml"],
+            "pulled_in": ["sales/domain.yaml"],
+        }
+        answers.extend(
+            [
+                {"report": scoped, "applied": False, "requires_approval": False},
+                {"report": scoped, "applied": True, "requires_approval": False},
+            ]
+        )
+        _run("diff", "--org", "acme", "--from", "dev", "--into", "prod", "--select", "metrics/revenue.yaml")  # fmt: skip
+        assert seen[0][1].endswith("&select=metrics%2Frevenue.yaml")
+        _run(
+            "merge", "--org", "acme", "--from", "dev", "--into", "prod", "--message", "m",
+            "--select", "metrics/revenue.yaml",
+        )  # fmt: skip
+        assert seen[1][2]["selection"] == ["metrics/revenue.yaml"]
+        assert "sales/domain.yaml (required by the selection)" in capsys.readouterr().out
 
     def test_json_emits_the_same_report(self, api, capsys):
         _, answers = api
@@ -288,6 +317,16 @@ class TestRevert:
             )
         ]
 
+    def test_a_dry_run_revert_reports_and_applies_nothing(self, api, capsys):
+        # REQ-1496: the removals a revert would perform are named before it is taken.
+        seen, answers = api
+        report = {**self.MOVED["report"], "removed": ["sales/tables/Order.yaml"]}
+        answers.append({"report": report, "applied": False, "requires_approval": False})
+        assert _run("revert", "--org", "acme", "--env", "dev", "--dry-run") == 0
+        assert seen == [("POST", "/admin/orgs/acme/environments/dev/undo?dry_run=true", {})]
+        out = capsys.readouterr().out
+        assert "PLANNED" in out and "R sales/tables/Order.yaml" in out
+
     def test_redo_steps_forward_again(self, api):
         seen, answers = api
         answers.append(self.MOVED)
@@ -325,3 +364,18 @@ class TestTheRemote:
         answers.append(fetched)
         assert _run("fetch", "--org", "acme", "--json") == 0
         assert json.loads(capsys.readouterr().out) == fetched
+
+
+class TestRebuild:
+    def test_a_rebuild_that_cleared_the_drift_succeeds(self, api, capsys):
+        seen, answers = api
+        answers.append({"sha": "a" * 40, "drifted": False})
+        assert _run("rebuild", "--org", "acme", "--env", "dev") == 0
+        assert seen == [("POST", "/admin/orgs/acme/environments/dev/rebuild", {})]
+        assert "aaaaaaaaaaaa" in capsys.readouterr().out
+
+    def test_one_that_did_not_land_exits_non_zero(self, api, capsys):
+        _, answers = api
+        answers.append({"sha": None, "drifted": True})
+        assert _run("rebuild", "--org", "acme", "--env", "dev") == 1
+        assert "still drifted" in capsys.readouterr().err

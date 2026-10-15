@@ -55,15 +55,23 @@ def _row(request_id: int = 7, **over) -> dict:
         "decided_at": None,
         "decision_note": None,
         "applied_at": None,
-        # A merge request stores a CopyReport, which is grouped by the registry it wrote and so
-        # always carries ``tables`` -- REQ-1544 reads it to decide what the apply has to refresh.
-        "report": {"added": 1, "changed": 0, "removed": 0, "tables": []},
+        # A merge request stores a merge report: counts, and the paths behind them -- REQ-1544
+        # reads the paths to decide what the apply has to refresh.
+        "report": {
+            "added": 1,
+            "changed": 0,
+            "removed": 0,
+            "paths": {"added": ["metrics/revenue.yaml"], "changed": [], "removed": []},
+        },
         # REQ-1542: on the row because it is part of what an approver approves. A stored row always
         # carries it -- the column is NOT NULL -- so the double carries it too.
         "retire_source": False,
         # REQ-1549: and whether the retirement reaches the remote. NOT NULL on the row, so the
         # double carries it for the same reason.
         "retire_remote": False,
+        # REQ-1506: null for a merge of the whole model. On the row because it changes what
+        # applying does.
+        "selection": None,
         "message": "ship it",
     }
     row.update(over)
@@ -112,7 +120,7 @@ def wired(monkeypatch):
     monkeypatch.setattr(er, "_guard", _guard)
     monkeypatch.setattr(er, "_known", _known)
 
-    async def _squash(org_id, source, target, actor, message):
+    async def _squash(org_id, source, target, actor, message, *, whole):
         # REQ-1545: the one commit a merge lands on the target's branch. The real one projects the
         # model and commits it; what a router test asserts is that it happened, and from where.
         # REQ-1550: the operator's comment reaches it, which is what the commit subject leads with.
@@ -331,11 +339,11 @@ class TestMergePreview:
             def as_dict(self):
                 return {"added": 2, "changed": 1, "removed": 0}
 
-        async def plan_copy(db, org_id, source, target, *, mode, removals):
-            seen.append((db, org_id, source, target, mode, removals))
+        async def plan_merge(db, org_id, source, target, *, removals, selection):
+            seen.append((db, org_id, source, target, removals, selection))
             return _Report()
 
-        async def copy_model(*_args, **_kwargs):
+        async def merge_model(*_args, **_kwargs):
             raise AssertionError("a preview must never apply anything")
 
         async def is_protected(admin_db, org_id, name, members):
@@ -348,8 +356,8 @@ class TestMergePreview:
         async def _member_count(org_id):
             return 3
 
-        monkeypatch.setattr(er, "plan_copy", plan_copy)
-        monkeypatch.setattr(er, "copy_model", copy_model)
+        monkeypatch.setattr(er, "plan_merge", plan_merge)
+        monkeypatch.setattr(er, "merge_model", merge_model)
         monkeypatch.setattr(er, "_guard_within", _guard_within)
         monkeypatch.setattr(er, "_member_count", _member_count)
         monkeypatch.setattr(env_approvals, "is_protected", is_protected)
@@ -362,8 +370,15 @@ class TestMergePreview:
 
     async def test_it_plans_the_merge_the_approved_one_would_perform(self, planned):
         await er.preview_merge(_Request(), ORG, "prod", from_env="dev", removals=True)
-        (_db, org_id, source, target, mode, removals) = planned[0]
-        assert (org_id, source, target, mode, removals) == (ORG, "dev", "prod", er.MERGE, True)
+        (_db, org_id, source, target, removals, selection) = planned[0]
+        assert (org_id, source, target, removals, selection) == (ORG, "dev", "prod", True, None)
+
+    async def test_a_scoped_preview_plans_the_scoped_merge(self, planned):
+        # REQ-1506: the selection reaches the plan, so the report is of the merge that would run.
+        await er.preview_merge(
+            _Request(), ORG, "prod", from_env="dev", select=["metrics/revenue.yaml"]
+        )
+        assert planned[0][5] == ["metrics/revenue.yaml"]
 
     async def test_it_says_the_target_would_need_an_approval(self, planned):
         assert (await er.preview_merge(_Request(), ORG, "prod", from_env="dev"))[
@@ -448,10 +463,13 @@ class TestRetiringTheSourceOfAMerge:
             def as_dict(self):
                 return {"added": 1, "changed": 0, "removed": 0}
 
-        async def copy_model(db, org_id, source, target, *, mode, removals, landing):
+        landed: list[tuple] = []
+
+        async def merge_model(db, org_id, source, target, *, removals, selection):
+            landed.append((source, target, removals, selection))
             return _Report()
 
-        async def plan_copy(db, org_id, source, target, *, mode, removals):
+        async def plan_merge(db, org_id, source, target, *, removals, selection):
             return _Report()
 
         async def is_protected(admin_db, org_id, name, members):
@@ -467,14 +485,61 @@ class TestRetiringTheSourceOfAMerge:
             retired.append((org_id, name, drop_branch))
             return {"retired": name, "branch_deleted": drop_branch}
 
-        monkeypatch.setattr(er, "copy_model", copy_model)
-        monkeypatch.setattr(er, "plan_copy", plan_copy)
+        monkeypatch.setattr(er, "merge_model", merge_model)
+        monkeypatch.setattr(er, "plan_merge", plan_merge)
+        wired["landed"] = landed
         monkeypatch.setattr(er, "_guard_within", _guard_within)
         monkeypatch.setattr(er, "_member_count", _member_count)
         monkeypatch.setattr(er, "retire_environment", retire_environment)
         monkeypatch.setattr(er, "_pool", lambda: "tenant-db")
         monkeypatch.setattr(env_approvals, "is_protected", is_protected)
         return retired
+
+    async def test_a_scoped_merge_carries_its_selection_to_the_one_merge_path(self, merged, wired):
+        # REQ-1506: a selection on the body is a merge in every other respect.
+        await er.merge_into_environment(
+            _Request(),
+            ORG,
+            "prod",
+            er.MergeBody(message="fix margin", from_env="dev", selection=["metrics/margin.yaml"]),
+        )
+        assert wired["landed"] == [("dev", "prod", False, ["metrics/margin.yaml"])]
+
+    async def test_a_selection_that_cannot_be_carried_is_refused_by_name(self, merged, monkeypatch):
+        from provisa.api.errors import ApiError
+        from provisa.core.env_merge import MergeSelectionError
+
+        async def merge_model(*_args, **_kwargs):
+            raise MergeSelectionError("the selection names 'metrics/x.yaml', which neither holds")
+
+        monkeypatch.setattr(er, "merge_model", merge_model)
+        with pytest.raises(ApiError) as exc:
+            await er.merge_into_environment(
+                _Request(),
+                ORG,
+                "prod",
+                er.MergeBody(message="m", from_env="dev", selection=["metrics/x.yaml"]),
+            )
+        assert exc.value.status_code == 400
+        assert exc.value.code == "environments.selection_invalid"
+
+    async def test_a_merged_model_that_does_not_hold_is_refused_with_every_reason(
+        self, merged, monkeypatch
+    ):
+        # REQ-1548: the landing half is the one apply, so its validation refuses a merge too.
+        from provisa.api.errors import ApiError
+        from provisa.core.env_deploy import DeployError
+
+        async def merge_model(*_args, **_kwargs):
+            raise DeployError(["a names b", "c names d"])
+
+        monkeypatch.setattr(er, "merge_model", merge_model)
+        with pytest.raises(ApiError) as exc:
+            await er.merge_into_environment(
+                _Request(), ORG, "prod", er.MergeBody(message="m", from_env="dev")
+            )
+        assert exc.value.status_code == 422
+        assert exc.value.params["problems"] == ["a names b", "c names d"]
 
     async def test_a_plain_merge_leaves_the_source_standing(self, merged):
         out = await er.merge_into_environment(

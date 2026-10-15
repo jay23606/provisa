@@ -87,6 +87,11 @@ export interface CopyReport {
   base?: string | null;
   compared?: boolean;
   conflicts?: Conflict[];
+  // REQ-1548: a merge's report names its objects by path, beside the counts above.
+  paths?: { added: string[]; changed: string[]; removed: string[] };
+  // REQ-1506: the paths a scoped merge named, and what they required that it did not name.
+  selection?: string[] | null;
+  pulled_in?: string[];
   [key: string]: unknown;
 }
 
@@ -242,8 +247,11 @@ export async function previewMerge(
   name: string,
   fromEnv: string,
   removals = false,
+  // REQ-1506: scope the merge to these objects, by path. Empty means the whole model.
+  selection: string[] = [],
 ): Promise<{ report: CopyReport; applied: boolean; requires_approval: boolean }> {
   const query = new URLSearchParams({ from_env: fromEnv, removals: String(removals) });
+  for (const path of selection) query.append("select", path);
   const res = await fetch(`${base(orgId)}/${encodeURIComponent(name)}/merge-preview?${query}`);
   return ok(res, "previewMerge");
 }
@@ -267,6 +275,8 @@ export async function mergeEnvironment(
     message: string;
     retire_source?: boolean;
     retire_remote?: boolean;
+    // REQ-1506: the objects to carry, by path; null or absent merges the whole model.
+    selection?: string[] | null;
   },
 ): Promise<MergeOutcome> {
   const res = await fetch(`${base(orgId)}/${encodeURIComponent(name)}/merge`, json("POST", body));
@@ -315,6 +325,20 @@ export async function pushEnvironment(
 ): Promise<{ pushed: string | null; sync: BranchSync }> {
   const res = await fetch(`${base(orgId)}/${encodeURIComponent(name)}/push`, { method: "POST" });
   return ok(res, "pushEnvironment");
+}
+
+/**
+ * Commit this environment's whole model again, clearing drift (REQ-1524).
+ *
+ * The repair for the drifted badge: a commit did not land, so the projection is behind the model.
+ * It writes the repository and never the model. `drifted` is what the environment says afterwards.
+ */
+export async function rebuildEnvironment(
+  orgId: string,
+  name: string,
+): Promise<{ sha: string | null; drifted: boolean }> {
+  const res = await fetch(`${base(orgId)}/${encodeURIComponent(name)}/rebuild`, { method: "POST" });
+  return ok(res, "rebuildEnvironment");
 }
 
 /**

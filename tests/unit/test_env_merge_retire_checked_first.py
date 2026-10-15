@@ -63,11 +63,11 @@ def wired(monkeypatch):
     async def env_dependents(admin_db, org_id, name):
         return blocking.get(name, [])
 
-    async def copy_model(*args, **kwargs):
+    async def merge_model(*args, **kwargs):
         calls["copy"].append(args)
         raise AssertionError("the merge ran before its retirement was checked")
 
-    async def plan_copy(*args, **kwargs):
+    async def plan_merge(*args, **kwargs):
         calls["plan"].append(args)
         raise AssertionError("the merge was planned before its retirement was checked")
 
@@ -98,8 +98,8 @@ def wired(monkeypatch):
     monkeypatch.setattr(er, "_member_count", _member_count)
     monkeypatch.setattr(er, "_request_or_404", _request_or_404)
     monkeypatch.setattr(er, "_admin_pool", lambda: "admin-db")
-    monkeypatch.setattr(er, "copy_model", copy_model)
-    monkeypatch.setattr(er, "plan_copy", plan_copy)
+    monkeypatch.setattr(er, "merge_model", merge_model)
+    monkeypatch.setattr(er, "plan_merge", plan_merge)
     monkeypatch.setattr(er, "env_dependents", env_dependents)
     monkeypatch.setattr(env_approvals, "is_protected", is_protected)
     monkeypatch.setattr(env_approvals, "request_merge", request_merge)

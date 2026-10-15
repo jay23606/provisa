@@ -250,3 +250,40 @@ class TestLandingOnACommitThatCameFromElsewhere:
         commit_files(repo, "prod", {**MODEL, "y.yaml": "b: 2\n"}, "local edit", None)
         with pytest.raises(RepositoryError, match="diverged"):
             commit_files(repo, "prod", MODEL, "pull", None, onto=fetched)
+
+
+class TestAMergeRecordsWhatItMerged:
+    """REQ-1555: a merge is measured against the commit both lines last held, and after a merge of
+    the whole model that commit is the SOURCE's -- the target now holds everything the source did.
+    A merge commit with the target's line alone would leave the base at the original branch point
+    for ever, and every later merge would re-report edits the earlier one had already carried."""
+
+    def test_the_merge_commit_names_the_source_it_merged(self):
+        from provisa.core.env_repo import merge_base, start_branch, tip
+
+        repo = ensure_repo(ORG)
+        commit_files(repo, "prod", MODEL, "seed", None)
+        start_branch(repo, "dev", "prod")
+        worked = {**MODEL, "sales/domain.yaml": "id: sales\ndescription: dev\n"}
+        dev_tip = commit_files(repo, "dev", worked, "dev edits sales", None)
+        before = tip(ORG, "prod")
+
+        merged = commit_files(repo, "prod", worked, "merge dev", None, merged_from=dev_tip)
+
+        assert merged is not None
+        assert parent_of(ORG, merged) == before  # the target's own line stays first
+        assert merge_base(ORG, dev_tip, merged) == dev_tip
+
+    def test_the_next_merge_is_measured_from_the_last_one(self):
+        from provisa.core.env_repo import merge_base, start_branch
+
+        repo = ensure_repo(ORG)
+        seed = commit_files(repo, "prod", MODEL, "seed", None)
+        start_branch(repo, "dev", "prod")
+        first = {**MODEL, "a.yaml": "a: 1\n"}
+        dev_one = commit_files(repo, "dev", first, "one", None)
+        commit_files(repo, "prod", first, "merge dev", None, merged_from=dev_one)
+        dev_two = commit_files(repo, "dev", {**first, "b.yaml": "b: 2\n"}, "two", None)
+        prod_tip = history(ORG, "prod")[0]["sha"]
+
+        assert merge_base(ORG, dev_two, prod_tip) == dev_one != seed

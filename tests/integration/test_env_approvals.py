@@ -140,7 +140,7 @@ class TestRequesting:
         assert proposed["state"] == ea.REQUESTED
         assert proposed["requested_by"] == DEVELOPER
         assert proposed["message"] == "adds the sales domain"
-        assert "sales" in proposed["report"]["tables"][0]["added"]
+        assert "sales/domain.yaml" in proposed["report"]["paths"]["added"]
 
     async def test_the_request_is_readable_by_id_and_in_the_list(self, planes, proposed):
         assert await ea.get_request(planes.admin, planes.org_id, proposed["id"]) == proposed
@@ -160,9 +160,7 @@ class TestRequesting:
 
     async def test_requesting_changes_nothing_in_the_target(self, planes, proposed):
         # Proposing is not writing: prod does not have the domain until somebody approves.
-        plan = await ea.plan_copy(
-            planes.tenant, planes.org_id, DEV, PROD, mode=ea.MERGE, removals=False
-        )
+        plan = await ea.plan_merge(planes.tenant, planes.org_id, DEV, PROD, removals=False)
         assert plan.as_dict() == proposed["report"]
 
 
@@ -190,9 +188,7 @@ class TestDeciding:
         assert decided["state"] == ea.APPLIED
         assert decided["decided_by"] == REVIEWER
         assert decided["applied_at"] is not None
-        landed = await ea.plan_copy(
-            planes.tenant, planes.org_id, DEV, PROD, mode=ea.MERGE, removals=False
-        )
+        landed = await ea.plan_merge(planes.tenant, planes.org_id, DEV, PROD, removals=False)
         assert landed.as_dict()["added"] == 0  # nothing left to carry: the merge happened
 
     async def test_rejection_is_recorded_with_its_reason_and_applies_nothing(
@@ -209,9 +205,7 @@ class TestDeciding:
         )
         assert decided["state"] == ea.REJECTED
         assert decided["decision_note"] == "name the domain sales_us"
-        still = await ea.plan_copy(
-            planes.tenant, planes.org_id, DEV, PROD, mode=ea.MERGE, removals=False
-        )
+        still = await ea.plan_merge(planes.tenant, planes.org_id, DEV, PROD, removals=False)
         assert still.as_dict() == proposed["report"]  # prod is untouched
 
     async def test_a_decided_request_cannot_be_decided_again(self, planes, proposed):

@@ -27,7 +27,7 @@ THE CONTRACT WITH A SCRIPT is the exit code and ``--json``:
   pipeline that read a pending approval as success would report a release that has not happened.
 """
 
-# Requirements: REQ-1496, REQ-1498, REQ-1504, REQ-1541, REQ-1543, REQ-1942
+# Requirements: REQ-1496, REQ-1498, REQ-1504, REQ-1506, REQ-1541, REQ-1543, REQ-1548, REQ-1942
 
 from __future__ import annotations
 
@@ -94,11 +94,12 @@ def _guarded(command):
 
 def _print_report(report: dict[str, Any]) -> None:
     """A report as a log reads it. Two shapes reach here and both say the same four things -- what
-    was added, changed, removed and left alone: a merge counts objects per registry (REQ-1490), a
-    load lists paths (REQ-1496)."""
+    was added, changed, removed and left alone: a merge counts objects and names their paths
+    (REQ-1548), a load lists paths (REQ-1496)."""
     if "ref" in report:
         print(f"  ref       {report['ref']}")
-        for kind in ("added", "changed", "removed"):
+        # REQ-1496: what a load takes away is named first.
+        for kind in ("removed", "added", "changed"):
             for path in report[kind]:
                 print(f"  {kind[0].upper()} {path}")
         print(f"  unchanged {report['unchanged']}")
@@ -107,10 +108,13 @@ def _print_report(report: dict[str, Any]) -> None:
         f"  added {report['added']}  changed {report['changed']}  "
         f"removed {report['removed']}  unchanged {report['unchanged']}"
     )
-    for table in report["tables"]:
-        for kind in ("added", "changed", "removed"):
-            for key in table[kind]:
-                print(f"  {kind[0].upper()} {table['table']} {key}")
+    for kind in ("added", "changed", "removed"):
+        for path in report["paths"][kind]:
+            print(f"  {kind[0].upper()} {path}")
+        for key in report["settings"][kind]:
+            print(f"  {kind[0].upper()} setting {key}")
+    for path in report["pulled_in"]:
+        print(f"  + {path} (required by the selection)")
     for conflict in report["conflicts"]:
         print(
             f"  ! {conflict['path']} ({conflict['source']} here, {conflict['target']} in the target)"
@@ -186,7 +190,13 @@ def _cmd_show(args: argparse.Namespace) -> int:
 def _cmd_diff(args: argparse.Namespace) -> int:
     """`provisa env diff` — what merging one environment into another would do. A GET: the method
     that cannot write is the one to hand a runner."""
-    query = urlencode({"from_env": args.from_env, "removals": _flag(args.removals)})
+    query = urlencode(
+        [
+            ("from_env", args.from_env),
+            ("removals", _flag(args.removals)),
+            *(("select", path) for path in args.select or []),
+        ]
+    )
     result = _call(args, "GET", f"{_env_path(args, args.into, 'merge-preview')}?{query}")
     return _outcome(args, result, "Merge", dry_run=True)
 
@@ -241,6 +251,7 @@ def _cmd_merge(args: argparse.Namespace) -> int:
         {
             "from_env": args.from_env,
             "removals": args.removals,
+            "selection": args.select,
             "dry_run": args.dry_run,
             "retire_source": args.retire_source,
             "retire_remote": args.retire_remote,
@@ -278,9 +289,9 @@ def _cmd_revert(args: argparse.Namespace) -> int:
             args,
             "POST",
             _env_path(args, args.env, "deploy"),
-            {"ref": args.to, "dry_run": False, "message": args.message or ""},
+            {"ref": args.to, "dry_run": args.dry_run, "message": args.message or ""},
         )
-        return _outcome(args, result, "Revert")
+        return _outcome(args, result, "Revert", dry_run=args.dry_run)
     return _step(args, "undo", "Revert")
 
 
@@ -290,7 +301,12 @@ def _cmd_redo(args: argparse.Namespace) -> int:
 
 
 def _step(args: argparse.Namespace, act: str, verb: str) -> int:
-    result = _call(args, "POST", _env_path(args, args.env, act), {})
+    path = _env_path(args, args.env, act)
+    if args.dry_run:
+        # REQ-1496: what the step would remove is named before it is taken.
+        result = _call(args, "POST", f"{path}?dry_run=true", {})
+        return _outcome(args, result, verb, dry_run=True)
+    result = _call(args, "POST", path, {})
     if "deployed_sha" not in result:
         return _outcome(args, result, verb)
     if args.json:
@@ -329,6 +345,19 @@ def _cmd_push(args: argparse.Namespace) -> int:
         pushed = result["pushed"]
         print(f"Pushed {args.env}" + (f" at {pushed[:12]}" if pushed else ": nothing to send"))
     return 0
+
+
+def _cmd_rebuild(args: argparse.Namespace) -> int:
+    """`provisa env rebuild` — commit an environment's whole model again, clearing drift."""
+    result = _call(args, "POST", _env_path(args, args.env, "rebuild"), {})
+    if args.json:
+        print(json.dumps(result))
+    elif result["drifted"]:
+        print(f"{args.env} is still drifted: the commit did not land", file=sys.stderr)
+    else:
+        sha = result["sha"]
+        print(f"Rebuilt {args.env}" + (f" at {sha[:12]}" if sha else ": already up to date"))
+    return REFUSED if result["drifted"] else 0
 
 
 def _cmd_pull(args: argparse.Namespace) -> int:
@@ -437,6 +466,14 @@ def register(sub) -> None:
             action="store_true",
             help="Also remove from the target what the source no longer has",
         )
+        parser.add_argument(
+            "--select",
+            action="append",
+            default=None,
+            metavar="PATH",
+            help="Scope the merge to this object, by its path in the model "
+            "(metrics/revenue.yaml); repeat for more. What it requires is carried with it",
+        )
     merge.add_argument(
         "--dry-run", action="store_true", help="Print the merge report and apply none of it"
     )
@@ -478,13 +515,19 @@ def register(sub) -> None:
         "--to", default=None, help="Build to revert to (default: the one before the current build)"
     )
     revert.add_argument("--message", default=None, help="Note carried onto an approval request")
-    _command(
+    redo = _command(
         env_sub,
         "redo",
         _cmd_redo,
         "Step forward again toward the build a revert departed from",
         env="Environment to step forward",
     )
+    for parser in (revert, redo):
+        parser.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="Report what the step would do, removals first, and apply none of it",
+        )
 
     _command(env_sub, "fetch", _cmd_fetch, "Fetch the org's remote branches into its repository")
     _command(
@@ -493,6 +536,13 @@ def register(sub) -> None:
         _cmd_push,
         "Send an environment's branch to the org's remote",
         env="Environment to push",
+    )
+    _command(
+        env_sub,
+        "rebuild",
+        _cmd_rebuild,
+        "Commit an environment's whole model again, clearing drift",
+        env="Environment to rebuild",
     )
     _command(
         env_sub,

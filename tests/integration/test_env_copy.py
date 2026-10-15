@@ -26,13 +26,16 @@ from pathlib import Path
 import pytest
 from sqlalchemy import select
 
-from provisa.core.env_copy import MERGE, REPLACE, copy_model, plan_copy
+from provisa.core.env_copy import REPLACE, copy_model, plan_copy
+from provisa.core.env_merge import merge_model, plan_merge
 from provisa.core.environments import org_schema
 from provisa.core.schema_org import (
     domains,
     metadata as org_metadata,
+    metrics,
     org_settings,
     registered_tables,
+    rls_rules,
     roles,
     sources,
     user_role_assignments,
@@ -248,7 +251,7 @@ class TestMerge:
         await seeded.update(
             sources, "warehouse", ENV, host="dev-db.internal", database="scratch", binding="own"
         )
-        await copy_model(seeded.db, seeded.org_id, None, ENV, mode=MERGE, landing="unbound")
+        await merge_model(seeded.db, seeded.org_id, None, ENV)
         (row,) = await seeded.rows(sources, ENV)
         assert (row["host"], row["database"], row["binding"]) == (
             "dev-db.internal",
@@ -258,45 +261,168 @@ class TestMerge:
 
     async def test_governance_on_a_source_row_still_arrives(self, seeded):
         await seeded.update(sources, "warehouse", description="renamed upstream")
-        await copy_model(seeded.db, seeded.org_id, None, ENV, mode=MERGE, landing="unbound")
+        await merge_model(seeded.db, seeded.org_id, None, ENV)
         (row,) = await seeded.rows(sources, ENV)
         assert row["description"] == "renamed upstream"
 
     async def test_an_object_the_target_added_is_left_alone(self, seeded):
         await seeded.insert(domains, ENV, id="experiment", description="only in dev")
-        report = await copy_model(
-            seeded.db, seeded.org_id, None, ENV, mode=MERGE, landing="unbound"
-        )
+        report = await merge_model(seeded.db, seeded.org_id, None, ENV)
         assert await seeded.added_domains() == ["experiment", "sales"]
         assert report.as_dict()["removed"] == 0
 
     async def test_removals_are_a_separate_decision(self, seeded):
         await seeded.insert(domains, ENV, id="experiment", description="only in dev")
-        report = await copy_model(
-            seeded.db, seeded.org_id, None, ENV, mode=MERGE, removals=True, landing="unbound"
-        )
+        report = await merge_model(seeded.db, seeded.org_id, None, ENV, removals=True)
         assert await seeded.added_domains() == ["sales"]
-        removed = [k for t in report.tables if t.table == "domains" for k in t.removed]
-        assert removed == ["experiment"]
+        assert report.delta.removed == ["experiment/domain.yaml"]
 
     async def test_a_source_row_is_never_removed_by_a_merge(self, seeded):
         # REQ-1491: a binding is the environment's own deliberate fact, and nothing arriving from
         # another environment is evidence that it should go.
         await seeded.insert(sources, ENV, id="local_files", type="file", binding="own")
-        await copy_model(
-            seeded.db, seeded.org_id, None, ENV, mode=MERGE, removals=True, landing="unbound"
-        )
+        await merge_model(seeded.db, seeded.org_id, None, ENV, removals=True)
         assert [s["id"] for s in await seeded.rows(sources, ENV)] == ["local_files", "warehouse"]
 
     async def test_a_changed_object_is_updated_in_place(self, seeded):
         await seeded.update(domains, "sales", description="revenue and refunds")
-        report = await copy_model(
-            seeded.db, seeded.org_id, None, ENV, mode=MERGE, landing="unbound"
-        )
+        report = await merge_model(seeded.db, seeded.org_id, None, ENV)
         (row,) = [d for d in await seeded.rows(domains, ENV) if d["id"] == "sales"]
         assert row["description"] == "revenue and refunds"
         assert report.as_dict()["changed"] == 1
         assert report.as_dict()["added"] == 0
+
+
+class TestMergeIdentityIsThePath:
+    """REQ-1490/REQ-1526: an object is the same object in two environments when it sits at the
+    same PATH -- its domain and its business name -- never when two schemas happened to hand two
+    different objects the same serial."""
+
+    @pytest.fixture(autouse=True)
+    async def _created(self, seeded):
+        await copy_model(seeded.db, seeded.org_id, None, ENV, mode=REPLACE, landing="unbound")
+
+    async def test_two_tables_that_drew_the_same_serial_stay_two_tables(self, seeded):
+        # After the creation both schemas hand out the SAME next serial, so the table each side
+        # registers next shares a key with the other's and is not the other's.
+        for env, name in ((None, "customers"), (ENV, "refunds")):
+            await seeded.insert(
+                registered_tables,
+                env,
+                source_id="warehouse",
+                domain_id="sales",
+                schema_name="public",
+                table_name=name,
+            )
+        prod_ids = {t["table_name"]: t["id"] for t in await seeded.rows(registered_tables)}
+        dev_ids = {t["table_name"]: t["id"] for t in await seeded.rows(registered_tables, ENV)}
+        assert prod_ids["customers"] == dev_ids["refunds"]  # the collision this is about
+
+        report = await merge_model(seeded.db, seeded.org_id, None, ENV)
+
+        names = sorted(t["table_name"] for t in await seeded.rows(registered_tables, ENV))
+        assert names == ["customers", "orders", "refunds"]
+        assert report.delta.added == ["sales/tables/customers.yaml"]
+        assert report.delta.changed == []
+
+    async def test_the_same_table_under_different_serials_is_one_table(self, seeded):
+        await seeded.insert(
+            registered_tables,
+            ENV,
+            source_id="warehouse",
+            domain_id="sales",
+            schema_name="scratch",
+            table_name="burn",
+        )
+        for env in (ENV, None):
+            await seeded.insert(
+                registered_tables,
+                env,
+                source_id="warehouse",
+                domain_id="sales",
+                schema_name="public",
+                table_name="customers",
+                description="prod's words" if env is None else "dev's words",
+            )
+        await merge_model(seeded.db, seeded.org_id, None, ENV)
+        customers = [
+            t for t in await seeded.rows(registered_tables, ENV) if t["table_name"] == "customers"
+        ]
+        assert [t["description"] for t in customers] == ["prod's words"]
+
+
+class TestScopedMerge:
+    """REQ-1506: a merge scoped to part of a model carries the selection alone."""
+
+    @pytest.fixture(autouse=True)
+    async def _created(self, seeded):
+        await copy_model(seeded.db, seeded.org_id, None, ENV, mode=REPLACE, landing="unbound")
+
+    async def test_the_selected_object_arrives_and_none_of_the_other_changes(self, seeded):
+        await seeded.update(domains, "sales", env=ENV, description="dev's revenue")
+        await seeded.insert(domains, ENV, id="experiment", description="only in dev")
+        await seeded.insert(metrics, ENV, name="revenue", expression="SUM(orders.amount)")
+
+        report = await merge_model(
+            seeded.db, seeded.org_id, ENV, None, selection=["metrics/revenue.yaml"]
+        )
+
+        assert [m["name"] for m in await seeded.rows(metrics, order_by="name")] == ["revenue"]
+        prod = {d["id"]: d["description"] for d in await seeded.rows(domains)}
+        assert prod["sales"] == "revenue" and "experiment" not in prod
+        assert report.delta.added == ["metrics/revenue.yaml"]
+        assert report.pulled_in == []
+
+    async def test_what_the_selection_requires_is_carried_and_named(self, seeded):
+        await seeded.insert(domains, ENV, id="finance", description="ledgers")
+        await seeded.insert(
+            registered_tables,
+            ENV,
+            source_id="warehouse",
+            domain_id="finance",
+            schema_name="public",
+            table_name="invoices",
+        )
+        await seeded.insert(metrics, ENV, name="billed", expression="SUM(invoices.amount)")
+
+        report = await merge_model(
+            seeded.db, seeded.org_id, ENV, None, selection=["metrics/billed.yaml"]
+        )
+
+        assert report.pulled_in == ["finance/domain.yaml", "finance/tables/invoices.yaml"]
+        assert "invoices" in {t["table_name"] for t in await seeded.rows(registered_tables)}
+
+    async def test_the_targets_bindings_are_untouched(self, seeded):
+        before = await seeded.rows(sources)
+        await seeded.insert(metrics, ENV, name="revenue", expression="SUM(orders.amount)")
+        await merge_model(seeded.db, seeded.org_id, ENV, None, selection=["metrics/revenue.yaml"])
+        assert await seeded.rows(sources) == before
+
+    async def test_a_selection_that_cannot_be_closed_is_refused_whole(self, seeded):
+        """A row policy names a role, and roles never travel (REQ-1539): a selected table whose
+        policy is for a role the TARGET does not define cannot land consistent, so the merge is
+        refused by the apply's validation and the target is left exactly as it was."""
+        from provisa.core.env_deploy import DeployError
+
+        await seeded.insert(roles, ENV, id="lab_reviewer", capabilities=[])
+        await seeded.insert(
+            registered_tables,
+            ENV,
+            source_id="warehouse",
+            domain_id="sales",
+            schema_name="public",
+            table_name="shipments",
+        )
+        shipments = max(t["id"] for t in await seeded.rows(registered_tables, ENV))
+        await seeded.insert(
+            rls_rules, ENV, table_id=shipments, role_id="lab_reviewer", filter_expr=b"region = 1"
+        )
+        before = await seeded.rows(registered_tables)
+        with pytest.raises(DeployError, match="lab_reviewer"):
+            await merge_model(
+                seeded.db, seeded.org_id, ENV, None, selection=["sales/tables/shipments.yaml"]
+            )
+        assert await seeded.rows(registered_tables) == before
 
 
 class TestSeededClasses:
@@ -331,9 +457,7 @@ class TestSeededClasses:
         # prod's holds nothing, and a merge is a statement about the MODEL, not about who may act.
         await seeded.update(roles, "developer", capabilities=[])
         await seeded.update(roles, "developer", env=ENV, capabilities=["write"])
-        await copy_model(
-            seeded.db, seeded.org_id, ENV, None, mode=MERGE, removals=True, landing="unbound"
-        )
+        await merge_model(seeded.db, seeded.org_id, ENV, None, removals=True)
         prod = {r["id"]: r["capabilities"] for r in await seeded.rows(roles)}
         assert prod["developer"] == []
 
@@ -341,9 +465,7 @@ class TestSeededClasses:
         await seeded.insert(
             user_role_assignments, env=ENV, user_id="ana", role_id="developer", domain_id="sales"
         )
-        await copy_model(
-            seeded.db, seeded.org_id, ENV, None, mode=MERGE, removals=True, landing="unbound"
-        )
+        await merge_model(seeded.db, seeded.org_id, ENV, None, removals=True)
         assert await seeded.rows(user_role_assignments) == []
 
 
@@ -424,7 +546,7 @@ class TestConflicts:
         await parted.update(domains, "sales", description="prod revenue")
         await self._commit(parted, None, "prod edits sales")
 
-        report = await plan_copy(parted.db, parted.org_id, ENV, None, mode=MERGE)
+        report = await plan_merge(parted.db, parted.org_id, ENV, None)
         assert report.compared
         assert [(c.path, c.source, c.target) for c in report.conflicts] == [
             ("sales/domain.yaml", "changed", "changed")
@@ -434,7 +556,7 @@ class TestConflicts:
         await parted.update(domains, "sales", env=ENV, description="branch revenue")
         await self._commit(parted, ENV, "dev edits sales")
 
-        report = await plan_copy(parted.db, parted.org_id, ENV, None, mode=MERGE)
+        report = await plan_merge(parted.db, parted.org_id, ENV, None)
         assert report.compared
         assert report.conflicts == []
         assert report.as_dict()["changed"] > 0
@@ -447,9 +569,7 @@ class TestConflicts:
         await parted.update(domains, "sales", description="prod revenue")
         await self._commit(parted, None, "prod edits sales")
 
-        report = await copy_model(
-            parted.db, parted.org_id, ENV, None, mode=MERGE, landing="unbound"
-        )
+        report = await merge_model(parted.db, parted.org_id, ENV, None)
         assert [c["path"] for c in report.as_dict()["conflicts"]] == ["sales/domain.yaml"]
         prod = {d["id"]: d["description"] for d in await parted.rows(domains)}
         assert prod["sales"] == "branch revenue"
@@ -472,7 +592,7 @@ class TestConflicts:
         await seeded.update(domains, "sales", env=ENV, description="branch revenue")
         await self._commit(seeded, ENV, "dev's own root")
 
-        report = await plan_copy(seeded.db, seeded.org_id, ENV, None, mode=MERGE)
+        report = await plan_merge(seeded.db, seeded.org_id, ENV, None)
         assert not report.compared
         assert report.conflicts == []
         assert report.as_dict()["base"] is None

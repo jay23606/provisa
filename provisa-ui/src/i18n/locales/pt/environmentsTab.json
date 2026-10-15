@@ -138,6 +138,12 @@
     "mergedOverwriting": "Mesclado em {{env}}, sobrescrevendo {{count}} objeto(s) alterado(s) lá.",
     "pulledOverwriting": "{{env}} recebido do remote, sobrescrevendo {{count}} objeto(s) alterado(s) aqui desde que estas linhas se separaram:",
     "expiredKept": "expirado, mantido",
-    "expiredKeptHint": "Este ambiente expirou e é mantido porque algo ainda o referencia ({{reasons}}). Remova essas referências e ele será retirado na próxima varredura."
+    "expiredKeptHint": "Este ambiente expirou e é mantido porque algo ainda o referencia ({{reasons}}). Remova essas referências e ele será retirado na próxima varredura.",
+    "selectTitle": "Objetos que esta mesclagem levaria",
+    "selectHelp": "Marque objetos para mesclar apenas esses. Deixe todas as caixas desmarcadas para mesclar o modelo inteiro.",
+    "pulledIn": "Também levados, porque a seleção os exige:",
+    "rebuild": "Reconstruir",
+    "rebuilt": "O modelo de {{env}} foi confirmado novamente no repositório.",
+    "rebuildFailed": "{{env}} continua com desvio: o commit não foi concluído."
   }
 }
