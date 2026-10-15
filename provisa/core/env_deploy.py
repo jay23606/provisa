@@ -66,7 +66,16 @@ if TYPE_CHECKING:
 
 
 class DeployError(Exception):
-    """The tree does not hold: a reference resolves to nothing, or two files claim one address."""
+    """The tree does not hold: a reference resolves to nothing, or two files claim one address.
+
+    ``problems`` is the REPORT -- every such reference in the tree, each naming the path that makes
+    it and what it names. A tree is validated whole (REQ-1496), so a refusal says everything that
+    is wrong with it rather than the first thing found.
+    """
+
+    def __init__(self, problems: str | list[str]) -> None:
+        self.problems = [problems] if isinstance(problems, str) else list(problems)
+        super().__init__("\n".join(self.problems))
 
 
 #: The tables a deploy owns. Everything the projection writes, which is every carried and
@@ -241,7 +250,9 @@ async def _load(
     conflicts = against_base(org_id, base_sha, incoming, current) if base_sha else []
 
     delta = _diff(current, incoming)
-    rows = _decompose(incoming, await _existing_ids(conn, schema))
+    rows = _decompose(
+        incoming, await _existing_ids(conn, schema), await _roles_after(conn, schema, incoming)
+    )
     if not apply:
         return DeployReport(env or "prod", ref, seed, delta, base_sha, conflicts)
 
@@ -366,19 +377,43 @@ async def _existing_ids(conn: "Connection", schema: str) -> dict[str, dict[str, 
     }
 
 
+async def _roles_after(
+    conn: "Connection", schema: str, incoming: dict[str, dict[str, Any]]
+) -> frozenset[str]:
+    """The roles the environment will hold once this tree is applied.
+
+    A load that seeds writes the tree's roles, so those are the ones a row policy may name. Every
+    other load leaves the environment's roles as they are (REQ-1539) and its tree holds no role
+    file in scope, so a policy is checked against the roles ALREADY HERE: a policy naming a role
+    this environment does not define is a reference to nothing, whatever the tree's author had.
+    """
+    seeded = frozenset(_name_of(p)[0] for p in incoming if table_of(p) == "roles")
+    if seeded:
+        return seeded
+    result = await conn.execute_core(select(_scoped(org.roles, schema).c.id))
+    return frozenset(row[0] for row in result.fetchall())
+
+
 def _decompose(  # noqa: C901 -- allow-complex: one branch per projected kind, and the inverse of
     # a projection is only readable when its kinds are read in the same order the projection wrote
     # them; splitting it into per-kind helpers would hide that correspondence without removing a
     # single branch.
     tree: dict[str, dict[str, Any]],
     existing: dict[str, dict[str, int]],
+    roles: frozenset[str],
 ) -> dict[str, list[dict[str, Any]]]:
     """Every row the tree describes, with references resolved and surrogates assigned.
 
     Nothing is written here. A tree that does not hold raises before a statement is issued, which is
     what lets the caller show a report and apply exactly what it showed.
+
+    EVERY reference is checked and EVERY one that resolves to nothing is collected, so the refusal
+    is a report of the whole tree (REQ-1496, REQ-1502) rather than its first defect, and never the
+    database's foreign-key error halfway through an apply. ``roles`` is the set a row policy may
+    name -- see :func:`_roles_after`.
     """
     ids = _Ids(existing)
+    problems: list[str] = []
     # The tree belongs to the caller, who holds it to show a report and may deploy it again. Nothing
     # below reads a file twice, but the splitting does pop nested keys off the bodies it is handed.
     tree = deepcopy(tree)
@@ -389,21 +424,44 @@ def _decompose(  # noqa: C901 -- allow-complex: one branch per projected kind, a
     table_id = {p: ids.of("registered_tables", p) for p in table_paths}
     term_id = {p: ids.of("glossary_terms", _name_of(p)[0]) for p in term_paths}
 
+    known_sources = {_name_of(p)[0] for p in tree if table_of(p) == "sources"}
+    known_domains = {_domain_id_of(p) for p in tree if table_of(p) == "domains"}
+    known_products = {_name_of(p)[0] for p in tree if table_of(p) == "data_products"}
+
     def resolve_table(path: str, inside: str, what: str) -> int:
         if path not in table_id:
-            raise DeployError(
+            problems.append(
                 f"{inside!r} names {path!r} as its {what}, and the tree holds no such table; a "
                 f"merge that deleted it on one side and kept the reference on the other produces "
                 f"exactly this, and it is refused whole rather than loaded with a dangling edge"
             )
+            return 0  # never written: the tree is refused once every reference is checked
         return table_id[path]
 
     def resolve_term(path: str, inside: str) -> int:
         if path not in term_id:
-            raise DeployError(
+            problems.append(
                 f"{inside!r} names the glossary term {path!r}, which the tree does not hold"
             )
+            return 0  # never written: the tree is refused once every reference is checked
         return term_id[path]
+
+    def named(inside: str, what: str, value: Any, known: set[str] | frozenset[str]) -> None:
+        """Report ``value`` when ``inside`` names it as its ``what`` and nothing by that name is
+        in ``known``. An absent value names nothing."""
+        if value is not None and value not in known:
+            problems.append(f"{inside!r} names the {what} {value!r}, which the tree does not hold")
+
+    def policies(entries: list[dict[str, Any]], inside: str, **scope: Any) -> None:
+        for policy in entries:
+            if policy.get("role_id") not in roles:
+                problems.append(
+                    f"{inside!r} carries a row policy for the role {policy.get('role_id')!r}, "
+                    f"which this environment does not define"
+                )
+            rows["rls_rules"].append(
+                {"table_id": None, "domain_id": None, "action_name": None, **policy, **scope}
+            )
 
     for path in sorted(tree):
         table = table_of(path)
@@ -413,8 +471,7 @@ def _decompose(  # noqa: C901 -- allow-complex: one branch per projected kind, a
             own, nested = _split(body, "row_policies")
             domain = _domain_id_of(path)
             rows["domains"].append({**own, "id": domain})
-            for policy in nested["row_policies"]:
-                rows["rls_rules"].append({**policy, "domain_id": domain, "table_id": None})
+            policies(nested["row_policies"], path, domain_id=domain)
 
         elif table == "registered_tables":
             own, nested = _split(
@@ -422,11 +479,23 @@ def _decompose(  # noqa: C901 -- allow-complex: one branch per projected kind, a
             )
             tid = table_id[path]
             domain = _domain_of(path)
+            if domain not in known_domains:
+                problems.append(
+                    f"{path!r} sits in the domain {domain!r}, and the tree holds no "
+                    f"domain{SUFFIX} for it"
+                )
+            named(path, "source", own.get("source_id"), known_sources)
+            named(path, "data product", own.get("product_id"), known_products)
             rows["registered_tables"].append({**own, "id": tid, "domain_id": domain})
             for column in nested["columns"]:
                 rows["table_columns"].append({**column, "table_id": tid, "domain_id": domain})
+            # A relationship tag names its edge the way the projection wrote it: alias, else id.
+            rel_ids = {
+                (rel.get("alias") or rel["id"]): rel["id"] for rel in nested["relationships"]
+            }
             for rel in nested["relationships"]:
                 target = rel.pop("target", None)
+                via = rel.pop("via", None)
                 rows["relationships"].append(
                     {
                         **rel,
@@ -434,10 +503,12 @@ def _decompose(  # noqa: C901 -- allow-complex: one branch per projected kind, a
                         "target_table_id": (
                             None if target is None else resolve_table(target, path, "target")
                         ),
+                        "via_table_id": (
+                            None if via is None else resolve_table(via, path, "via table")
+                        ),
                     }
                 )
-            for policy in nested["row_policies"]:
-                rows["rls_rules"].append({**policy, "table_id": tid, "domain_id": None})
+            policies(nested["row_policies"], path, table_id=tid)
             for ref in nested["glossary"]:
                 rows["glossary_term_refs"].append(
                     {
@@ -453,7 +524,9 @@ def _decompose(  # noqa: C901 -- allow-complex: one branch per projected kind, a
                         "target_table_id": resolve_table(link["target"], path, "meta link"),
                     }
                 )
-            rows["tag_assignments"].extend(_tags(nested["tags"], path, table_id=tid))
+            rows["tag_assignments"].extend(
+                _tags(nested["tags"], path, problems, table_id=tid, rel_ids=rel_ids)
+            )
 
         elif table == "glossary_terms":
             own, nested = _split(body, "edges", "experts", "domains")
@@ -487,7 +560,20 @@ def _decompose(  # noqa: C901 -- allow-complex: one branch per projected kind, a
             own, nested = _split(body, "tags")
             source = _name_of(path)[0]
             rows["sources"].append({**own, "id": source})
-            rows["tag_assignments"].extend(_tags(nested["tags"], path, source_id=source))
+            rows["tag_assignments"].extend(_tags(nested["tags"], path, problems, source_id=source))
+
+        elif table == "data_products":
+            own, nested = _split(body, "tags")
+            product = _name_of(path)[0]
+            if own.get("domain_id") not in known_domains:
+                problems.append(
+                    f"{path!r} names the domain {own.get('domain_id')!r}, and the tree holds no "
+                    f"domain{SUFFIX} for it"
+                )
+            rows["data_products"].append({**own, "id": product})
+            rows["tag_assignments"].extend(
+                _tags(nested["tags"], path, problems, product_id=product)
+            )
 
         elif table == "kafka_sources":
             own, nested = _split(body, "topics")
@@ -508,13 +594,15 @@ def _decompose(  # noqa: C901 -- allow-complex: one branch per projected kind, a
             rows["calendars"].append({**body, "name": name, "version": version})
 
         elif table == COMMANDS_DIR:
-            own, nested = _split(body, "tags")
+            own, nested = _split(body, "tags", "row_policies")
             name = _name_of(path)[0]
             registry = "tracked_functions" if _FUNCTION_MARKER in own else "tracked_webhooks"
+            named(path, "data product", own.get("product_id"), known_products)
             rows[registry].append(
                 {**own, "name": name, "id": ids.of("commands", f"{registry}/{name}")}
             )
-            rows["tag_assignments"].extend(_tags(nested["tags"], path, command_name=name))
+            policies(nested["row_policies"], path, action_name=name)
+            rows["tag_assignments"].extend(_tags(nested["tags"], path, problems, command_name=name))
 
         elif table == "naming_rules":
             for order, rule in enumerate(body.get("rules") or [], start=1):
@@ -530,8 +618,12 @@ def _decompose(  # noqa: C901 -- allow-complex: one branch per projected kind, a
                 # under, and nothing references the serial.
                 entry = {k: v for k, v in entry.items() if k != "id"}
                 entry["id"] = ids.of("kafka_sinks", _name_of(path)[0])
+            if table == "roles":
+                named(path, "parent role", entry.get("parent_role_id"), roles)
             rows[table].append(entry)
 
+    if problems:
+        raise DeployError(problems)
     return rows
 
 
@@ -542,13 +634,17 @@ def _domain_id_of(path: str) -> str:
     return "/".join(_unsegment(p) for p in path.split("/")[:-1])
 
 
-def _tags(
+def _tags(  # noqa: C901 -- allow-complex: one branch per kind of object a tag may be on, the
+    # inverse of the projection's routing; splitting it would separate each kind from its refusal.
     entries: list[dict[str, Any]],
     path: str,
+    problems: list[str],
     *,
     table_id: int | None = None,
     source_id: str | None = None,
     command_name: str | None = None,
+    product_id: str | None = None,
+    rel_ids: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     """Nested tag entries back into ``tag_assignments`` rows.
 
@@ -561,11 +657,24 @@ def _tags(
         body = {k: v for k, v in entry.items() if k not in ("on", "at")}
         fragment = entry.get("on")
         if command_name is not None and fragment is not None:
-            raise DeployError(
+            problems.append(
                 f"{path!r} carries a tag on {fragment!r}, but a command has no parts a fragment "
                 f"can name; a command tag is on the command itself"
             )
-        if fragment is None and command_name is not None:
+            continue
+        if product_id is not None and fragment is not None:
+            problems.append(
+                f"{path!r} carries a tag on {fragment!r}, but a data product has no parts a "
+                f"fragment can name; a product tag is on the product itself"
+            )
+            continue
+        if product_id is not None:
+            body |= {
+                "object_type": "product",
+                "product_id": product_id,
+                "object_key": f"product:{product_id}",
+            }
+        elif fragment is None and command_name is not None:
             body |= {
                 "object_type": "command",
                 "command_name": command_name,
@@ -592,17 +701,25 @@ def _tags(
                 "object_key": f"column:{table_id}:{column}",
             }
         elif fragment.startswith("#rel:"):
-            rel = fragment[len("#rel:") :]
+            # The projection names the edge by alias, else id; the row is keyed by its id.
+            rel = (rel_ids or {}).get(fragment[len("#rel:") :])
+            if rel is None:
+                problems.append(
+                    f"{path!r} carries a tag on {fragment!r}, and the file holds no such "
+                    f"relationship"
+                )
+                continue
             body |= {
                 "object_type": "relationship",
                 "relationship_id": rel,
                 "object_key": f"relationship:{rel}",
             }
         else:
-            raise DeployError(
+            problems.append(
                 f"{path!r} carries a tag on {fragment!r}, which is not an address the model gives a "
                 f"part of an entity; the fragments a tag may name are #field: and #rel:"
             )
+            continue
         body.setdefault("base_tag_id", body["tag_id"])
         out.append(body)
     return out

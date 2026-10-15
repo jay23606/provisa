@@ -65,6 +65,7 @@ KIND_DIRS: dict[str, str] = {
     "calendars": "calendars",
     "stores": "stores",  # REQ-1922
     "org_regions": "regions",  # REQ-1921
+    "data_products": "data-products",  # REQ-1526
 }
 
 #: The two command registries share one directory, because REQ-1385 gives them one address space:
@@ -155,7 +156,7 @@ def _fragment(assignment: dict[str, Any], rel_names: dict[str, str]) -> str | No
 #: ``at`` joins them: the fragment alone repeats across the tags on one object, and a sort key that
 #: repeats leaves the order of those tags to whatever the database returned. (base_tag_id,
 #: object_key) is unique, so fragment-plus-tag is unique too.
-OWNER_KEYS = ("owner_table_id", "owner_source_id", "owner_command_name", "at")
+OWNER_KEYS = ("owner_table_id", "owner_source_id", "owner_command_name", "owner_product_id", "at")
 
 
 def _assignments_for(
@@ -185,6 +186,9 @@ def _assignments_for(
         # A COMMAND tag hangs off neither a table nor a source, so neither nesting would claim it
         # and it would vanish the way a relationship tag once did. Its file is commands/<name>.
         carried["owner_command_name"] = row["command_name"]
+        # A PRODUCT tag likewise: its file is data-products/<id>, and without an owner of its own
+        # it would belong to no file and be deleted by the first load that reached the target.
+        carried["owner_product_id"] = row["product_id"]
         out.append(carried)
     return out
 
@@ -232,6 +236,10 @@ async def project(conn: "Connection", schema: str) -> dict[str, dict[str, Any]]:
             # key rather than a null one -- the tree writes absence as absence (REQ-1526).
             if rel["target_table_id"] is not None:
                 rel["target"] = paths[rel["target_table_id"]]
+            # The table a many-to-many edge goes THROUGH, as a path for the same reason the
+            # target is one: the serial that named it means nothing in another environment.
+            if rel["via_table_id"] is not None:
+                rel["via"] = paths[rel["via_table_id"]]
         own_links = [
             {"target": paths[m["target_table_id"]]}
             for m in meta_links
@@ -258,7 +266,7 @@ async def project(conn: "Connection", schema: str) -> dict[str, dict[str, Any]]:
             # is written above as a path.
             relationships=Child(
                 "id",
-                ("source_table_id", "target_table_id"),
+                ("source_table_id", "target_table_id", "via_table_id"),
                 own_rels,
                 table="relationships",
                 keep=("id",),
@@ -348,6 +356,17 @@ async def project(conn: "Connection", schema: str) -> dict[str, dict[str, Any]]:
                 table="tag_assignments",
             ),
         )
+    for row in await _rows(conn, org.data_products, schema):
+        tree[kind_path(KIND_DIRS["data_products"], row["id"])] = entity(
+            "data_products",
+            row,
+            tags=Child(
+                "at",
+                OWNER_KEYS,
+                [t for t in tagged if t["owner_product_id"] == row["id"]],
+                table="tag_assignments",
+            ),
+        )
     for row in await _rows(conn, org.kafka_sources, schema):
         tree[kind_path(KIND_DIRS["kafka_sources"], row["id"])] = entity(
             "kafka_sources",
@@ -400,6 +419,14 @@ async def project(conn: "Connection", schema: str) -> dict[str, dict[str, Any]]:
             tree[path] = entity(
                 table.name,
                 row,
+                # A policy on a COMMAND hangs off neither a table nor a domain, so neither file
+                # would claim it and every load would delete it. Its file is the command's.
+                row_policies=Child(
+                    "role_id",
+                    ("action_name", "table_id", "domain_id"),
+                    [r for r in rls if r["action_name"] == row["name"]],
+                    table="rls_rules",
+                ),
                 tags=Child(
                     "at",
                     OWNER_KEYS,
