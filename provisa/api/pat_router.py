@@ -41,6 +41,9 @@ class IssueTokenBody(BaseModel):
     role_id: str | None = None
     scopes: list[str] = []
     expires_in_days: int | None = None
+    # REQ-1503: the environment the token is issued INTO. Absent means the one this request is
+    # being served by -- the environment the person issuing it is looking at.
+    env_name: str | None = None
 
 
 def _caller(request: Request) -> tuple[str, str]:
@@ -72,7 +75,33 @@ def _store():
     return PersonalAccessTokenStore(admin_db)
 
 
-@router.post("")  # REQ-1263
+async def _issued_into(request: Request, org_id: str, named: str | None) -> str:
+    """The environment a new token addresses (REQ-1503): the one named, or the one serving this
+    request. A named environment must be one this caller could be served by -- issuing a token is
+    not a way into an environment the caller cannot otherwise reach."""
+    from provisa.api.app import state
+    from provisa.api.env_routing import (
+        EnvironmentRightError,
+        EnvironmentSelectionError,
+        resolve_selected_env,
+    )
+    from provisa.auth.middleware import org_env_capabilities
+    from provisa.core.request_context import active_env
+
+    if named is None or named == active_env():
+        return active_env()
+    identity = request.state.identity
+    try:
+        return await resolve_selected_env(
+            state.admin_db, org_id, identity, named, await org_env_capabilities(identity, org_id)
+        )
+    except EnvironmentSelectionError as exc:
+        raise ApiError(404, "env.unknown", str(exc), org=org_id, env=named) from exc
+    except EnvironmentRightError as exc:
+        raise ApiError(403, "env.switch_forbidden", str(exc), org=org_id, env=named) from exc
+
+
+@router.post("")  # REQ-1263, REQ-1503
 async def issue_token(body: IssueTokenBody, request: Request):
     """Mint a token for the caller. The secret is in this response and nowhere else, ever."""
     user_id, org_id = _caller(request)
@@ -87,11 +116,13 @@ async def issue_token(body: IssueTokenBody, request: Request):
         expires_at = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(
             days=body.expires_in_days
         )
+    env_name = await _issued_into(request, org_id, body.env_name)
     try:
         secret, row = await _store().issue(
             user_id=user_id,
             org_id=org_id,
             name=body.name,
+            env_name=env_name,
             role_id=body.role_id,
             scopes=body.scopes,
             expires_at=expires_at,

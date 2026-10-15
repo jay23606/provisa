@@ -42,7 +42,8 @@ export PROVISA_API_URL=https://acme.provisa.org
 export PROVISA_API_TOKEN=<token>
 ```
 
-Subcommands that accept these flags: `metadata export`, `env deploy`, `env fetch`,
+Subcommands that accept these flags: `metadata export`, every `env` subcommand (`list`, `show`,
+`create`, `delete`, `diff`, `merge`, `deploy`, `revert`, `redo`, `fetch`, `push`, `pull`),
 `maintenance on`, `maintenance off`, `maintenance status`.
 
 ---
@@ -212,40 +213,161 @@ snapshot contains — is in [Metadata Export](metadata-export.md#from-the-comman
 
 ---
 
-## provisa env deploy
+## provisa env
 
-Deploy the model at a git ref into an environment, making that tree the environment's current
-model (REQ-1496). This is the command a deployment pipeline runs; the rule is that a deploy is
-always an invocation carrying an identity against a named control plane. [tool-verified:
-`_cmd_env_deploy()` at cli.py:395-417]
+Run the environment lifecycle against a running Provisa (REQ-1498). Every subcommand is a call to
+the admin API the UI calls; the CLI decides nothing. The allow-list of what a copy carries, the
+merge and removal rules, binding, protection and the caller's rights are the server's, so they
+hold however the operation is invoked. [tool-verified: cli_envs.py:11-28]
 
 ```
-provisa env deploy --org ORG --env ENV --ref REF
-                   [--dry-run] [--seed] [--message MSG]
-                   [--api URL] [--token TOKEN] [--timeout SECONDS]
+provisa env {list,show,create,delete,diff,merge,deploy,revert,redo,fetch,push,pull} --org ORG ...
 ```
+
+### Flags every subcommand takes
 
 | Flag | Required | Notes |
 | --- | --- | --- |
 | `--org` | yes | Organization holding the environment |
-| `--env` | yes | Environment that will hold the deployed model |
-| `--ref` | yes | Branch or commit SHA in the org's repository |
-| `--dry-run` | no | Report what would change; apply nothing |
-| `--seed` | no | Also apply creation-only classes (roles); correct only when this deploy creates the environment for the first time |
-| `--message` | no | Note carried onto an approval request when the target environment is protected |
+| `--json` | no | Print the API's answer as JSON, for a script |
 | `--api` | no | See [Shared options](#shared-options) |
-| `--token` | no | See [Shared options](#shared-options) |
-| `--timeout` | no | Default 300 s |
+| `--token` | no | Bearer token for an identity that may perform the operation |
+| `--timeout` | no | Seconds; default 300 |
 
-[tool-verified: cli.py:677-711]
+Subcommands that act on one environment also take `--env ENV` (required). `list`, `diff`,
+`merge` and `fetch` do not; `diff` and `merge` name their environments with `--from` and `--into`.
+[tool-verified: cli_envs.py:349-374, `_command()`]
 
-| Exit code | Meaning |
+### Exit codes
+
+| Code | Meaning |
 | --- | --- |
-| 0 | Deploy applied, or `--dry-run` completed |
-| 2 | Environment is protected; deploy was only proposed, not applied |
+| 0 | Done, or a dry run that applied nothing |
+| 1 | Refused. The refusing rule's code prints on stderr as `refused (<code>): <detail>`; under `--json` it is `{"refused": {...}}` on stdout |
+| 2 | Proposed, not applied: the target environment is protected and the change waits for an approval |
 
 Exit code 2 is intentional. A pipeline that treated a pending approval as a released deploy would
-be wrong. [tool-verified: cli.py:416-417]
+be wrong. [tool-verified: cli_envs.py:21-28, 40-41, 64-78, 120-135]
+
+### provisa env list
+
+List the org's environments and the build each is at. No flags beyond the shared ones.
+[tool-verified: cli_envs.py:141-149]
+
+```
+provisa env list --org ORG [--json]
+```
+
+### provisa env show
+
+Show one environment and its current build. Exits 1 with `environments.unknown` when the
+environment does not exist. [tool-verified: cli_envs.py:163-183]
+
+```
+provisa env show --org ORG --env ENV [--json]
+```
+
+### provisa env create
+
+Create an environment holding another's model, with its data chosen at creation (REQ-1942). The API
+decides which choices the caller may make. [tool-verified: cli_envs.py:197-216]
+
+```
+provisa env create --org ORG --env NAME --data-mode MODE
+                   [--from SOURCE] [--mutation-handling HANDLING] [--expires-at ISO8601]
+```
+
+| Flag | Required | Notes |
+| --- | --- | --- |
+| `--env` | yes | Name of the new environment |
+| `--from` | no | Environment to start from; default `prod` |
+| `--data-mode` | yes | `inherit`, `unbound`, `test_fake` or `test_synthetic`: the source's connections by reference, none until it binds its own, or test data |
+| `--mutation-handling` | no | `refused`, `reversible` or `direct`; default `refused` |
+| `--expires-at` | no | ISO-8601 instant after which the environment is deleted |
+
+[tool-verified: cli_envs.py:391-416]
+
+```bash
+provisa env create --org acme --env feature-x --from prod --data-mode test_fake
+```
+
+### provisa env delete
+
+Retire an environment. Its branches go only when named. [tool-verified: cli_envs.py:219-232]
+
+```
+provisa env delete --org ORG --env ENV [--delete-branch] [--delete-remote-branch]
+```
+
+| Flag | Notes |
+| --- | --- |
+| `--delete-branch` | Also delete its branch |
+| `--delete-remote-branch` | Also delete its branch on the remote |
+
+[tool-verified: cli_envs.py:418-424]
+
+### provisa env diff
+
+Report what merging one environment into another would do. It is a GET of `merge-preview`, so it
+cannot write; hand it to a runner that must not change anything. [tool-verified:
+cli_envs.py:186-191]
+
+```
+provisa env diff --org ORG --from SOURCE --into TARGET [--removals]
+```
+
+| Flag | Required | Notes |
+| --- | --- | --- |
+| `--from` | yes | Environment merged from |
+| `--into` | yes | Environment merged into |
+| `--removals` | no | Also remove from the target what the source no longer has |
+
+[tool-verified: cli_envs.py:426-439]
+
+### provisa env merge
+
+Merge one environment into another, by identity (REQ-1490). [tool-verified: cli_envs.py:235-250]
+
+```
+provisa env merge --org ORG --from SOURCE --into TARGET
+                  [--removals] [--dry-run] [--message MSG]
+                  [--retire-source] [--retire-remote]
+```
+
+| Flag | Required | Notes |
+| --- | --- | --- |
+| `--from` | yes | Environment merged from |
+| `--into` | yes | Environment merged into |
+| `--removals` | no | Also remove from the target what the source no longer has |
+| `--dry-run` | no | Print the merge report and apply none of it |
+| `--message` | no | What the merge does; required to apply |
+| `--retire-source` | no | Delete the source once its work has landed |
+| `--retire-remote` | no | With `--retire-source`, also delete the source's branch on the remote |
+
+[tool-verified: cli_envs.py:429-451]
+
+### provisa env deploy
+
+Deploy the model at a git ref into an environment, making that tree the environment's current
+model (REQ-1496). This is the command a deployment pipeline runs; a deploy is always an
+invocation carrying an identity against a named control plane. [tool-verified:
+cli_envs.py:253-267]
+
+```
+provisa env deploy --org ORG --env ENV --ref REF [--dry-run] [--message MSG]
+```
+
+| Flag | Required | Notes |
+| --- | --- | --- |
+| `--env` | yes | Environment that will hold the deployed model |
+| `--ref` | yes | Branch or commit in the org's repository |
+| `--dry-run` | no | Report what the deploy would do; apply nothing |
+| `--message` | no | Note carried onto an approval request when the target is protected |
+
+[tool-verified: cli_envs.py:453-468]
+
+A load into an existing environment never applies roles. `--seed` is gone: the API refuses a seed
+with `environments.seed_only_at_creation`.
 
 ```bash
 # Fetch remote branches, then deploy
@@ -257,38 +379,72 @@ provisa env deploy \
   --api "$PROVISA_API_URL" --token "$PROVISA_API_TOKEN"
 ```
 
-For the full explanation of environment classes, protection rules, merge reports, and the
-approval lifecycle, see [Environments](environments.md#the-env-cli-commands).
+### provisa env revert
 
----
-
-## provisa env fetch
-
-Fetch the org's remote branches into its Provisa repository (REQ-1541). Run this before a
-deploy when you want to name `origin/<branch>`. [tool-verified: `_cmd_env_fetch()` at
-cli.py:420-432]
+Put an environment back to a previous build (REQ-1543). With no `--to` it steps back one commit
+along the environment's own history. With `--to` it is the ordinary deploy of that build.
+[tool-verified: cli_envs.py:270-284]
 
 ```
-provisa env fetch --org ORG [--api URL] [--token TOKEN] [--timeout SECONDS]
+provisa env revert --org ORG --env ENV [--to BUILD] [--message MSG]
 ```
 
 | Flag | Required | Notes |
 | --- | --- | --- |
-| `--org` | yes | Organization whose remote is fetched |
-| `--api` | no | See [Shared options](#shared-options) |
-| `--token` | no | Bearer token for an org administrator |
-| `--timeout` | no | Default 300 s |
+| `--env` | yes | Environment to revert |
+| `--to` | no | Build to deploy; default is the one before the current build |
+| `--message` | no | Note carried onto an approval request |
 
-[tool-verified: cli.py:716-733]
+[tool-verified: cli_envs.py:470-480]
 
-Prints one line per fetched branch — `origin/<name>  <sha12>`. Exits 0 on success; raises
-`SystemExit` with an error message on HTTP or connection failure.
+### provisa env redo
+
+Step forward again toward the build a revert departed from. [tool-verified:
+cli_envs.py:287-301]
+
+```
+provisa env redo --org ORG --env ENV
+```
+
+### provisa env fetch
+
+Fetch the org's remote branches into its Provisa repository (REQ-1541). Run this before a deploy
+when you want to name `origin/<branch>`. Provisa never runs it on a timer. [tool-verified:
+cli_envs.py:307-320]
+
+```
+provisa env fetch --org ORG
+```
+
+Prints one line per fetched branch, `origin/<name>  <sha12>`.
 
 ```bash
 provisa env fetch --org acme --api "$PROVISA_API_URL" --token "$PROVISA_API_TOKEN"
 # origin/main  a1b2c3d4e5f6
 # origin/dev   9f8e7d6c5b4a
 ```
+
+### provisa env push
+
+Send an environment's branch to the org's remote (REQ-1546). Prints `nothing to send` when there
+is nothing to push. [tool-verified: cli_envs.py:323-331]
+
+```
+provisa env push --org ORG --env ENV
+```
+
+### provisa env pull
+
+Apply what the remote holds for an environment (REQ-1547). Prints
+`<env> already holds what the remote does` when there is nothing to apply. Exit code 2 applies as
+for deploy. [tool-verified: cli_envs.py:334-343]
+
+```
+provisa env pull --org ORG --env ENV
+```
+
+For the full explanation of environment classes, protection rules, merge reports, and the
+approval lifecycle, see [Environments](environments.md#the-env-cli-commands).
 
 ---
 
@@ -373,8 +529,18 @@ Maintenance notice: ON
 | `provisa license apply <file>` | REQ-1139 | Install a license file offline |
 | `provisa license status` | REQ-1139 | Show machine ID and trial / license state |
 | `provisa metadata export` | REQ-1072 | Publish the metadata snapshot on demand |
-| `provisa env fetch --org ORG` | REQ-1541 | Fetch remote branches into the Provisa repo |
+| `provisa env list --org ORG` | REQ-1498 | List the org's environments and their builds |
+| `provisa env show --org ORG --env ENV` | REQ-1498 | Show one environment |
+| `provisa env create --org ORG --env ENV --data-mode MODE` | REQ-1942 | Create an environment from another |
+| `provisa env delete --org ORG --env ENV` | REQ-1498 | Retire an environment |
+| `provisa env diff --org ORG --from A --into B` | REQ-1490 | Preview a merge (read-only) |
+| `provisa env merge --org ORG --from A --into B` | REQ-1490 | Merge one environment into another |
 | `provisa env deploy --org ORG --env ENV --ref REF` | REQ-1496 | Deploy a ref into an environment |
+| `provisa env revert --org ORG --env ENV [--to BUILD]` | REQ-1543 | Step back one commit, or deploy a build |
+| `provisa env redo --org ORG --env ENV` | REQ-1543 | Step forward again |
+| `provisa env fetch --org ORG` | REQ-1541 | Fetch remote branches into the Provisa repo |
+| `provisa env push --org ORG --env ENV` | REQ-1546 | Send an environment's branch to the remote |
+| `provisa env pull --org ORG --env ENV` | REQ-1547 | Apply what the remote holds |
 | `provisa maintenance on` | REQ-1466 | Raise the maintenance banner |
 | `provisa maintenance off` | REQ-1466 | Clear the maintenance banner |
 | `provisa maintenance status` | REQ-1466 | Show the current banner state |

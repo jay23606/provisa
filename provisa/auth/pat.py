@@ -99,11 +99,13 @@ class PersonalAccessTokenStore:  # REQ-1263
         user_id: str,
         org_id: str,
         name: str,
+        env_name: str,
         role_id: str | None = None,
         scopes: list[str] | None = None,
         expires_at: datetime.datetime | None = None,
     ) -> tuple[str, dict]:
-        """Mint a token. Returns ``(secret, row)``; the secret is never recoverable afterwards."""
+        """Mint a token into the environment ``env_name`` (REQ-1503). Returns ``(secret, row)``;
+        the secret is never recoverable afterwards."""
         if not name.strip():
             raise ValueError("A token name is required")
         if expires_at is not None and _as_aware(expires_at) <= _utcnow():
@@ -133,6 +135,8 @@ class PersonalAccessTokenStore:  # REQ-1263
             "role_id": role_id,
             "scopes": scopes or [],
             "expires_at": expires_at,
+            # REQ-1503: issued INTO one environment, which the token then addresses and no other.
+            "env_name": env_name,
         }
         async with self._pool.acquire() as conn:
             await conn.execute_core(personal_access_tokens.insert().values(**row))
@@ -161,6 +165,7 @@ class PersonalAccessTokenStore:  # REQ-1263
                     personal_access_tokens.c.expires_at,
                     personal_access_tokens.c.revoked_at,
                     personal_access_tokens.c.name,
+                    personal_access_tokens.c.env_name,
                     user_profiles.c.email,
                     user_profiles.c.display_name,
                 )
@@ -199,6 +204,9 @@ class PersonalAccessTokenStore:  # REQ-1263
                 "token_name": row["name"],
             },
             active_org_id=row["org_id"],
+            # REQ-1503: the environment comes from the credential. The routing serves the request
+            # from it and refuses a header that names another.
+            credential_env=row["env_name"],
         )
 
     async def list_for_user(self, user_id: str, org_id: str) -> list[dict]:
@@ -215,6 +223,7 @@ class PersonalAccessTokenStore:  # REQ-1263
                     personal_access_tokens.c.expires_at,
                     personal_access_tokens.c.last_used_at,
                     personal_access_tokens.c.revoked_at,
+                    personal_access_tokens.c.env_name,
                 ).where(
                     personal_access_tokens.c.user_id == user_id,
                     personal_access_tokens.c.org_id == org_id,
@@ -251,6 +260,22 @@ class PersonalAccessTokenStore:  # REQ-1263
                 .where(
                     personal_access_tokens.c.user_id == user_id,
                     personal_access_tokens.c.org_id == org_id,
+                    personal_access_tokens.c.revoked_at.is_(None),
+                )
+                .values(revoked_at=_utcnow())
+            )
+        return result.rowcount
+
+    async def revoke_all_for_environment(self, *, org_id: str, env_name: str) -> int:
+        """Revoke every token issued into one environment of an org (REQ-1503). Called when the
+        environment is retired: its keys address nothing else, so they end with it, and the keys
+        of every other environment keep working."""
+        async with self._pool.acquire() as conn:
+            result = await conn.execute_core(
+                update(personal_access_tokens)
+                .where(
+                    personal_access_tokens.c.org_id == org_id,
+                    personal_access_tokens.c.env_name == env_name,
                     personal_access_tokens.c.revoked_at.is_(None),
                 )
                 .values(revoked_at=_utcnow())

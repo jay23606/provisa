@@ -3769,7 +3769,7 @@ def create_app() -> FastAPI:
             from provisa.auth.middleware import org_env_capabilities
 
             env_caps = await org_env_capabilities(identity, env_org)
-            # REQ-1602/REQ-1596: sandbox ephemeral auto-select and the membership pin both live in
+            # REQ-1596: the membership pin lives in
             # resolve_selected_env, shared with AuthMiddleware's role read (provisa.auth.middleware)
             # so the two always agree on which environment's schema a request is served from.
             from provisa.api.env_routing import resolve_selected_env
@@ -3781,11 +3781,6 @@ def create_app() -> FastAPI:
                     identity,
                     requested_env,
                     env_caps,
-                    # REQ-1618: AuthMiddleware settles this on the platform plane and publishes it
-                    # here; it is not derivable from ``env_caps``, which inside a tenant org has
-                    # already had the control-plane roles stripped out of it (REQ-1327). Absent for
-                    # a request that resolved no identity at all, which is not the control plane.
-                    is_control_plane=bool(request_state.get("can_cross_org")),
                 )
                 _log.info(f"resolve_selected_env returned: {selected_env}")
             except EnvironmentSelectionError as exc:
@@ -3806,6 +3801,14 @@ def create_app() -> FastAPI:
                     status_code=403,
                 )(scope, receive, send)
                 return
+
+            # REQ-1528: the environment is settled, so what owning it confers is settled with it.
+            from provisa.auth.models import AuthIdentity
+
+            if isinstance(identity, AuthIdentity):
+                from provisa.api.env_routing import bind_owner_capabilities
+
+                await bind_owner_capabilities(state.admin_db, env_org, selected_env, identity)
 
             # Keep existing tenant cache-key call sites (which read request.state.tenant_id)
             # pointed at the same id space as the org router.

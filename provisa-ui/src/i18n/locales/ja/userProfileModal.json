@@ -42,6 +42,8 @@
     "deleteAccountHeading": "アカウントを削除",
     "deleteAccountHelp": "Provisa アカウントと、すべての組織のメンバーシップが削除されます。所属していた組織と、そこに登録されているものはすべて保持されます。",
     "deleteAccountConfirmLabel": "確認のため {{userId}} と入力してください",
-    "deleteAccountButton": "アカウントを削除"
+    "deleteAccountButton": "アカウントを削除",
+    "patEnvironment": "環境",
+    "patEnvironmentHelp": "トークンは 1 つの環境でのみ機能します。発行時に表示していた環境です。新しいトークンは {{env}} で機能します。"
   }
 }

@@ -278,6 +278,10 @@ export function EnvironmentsTab() {
   const pull = (env: Environment) =>
     act(env, async () => {
       const answer = await pullEnvironment(orgId, env.name);
+      // REQ-1504: a pull into a protected environment is proposed, and says so.
+      if (answer.requires_approval) {
+        return { color: "blue", message: t("environmentsTab.deployProposed", { env: env.name }) };
+      }
       // A pull that found nothing to take is reported as such rather than as a change (REQ-1547).
       if (!answer.applied) {
         return { color: "green", message: t("environmentsTab.pullUpToDate", { env: env.name }) };

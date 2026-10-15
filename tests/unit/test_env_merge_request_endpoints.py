@@ -123,6 +123,12 @@ def wired(monkeypatch):
     monkeypatch.setattr(er, "_squash", _squash)
     monkeypatch.setattr(er, "_admin_pool", lambda: "admin-db")
 
+    async def _nothing_refers_to_it(admin_db, org_id, name):
+        # REQ-1542: a merge that retires its source asks first whether the source can be retired.
+        return []
+
+    monkeypatch.setattr(er, "env_dependents", _nothing_refers_to_it)
+
     class _Registry:
         """Nothing is cached in a unit test, which is the REQ-1544 "uncached" case: the next
         request would build the runtime from the rows the call just wrote."""

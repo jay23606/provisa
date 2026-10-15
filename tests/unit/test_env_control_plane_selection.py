@@ -8,18 +8,16 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 
-"""REQ-1618: who the sandbox ephemeral auto-select applies to.
+"""Who a sandbox visitor's own environment is served to, and what happens when it is gone.
 
-REQ-1602 derives a sandbox visitor's environment from their user id, and the platform administrator
-is not a visitor: they hold an assignment in the org's prod schema and nothing at all in a
-visitor's branch, so selecting them into one leaves them with an empty capability set and every
-admin surface in that org refuses them (the reported symptom was
-``invites.user_management_in_org_required`` on their own deployment).
+A visitor is served their environment because their MEMBERSHIP IS PINNED to it (REQ-1596):
+redemption writes the pin. Nothing is derived from who the caller is, so a member of the sandbox
+org who holds no pin -- its own administrators, the platform administrator (REQ-1618) -- is served
+what they name, prod when they name nothing.
 
-The fact cannot be recovered where the selection happens. ``identity.roles`` is a list of claim
-STRINGS, and the acting set inside a tenant org has had the control-plane roles stripped out of it
-by REQ-1327 before any of this runs. So the caller -- AuthMiddleware, which reads the platform
-plane -- decides it and passes it in.
+And a pinned visitor whose environment no longer exists, or has expired, is REFUSED (REQ-1487).
+Serving them the org's prod instead would hand a visitor the one environment the pin exists to keep
+them out of.
 """
 
 import hashlib
@@ -102,7 +100,7 @@ async def test_the_control_plane_is_served_sandbox_prod(_env_exists):
     identity = _Identity(ADMIN_UID, ["org_admin"])  # stripped set: the right is not visible here
 
     selected = await resolve_selected_env(
-        _AdminDb(), "sandbox", identity, None, {"user_management"}, is_control_plane=True
+        _AdminDb(), "sandbox", identity, None, {"user_management"}
     )
 
     assert selected == PROD
@@ -119,7 +117,6 @@ async def test_a_visitor_is_still_auto_selected_into_their_own_branch(_env_exist
         identity,
         None,
         {"query_development"},
-        is_control_plane=False,
     )
 
     assert selected == _ephemeral_of(VISITOR_UID)
@@ -127,12 +124,8 @@ async def test_a_visitor_is_still_auto_selected_into_their_own_branch(_env_exist
 
 @pytest.mark.asyncio
 async def test_the_claim_strings_do_not_decide_it(_env_exists):
-    """An identity naming the control-plane role is still a visitor when the caller says so.
-
-    The old test probed each claim for a ``capabilities`` attribute, which a string never has, so it
-    answered "not the control plane" for every caller alive. Pinning the decision to the argument is
-    the fix; this holds the argument as the ONLY input.
-    """
+    """The pin is the only input: an identity naming the control-plane role and pinned to a
+    visitor's environment is served that environment."""
     identity = _Identity(VISITOR_UID, ["platform_admin"])
 
     selected = await resolve_selected_env(
@@ -141,7 +134,6 @@ async def test_the_claim_strings_do_not_decide_it(_env_exists):
         identity,
         None,
         {"cross_org"},
-        is_control_plane=False,
     )
 
     assert selected == _ephemeral_of(VISITOR_UID)
@@ -151,8 +143,41 @@ async def test_the_claim_strings_do_not_decide_it(_env_exists):
 async def test_other_orgs_are_untouched_by_the_auto_select(_env_exists):
     identity = _Identity(VISITOR_UID, ["analyst"])
 
+    selected = await resolve_selected_env(_AdminDb(), "acme", identity, None, {"query_development"})
+
+    assert selected == PROD
+
+
+@pytest.mark.asyncio
+async def test_a_sandbox_member_with_no_pin_is_served_prod_without_a_lookup(_env_exists):
+    """Nothing is derived from the caller: naming nothing is prod, for the sandbox as for any org."""
+    identity = _Identity("sandbox-org-admin", ["org_admin"])
+
     selected = await resolve_selected_env(
-        _AdminDb(), "acme", identity, None, {"query_development"}, is_control_plane=False
+        _AdminDb(), "sandbox", identity, None, {"user_management"}
     )
 
     assert selected == PROD
+    assert _env_exists == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("gone", ["missing", "expired"])
+async def test_a_visitor_whose_environment_is_gone_is_refused_not_served_prod(monkeypatch, gone):
+    """REQ-1487: an environment that cannot be served is a refusal, never another environment."""
+    from datetime import datetime, timedelta, timezone
+
+    from provisa.api.env_routing import EnvironmentSelectionError
+
+    async def _get_env(_admin_db, _org_id, name):
+        if gone == "missing":
+            return None
+        return {"name": name, "expires_at": datetime.now(timezone.utc) - timedelta(minutes=1)}
+
+    monkeypatch.setattr("provisa.core.env_store.get_env", _get_env)
+    identity = _Identity(VISITOR_UID, ["sandbox"])
+
+    with pytest.raises(EnvironmentSelectionError):
+        await resolve_selected_env(
+            _AdminDb(_ephemeral_of(VISITOR_UID)), "sandbox", identity, None, {"query_development"}
+        )

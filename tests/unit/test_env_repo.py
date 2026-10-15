@@ -200,3 +200,53 @@ class TestAProjectionMayNotHoldTheCommitTheControlPlaneNames:
     def test_the_first_commit_of_a_line_has_nothing_behind_it(self):
         first = commit_files(ensure_repo(ORG), "prod", MODEL, "seed", None)
         assert parent_of(ORG, first) is None
+
+
+class TestLandingOnACommitThatCameFromElsewhere:
+    """REQ-1547: a pull applies the fetched commit, and the branch moves onto THAT commit -- the
+    model now equals it -- rather than onto a new commit beside it, which would leave the two lines
+    diverged by the very act that reconciled them."""
+
+    @staticmethod
+    def _fetched(org: str, files: dict[str, str]) -> str:
+        """A commit ahead of ``prod`` that arrived the way a fetch brings one: on another ref."""
+        from provisa.core.env_repo import start_branch
+
+        repo = ensure_repo(org)
+        start_branch(repo, "elsewhere", "prod")
+        sha = commit_files(repo, "elsewhere", files, "reviewed on the host", None)
+        assert sha is not None
+        return sha
+
+    def test_a_model_equal_to_the_commit_moves_the_branch_onto_it(self):
+        from provisa.core.env_repo import tip
+
+        repo = ensure_repo(ORG)
+        commit_files(repo, "prod", MODEL, "seed", None)
+        changed = {**MODEL, "sales/domain.yaml": "id: sales\ndescription: reviewed\n"}
+        fetched = self._fetched(ORG, changed)
+        assert commit_files(repo, "prod", changed, "pull", None, onto=fetched) == fetched
+        assert tip(ORG, "prod") == fetched
+
+    def test_a_model_that_differs_from_it_is_committed_on_top_of_it(self):
+        from provisa.core.env_repo import tip
+
+        repo = ensure_repo(ORG)
+        commit_files(repo, "prod", MODEL, "seed", None)
+        changed = {**MODEL, "sales/domain.yaml": "id: sales\ndescription: reviewed\n"}
+        fetched = self._fetched(ORG, changed)
+        here = {**changed, "roles/analyst.yaml": "id: analyst\n"}
+        landed = commit_files(repo, "prod", here, "pull", None, onto=fetched)
+        assert landed not in (None, fetched)
+        assert tip(ORG, "prod") == landed
+        assert parent_of(ORG, landed) == fetched
+
+    def test_a_commit_the_branch_is_not_behind_is_refused(self):
+        from provisa.core.env_repo import RepositoryError
+
+        repo = ensure_repo(ORG)
+        commit_files(repo, "prod", MODEL, "seed", None)
+        fetched = self._fetched(ORG, {**MODEL, "x.yaml": "a: 1\n"})
+        commit_files(repo, "prod", {**MODEL, "y.yaml": "b: 2\n"}, "local edit", None)
+        with pytest.raises(RepositoryError, match="diverged"):
+            commit_files(repo, "prod", MODEL, "pull", None, onto=fetched)

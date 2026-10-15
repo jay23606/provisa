@@ -54,6 +54,7 @@ function identity(spec: {
     assignments: spec.assignments ?? [],
     org_memberships: spec.orgMemberships ?? [],
     active_org_id: spec.activeOrgId ?? null,
+    env_capabilities: [],
   } as unknown as Awaited<ReturnType<typeof fetchMe>>;
 }
 

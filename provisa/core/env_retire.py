@@ -103,6 +103,9 @@ ENVIRONMENT_REFERENCES: tuple[EnvReference, ...] = (
     # An environment created from this one resolves its inherited bindings through it (REQ-1529,
     # REQ-1942).
     EnvReference("environments", "parent", "environment", visitor=DEPENDENT, otherwise=DEPENDENT),
+    # A token issued into the environment addresses it and nothing else (REQ-1503), so it never
+    # holds the environment up: it is revoked with it.
+    EnvReference("personal_access_tokens", "env_name", "token", visitor=PART, otherwise=PART),
 )
 
 
@@ -205,8 +208,12 @@ async def _remove_parts(admin_db: "Database", org_id: str, name: str) -> list[st
     from provisa.auth.pat import PersonalAccessTokenStore
 
     gone: list[str] = []
+    # REQ-1503: the environment's own tokens end with it, whoever holds them.
+    await PersonalAccessTokenStore(admin_db).revoke_all_for_environment(
+        org_id=org_id, env_name=name
+    )
     for reference in ENVIRONMENT_REFERENCES:
-        if _standing(reference, name) != PART:
+        if _standing(reference, name) != PART or reference.table == "personal_access_tokens":
             continue
         assert reference.table == "user_org_memberships", reference
         async with admin_db.acquire() as conn:

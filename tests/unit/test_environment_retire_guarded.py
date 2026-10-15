@@ -165,6 +165,9 @@ def test_the_inventory_says_what_blocks_and_what_goes_with_a_visitors_environmen
         ("user_org_memberships", "env_name"): (PART, DEPENDENT),
         ("org_invites", "env_name"): (DEPENDENT, DEPENDENT),
         ("environments", "parent"): (DEPENDENT, DEPENDENT),
+        # REQ-1503: a token issued into the environment addresses nothing else, so it is revoked
+        # with the environment and never holds it up.
+        ("personal_access_tokens", "env_name"): (PART, PART),
     }
 
 

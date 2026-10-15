@@ -42,6 +42,8 @@
     "deleteAccountHeading": "खाता हटाएँ",
     "deleteAccountHelp": "इससे आपका Provisa खाता और हर संगठन की आपकी सदस्यता हट जाती है। जिन संगठनों से आप जुड़े हैं, वे और उनमें पंजीकृत सब कुछ बना रहता है।",
     "deleteAccountConfirmLabel": "पुष्टि के लिए {{userId}} टाइप करें",
-    "deleteAccountButton": "मेरा खाता हटाएँ"
+    "deleteAccountButton": "मेरा खाता हटाएँ",
+    "patEnvironment": "एनवायरनमेंट",
+    "patEnvironmentHelp": "टोकन एक ही एनवायरनमेंट में काम करता है: वही जिसे आप उसे जारी करते समय देख रहे थे। नया टोकन {{env}} में काम करेगा।"
   }
 }

@@ -57,6 +57,7 @@ function identity(orgs: string[], activeOrgId: string | null) {
     assignments: [{ role_id: "org_admin", domain_id: "*" }],
     org_memberships: orgs.map((org_id) => ({ org_id, role: "org_admin" })),
     active_org_id: activeOrgId,
+    env_capabilities: [],
   };
 }
 

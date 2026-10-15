@@ -105,6 +105,8 @@ async def me(request: Request):
                 }
             ],
             "assignments": [{"role_id": rid, "domain_id": "*"} for rid in sorted(all_role_ids)],
+            # REQ-1528: the dev principal owns no environment; every role is already its own.
+            "env_capabilities": [],
         }
 
     # REQ-1297: platform_admin is seeded into every org schema, so it normally IS in all_role_ids —
@@ -173,6 +175,9 @@ async def me(request: Request):
             for r in org_rows
         ],
         "assignments": assignments,
+        # REQ-1528: what the caller holds by OWNING the environment this request is bound to --
+        # the same set the capability check reads, so the UI offers what the server will accept.
+        "env_capabilities": sorted(identity.env_capabilities),
     }
 
 

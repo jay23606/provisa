@@ -941,7 +941,6 @@ class AuthMiddleware:  # REQ-120, REQ-125, REQ-273
                         identity,
                         None,
                         await org_env_capabilities(identity, active_org_id),
-                        is_control_plane=can_cross_org,
                     )
                 except (EnvironmentSelectionError, EnvironmentRightError):
                     # Not this middleware's job to answer for -- _OrgRoutingMiddleware resolves

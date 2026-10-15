@@ -44,6 +44,8 @@ export async function fetchMe(): Promise<{
   control_plane_id: string; // REQ-2008: browser state is saved per control plane and org
   org_memberships: OrgMembership[];
   assignments: RoleAssignment[];
+  // REQ-1528: rights held by OWNING the environment the request was served by.
+  env_capabilities: string[];
 }> {
   let res: Response;
   try {
@@ -351,6 +353,8 @@ export interface PersonalAccessToken {
   expires_at: string | null;
   last_used_at: string | null;
   revoked_at: string | null;
+  // REQ-1503: the one environment the token addresses -- the one it was issued into.
+  env_name: string;
 }
 
 export async function listPersonalAccessTokens(): Promise<PersonalAccessToken[]> {

@@ -6352,5 +6352,7 @@
   "he/tour.json::tour.steps.qualityDone.title": "Trust you can query",
   "he/tour.json::tour.steps.qualityDone.description": "Landing a batch refreshed the checks, silver and gold, with nothing else run. The clean batch reached gold; the bad one stopped at bronze, and why is a query.",
   "he/serverErrors.json::serverErrors.data.row_level_filter_not_pushable": "Table '{{table}}' is replicated row by row and its source ({{source_type}}) cannot apply this filter itself: {{reason}}. Filter on its key instead.",
-  "he/serverErrors.json::serverErrors.data.row_level_filter_required": "Table '{{table}}' is replicated row by row because it is large, so it is not read whole: add a filter on its columns, or join it on its key to a relation that is filtered."
+  "he/serverErrors.json::serverErrors.data.row_level_filter_required": "Table '{{table}}' is replicated row by row because it is large, so it is not read whole: add a filter on its columns, or join it on its key to a relation that is filtered.",
+  "he/userProfileModal.json::userProfileModal.patEnvironment": "Environment",
+  "he/userProfileModal.json::userProfileModal.patEnvironmentHelp": "A token works in one environment: the one you were reading when you issued it. A new token will work in {{env}}."
 }

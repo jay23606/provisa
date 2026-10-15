@@ -390,9 +390,9 @@ class DeployBody(BaseModel):
     # is loaded and reported, so the answer never describes a different commit than the one applied.
     ref: str
     dry_run: bool = False
-    # REQ-1539: whether the deploy applies the creation-only classes -- roles above all. OFF except
-    # when the deploy is what CREATES the environment, because a tree carries the roles of whatever
-    # control plane projected it, and a desktop's self-granted rights must not arrive with it.
+    # REQ-1539: the creation-only classes -- roles above all -- are applied only by the load that
+    # CREATES an environment, and this door loads into one that already exists. Kept on the body so
+    # that asking for it is refused by name rather than dropped unread.
     seed: bool = False
     message: str = ""
 
@@ -771,6 +771,8 @@ async def merge_into_environment(request: Request, org_id: str, name: str, body:
             org=org_id,
             env=body.from_env,
         )
+    if body.retire_source:
+        await _retirable(org_id, body.from_env)
     db = await _org_model_db(org_id)
     protected = await env_approvals.is_protected(
         _admin_pool(), org_id, name, await _member_count(org_id)
@@ -907,6 +909,25 @@ async def _refresh(org_id: str, env: str, *, connectivity: bool) -> str:
     return "recompiled"
 
 
+async def _retirable(org_id: str, name: str) -> None:
+    """Refuse, BEFORE a merge applies, a retirement the merge could not go on to perform
+    (REQ-1542): ``prod`` is never retired, and neither is an environment something still refers
+    to (REQ-1918). Both are known beforehand, so a merge that asks for the impossible is refused
+    whole rather than applied and then answered with the retirement's refusal."""
+    if name == PROD:
+        raise ApiError(
+            409,
+            "environments.prod_immutable",
+            f"{PROD!r} exists from the organization's creation and cannot be retired, so a merge "
+            "out of it cannot end it.",
+            org=org_id,
+            env=name,
+        )
+    blocking = await env_dependents(_admin_pool(), org_id, name)
+    if blocking:
+        raise _in_use(EnvironmentInUse(org_id, name, blocking))
+
+
 async def _retire(org_id: str, actor: str | None, name: str, *, remote: bool = False) -> dict:
     """End an environment because a merge said its work is done (REQ-1542).
 
@@ -941,6 +962,49 @@ async def _retire(org_id: str, actor: str | None, name: str, *, remote: bool = F
     return outcome
 
 
+async def _proposed_load(
+    org_id: str,
+    name: str,
+    actor: str | None,
+    db: Database,
+    *,
+    ref: str,
+    sha: str,
+    tree: dict,
+    message: str = "",
+) -> dict | None:
+    """The answer when a load lands on a PROTECTED environment, or ``None`` when it may apply.
+
+    Every act that applies a tree -- deploy, undo, redo, pull -- asks here, so a protected
+    environment has one door (REQ-1504): the same call becomes a request somebody else decides,
+    carrying the pinned sha and the report of what it would do (REQ-1496).
+    """
+    if not await env_approvals.is_protected(
+        _admin_pool(), org_id, name, await _member_count(org_id)
+    ):
+        return None
+    deploy_request = await env_approvals.request_deploy(
+        _admin_pool(),
+        db,
+        org_id,
+        ref=ref,
+        sha=sha,
+        tree=tree,
+        target_env=name,
+        requested_by=actor or "anonymous",
+        message=message,
+        seed=False,  # REQ-1539: a load into an existing environment never seeds roles
+    )
+    await _audit(
+        org_id,
+        actor,
+        "environment.deploy_requested",
+        name,
+        {"request_id": deploy_request["id"], **deploy_request["report"]},
+    )
+    return {"request": _rendered(deploy_request), "applied": False, "requires_approval": True}
+
+
 @router.post("/{name}/deploy")
 @model_change.commits_itself  # REQ-1524: commits the model it writes itself
 async def deploy_into_environment(
@@ -971,50 +1035,31 @@ async def deploy_into_environment(
 
     actor = await _guard_within(request, org_id, name)
     await _known(org_id, name)
+    if body.seed:
+        raise ApiError(
+            400,
+            "environments.seed_only_at_creation",
+            f"Environment {name!r} already exists, so a load into it does not apply roles: they "
+            "are seeded once, when an environment is created.",
+            org=org_id,
+            env=name,
+        )
     sha = _readable(org_id, body.ref, lambda: resolve_sha(org_id, body.ref))
     tree = load_files(_readable(org_id, body.ref, lambda: files_at(org_id, sha)))
     db = await _org_model_db(org_id)
-    protected = await env_approvals.is_protected(
+    # A dry run writes nothing, so it only REPORTS whether the load would wait for an approval.
+    protected = body.dry_run and await env_approvals.is_protected(
         _admin_pool(), org_id, name, await _member_count(org_id)
     )
     try:
-        if protected and not body.dry_run:
-            deploy_request = await env_approvals.request_deploy(
-                _admin_pool(),
-                db,
-                org_id,
-                ref=body.ref,
-                sha=sha,
-                tree=tree,
-                target_env=name,
-                requested_by=actor or "anonymous",
-                message=body.message,
-                seed=body.seed,
+        if not body.dry_run:
+            proposed = await _proposed_load(
+                org_id, name, actor, db, ref=body.ref, sha=sha, tree=tree, message=body.message
             )
-            await _audit(
-                org_id,
-                actor,
-                "environment.deploy_requested",
-                name,
-                {"request_id": deploy_request["id"], **deploy_request["report"]},
-            )
-            return {
-                "request": _rendered(deploy_request),
-                "applied": False,
-                "requires_approval": True,
-            }
-
-        if body.dry_run:
-            report = await plan_deploy(db, org_id, name, tree, ref=sha, seed=body.seed)
-        else:
-            report = await deploy_tree(
-                db,
-                org_id,
-                name,
-                tree,
-                ref=sha,
-                seed=body.seed,
-            )
+            if proposed is not None:
+                return proposed
+        run = plan_deploy if body.dry_run else deploy_tree
+        report = await run(db, org_id, name, tree, ref=sha)
     except DeployError as exc:
         # REQ-1496: a tree that does not hold is refused WHOLE. Nothing partial has landed -- the
         # decomposition raises before a statement is issued -- so the environment is untouched.
@@ -1121,13 +1166,21 @@ async def _move(request: Request, org_id: str, name: str, forward: bool) -> dict
     tree = load_files(_readable(org_id, target, lambda: files_at(org_id, target)))
     db = await _org_model_db(org_id)
     try:
-        report = await deploy_tree(
-            db,
+        # REQ-1496/REQ-1504: a step along the history is a load, so a protected environment is
+        # proposed to exactly as a deploy proposes to it.
+        proposed = await _proposed_load(
             org_id,
             name,
-            tree,
+            actor,
+            db,
             ref=target,
+            sha=target,
+            tree=tree,
+            message=f"{'redo' if forward else 'undo'} {name} from {here[:12]} to {target[:12]}",
         )
+        if proposed is not None:
+            return proposed
+        report = await deploy_tree(db, org_id, name, tree, ref=target)
     except DeployError as exc:
         raise ApiError(
             422, "environments.tree_does_not_hold", str(exc), org=org_id, env=name, ref=target
@@ -1223,6 +1276,10 @@ async def decide_merge_request(
     actor = await _guard(request, org_id)
     decided_on = await _request_or_404(org_id, request_id)
     await _confined(request, org_id, decided_on["source_env"], decided_on["target_env"])
+    if body.approve and decided_on["retire_source"] and decided_on["source_env"] is not None:
+        # REQ-1542: the retirement is part of what is approved, so it is checked before any of it
+        # is applied -- something may have come to refer to the source since the request.
+        await _retirable(org_id, decided_on["source_env"])
     try:
         decided = await env_approvals.decide(
             _admin_pool(),
@@ -1277,6 +1334,10 @@ async def decide_merge_request(
                 deployed_stamp=None,  # a deploy: not known exactly (see the direct deploy)
                 redo_sha=None,
             )
+            if decided["source_ref"] == f"origin/{decided['target_env']}":
+                # REQ-1547: an approved PULL lands as a pull does -- the branch moves onto the
+                # fetched commit, so the lines it reconciled stay reconciled.
+                await _land(org_id, decided["target_env"], decided["source_sha"], actor)
         # REQ-1544: an approved request is applied by ``env_approvals``, so the target's cached
         # runtime is stale the moment the approval returns exactly as it is after a direct call.
         refreshed = await _refresh(
@@ -1495,28 +1556,43 @@ async def _remote_of(org_id: str) -> str:
 
 
 def _track_pushed(org_id: str, env: str, sha: str) -> None:
-    """Record that the remote now holds ``sha`` on ``env``, so the status stops saying unsynced.
+    """Record that the remote now holds ``sha`` on ``env`` (REQ-1546)."""
+    from provisa.core.env_repo import mark_pushed
 
-    A push that returned is a push the remote accepted, so the tracking ref is written from what we
-    sent rather than from a second round trip. This is the ONE place a tracking ref is written
-    outside a fetch, and it still never touches ``refs/heads``: what the remote holds and what an
-    environment holds stay separate namespaces (REQ-1541).
-    """
-    from dulwich.objects import ObjectID
-
-    from provisa.core.env_repo import ensure_repo, remote_ref
-
-    ensure_repo(org_id).refs[remote_ref(env)] = ObjectID(sha.encode())
+    mark_pushed(org_id, env, sha)
 
 
 def _forget_pushed(org_id: str, env: str) -> None:
     """Drop the tracking ref for a branch that is gone from the remote, so no status claims it."""
-    from provisa.core.env_repo import ensure_repo, remote_ref
+    from provisa.core.env_repo import forget_pushed
 
-    refs = ensure_repo(org_id).refs
-    ref = remote_ref(env)
-    if ref in refs.as_dict():
-        del refs[ref]
+    forget_pushed(org_id, env)
+
+
+async def _land(org_id: str, name: str, sha: str, actor: str | None) -> str | None:
+    """Move ``name``'s branch onto the fetched commit its model was just made from (REQ-1547).
+
+    The branch moves because the write-through commits the model the apply produced, and it
+    commits it ONTO the commit that was applied: the branch then contains what the remote holds,
+    so the pull that reconciled the two lines leaves them reconciled, and a second pull of the
+    same commit finds nothing behind.
+    """
+    from provisa.api.admin.orgs_router import _org_model_db
+    from provisa.core.env_repo import write_through
+    from provisa.core.environments import org_schema
+
+    db = await _org_model_db(org_id)
+    async with db.acquire() as conn:
+        return await write_through(
+            conn,
+            _admin_pool(),
+            org_id,
+            name,
+            org_schema(org_id, name),
+            f"pull {name} from the remote at {sha[:12]}",
+            actor,
+            onto=sha,
+        )
 
 
 @router.get("/-/repo-integration/sync")
@@ -1727,14 +1803,21 @@ async def pull_environment(request: Request, org_id: str, name: str) -> dict:
     tree = load_files(_readable(org_id, sha, lambda: files_at(org_id, sha)))
     db = await _org_model_db(org_id)
     try:
-        report = await deploy_tree(
-            db,
+        # REQ-1496/REQ-1504: a pull is a load, so a protected environment is proposed to exactly
+        # as a deploy proposes to it; its approval lands the branch as a pull does (REQ-1547).
+        proposed = await _proposed_load(
             org_id,
             name,
-            tree,
-            ref=sha,
-            base_sha=base_sha,
+            actor,
+            db,
+            ref=f"origin/{name}",
+            sha=sha,
+            tree=tree,
+            message=f"pull {name} from the remote at {sha[:12]}",
         )
+        if proposed is not None:
+            return {**proposed, "sync": state}
+        report = await deploy_tree(db, org_id, name, tree, ref=sha, base_sha=base_sha)
     except DeployError as exc:
         raise ApiError(
             422, "environments.tree_does_not_hold", str(exc), org=org_id, env=name, ref=sha
@@ -1742,6 +1825,7 @@ async def pull_environment(request: Request, org_id: str, name: str) -> dict:
     await set_position(
         _admin_pool(), org_id, name, deployed_sha=sha, deployed_stamp=None, redo_sha=None
     )
+    await _land(org_id, name, sha, actor)
     await _audit(org_id, actor, "environment.repo_pull", name, {"sha": sha, **report.as_dict()})
     refreshed = await _refresh(org_id, name, connectivity=report.delta.touches_connectivity)
     return {

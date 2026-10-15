@@ -88,7 +88,7 @@ def test_deploy_addresses_the_named_control_plane(monkeypatch, capsys):
     method, path, body, api, token = seen[0]
     assert method == "POST"
     assert path == "/admin/orgs/acme/environments/prod/deploy"
-    assert body == {"ref": "origin/main", "dry_run": False, "seed": False, "message": ""}
+    assert body == {"ref": "origin/main", "dry_run": False, "message": ""}
     # Which control plane ingests is the invocation's to say -- there is no discovery and no default
     # target beyond the one the environment names (REQ-1554).
     assert api == "https://cp.example.com"
