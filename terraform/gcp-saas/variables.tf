@@ -1,8 +1,8 @@
 # ── terraform/gcp-saas ─────────────────────────────────────────────────────────
 # Multi-tenant, on-demand SaaS deployment of Provisa. Distinct from the enterprise
 # module (terraform/gcp), which is a fixed single-tenant N-node cluster with postgres
-# in the coordinator's compose stack. This module offloads the control plane to
-# Cloud SQL and runs every federation engine on a GKE cluster (gke.tf) instead of on
+# in the coordinator's compose stack. This module keeps the control plane in a
+# control-db service on the control-plane VM and runs every federation engine on a GKE cluster (gke.tf) instead of on
 # VMs -- there is no Trino on the control-plane VM and no worker MIG. See
 # docs/deployment/gcp-saas-infra-plan.md. Multitenancy is forced on (not a variable).
 
@@ -180,7 +180,7 @@ variable "zaychik_image" {
 # ── Coordinator (planner + TCP listeners + stateful singletons) ─────────────────
 variable "coordinator_machine_type" {
   description = <<-EOT
-    Machine type for the Trino coordinator. With the DB offloaded to Cloud SQL and
+    Machine type for the control-plane VM (it runs the control-db Postgres too). With
     node-scheduler.include-coordinator=false, the coordinator only plans + coordinates
     + streams results, and execution belongs to the engine cluster's shards, so
     e2-standard-2 (2 vCPU, 8 GB) is the SaaS baseline. e2-standard-4 was sized for a
@@ -234,38 +234,6 @@ variable "front_door_status_port" {
 # pod Autopilot sizes a node for, and capacity is added by shards, never by VMs
 # joining the control plane's Trino. The autoscaled MIG, its instance template and
 # its regional autoscaler are gone with the GCE engine tier.
-
-# ── Cloud SQL (managed control plane) ───────────────────────────────────────────
-variable "cloudsql_tier" {
-  description = <<-EOT
-    Cloud SQL machine tier for the control-plane Postgres. db-f1-micro is the
-    always-warm baseline (~$9/mo); scale up for many-tenant connection fan-out.
-  EOT
-  type        = string
-  default     = "db-f1-micro"
-}
-
-variable "cloudsql_ha" {
-  description = "Regional (high-availability) Cloud SQL. true = REGIONAL failover; false = ZONAL (cheaper, single-zone)."
-  type        = bool
-  default     = false
-}
-
-variable "cloudsql_max_connections" {
-  description = <<-EOT
-    Postgres max_connections for the control-plane instance. db-f1-micro's memory-derived
-    default is 25, which the control plane + audit plane + per-org tenant handles exhaust at
-    a couple of orgs. Raise this alongside the tier when tenant count grows.
-  EOT
-  type        = number
-  default     = 100
-}
-
-variable "cloudsql_disk_gb" {
-  description = "Cloud SQL data disk size in GB."
-  type        = number
-  default     = 20
-}
 
 # ── TLS / auth (parity with the enterprise module) ──────────────────────────────
 variable "tls_cert_pem" {

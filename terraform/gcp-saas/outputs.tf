@@ -34,18 +34,8 @@ output "control_plane_public_ip" {
   value       = google_compute_instance.coordinator.network_interface[0].access_config[0].nat_ip
 }
 
-output "cloudsql_instance" {
-  description = "Cloud SQL control-plane instance name."
-  value       = google_sql_database_instance.main.name
-}
-
-output "cloudsql_private_ip" {
-  description = "Private IP of the Cloud SQL control-plane instance."
-  value       = google_sql_database_instance.main.private_ip_address
-}
-
-output "cloudsql_password" {
-  description = "Generated Cloud SQL 'provisa' user password."
+output "control_db_password" {
+  description = "Generated password of the control-db 'provisa' user."
   value       = random_password.db.result
   sensitive   = true
 }
