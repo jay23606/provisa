@@ -44,7 +44,7 @@ pytestmark = pytest.mark.asyncio
 def _request(org_id: str = "acme") -> "Request":
     fake = types.SimpleNamespace(
         state=types.SimpleNamespace(
-            identity=types.SimpleNamespace(user_id="alice", roles=[]),
+            identity=types.SimpleNamespace(user_id="alice", roles=[], acting_roles=[]),
             active_org_id=org_id,
         )
     )

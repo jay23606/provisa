@@ -18,6 +18,7 @@ import {
 import { isEngineProbePath, noteRequestEnd, noteRequestStart } from "./engineWake";
 import { noteOrgSelectionRefusal } from "./orgSelection";
 import { getStored, removeStored, visitorActive } from "./browserStorage";
+import { currentActingRoles, ROLE_HEADER } from "./actingRole";
 
 // REQ-1267: on an auth-enforced deploy (firebase/basic) the bearer token lives in
 // localStorage and must ride on EVERY same-origin request. The Apollo link already adds it
@@ -171,7 +172,9 @@ export function installAuthFetch(): void {
     const token = await currentBearer();
     const orgId = getStored("provisa_org", { global: true });
     const env = selectedEnv();
-    if (!sameOrigin || (!token && env === null)) return sampled(input, init, sameOrigin, url);
+    const roles = currentActingRoles();
+    if (!sameOrigin || (!token && env === null && roles === null))
+      return sampled(input, init, sameOrigin, url);
 
     // Merge onto whichever headers source applies: init overrides a Request's own headers.
     const headers = new Headers(
@@ -181,6 +184,8 @@ export function installAuthFetch(): void {
     if (token && !headers.has("authorization")) headers.set("Authorization", `Bearer ${token}`);
     if (token && orgId && !headers.has(ORG_HEADER)) headers.set(ORG_HEADER, orgId);
     if (env !== null && !headers.has(ENV_HEADER)) headers.set(ENV_HEADER, env);
+    // The roles the request acts as: a page that names its own (an explorer) keeps them.
+    if (roles !== null && !headers.has(ROLE_HEADER)) headers.set(ROLE_HEADER, roles);
     const res = await sampled(input, { ...init, headers }, sameOrigin, url);
     if (env !== null) await repairStaleEnv(res);
     // REQ-1935: a request naming no org is refused; the app answers with a prompt to select one.

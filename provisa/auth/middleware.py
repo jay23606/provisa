@@ -554,6 +554,7 @@ class AuthMiddleware:  # REQ-120, REQ-125, REQ-273
                 display_name=unsecured_role,
                 roles=unsecured_roles,
                 raw_claims={},
+                acting_roles=list(unsecured_roles),
             )
             request.state.role = unsecured_role
             request.state.assignments = [
@@ -603,6 +604,9 @@ class AuthMiddleware:  # REQ-120, REQ-125, REQ-273
                     RoleAssignment(role_id=ORG_ADMIN_ROLE, domain_id="*"),
                 ]
                 su_identity.roles = _assignments_to_claims(su_assignments)
+                # platform_admin is the special case: break-glass acts as both of its roles, on
+                # both planes, whatever a request names.
+                su_identity.acting_roles = list(su_identity.roles)
                 request.state.identity = su_identity
                 # REQ-1618: break-glass holds platform_admin, so it IS the control plane, and this
                 # branch returns before the platform read below that publishes the same fact for
@@ -1085,6 +1089,18 @@ class AuthMiddleware:  # REQ-120, REQ-125, REQ-273
         # DB user_role_assignments to enforcement — a bearer token (e.g. Firebase) carries no
         # roles claim, so without this a DB-granted org role would never be enforced.
         identity.roles = _assignments_to_claims(assignments)
+        # Rights follow the roles the request acts as: the ones it named (each checked as held
+        # above), or the default role when it named none -- never every role the user holds. A
+        # control-plane role the user holds stays in the set: the platform plane is separate, and
+        # its rights are read as before (platform_admin is the special case).
+        acting_ids = set(acting_set) if acting_set else {role}
+        identity.acting_roles = _assignments_to_claims(
+            [
+                a
+                for a in assignments
+                if a.role_id in acting_ids or _is_control_plane_role(a.role_id, _all_roles)
+            ]
+        )
 
         request.state.identity = identity
         request.state.role = role

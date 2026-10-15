@@ -92,6 +92,8 @@ def _make_app(
             "assignments": [a.role_id for a in (getattr(request.state, "assignments", None) or [])],
             "roles": getattr(request.state, "roles", None),
             "active_org_id": getattr(request.state, "active_org_id", None),
+            "held": list(request.state.identity.roles),
+            "acting": request.state.identity.acting_roles,
         }
 
     return app
@@ -672,3 +674,63 @@ def test_a_single_role_header_sets_no_role_set():
     assert resp.status_code == 200, resp.text
     assert resp.json()["role"] == "editor"
     assert resp.json()["roles"] is None
+
+
+# --- Rights follow the roles a request acts as, never every role held ----------
+
+
+def _acting(headers: dict | None = None) -> dict:
+    app = _make_app(provider=MultiRoleProvider(), default_role="analyst")
+    resp = TestClient(app).get(
+        "/test", headers={"Authorization": "Bearer valid-token", **(headers or {})}
+    )
+    assert resp.status_code == 200, resp.text
+    return resp.json()
+
+
+def test_a_named_role_is_the_whole_acting_set_and_the_held_set_stays_whole():
+    data = _acting({"X-Provisa-Role": "editor"})
+    assert data["acting"] == ["editor"]
+    assert sorted(data["held"]) == ["analyst", "editor"]  # what the role picker offers
+
+
+def test_a_request_naming_no_role_acts_as_the_default_role_alone():
+    data = _acting()
+    assert data["acting"] == [data["role"]]
+
+
+def test_a_named_set_acts_as_every_role_in_it(monkeypatch):
+    monkeypatch.setattr(
+        "provisa.security.meta_role.ensure_meta_role",
+        lambda _state, members: "meta:" + "+".join(sorted(members)),
+    )
+    assert sorted(_acting({"X-Provisa-Role": "analyst,editor"})["acting"]) == ["analyst", "editor"]
+
+
+def test_rights_are_read_from_the_acting_roles_not_every_role_held():
+    """A user holding a role with a right exercises it only acting as that role: rights, like
+    data, follow what the request names."""
+    from types import SimpleNamespace
+
+    from provisa.api.admin.capabilities import _resolved_capabilities
+
+    state = SimpleNamespace(
+        roles={
+            "analyst": {"capabilities": ["query_development"], "domain_access": ["*"]},
+            "editor": {"capabilities": ["source_registration"], "domain_access": ["*"]},
+        }
+    )
+    held = ["analyst", "editor"]
+    as_analyst = SimpleNamespace(user_id="u", roles=held, acting_roles=["analyst"])
+    as_both = SimpleNamespace(user_id="u", roles=held, acting_roles=held)
+    assert _resolved_capabilities(as_analyst, state) == {"query_development"}
+    assert _resolved_capabilities(as_both, state) == {"query_development", "source_registration"}
+
+
+def test_an_identity_no_request_bound_has_no_rights_to_read():
+    from types import SimpleNamespace
+
+    from provisa.security.rights import acting_claims
+
+    with pytest.raises(RuntimeError, match="has no acting roles"):
+        acting_claims(SimpleNamespace(user_id="u", roles=["editor"]))

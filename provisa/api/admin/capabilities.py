@@ -17,6 +17,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from provisa.security.rights import (
+    acting_claims,
     capabilities_for_claims,
     domain_access_for_capability,
     domain_access_for_claims,
@@ -49,7 +50,7 @@ def _resolved_capabilities(identity, state) -> set[str]:
     # REQ-1337: RIGHTS ONLY. The role id is never folded in as a pseudo-capability — a gate reads
     # the rights a role carries, and the seed (schema.sql + apply_tenancy_role_grants) is the single
     # place that decides which role carries which right.
-    return capabilities_for_claims(getattr(identity, "roles", []), getattr(state, "roles", {}))
+    return capabilities_for_claims(acting_claims(identity), getattr(state, "roles", {}))
 
 
 def env_gate_capabilities(identity, state) -> set[str] | None:
@@ -68,7 +69,7 @@ def env_gate_capabilities_for(identity, roles: dict) -> set[str] | None:  # REQ-
     environment is being selected (REQ-1266)."""
     if identity is None or getattr(identity, "user_id", _ANONYMOUS) == _ANONYMOUS:
         return None
-    return capabilities_for_claims(getattr(identity, "roles", []), roles)
+    return capabilities_for_claims(acting_claims(identity), roles)
 
 
 def _domain_access(identity, state) -> set[str]:
@@ -81,7 +82,7 @@ def _domain_access(identity, state) -> set[str]:
     """
     if identity is None or getattr(identity, "user_id", _ANONYMOUS) == _ANONYMOUS:
         return set()
-    return domain_access_for_claims(getattr(identity, "roles", []), getattr(state, "roles", {}))
+    return domain_access_for_claims(acting_claims(identity), getattr(state, "roles", {}))
 
 
 def require_capability(  # REQ-042, REQ-060
@@ -149,7 +150,7 @@ def _require_residency_of(
         return
     if identity is None or getattr(identity, "user_id", _ANONYMOUS) == _ANONYMOUS:
         return
-    covered = residency_values_for_claims(getattr(identity, "roles", []), state.roles)
+    covered = residency_values_for_claims(acting_claims(identity), state.roles)
     require_change(covered, what, before, after, draft=draft)
 
 
@@ -344,7 +345,7 @@ def allowed_domains_for_capability_request(  # REQ-1592
     if domain_policy.single_domain():
         return None
     scoped = domain_access_for_capability(
-        getattr(identity, "roles", []), getattr(state, "roles", {}), capability
+        acting_claims(identity), getattr(state, "roles", {}), capability
     )
     allowed = domains_within(sorted(scoped))
     return None if allowed is None else frozenset(allowed)
@@ -384,7 +385,7 @@ def _rights_scope(identity, state, rights: "tuple[str, ...]") -> frozenset[str] 
     """
     from provisa.core.env_authority import domains_within
 
-    claims = getattr(identity, "roles", [])
+    claims = acting_claims(identity)
     roles = getattr(state, "roles", {})
     scoped: set[str] = set()
     for right in rights:

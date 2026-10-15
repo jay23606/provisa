@@ -18,6 +18,7 @@ import { unionDemonstrated } from "../lib/capabilities";
 import { normalizeRole, type RawRole } from "../lib/roles";
 import { clearOrgSelectionRequired } from "../lib/orgSelection";
 import { getStored, removeStored, setStored } from "../lib/browserStorage";
+import { actingRoleHeader, setActingRoles } from "../lib/actingRole";
 
 // REQ-1297: dev/no-auth mirrors what the server grants an unsecured caller, and that is now
 // org_admin — the DATA-plane administrator — not platform_admin. The no-auth configs' single
@@ -361,6 +362,8 @@ export function AuthProvider({
     [selectedRole, availableRoles],
   );
   const capabilities = useMemo(() => unionCapabilities(activeRoles), [activeRoles]);
+  // Every request acts as the selected roles: the server reads rights from them, as these gates do.
+  useEffect(() => setActingRoles(actingRoleHeader(activeRoles)), [activeRoles]);
   const demonstrated = useMemo(
     () => unionDemonstrated(activeRoles, capabilities),
     [activeRoles, capabilities],

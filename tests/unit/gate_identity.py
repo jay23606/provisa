@@ -35,7 +35,9 @@ def grant(monkeypatch, *capabilities: str, state=None):
         {"test_role": {"capabilities": list(capabilities), "domain_access": ["*"]}},
         raising=False,
     )
-    identity = types.SimpleNamespace(user_id="test-user", roles=["test_role"])
+    identity = types.SimpleNamespace(
+        user_id="test-user", roles=["test_role"], acting_roles=["test_role"]
+    )
     request = types.SimpleNamespace(state=types.SimpleNamespace(identity=identity))
     info = types.SimpleNamespace(context={"request": request})
     return info, request

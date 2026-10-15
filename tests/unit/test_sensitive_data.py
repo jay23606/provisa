@@ -127,7 +127,7 @@ _STATE = SimpleNamespace(roles=_ROLES)
 
 
 def _as(role_id: str) -> SimpleNamespace:
-    return SimpleNamespace(user_id="u1", roles=[role_id])
+    return SimpleNamespace(user_id="u1", roles=[role_id], acting_roles=[role_id])
 
 
 async def _refusal(model: Database, role_id: str, table: SimpleNamespace) -> str | None:

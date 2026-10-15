@@ -33,6 +33,11 @@ class AuthIdentity:  # REQ-120
     roles: list[str]
     raw_claims: dict = field(default_factory=dict)
     active_org_id: str | None = None
+    # The claims of the roles this request acts as -- the roles it NAMES (X-Provisa-Role), each
+    # held, or the default role when it names none. Rights are read from these, never from every
+    # role the identity holds (``roles``): a user exercises a right only acting as a role that
+    # carries it. Bound by the auth middleware for each request; None until then.
+    acting_roles: list[str] | None = None
 
 
 @dataclass
