@@ -803,6 +803,16 @@
         "label": "Rows per temporary table",
         "help": "The most rows one temporary table may hold. A temporary table is a real table in the engine's store that a role with no write right can fill, so it is bounded. A table that would pass the limit is refused; nothing is cut to fit."
       }
+    },
+    "sla": {
+      "p99_limit_ms": {
+        "label": "Latency limit (99th percentile)",
+        "help": "The 99th-percentile query latency an org's last hour may reach. Above it, a latency breach is opened and kept in the service-level breach log until the latency comes back within it."
+      },
+      "availability_min_pct": {
+        "label": "Availability floor",
+        "help": "The share of an org's queries in the last hour that must succeed. Below it, an availability breach is opened and kept in the service-level breach log until availability recovers."
+      }
     }
   }
 }

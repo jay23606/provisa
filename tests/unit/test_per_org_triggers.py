@@ -35,6 +35,14 @@ pytestmark = pytest.mark.unbound
 _PURGE = "DELETE FROM s.orders WHERE day < '{{YYYY-MM-DD}}'"
 
 
+def _trigger_jobs(scheduler) -> list:
+    """The scheduler's trigger jobs: every org's runtime also schedules its service-level
+    evaluation beside them (REQ-506), which these tests are not about."""
+    from provisa.audit.sla_monitor import JOB_ID
+
+    return [j for j in scheduler.get_jobs() if not j.id.startswith(JOB_ID)]
+
+
 async def _store(control_plane, org_id):
     from provisa.core.db import init_schema
     from tests.pg_control_plane import SCHEMA_SQL
@@ -84,7 +92,7 @@ async def test_two_orgs_triggers_of_one_id_are_two_jobs_each_bound_to_its_org(or
     scheduler = background_scheduler()
     assert await jobs.register_org_triggers(scheduler, "a", None) == 1
     assert await jobs.register_org_triggers(scheduler, "b", None) == 1
-    assert {j.id for j in scheduler.get_jobs()} == {"nightly:org_a", "nightly:org_b"}
+    assert {j.id for j in _trigger_jobs(scheduler)} == {"nightly:org_a", "nightly:org_b"}
 
     seen: list[tuple[str | None, str]] = []
 
@@ -116,7 +124,7 @@ async def test_an_org_rescheduling_after_a_delete_leaves_the_other_orgs_trigger(
         assert await trigger_repo.delete_one(conn, "nightly") is True
     assert await jobs.register_org_triggers(scheduler, "a", None) == 0
 
-    assert {j.id for j in scheduler.get_jobs()} == {"nightly:org_b"}
+    assert {j.id for j in _trigger_jobs(scheduler)} == {"nightly:org_b"}
     async with orgs["b"].acquire() as conn:
         assert [r["id"] for r in await trigger_repo.list_all(conn)] == ["nightly"]
 
@@ -128,16 +136,16 @@ async def test_a_disabled_trigger_is_unscheduled(orgs):
     async with orgs["a"].acquire() as conn:
         assert await trigger_repo.set_enabled(conn, "nightly", False) is True
     assert await jobs.register_org_triggers(scheduler, "a", None) == 0
-    assert scheduler.get_jobs() == []
+    assert _trigger_jobs(scheduler) == []
 
 
 async def test_only_prod_triggers_are_scheduled(orgs):
     await _create(orgs["a"], _sql_trigger())
     scheduler = background_scheduler()
     assert await jobs.register_org_triggers(scheduler, "a", "dev") == 0
-    assert scheduler.get_jobs() == []
+    assert _trigger_jobs(scheduler) == []
     assert await jobs.register_org_triggers(scheduler, "a", "prod") == 1
-    assert {j.id for j in scheduler.get_jobs()} == {"nightly:org_a"}
+    assert {j.id for j in _trigger_jobs(scheduler)} == {"nightly:org_a"}
 
 
 async def test_a_config_s_triggers_are_added_to_the_model_store_and_nothing_is_removed(orgs):
@@ -206,11 +214,11 @@ async def test_a_trigger_made_on_another_worker_is_scheduled_by_the_model_reload
     monkeypatch.setattr(app_mod, "_rebuild_schemas", _rebuild)
     monkeypatch.setattr(model_reload, "prune_region_state", _prune)
     monkeypatch.setattr(model_reload, "_held", lambda _rt: True)
-    assert worker_2.get_jobs() == []
+    assert _trigger_jobs(worker_2) == []
 
     await model_reload.reload_model(SimpleNamespace(org_id="a", env="prod"))  # type: ignore[arg-type]
 
-    assert {j.id for j in worker_2.get_jobs()} == {"nightly:org_a"}
+    assert {j.id for j in _trigger_jobs(worker_2)} == {"nightly:org_a"}
     assert current_org.get() is None
 
 
@@ -223,7 +231,7 @@ async def test_a_model_reload_of_a_non_prod_environment_schedules_nothing(orgs, 
     monkeypatch.setattr(app_mod.state, "_scheduler", worker, raising=False)
 
     await model_reload.reschedule_triggers(SimpleNamespace(org_id="a", env="dev"))  # type: ignore[arg-type]
-    assert worker.get_jobs() == []
+    assert _trigger_jobs(worker) == []
 
 
 async def test_a_profiler_is_scheduled_on_its_cron_beside_the_triggers(orgs):

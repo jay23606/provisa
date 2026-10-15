@@ -105,7 +105,7 @@ async def test_metadata_reconciliation_restores_a_column_schema_sql_never_alters
 # --- a metadata table schema.sql does not create ---------------------------------------------
 #
 # ``schema_org`` declares tables ``schema.sql`` has no CREATE for (``provisa_sources``,
-# ``query_audit_log``, ``query_sla_log``, ``source_catalog_cache``). The reconciliation creates
+# ``query_audit_log``, ``sla_breach_log``, ``source_catalog_cache``). The reconciliation creates
 # them: in the org's schema, typed as the PostgreSQL plane declares them. Each test below runs on
 # a database of its own, so "nothing in public" is a statement about this code and nothing else.
 
@@ -114,7 +114,12 @@ _PG = (
     f"{os.environ.get('PG_PASSWORD', 'provisa')}@{os.environ.get('PG_HOST', 'localhost')}:"
     f"{os.environ.get('PG_PORT', '5432')}"
 )
-_NOT_IN_SCHEMA_SQL = ("provisa_sources", "query_audit_log", "query_sla_log", "source_catalog_cache")
+_NOT_IN_SCHEMA_SQL = (
+    "provisa_sources",
+    "query_audit_log",
+    "sla_breach_log",
+    "source_catalog_cache",
+)
 
 
 @pytest_asyncio.fixture

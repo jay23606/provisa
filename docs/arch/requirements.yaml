@@ -77242,7 +77242,12 @@
   - REQ-1049
   code:
   - provisa/audit/sla_monitor.py
+  - provisa/core/settings_catalog.py
+  - provisa/scheduler/jobs.py
+  - provisa/api/_meta_views.py
   - provisa/control_plane/router.py
+  tests:
+  - tests/unit/test_sla_monitor.py
   tests:
   - tests/unit/test_sla_monitor.py
   - tests/unit/test_control_plane.py

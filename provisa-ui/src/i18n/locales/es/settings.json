@@ -803,6 +803,16 @@
         "label": "Filas por tabla temporal",
         "help": "El máximo de filas que puede contener una tabla temporal. Una tabla temporal es una tabla real en el almacén del motor que un rol sin derecho de escritura puede llenar, por eso está limitada. Una tabla que superaría el límite se rechaza; no se recorta nada."
       }
+    },
+    "sla": {
+      "p99_limit_ms": {
+        "label": "Límite de latencia (percentil 99)",
+        "help": "La latencia de consulta del percentil 99 que puede alcanzar la última hora de una organización. Por encima, se abre una infracción de latencia que se mantiene en el registro de infracciones del nivel de servicio hasta que la latencia vuelva a estar dentro del límite."
+      },
+      "availability_min_pct": {
+        "label": "Mínimo de disponibilidad",
+        "help": "La proporción de consultas de una organización en la última hora que debe tener éxito. Por debajo, se abre una infracción de disponibilidad que se mantiene en el registro de infracciones del nivel de servicio hasta que la disponibilidad se recupere."
+      }
     }
   }
 }

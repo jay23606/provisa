@@ -803,6 +803,16 @@
         "label": "Lignes par table temporaire",
         "help": "Le nombre maximal de lignes qu'une table temporaire peut contenir. Une table temporaire est une vraie table du magasin du moteur qu'un rôle sans droit d'écriture peut remplir ; elle est donc bornée. Une table qui dépasserait la limite est refusée ; rien n'est tronqué."
       }
+    },
+    "sla": {
+      "p99_limit_ms": {
+        "label": "Limite de latence (99e centile)",
+        "help": "La latence de requête au 99e centile que la dernière heure d'une organisation peut atteindre. Au-delà, une violation de latence est ouverte et conservée dans le journal des violations du niveau de service jusqu'à ce que la latence revienne sous la limite."
+      },
+      "availability_min_pct": {
+        "label": "Plancher de disponibilité",
+        "help": "La part des requêtes d'une organisation sur la dernière heure qui doit réussir. En dessous, une violation de disponibilité est ouverte et conservée dans le journal des violations du niveau de service jusqu'au rétablissement de la disponibilité."
+      }
     }
   }
 }

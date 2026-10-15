@@ -119,7 +119,7 @@ ADMIN_TABLES_IN_SCHEMA_SQL: set[str] = set()
 # Tables authored ONLY as portable SQLAlchemy metadata (created via metadata.create_all),
 # with no raw SQL DDL to mirror — excluded from SQL<->metadata parity on either module.
 METADATA_ONLY_TABLES = REGISTRY_ONLY_TABLES | {
-    "query_sla_log",
+    "sla_breach_log",
     "source_catalog_cache",
     # superadmin_bootstrap: the platform superadmin singleton (schema_admin), portable
     # metadata created via metadata.create_all — no raw SQL DDL to mirror.

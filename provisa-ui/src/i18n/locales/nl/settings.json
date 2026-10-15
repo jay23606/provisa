@@ -803,6 +803,16 @@
         "label": "Rijen per tijdelijke tabel",
         "help": "Het maximale aantal rijen dat een tijdelijke tabel mag bevatten. Een tijdelijke tabel is een echte tabel in de store van de engine die ook een rol zonder schrijfrecht kan vullen, daarom is ze begrensd. Een tabel die de limiet zou overschrijden wordt geweigerd; er wordt niets afgekapt."
       }
+    },
+    "sla": {
+      "p99_limit_ms": {
+        "label": "Latentielimiet (99e percentiel)",
+        "help": "De querylatentie op het 99e percentiel die het laatste uur van een organisatie mag bereiken. Daarboven wordt een latentieschending geopend en bijgehouden in het logboek van servicelevelschendingen tot de latentie weer binnen de limiet valt."
+      },
+      "availability_min_pct": {
+        "label": "Minimale beschikbaarheid",
+        "help": "Het aandeel van de queries van een organisatie in het laatste uur dat moet slagen. Daaronder wordt een beschikbaarheidsschending geopend en bijgehouden in het logboek van servicelevelschendingen tot de beschikbaarheid herstelt."
+      }
     }
   }
 }

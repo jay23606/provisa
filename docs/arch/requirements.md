@@ -14008,15 +14008,15 @@ In demo mode, all application page chunks must be preloaded and compiled before 
 
 ### REQ-1363 · Domain Hierarchy {#REQ-1363}
 
-**Status:** ✓ accepted · **Priority:** MUST · **Type:** structural
+**Status:** ⚙ in-progress · **Priority:** MUST · **Type:** structural
 
 Add hierarchical domain structure via parent_domain_id to Domain model, with flattening applied at execution time to governance, addressing, and access control layers. (Amended 2026-10-03, THE USE CASE IS A BUSINESS UNIT AND ITS ORGANIZATIONS:) A parent domain represents a business unit and its child domains represent the organizations within that business unit. A role granted the business unit's domain reaches every organization's domain under it, including one added later, without the role being edited. (Amended 2026-10-03, GRANTS, ROW FILTERS AND STEWARDS ACROSS THE TREE:) A role granted a parent domain reaches every domain under it. Row filters across the tree all apply together: a table's rows are filtered by its own domain's filter and by the filter of every ancestor domain, so a child domain can only narrow what its ancestors allow. A child domain with no steward inherits the steward of its nearest ancestor that has one.
 
 **Use case:** Enable organizations to structure domains hierarchically for governance metadata and organization, while maintaining a single flat execution model and addressing scheme.
 
-**Code:** `provisa/core/models.py`, `provisa/federation/duckdb_runtime.py`
+**Code:** `provisa/security/domain_tree.py`, `provisa/security/row_filters.py`, `provisa/api/app.py`, `provisa/core/models.py`, `provisa/core/schema_org.py`, `provisa/core/repositories/domain.py`, `provisa/core/repositories/integrity.py`, `provisa/core/env_deploy.py`, `provisa/api/admin/schema_mutation.py`, `provisa/api/admin/schema_query.py`, `provisa/api/metadata_export/builder.py`, `provisa/api/_meta_views.py`, `provisa-ui/src/pages/AdminPage.tsx`, `provisa-ui/src/pages/security/RoleFormParts.tsx`
 
-**Tests:** —
+**Tests:** `tests/unit/test_domain_tree.py`, `tests/unit/test_domain_tree_model_store.py`, `tests/integration/test_domain_tree_every_transport.py`, `provisa-ui/src/__tests__/domainTree.test.ts`, `provisa-ui/src/pages/__tests__/AdminPage.domainTree.test.tsx`, `provisa-ui/src/pages/__tests__/RoleFormParts.subtree.test.tsx`
 
 ## 7. Result Delivery
 
@@ -21496,7 +21496,7 @@ SQLite source adapter: ingested into the lazy-cache pipeline ([REQ-499](#REQ-499
 
 Control plane module (`provisa/control_plane/`): manages SLA monitoring, quota enforcement, and cluster health aggregation across multi-tenant deployments. Exposes health metrics via Prometheus endpoint. Integrates with OTel traces ([REQ-302](#REQ-302)) for latency SLA tracking. Configuration: `control_plane.enabled`, `control_plane.sla_p99_ms` thresholds per role. `tests/unit/test_control_plane.py` (Amended 2026-10-03, SERVICE-LEVEL LIMITS ARE CONFIGURABLE AND THE RESULTS ARE STORED:) The service-level limits (the latency percentile limit and the availability floor) are operator settings, each with its admin UI surface, not constants in code. Every served query's latency and outcome is recorded, and so is every breach, so that the summary and the breach history are read from stored data and survive a restart. (Amended 2026-10-03, QUOTAS ARE THE PLAN CEILINGS:) Quota enforcement is not a separate mechanism of this requirement. It is the plan ceilings already required elsewhere: the per-query ceilings on rows, bytes scanned, memory and time ([REQ-1044](#REQ-1044)), the storage ceiling ([REQ-1046](#REQ-1046), [REQ-1047](#REQ-1047)) and the limit on sources. This requirement adds the service-level monitoring beside them.
 
-**Code:** `provisa/audit/sla_monitor.py`, `provisa/control_plane/router.py`
+**Code:** `provisa/audit/sla_monitor.py`, `provisa/core/settings_catalog.py`, `provisa/scheduler/jobs.py`, `provisa/api/_meta_views.py`, `provisa/control_plane/router.py`
 
 **Tests:** `tests/unit/test_sla_monitor.py`, `tests/unit/test_control_plane.py`
 

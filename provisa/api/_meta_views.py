@@ -272,6 +272,7 @@ _META_TABLE_VIEWS: dict[str, str] = {
 _OPS_LOG_TABLE_ALIAS: dict[str, str] = {
     "query_audit_log": "query_audit_log_ops",
     "replica_build_log": "replica_build_log_ops",
+    "sla_breach_log": "sla_breach_log_ops",
 }
 
 _OPS_LOG_TABLE_VIEWS: dict[str, str] = {
@@ -291,6 +292,14 @@ _OPS_LOG_TABLE_VIEWS: dict[str, str] = {
         SELECT l.id, l.source_id, l.schema_name, l.table_name, l.started_at, l.finished_at,
                l.outcome, l.method, l.rows_copied, l.error_code, l.error_message
         FROM replica_build_log l
+    """,
+    # REQ-506: every service-level breach, open (resolved_at empty) or closed, opened by the
+    # scheduled evaluation (audit/sla_monitor.py).
+    "sla_breach_log": """
+        CREATE OR REPLACE VIEW sla_breach_log_ops AS
+        SELECT b.id, b.kind, b.observed, b.last_observed, b.limit_value, b.window_start,
+               b.window_end, b.started_at, b.last_seen_at, b.resolved_at
+        FROM sla_breach_log b
     """,
 }
 
@@ -540,5 +549,23 @@ _OPS_REPORT_VIEWS: dict[str, str] = {
                MAX(CASE WHEN l.outcome = 'failed' THEN l.finished_at END) AS last_failed_at
         FROM replica_build_log l
         GROUP BY l.source_id, SUBSTR(CAST(l.finished_at AS TEXT), 1, 10)
+    """,
+    # REQ-506: the service level of the last hour, from the audit log -- what the scheduled
+    # evaluation compares with the limits (audit/sla_monitor.get_sla_summary). A request is
+    # available when its status is below the 5xx band. No queries in the hour: no row.
+    "service_level": """
+        CREATE OR REPLACE VIEW service_level AS
+        SELECT 'last_hour' AS id,
+               now() - INTERVAL '1 hour' AS window_start, now() AS window_end,
+               COUNT(*) AS query_count,
+               AVG(q.duration_ms) AS avg_ms,
+               percentile_cont(0.50) WITHIN GROUP (ORDER BY q.duration_ms) AS p50_ms,
+               percentile_cont(0.95) WITHIN GROUP (ORDER BY q.duration_ms) AS p95_ms,
+               percentile_cont(0.99) WITHIN GROUP (ORDER BY q.duration_ms) AS p99_ms,
+               100.0 * SUM(CASE WHEN q.status_code < 500 THEN 1 ELSE 0 END) / COUNT(*)
+                   AS availability_pct
+        FROM query_audit_log q
+        WHERE q.logged_at >= now() - INTERVAL '1 hour'
+        HAVING COUNT(*) > 0
     """,
 }

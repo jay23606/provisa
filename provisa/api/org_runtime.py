@@ -158,7 +158,7 @@ class OrgRuntime:
     # statement on the wrong one fails everywhere (provisa/core/store_sides.py).
     model_db: "Database | None" = None
     tenant_db: "Database | None" = None
-    # REQ-1922: this region's request record (query_audit_log, query_sla_log).
+    # REQ-1922: this region's request record (query_audit_log, sla_breach_log).
     record_db: "Database | None" = None
     # REQ-1922: the org's other regions, by id (region_stores.ForeignRegion): a table one of them
     # names is read from its replica there. Empty with no platform regions.

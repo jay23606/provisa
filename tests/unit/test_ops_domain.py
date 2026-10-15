@@ -260,6 +260,7 @@ _REPORT_VIEW_NAMES = {
     "queries",
     "replica_builds",
     "replica_build_health",
+    "service_level",
 }
 
 
