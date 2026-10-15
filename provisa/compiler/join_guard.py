@@ -33,7 +33,8 @@ governance and is answered from its stored rows at optimization; its SQL is chec
 
 A view's SQL is marked where it is expanded for this check (``view_expand.VIEW_MARK``), and the
 marked derived table is also an instance of the view's own registered table, combined with every
-instance its SQL reads. A column the view's SQL gives as a constant is a column of that instance:
+instance its SQL reads. A column the view's SQL gives as a constant, computes as an expression, or
+takes from a value computed below it (a derived table's aggregate) is a column of that instance:
 an equality on it relates the other side to the view along the view's registered relationships,
 as an equality on any other column of it does.
 """
@@ -301,21 +302,24 @@ class _Resolver:
                 *(self._projection(b, name, seen) for b in scope.set_operation_scopes)
             )
         out: set[_Base] = set()
+        named = False  # the scope projects a column of this name
         for select in _selects(scope):
             inner = select.unalias()
             if select.is_star:
                 table = inner.table if isinstance(inner, exp.Column) else ""
                 out |= self.resolve(scope, exp.column(name, table=table or None), seen)
             elif select.alias_or_name == name and isinstance(inner, exp.Column):
+                named = True
                 out |= self.resolve(scope, inner, seen)
-            elif (
-                select.alias_or_name == name
-                and isinstance(inner, exp.Literal)
-                and id(scope) in self._view_scopes
-            ):
-                # A constant a view gives: a column of the view itself.
+            elif select.alias_or_name == name and id(scope) in self._view_scopes:
+                # A constant or an expression a view gives: a column of the view itself.
                 instance, view_id = self._view_scopes[id(scope)]
                 out.add(_Base(instance, view_id, name))
+        if not out and named and id(scope) in self._view_scopes:
+            # A column a view takes from a value computed below it (a derived table's aggregate
+            # or expression) is no base column: it is a column of the view itself (#270).
+            instance, view_id = self._view_scopes[id(scope)]
+            return {_Base(instance, view_id, name)}
         if (
             out
             and id(scope) in self._view_scopes

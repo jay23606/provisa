@@ -260,6 +260,9 @@ class _Identity:
     def __init__(self, user_id: str, roles: list[str]) -> None:
         self.user_id = user_id
         self.roles = roles
+        # REQ-2060: rights are read from the roles a request acts as, which the auth middleware
+        # binds; here the identity acts as every role it holds.
+        self.acting_roles = roles
 
 
 class _Request:
