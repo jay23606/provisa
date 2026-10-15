@@ -1,0 +1,12 @@
+# Gold: totals by day and product, from the checked batches only.
+query GoldRevenueByProduct {
+  s__viewGold(order_by: [{ revenue: desc }]) {
+    saleDay
+    product
+    sales
+    items
+    revenue
+    minPrice
+    maxPrice
+  }
+}

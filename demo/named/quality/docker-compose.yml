@@ -1,0 +1,63 @@
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+#
+# The named demo "quality" (start-ui-install.sh --demo quality; REQ-2051). This file is its one
+# start point: `docker compose up -d` brings up the chain's sales database, the feed's two batches
+# delivered into its incoming table and bronze empty (db/init.sql); then the seeder lands the two
+# batches into bronze, the clean one and then the bad one. Provisa's views over bronze -- the
+# checks, silver, gold -- follow what lands. Port: 28632 the database, moved by its variable.
+x-demo-labels: &demo-labels
+  com.provisa.demo: quality
+name: provisa-demo-quality
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    labels:
+      <<: *demo-labels
+      com.provisa.demo.role: rdb
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: sales
+    ports:
+      - "${QUALITY_PG_PORT:-28632}:5432"
+    volumes:
+      - quality_pg:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./db/incoming.tsv:/docker-entrypoint-initdb.d/incoming.tsv:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sales"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+
+  # Lands each delivered batch into bronze once (sales.land_batch), then exits; a batch already
+  # landed is left as it is, so a restart lands nothing twice.
+  seeder:
+    image: postgres:16
+    restart: "no"
+    labels:
+      <<: *demo-labels
+      com.provisa.demo.role: seeder
+    environment:
+      PGPASSWORD: provisa
+    command:
+      - bash
+      - -c
+      - >-
+        psql -h postgres -U provisa -d sales -v ON_ERROR_STOP=1
+        -c "SELECT sales.land_batch(1) AS landed"
+        -c "SELECT sales.land_batch(2) AS landed"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  quality_pg:

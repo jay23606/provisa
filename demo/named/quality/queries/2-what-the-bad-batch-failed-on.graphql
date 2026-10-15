@@ -1,0 +1,10 @@
+# What the bad batch failed on: every failing check, with how many rows of its batch failed it.
+query WhatTheBadBatchFailedOn {
+  s__viewDqResults(where: { outcome: { eq: "fail" } }, order_by: [{ checkName: asc }]) {
+    batchId
+    runId
+    checkName
+    definition
+    failingRows
+  }
+}

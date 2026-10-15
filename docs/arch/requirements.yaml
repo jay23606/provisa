@@ -83684,24 +83684,32 @@
     tier''s node runs them (approved hosting design: host-side sync, stores.env, no forced replication, logs read from the
     demo''s own bundle).'
 - id: REQ-2051
-  status: proposed
+  status: in-progress
   since: 2026-10
   group: 10. UI & Admin Surfaces
   category: UI
   feature: product-tour-and-demos-named-demos
   priority: SHOULD
   type: behavioral
-  description: 'A feature demo, data quality: A medallion pipeline of at least three tables: a landed bronze table
-    (the source table, replicated), a silver materialized view over bronze (cleaned, typed, conformed) and a gold
-    materialized view over silver (business aggregates). Silver and gold each carry a preflight check (REQ-1165)
-    on their input. A deliberately bad batch landed in bronze fails silver''s check: silver''s refresh is refused
-    by name, the last good silver stays in place, and the error event is posted (quarantine holds instead where
-    the check says so); gold is rebuilt only from a silver that passed, so it keeps serving the last good data. Bronze and silver are kept bitemporal (REQ-1162): every batch is appended with when it was valid and when it was recorded, so the tour can show what each layer held at any moment, including the bad batch bronze received and silver refused. The link between a silver (or gold) version and the data-quality results that admitted it is made in that view''s preflight transform, which knows which results it checked: it adds the data-quality run''s id to every row of the silver table it admits, and a relationship from that column to the data-quality results table''s scan_id (REQ-1443, one row per check) gives every check that admitted the version -- no separate audit table. A refused batch never becomes a silver version; its run''s failing checks stay in the results table under its own scan_id. So "which checks admitted this version of silver" and "what the refused batch failed on" are ordinary queries.
-    The views are built by the engine and SQL-expressible checks run in the engine; Provisa declares the stages
-    and gates and never becomes a processing platform. Its tour follows the settled demo tour shape (scenario and
-    features; how the pieces fit, each step on its real row; the solution as predesigned queries and views over
-    fitting transports; recap; then "Where next?" with its landing page). Its business question: "Can I trust this
-    data before it reaches gold?"'
+  description: 'A feature demo, data quality (quality): a medallion over the demo''s own Postgres, every layer
+    after bronze a materialized view kept current by the product''s own cascade, driven by landing alone. A
+    chain of shops sends its sales as a feed, a batch a day; the database''s sales.land_batch lands a batch into
+    bronze, append-only, each row stamped with its batch and when it landed. Bronze types its well-formed fields
+    on landing (sale id, sold at, quantity) and keeps the messy ones raw (shop code, product, price). Bronze is
+    read live and declares change_signal probe on its landed_at watermark (REQ-2055), so a landing refreshes
+    dq_results -- a view computing the checks in SQL per batch (shop known, quantity above zero, price a number,
+    sale id present): failing rows, pass or fail, under the batch''s run id -- then silver, then gold. Silver is
+    bronze joined to dq_results, from the batches whose checks all passed only, with the run id on every row,
+    and visibly cleaned: codes trimmed and upper-cased, product spellings mapped to one, the price cast to a
+    number, the sale day derived, a resent sale deduplicated on its id keeping the latest line. Gold is one
+    GROUP BY over silver (sales, items, revenue and price range by day and product). A batch that fails a check
+    shows failed in dq_results and never reaches silver or gold; earlier good batches stay. A relationship from
+    silver.run_id to dq_results answers "which checks admitted this version of silver", and dq_results'' failed
+    rows "what the bad batch failed on". The seeder lands the batches at bundle build; history is in bronze,
+    which ships in the Postgres dump, read only in every sandbox, whose views build from it. Its tour follows
+    the settled demo tour shape (scenario and features; how the pieces fit, each step on its real row; the
+    solution as predesigned queries and views over fitting transports; recap; then "Where next?" with its
+    landing page). Its business question: "Can I trust this data before it reaches gold?"'
   use_case: 'A visitor opens the data quality demo and sees how Provisa answers: Can I trust this data before it
     reaches gold?'
   scenario: 'Given the data quality demo started from its bundle
@@ -83717,11 +83725,24 @@
   - REQ-2049
   - REQ-1162
   - REQ-1165
+  - REQ-2055
   notes: 'Maintainer 2026-10-14, via the lead: data quality is its own feature demo. To check data before it reaches
     gold, register the source tables as bronze, check, move to silver, check, then gold, using a check step before
     a view so that a failure posts an error rather than moving data to the next stage; three tables at a minimum:
     the landed bronze, silver, gold. Lead: the gate must sit on a materialized view (a plain view reads live and
-    holds nothing back); the preflight check already aborts a refresh keeping the previous copy.'
+    holds nothing back); the preflight check already aborts a refresh keeping the previous copy. Maintainer 2026-10-15, via the lead: all materialized views over a live
+    bronze, the product''s existing cascade, no commands; silver visibly transforms; types applied on landing
+    where the values are well-formed. Maintainer 2026-10-15: "go with signal-only nodes and fix the fresh
+    marking" (REQ-2055, issue #268), what the cascade from a live bronze needed.'
+  code:
+  - demo/named/quality/config.yaml
+  - demo/named/quality/db/init.sql
+  - demo/named/quality/docker-compose.yml
+  - demo/named/quality/tour.yaml
+  tests:
+  - tests/integration/test_quality_demo.py
+  - tests/unit/test_named_demo_tour.py
+  - tests/unit/test_named_demo_example_queries.py
 - id: REQ-2052
   status: proposed
   since: 2026-10

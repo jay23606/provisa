@@ -447,6 +447,46 @@
       "reviewsDone": {
         "title": "O que você acabou de ver",
         "description": "Três armazenamentos NoSQL, um pipeline do MongoDB, uma busca do Elasticsearch e uma consulta Cypher, unidos pelo produto e consultados com a pergunta da loja em SQL, Cypher, REST e GraphQL."
+      },
+      "qualityIntro": {
+        "title": "Dados em que você pode confiar",
+        "description": "Uma rede de cinco lojas envia suas vendas como um fluxo, um lote por dia, depositado como bronze em <strong>sales</strong>, o banco de dados da rede. Tudo depois do bronze é uma visão materializada: as verificações, prata e ouro, atualizadas só pelo depósito. A pergunta: posso confiar nestes dados antes que cheguem ao ouro?"
+      },
+      "qualityBronze": {
+        "title": "Bronze: tipado onde está limpo",
+        "description": "<strong>bronze</strong> guarda cada lote como foi depositado, nunca alterado. Os dados limpos são tipados no depósito: o id da venda, quando foi vendida, a quantidade. Os campos bagunçados, código da loja, produto e preço, ficam brutos até a prata. Uma sonda o vigia, então um novo lote atualiza cada visão depois dele."
+      },
+      "qualityRaw": {
+        "title": "Bruto, como o fluxo escreveu",
+        "description": "Os produtos do primeiro lote como foram depositados: um produto em várias grafias, como COFFEE, Coffee e cofee. A prata os unifica."
+      },
+      "qualityChecks": {
+        "title": "As verificações, em cada lote",
+        "description": "<strong>dq_results</strong> é uma visão materializada que calcula as verificações em SQL sobre cada lote depositado: quantas linhas falham em cada uma, e se passou ou falhou. O lote 1 passa em todas; o lote 2 falha em três."
+      },
+      "qualityAdmitted": {
+        "title": "De uma linha às verificações que a admitiram",
+        "description": "Cada linha de prata leva o id de execução das verificações que admitiram seu lote. A relação ADMITTED_BY a liga a essas verificações em dq_results."
+      },
+      "qualityWhichChecks": {
+        "title": "Quais verificações admitiram a prata",
+        "description": "Uma venda da prata e, por ADMITTED_BY, cada verificação da execução que a admitiu: todas passaram, sem linhas com falha."
+      },
+      "qualityRefused": {
+        "title": "Em que o lote ruim falhou",
+        "description": "As linhas do lote 2 que falham em uma verificação, ainda no bronze como foram depositadas: uma loja que a rede não tem, quantidades negativas, preços que não são números. Nada do lote 2 chega à prata; o lote 1 permanece."
+      },
+      "qualitySilver": {
+        "title": "Prata: limpa",
+        "description": "A prata é o bronze limpo, só dos lotes aprovados: códigos de loja aparados e em maiúsculas, uma grafia por produto, o preço como número, o dia derivado e uma venda enviada duas vezes mantida uma vez, na versão mais recente."
+      },
+      "qualityGold": {
+        "title": "Ouro: os totais",
+        "description": "O ouro é um GROUP BY sobre a prata: vendas, itens, receita e faixa de preço por dia e produto, só de dados verificados."
+      },
+      "qualityDone": {
+        "title": "Confiança que se pode consultar",
+        "description": "Depositar um lote atualizou as verificações, a prata e o ouro, sem executar mais nada. O lote limpo chegou ao ouro; o ruim parou no bronze, e o porquê é uma consulta."
       }
     },
     "status": {
@@ -475,6 +515,10 @@
       "reviews": {
         "title": "Avaliações de produtos",
         "summary": "O catálogo, as avaliações e as compras de uma loja de eletrônicos no MongoDB, Elasticsearch e Neo4j, unidos pelo produto: em quais produtos as avaliações dizem que a bateria acaba, e o que mais seus compradores compraram?"
+      },
+      "quality": {
+        "title": "Dados em que você pode confiar",
+        "summary": "O fluxo de vendas de uma rede de lojas, refinado de bronze a prata e ouro por visões materializadas verificadas: basta depositar um lote, e um lote que falha uma verificação nunca chega à prata."
       }
     }
   }
