@@ -27,6 +27,8 @@
  * install. The org rides on the request, so no caller has to know which lane it is on.
  */
 
+import { visitorActive } from "./browserStorage";
+
 const STATE_PATH = "/data/engine/state";
 const PREWARM_PATH = "/data/engine/prewarm";
 
@@ -89,7 +91,8 @@ function poll(): void {
 }
 
 function startPolling(): void {
-  if (pollTimer !== null) return;
+  // REQ-2006: a demo sandbox has no engine to wake.
+  if (pollTimer !== null || visitorActive()) return;
   pollTimer = window.setInterval(poll, POLL_INTERVAL_MS);
   poll();
 }

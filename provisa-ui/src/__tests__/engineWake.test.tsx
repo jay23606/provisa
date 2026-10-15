@@ -16,7 +16,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, act } from "@testing-library/react";
 import { MantineProvider } from "@mantine/core";
-import { installAuthFetch } from "../lib/authFetch";
+import { anonymousFetch, installAuthFetch } from "../lib/authFetch";
+import { endVisit, startVisit } from "../lib/browserStorage";
 import { engineWaking, prewarmEngine, resetEngineWake } from "../lib/engineWake";
 import { EngineWakingBanner } from "../components/EngineWakingBanner";
 import { resetServerReachability } from "../lib/serverReachability";
@@ -57,6 +58,7 @@ describe("REQ-1516 engine wake visibility", () => {
     resetEngineWake();
     resetServerReachability();
     localStorage.clear();
+    endVisit();
     nativeFetch = window.fetch;
   });
 
@@ -213,5 +215,36 @@ describe("REQ-1516 engine wake visibility", () => {
     await advance(0);
 
     expect(calls).toEqual([{ url: "/data/engine/prewarm", method: "POST" }]);
+  });
+  // REQ-2006: a live demo runs in a sandbox, which has no engine to wake, and opening one is an
+  // anonymous request whose visitor holds no token to ask the engine's state with.
+  function probesAgainstSlowRequests() {
+    const probes = vi.fn();
+    window.fetch = vi.fn((input: RequestInfo | URL) => {
+      if (String(input).includes("/data/engine/state")) probes();
+      return new Promise<Response>(() => {});
+    }) as unknown as typeof fetch;
+    installAuthFetch();
+    return probes;
+  }
+
+  it("a slow request in a demo sandbox never asks about the engine", async () => {
+    const probes = probesAgainstSlowRequests();
+    startVisit();
+
+    void window.fetch("/data/graphql");
+    await advance(20_000);
+
+    expect(probes).not.toHaveBeenCalled();
+    expect(engineWaking()).toBe(false);
+  });
+
+  it("a slow anonymous request, opening a live demo, never asks about the engine", async () => {
+    const probes = probesAgainstSlowRequests();
+
+    void anonymousFetch("/public/demos/weblogs", { method: "POST" });
+    await advance(20_000);
+
+    expect(probes).not.toHaveBeenCalled();
   });
 });

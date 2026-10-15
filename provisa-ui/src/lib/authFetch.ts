@@ -137,9 +137,12 @@ export function installAuthFetch(): void {
     init: RequestInit | undefined,
     sameOrigin: boolean,
     url: string,
+    anonymous = false,
   ): Promise<Response> => {
     if (!sameOrigin) return originalFetch(input, init);
-    const timed = !isEngineProbePath(url);
+    // REQ-2006: an anonymous request (opening a live demo) is not one an engine wake explains,
+    // and its visitor holds no token to ask the engine's state with.
+    const timed = !anonymous && !isEngineProbePath(url);
     if (timed) noteRequestStart();
     try {
       const res = await originalFetch(input, init);
@@ -158,7 +161,7 @@ export function installAuthFetch(): void {
 
   undecoratedFetch = (input, init) => {
     const url = urlOf(input);
-    return sampled(input, init, isSameOrigin(url), url);
+    return sampled(input, init, isSameOrigin(url), url, true);
   };
 
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
