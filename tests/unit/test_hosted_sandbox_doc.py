@@ -42,8 +42,8 @@ def test_the_memory_and_disk_limits_are_the_settings_defaults():
 
 
 def test_the_inactivity_limit_is_the_settings_default():
-    days = int(re.search(r"after (\d+) days?", _row("sandbox.idle_ttl")).group(1))  # type: ignore[union-attr]
-    assert days * 86400 == _defaults()["sandbox.idle_ttl"]
+    hours = int(re.search(r"after (\d+) hours?", _row("sandbox.idle_ttl")).group(1))  # type: ignore[union-attr]
+    assert hours * 3600 == _defaults()["sandbox.idle_ttl"]
 
 
 def test_the_cap_is_the_settings_default():

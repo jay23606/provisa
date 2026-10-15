@@ -2230,6 +2230,10 @@ async def _build_org_runtime(
                     _populate_source_catalog_names(seed)
                     async with bound_to_request_org():
                         await rebuild_from_config(seed, conn, state.federation_engine)
+                    if is_template_org(org_id):
+                        from provisa.api.demo_templates import write_declared_vector_models
+
+                        await write_declared_vector_models(state.model_db, seed)
                 async with bound_to_request_org():
                     org_config = await store_config(state.raw_config, conn)
                 unbound: set[str] = set()

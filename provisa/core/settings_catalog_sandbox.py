@@ -65,7 +65,7 @@ DECLARED: list[Setting] = [
         # REQ-2006, REQ-1600: a sandbox no request has reached for this long is deleted.
         req="REQ-2006",
         env="PROVISA_SANDBOX_IDLE_TTL",
-        default=86400,
+        default=3600,
         min=300,
         unit="seconds",
     ),

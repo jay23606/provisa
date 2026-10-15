@@ -182,6 +182,19 @@ def template_seed(org_id: str) -> Any:  # a ProvisaConfig
     return parse_config_dict(raw)
 
 
+async def write_declared_vector_models(model_db: Any, seed: Any) -> None:  # REQ-2006
+    """The embedding models a demo's configuration declares (``vector_models``) are its template
+    org's own settings, and so, copied with the template's settings (``clone_model``), each of its
+    sandboxes': a demo whose queries embed text (the sonnets demo's ``lines_like``) is refused by
+    the model allowlist without them. Written at every build of the template, as the rest of its
+    model is rebuilt from its configuration (REQ-1919); a configuration that declares none clears
+    the setting."""
+    from provisa.core.org_settings import write_org_overrides
+
+    models = [m.model_dump() for m in seed.vector_models]
+    await write_org_overrides(model_db, {"vector_models": models or None}, updated_by="platform")
+
+
 _ENV_REF = re.compile(r"\$\{env:([A-Za-z_][A-Za-z0-9_]*)(?::-[^}]*)?\}")
 
 

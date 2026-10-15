@@ -169,3 +169,63 @@ def test_the_sandbox_tier_never_provisions_an_engine(monkeypatch):
     assert k8s_provisioner.provisioning_available() is True
     monkeypatch.setenv("PROVISA_SANDBOX_TIER", "true")
     assert k8s_provisioner.provisioning_available() is False
+
+
+async def test_a_demos_own_embedding_models_reach_its_sandboxes(monkeypatch):
+    """The sonnets demo declares a local embedding model; its template org's settings carry it,
+    and a sandbox is cloned with them, so lines_like is not refused by the model allowlist."""
+    from pathlib import Path
+
+    from provisa.api.demo_templates import write_declared_vector_models
+    from provisa.core import org_settings
+    from provisa.core.config_loader import parse_config_dict, read_config_with_includes
+    from provisa.core.env_classes import carries_setting
+
+    written = []
+
+    async def write(model_db, updates, *, updated_by):
+        written.append((model_db, updates, updated_by))
+        return list(updates)
+
+    monkeypatch.setattr(org_settings, "write_org_overrides", write)
+    root = Path(__file__).resolve().parents[2]
+    seed = parse_config_dict(read_config_with_includes(root / "demo/named/sonnets/config.yaml"))
+    db = object()
+    await write_declared_vector_models(db, seed)
+    assert written == [
+        (
+            db,
+            {
+                "vector_models": [
+                    {
+                        "id": "sentence-transformers/all-MiniLM-L6-v2",
+                        "provider": "huggingface",
+                        "dimensions": 384,
+                        "api_key_env": None,
+                        "base_url": None,
+                        "enabled": True,
+                        "version": None,
+                    }
+                ]
+            },
+            "platform",
+        )
+    ]
+    assert carries_setting("vector_models")  # the template's settings travel to each sandbox
+
+
+async def test_a_demo_that_declares_no_embedding_model_leaves_its_template_none(monkeypatch):
+    from types import SimpleNamespace
+
+    from provisa.api.demo_templates import write_declared_vector_models
+    from provisa.core import org_settings
+
+    written = []
+
+    async def write(model_db, updates, *, updated_by):
+        written.append(updates)
+        return list(updates)
+
+    monkeypatch.setattr(org_settings, "write_org_overrides", write)
+    await write_declared_vector_models(object(), SimpleNamespace(vector_models=[]))
+    assert written == [{"vector_models": None}]  # an earlier build's models are cleared

@@ -46,6 +46,19 @@ _CAP = 3
 _DISK = 16 * 1024 * 1024
 
 
+#: The embedding models a demo declares (its config's vector_models), as the sonnets demo does.
+_EMBEDDING_MODELS = {
+    "alpha": [
+        {
+            "id": "sentence-transformers/all-MiniLM-L6-v2",
+            "provider": "huggingface",
+            "dimensions": 384,
+            "enabled": True,
+        }
+    ]
+}
+
+
 def _demo(root: Path, name: str, *, published: bool) -> None:
     folder = root / name
     folder.mkdir(parents=True)
@@ -90,6 +103,8 @@ def _demo(root: Path, name: str, *, published: bool) -> None:
         ],
         "relationships": [],
     }
+    if name in _EMBEDDING_MODELS:
+        config["vector_models"] = _EMBEDDING_MODELS[name]
     (folder / "config.yaml").write_text(yaml.safe_dump(config))
 
 
@@ -190,6 +205,27 @@ def beta(tier):
 def _names(resp: httpx.Response) -> list[str]:
     assert resp.status_code == 200, resp.text
     return sorted(r["name"] for r in resp.json()["data"]["sql"])
+
+
+def test_a_sandbox_has_the_embedding_models_its_demo_declares(tier, alpha, beta):
+    """A demo's own embedding model reaches each of its sandboxes (a query that embeds text is
+    refused by the model allowlist without it); a demo that declares none gives its sandboxes
+    none."""
+
+    def models(sandbox: dict) -> list[str]:
+        resp = httpx.get(
+            f"{tier.base_url}/admin/ai-models",
+            headers={
+                "Authorization": f"Bearer {sandbox['token']}",
+                "x-org-provisa": sandbox["org_id"],
+            },
+            timeout=60,
+        )
+        assert resp.status_code == 200, resp.text
+        return [m["id"] for m in resp.json()["vector_models"]]
+
+    assert models(alpha) == ["sentence-transformers/all-MiniLM-L6-v2"]
+    assert models(beta) == []
 
 
 def test_each_sandbox_reads_its_own_demos_rows(tier, alpha, beta):

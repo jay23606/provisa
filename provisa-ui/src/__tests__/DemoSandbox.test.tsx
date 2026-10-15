@@ -131,7 +131,7 @@ describe("the demo sandbox's welcome", () => {
       engine: "duckdb",
       memory_limit: 256 * 1024 ** 2,
       disk_limit: 512 * 1024 ** 2,
-      idle_ttl: 86400,
+      idle_ttl: 3600,
       max_concurrent: 10,
     });
     mockAuth.orgMemberships = [
@@ -145,7 +145,7 @@ describe("the demo sandbox's welcome", () => {
     render(<JoinNotice />);
     expect(await screen.findByTestId("join-notice-limit-memory")).toHaveTextContent("256");
     expect(screen.getByTestId("join-notice-limit-disk")).toHaveTextContent("512");
-    expect(screen.getByTestId("join-notice-limit-idle")).toHaveTextContent("1 day");
+    expect(screen.getByTestId("join-notice-limit-idle")).toHaveTextContent("1 hour");
     expect(screen.getByTestId("join-notice-demo-sandbox")).toHaveTextContent("DuckDB");
     expect(screen.getByTestId("join-notice-demo-sandbox")).toHaveTextContent("read-only");
     expect(screen.getByTestId("join-notice-demo-sandbox")).toHaveTextContent("invite");
