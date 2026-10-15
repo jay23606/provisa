@@ -67,6 +67,29 @@
     "colEnvironment": "Umgebung",
     "envPerVisitorBadge": "Pro Besucher, {{ttl}}",
     "envSharedBadge": "Gemeinsam: {{name}}",
-    "spentStatus": "Vollständig eingelöst"
+    "spentStatus": "Vollständig eingelöst",
+    "memberPanel": "Mitgliedsdetails",
+    "resizeMemberPanel": "Mitgliederbereich in der Größe ändern",
+    "expandMemberPanel": "Mitgliederbereich erweitern",
+    "restoreMemberPanel": "Mitgliederbereich wiederherstellen",
+    "closeMemberPanel": "Mitgliederbereich schließen",
+    "backToMembers": "Zurück zu den Mitgliedern",
+    "attributes": {
+      "help": "Attribute, die eine Zeilenregel für dieses Mitglied lesen kann. Was die Organisation hier erfasst, hat Vorrang vor demselben Attribut ihres Identitätsanbieters.",
+      "colName": "Attribut",
+      "colValue": "Wert",
+      "colSource": "Quelle",
+      "empty": "Noch keine Attribute.",
+      "nameLabel": "Attribut",
+      "valueLabel": "Wert",
+      "add": "Hinzufügen",
+      "sourceOrg": "Organisation",
+      "sourceIdp": "Identitätsanbieter",
+      "overriddenHint": "Durch den Wert der Organisation überschrieben",
+      "edit": "{{name}} bearbeiten",
+      "saveEdit": "{{name}} speichern",
+      "cancelEdit": "Bearbeitung abbrechen",
+      "remove": "{{name}} entfernen"
+    }
   }
 }

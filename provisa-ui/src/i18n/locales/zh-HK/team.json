@@ -67,6 +67,29 @@
     "colEnvironment": "環境",
     "envPerVisitorBadge": "每位訪客，{{ttl}}",
     "envSharedBadge": "共用：{{name}}",
-    "spentStatus": "已全數兌換"
+    "spentStatus": "已全數兌換",
+    "memberPanel": "成員詳情",
+    "resizeMemberPanel": "調整成員面板大小",
+    "expandMemberPanel": "展開成員面板",
+    "restoreMemberPanel": "還原成員面板",
+    "closeMemberPanel": "關閉成員面板",
+    "backToMembers": "返回成員列表",
+    "attributes": {
+      "help": "行規則可為此成員讀取的屬性。組織在此記錄的值優先於其身分識別提供者提供的同名屬性。",
+      "colName": "屬性",
+      "colValue": "值",
+      "colSource": "來源",
+      "empty": "尚無屬性。",
+      "nameLabel": "屬性",
+      "valueLabel": "值",
+      "add": "新增",
+      "sourceOrg": "組織",
+      "sourceIdp": "身分識別提供者",
+      "overriddenHint": "已被組織的值覆寫",
+      "edit": "編輯 {{name}}",
+      "saveEdit": "儲存 {{name}}",
+      "cancelEdit": "取消編輯",
+      "remove": "移除 {{name}}"
+    }
   }
 }

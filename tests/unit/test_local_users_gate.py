@@ -66,6 +66,9 @@ async def test_a_caller_without_user_management_is_refused_everywhere(past_gate)
         router.list_assignments("u1", req),
         router.add_assignment("u1", body, req),
         router.remove_assignment("u1", 1, req),
+        router.list_attributes("u1", req),
+        router.set_attribute("u1", "region", router.AttributeBody(value="eu"), req),
+        router.delete_attribute("u1", "region", req),
     ]
     for call in calls:
         with pytest.raises(ApiError) as err:

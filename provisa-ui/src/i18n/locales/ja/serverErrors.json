@@ -483,6 +483,10 @@
     },
     "users": {
       "assignment_not_found": "割り当てが見つかりません",
+      "attribute_name_invalid": "属性名 '{{name}}' には英字、数字、アンダースコアのみ使用でき、数字で始めることはできません",
+      "attribute_name_missing": "属性には名前が必要です",
+      "attribute_name_reserved": "'{{name}}' は各リクエストで操作中の ID から設定されるため、属性として記録できません",
+      "attribute_not_found": "ユーザー '{{user}}' には属性 '{{name}}' がありません",
       "last_org_admin": "{{user}} は次の組織の最後の組織管理者です: {{orgs}}。先にそれぞれで別の組織管理者を任命するか、組織を削除してください。",
       "last_platform_admin": "{{user}} はこのデプロイメントの最後のプラットフォーム管理者です。先に別のユーザーにそのロールを付与してください。",
       "no_active_org": "このリクエストに組織が関連付けられていません。先に組織にサインインしてください。",

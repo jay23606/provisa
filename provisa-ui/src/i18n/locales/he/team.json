@@ -67,6 +67,29 @@
     "colEnvironment": "סביבה",
     "envPerVisitorBadge": "לכל מבקר, {{ttl}}",
     "envSharedBadge": "משותפת: {{name}}",
-    "spentStatus": "מומשה במלואה"
+    "spentStatus": "מומשה במלואה",
+    "memberPanel": "פרטי החבר",
+    "resizeMemberPanel": "שינוי גודל חלונית החבר",
+    "expandMemberPanel": "הרחבת חלונית החבר",
+    "restoreMemberPanel": "שחזור חלונית החבר",
+    "closeMemberPanel": "סגירת חלונית החבר",
+    "backToMembers": "חזרה לחברים",
+    "attributes": {
+      "help": "מאפיינים שכלל שורות יכול לקרוא עבור חבר זה. מה שהארגון רושם כאן גובר על אותו מאפיין מספק הזהויות שלו.",
+      "colName": "מאפיין",
+      "colValue": "ערך",
+      "colSource": "מקור",
+      "empty": "עדיין אין מאפיינים.",
+      "nameLabel": "מאפיין",
+      "valueLabel": "ערך",
+      "add": "הוספה",
+      "sourceOrg": "ארגון",
+      "sourceIdp": "ספק זהויות",
+      "overriddenHint": "נדרס על ידי הערך של הארגון",
+      "edit": "עריכת {{name}}",
+      "saveEdit": "שמירת {{name}}",
+      "cancelEdit": "ביטול העריכה",
+      "remove": "הסרת {{name}}"
+    }
   }
 }

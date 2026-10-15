@@ -18,6 +18,7 @@ import pytest
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 
+from sqlalchemy.sql.dml import Delete, Insert
 from sqlalchemy.sql.selectable import Join
 
 from provisa.auth.middleware import AuthMiddleware
@@ -60,6 +61,8 @@ def _seeded_roles(monkeypatch):
     monkeypatch.setattr("provisa.auth.middleware._loaded_roles", lambda: seeded)
     # The platform plane's definitions are the deployment org's, the same seed (REQ-1327).
     monkeypatch.setattr("provisa.auth.middleware._platform_roles", lambda: seeded)
+    # Nor does any org here record attributes for its members (REQ-1382).
+    monkeypatch.setattr("provisa.auth.middleware._loaded_user_attributes", lambda _user_id: {})
 
 
 class _Provider(AuthProvider):
@@ -108,7 +111,14 @@ class _Conn:
     async def __aexit__(self, *a):
         return False
 
+    def transaction(self):
+        return self
+
     async def execute_core(self, stmt):
+        # REQ-1383: rewriting a member's provider record at sign-in is a write this fake keeps.
+        if isinstance(stmt, (Insert, Delete)):
+            self._pool.writes.append(stmt.table.name)
+            return _Result([])
         source = stmt.get_final_froms()[0]
         # REQ-1476: bindable_memberships selects from a join, so walk down to the driving table.
         while isinstance(source, Join):
@@ -135,6 +145,7 @@ class _Pool:
     def __init__(self, rows_by_table=None, claimant=None) -> None:
         self.rows_by_table = rows_by_table or {}
         self.claimant = claimant
+        self.writes: list[str] = []
 
     def acquire(self):
         return _Conn(self)

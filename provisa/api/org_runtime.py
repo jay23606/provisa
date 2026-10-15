@@ -179,6 +179,8 @@ class OrgRuntime:
 
     # Compiled, role-keyed state (role_id → …).
     roles: dict[str, dict] = field(default_factory=dict)
+    # REQ-1382: user id -> the attributes the org records for that member.
+    user_attributes: dict[str, dict[str, str]] = field(default_factory=dict)
     # role id -> everything the role is served through, from ONE build (api/role_surface.py):
     # its schema, compilation context, row filters, REST path map and proto. A build installs a
     # role's surface whole, with one assignment; a request takes it once. Replaced, never

@@ -483,6 +483,10 @@
     },
     "users": {
       "assignment_not_found": "Assegnazione non trovata",
+      "attribute_name_invalid": "Il nome dell'attributo '{{name}}' deve contenere solo lettere, cifre e trattini bassi e non può iniziare con una cifra",
+      "attribute_name_missing": "Un attributo deve avere un nome",
+      "attribute_name_reserved": "'{{name}}' viene impostato dall'identità che agisce a ogni richiesta e non può essere registrato come attributo",
+      "attribute_not_found": "L'utente '{{user}}' non ha l'attributo '{{name}}'",
       "last_org_admin": "{{user}} è l'ultimo amministratore dell'organizzazione di: {{orgs}}. Promuovi prima un altro amministratore in ciascuna, oppure elimina l'organizzazione.",
       "last_platform_admin": "{{user}} è l'ultimo amministratore della piattaforma di questa installazione. Assegna prima il ruolo a un altro utente.",
       "no_active_org": "Nessuna organizzazione è associata a questa richiesta. Accedi prima a un'organizzazione.",

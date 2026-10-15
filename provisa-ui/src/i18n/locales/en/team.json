@@ -67,6 +67,29 @@
     "colEnvironment": "Environment",
     "envPerVisitorBadge": "Per visitor, {{ttl}}",
     "envSharedBadge": "Shared: {{name}}",
-    "spentStatus": "Fully redeemed"
+    "spentStatus": "Fully redeemed",
+    "memberPanel": "Member details",
+    "resizeMemberPanel": "Resize the member panel",
+    "expandMemberPanel": "Expand the member panel",
+    "restoreMemberPanel": "Restore the member panel",
+    "closeMemberPanel": "Close the member panel",
+    "backToMembers": "Back to members",
+    "attributes": {
+      "help": "Attributes a row rule can read for this member. What the organization records here wins over the same attribute from their identity provider.",
+      "colName": "Attribute",
+      "colValue": "Value",
+      "colSource": "Source",
+      "empty": "No attributes yet.",
+      "nameLabel": "Attribute",
+      "valueLabel": "Value",
+      "add": "Add",
+      "sourceOrg": "Organization",
+      "sourceIdp": "Identity provider",
+      "overriddenHint": "Overridden by the organization's value",
+      "edit": "Edit {{name}}",
+      "saveEdit": "Save {{name}}",
+      "cancelEdit": "Cancel the edit",
+      "remove": "Remove {{name}}"
+    }
   }
 }
