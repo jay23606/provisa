@@ -235,7 +235,7 @@ def _who_is_refused(workspace: str, resource_group: str, assigned_oid: str) -> s
     shown = {k: claims.get(k) for k in ("oid", "appid", "azp", "tid", "aud", "idtyp", "sub")}
     return (
         "the workspace's Azure AD admin was still refused at the serverless endpoint after the "
-        f"bound (18456).\n  admin the lane assigned (object id): {assigned_oid}\n"
+        f"bound (18456).\n  admin the lane assigned (SQL admin id): {assigned_oid}\n"
         f"  admin the workspace records: {admin}\n  token presented: {json.dumps(shown)}"
     )
 
@@ -343,11 +343,13 @@ def _teardown(lane: dict[str, str]) -> None:
     print(f"== teardown done: {workspace} + {storage} ==", flush=True)
 
 
-def _signed_in_principal() -> tuple[str, str, str]:
-    """The object id, role-assignment principal type and display name of whoever the Azure CLI is
-    logged in as: a developer (``az login``) or the CI lane's service principal (``az login
-    --service-principal``), for which ``az ad signed-in-user show`` is refused (it is a
-    delegated-flow call)."""
+def _signed_in_principal() -> tuple[str, str, str, str]:
+    """The object id, role-assignment principal type, display name and SQL admin id of whoever the
+    Azure CLI is logged in as: a developer (``az login``) or the CI lane's service principal (``az
+    login --service-principal``), for which ``az ad signed-in-user show`` is refused (it is a
+    delegated-flow call). The SQL endpoint identifies an application's token by its application
+    (client) id, so that is a service principal's admin id; a user's is its object id. Made the
+    admin by its object id, the CI principal was refused 18456 with a token whose oid matched."""
     kind = _az("account", "show", "--query", "user.type", "-o", "tsv")
     if kind == "servicePrincipal":
         app_id = _az("account", "show", "--query", "user.name", "-o", "tsv")
@@ -355,12 +357,12 @@ def _signed_in_principal() -> tuple[str, str, str]:
             "ad", "sp", "show", "--id", app_id, "--query", "[id, displayName]", "-o", "tsv",
             timeout=120,
         ).split()  # fmt: skip
-        return oid, "ServicePrincipal", name
+        return oid, "ServicePrincipal", name, app_id
     oid, name = _az(
         "ad", "signed-in-user", "show", "--query", "[id, userPrincipalName]", "-o", "tsv",
         timeout=120,
     ).split()  # fmt: skip
-    return oid, "User", name
+    return oid, "User", name, oid
 
 
 def _provision() -> tuple[dict[str, str], str, str, str]:
@@ -378,7 +380,7 @@ def _provision() -> tuple[dict[str, str], str, str, str]:
 
     _register_provider()
     location = _resolve_location()
-    user_oid, principal_type, principal_name = _signed_in_principal()
+    user_oid, principal_type, principal_name, sql_admin_id = _signed_in_principal()
 
     lane = {"resource_group": resource_group, "workspace": workspace, "storage": storage}
     print(f"== provisioning {workspace} in {resource_group} ({location}) ==", flush=True)
@@ -524,7 +526,7 @@ def _provision() -> tuple[dict[str, str], str, str, str]:
             "--display-name",
             principal_name,
             "--object-id",
-            user_oid,
+            sql_admin_id,
             "-o",
             "none",
         )
@@ -601,7 +603,7 @@ def _provision() -> tuple[dict[str, str], str, str, str]:
             # The login was still refused when the bound passed, so it is not the assignment
             # reaching the endpoint (warehouse run 37806460400: twenty refusals over 300 s). Say
             # who the workspace's admin is recorded as and who the token says is logging in.
-            raise AssertionError(_who_is_refused(workspace, resource_group, user_oid)) from exc
+            raise AssertionError(_who_is_refused(workspace, resource_group, sql_admin_id)) from exc
         _wait_for_openrowset(sql_server, adls_url)
         print(f"== synapse lane ready: {sql_server} ==", flush=True)
     except Exception:

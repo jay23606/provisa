@@ -25,10 +25,12 @@ attached to the failure, since the adapter is where the cause will be.
 
 Reachability
 ------------
-Trino runs in a container here and the adapter on the test host, so the lane sets
-``PROVISA_PGWIRE_BIND_HOST`` (the address the adapter listens on: the container bridge's) and
-``PROVISA_PGWIRE_ENGINE_HOST`` (the name Trino reaches it by). Both are required: without them
-the adapter listens on loopback, which the container cannot reach, and the test says so.
+Trino runs in a container here and the adapter on the test host. For the life of its endpoint
+this module sets ``PROVISA_PGWIRE_BIND_HOST`` (the address the adapter listens on) and
+``PROVISA_PGWIRE_ENGINE_HOST`` (the name Trino reaches it by): on Linux (CI) both are the default
+bridge's gateway, a host address a container reaches; Docker Desktop's gateway is inside its VM,
+so there the adapter stays on loopback and Trino reaches it as ``host.docker.internal``. Only this
+module's endpoint listens off loopback; every other test's endpoint is left where it was.
 
 Credentials: ``ASKAMERICA_API_KEY`` (a secret of the warehouse lane).
 """
@@ -37,11 +39,13 @@ from __future__ import annotations
 
 import contextlib
 import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
-from tests.conftest import as_deployment_org
+from tests.conftest import as_deployment_org, deployment_org_on_this_node
 
 pytestmark = [pytest.mark.integration, pytest.mark.requires_warehouse]
 
@@ -73,28 +77,55 @@ def _source():
     )
 
 
+def _container_reach() -> dict[str, str]:
+    """Where the adapter listens and the name the Trino container reaches it by (the module
+    docstring's Reachability)."""
+    from provisa.federation import pgwire_replica as pr
+
+    if sys.platform == "darwin":
+        return {pr.ENGINE_HOST_ENV: "host.docker.internal"}
+    gateway = subprocess.run(
+        [
+            "docker",
+            "network",
+            "inspect",
+            "bridge",
+            "--format",
+            "{{(index .IPAM.Config 0).Gateway}}",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    return {pr.BIND_HOST_ENV: gateway, pr.ENGINE_HOST_ENV: gateway}
+
+
 @pytest.fixture(scope="module")
 def served(tmp_path_factory):
     """The source's server, bound where the Trino container reaches it; yields its state dir."""
     from provisa.federation import pgwire_replica as pr
 
-    _required(pr.BIND_HOST_ENV, "the adapter must listen where the Trino container reaches it")
-    _required(pr.ENGINE_HOST_ENV, "Trino needs the name it reaches the adapter's host by")
     data_dir = tmp_path_factory.mktemp("askamerica-trino-state")
-    previous = os.environ.get("PROVISA_DATA_DIR")
+    reached = _container_reach()
+    previous = {
+        name: os.environ.get(name)
+        for name in ("PROVISA_DATA_DIR", pr.BIND_HOST_ENV, pr.ENGINE_HOST_ENV)
+    }
     os.environ["PROVISA_DATA_DIR"] = str(data_dir)
+    os.environ.update(reached)
     source = _source()
     try:
-        with as_deployment_org():
+        with deployment_org_on_this_node():
             pr.ensure_endpoint(source, timeout=_COLD_START_SECONDS)
         yield source, data_dir
     finally:
         with as_deployment_org():
             pr.stop_endpoint(source.id)
-        if previous is None:
-            del os.environ["PROVISA_DATA_DIR"]
-        else:
-            os.environ["PROVISA_DATA_DIR"] = previous
+        for name, value in previous.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
 
 
 def _adapter_log(data_dir: Path) -> str:

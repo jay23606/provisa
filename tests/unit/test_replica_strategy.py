@@ -1220,3 +1220,44 @@ def test_each_server_is_given_its_own_calcite_state_directory(tmp_path):
     env = pr.calcite_state_environment(tmp_path / "run")
     assert env == {"PGWIRE_CALCITE_STATE_DIR": str(tmp_path / "run" / "calcite-state")}
     assert (tmp_path / "run" / "calcite-state").is_dir()
+
+
+# -- a server bound off loopback (PROVISA_PGWIRE_BIND_HOST) ----------------------------------
+
+
+def test_a_server_bound_off_loopback_is_reached_where_it_listens(tmp_path, monkeypatch):
+    """The launcher listens on the bind host alone, so this host reaches the endpoint there --
+    its health and its own connections -- and an engine in a container is told it too, unless the
+    deployment names the engine another way."""
+    monkeypatch.setenv(pr.BIND_HOST_ENV, "172.17.0.1")
+    monkeypatch.delenv(pr.ENGINE_HOST_ENV, raising=False)
+    spec = rd.bundle_spec_for("files")
+    _lay_down_bundle(spec, tmp_path)
+    probed: list[tuple[str, int]] = []
+    ports = pr.PortPair(5433, "127.0.0.1", 5533)
+    server = pr.PgwireServer(
+        bundle_dir=tmp_path,
+        spec=spec,
+        model=pr.build_model_json(_files_source()),
+        ports=ports,
+        spawn=lambda cmd, cwd, env=None: _FakeProc(),
+        health_check=lambda host, port: probed.append((host, port)) is None,
+        port_is_free=lambda _: True,
+    )
+    cmd = server.command()
+    assert cmd[cmd.index("--host") + 1] == "172.17.0.1"
+    assert "127.0.0.1:5533" in cmd  # the Calcite child stays on loopback
+    server.start()
+    assert server.health() is True
+    assert probed == [("172.17.0.1", 5433)]
+    assert pr.engine_visible_host(ports) == "172.17.0.1"
+    monkeypatch.setenv(pr.ENGINE_HOST_ENV, "provisa-host")
+    assert pr.engine_visible_host(ports) == "provisa-host"
+
+
+def test_unbound_a_server_is_reached_on_loopback(monkeypatch):
+    monkeypatch.delenv(pr.BIND_HOST_ENV, raising=False)
+    monkeypatch.delenv(pr.ENGINE_HOST_ENV, raising=False)
+    ports = pr.PortPair(5433, "127.0.0.1", 5533)
+    assert ports.pgwire_host == "127.0.0.1"
+    assert pr.engine_visible_host(ports) == "127.0.0.1"

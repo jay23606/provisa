@@ -53,7 +53,7 @@ import uuid
 
 import pytest
 
-from tests.conftest import as_deployment_org
+from tests.conftest import as_deployment_org, deployment_org_on_this_node
 
 pytestmark = [
     pytest.mark.requires_trino,
@@ -112,8 +112,8 @@ def endpoint():
     os.environ["PROVISA_DATA_DIR"] = str(_state_root())
     try:
         # A module fixture runs before the per-test org binding: the endpoint is the
-        # deployment org's, as its runtime's boot starts it (REQ-1266).
-        with as_deployment_org():
+        # deployment org's, its folder ready, as its runtime's boot starts it (REQ-1266, REQ-1992).
+        with deployment_org_on_this_node():
             served = pr.ensure_endpoint(_source(), timeout=_SERVER_READY_SECONDS)
         yield served
     finally:
@@ -155,7 +155,7 @@ async def write_pool(endpoint):
 async def test_an_sobject_is_read_through_the_pgwire_server(endpoint):
     from provisa.federation import pgwire_replica as pr
 
-    conn = await pr._pg_connect(endpoint.calcite_child_host, endpoint.pgwire_port)
+    conn = await pr._pg_connect(endpoint.pgwire_host, endpoint.pgwire_port)
     try:
         rows = await conn.fetch(f'SELECT "Id", "Name" FROM {_schema()}."Account" LIMIT 5')
     finally:

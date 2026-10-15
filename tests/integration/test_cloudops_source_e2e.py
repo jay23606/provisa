@@ -51,7 +51,7 @@ import os
 
 import pytest
 
-from tests.conftest import as_deployment_org
+from tests.conftest import as_deployment_org, deployment_org_on_this_node
 
 pytestmark = [
     pytest.mark.integration,
@@ -111,8 +111,8 @@ def _serving(source, data_dir):
     os.environ["PROVISA_DATA_DIR"] = str(data_dir)
     try:
         # A module fixture runs before the per-test org binding: the endpoint is the
-        # deployment org's, as its runtime's boot starts it (REQ-1266).
-        with as_deployment_org():
+        # deployment org's, its folder ready, as its runtime's boot starts it (REQ-1266, REQ-1992).
+        with deployment_org_on_this_node():
             served = pr.ensure_endpoint(source)
         yield served
     finally:
@@ -128,7 +128,7 @@ async def _providers(endpoint, schema: str, table: str) -> dict[str, int]:
     """Rows of ``table`` per cloud, as the server answers them."""
     from provisa.federation import pgwire_replica as pr
 
-    conn = await pr._pg_connect(endpoint.calcite_child_host, endpoint.pgwire_port)
+    conn = await pr._pg_connect(endpoint.pgwire_host, endpoint.pgwire_port)
     try:
         rows = await conn.fetch(f'SELECT "cloud_provider" FROM {schema}."{table}"')
     finally:
@@ -150,7 +150,7 @@ def endpoint(tmp_path_factory):
 async def test_the_inventory_tables_are_offered(endpoint):
     from provisa.federation import pgwire_replica as pr
 
-    conn = await pr._pg_connect(endpoint.calcite_child_host, endpoint.pgwire_port)
+    conn = await pr._pg_connect(endpoint.pgwire_host, endpoint.pgwire_port)
     try:
         rows = await conn.fetch(
             f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{_SCHEMA}'"  # noqa: S608 — a constant; see the module docstring

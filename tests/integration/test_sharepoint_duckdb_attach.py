@@ -47,6 +47,7 @@ import pytest
 from provisa.core.models import Source, SourceType
 from provisa.federation import pgwire_replica as pr
 from provisa.federation.connector_duckdb import DuckDBSharepointConnector
+from tests.conftest import deployment_org_on_this_node
 
 # A live SharePoint site, like test_sharepoint_source_e2e: the warehouse lane is the one given its
 # credentials, and there a test that cannot run for want of one fails (tests/skip_is_failure.py).
@@ -102,7 +103,10 @@ def source() -> Source:
 
 @pytest.fixture(scope="module")
 def attached(source: Source):
-    details = DuckDBSharepointConnector().details(source)  # boots the JVM, waits for its listener
+    # A module fixture runs before the per-test org binding: the endpoint is the deployment org's,
+    # its folder ready, as its runtime's boot starts it (REQ-1266, REQ-1992).
+    with deployment_org_on_this_node():
+        details = DuckDBSharepointConnector().details(source)  # boots the JVM, waits for it
     con = duckdb.connect()
     con.execute("INSTALL postgres")
     con.execute("LOAD postgres")

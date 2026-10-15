@@ -1362,6 +1362,20 @@ def as_deployment_org():
         reset_current_org(token)
 
 
+@contextlib.contextmanager
+def deployment_org_on_this_node():
+    """:func:`as_deployment_org`, with the org's folder ready on this node as its runtime's build
+    makes it (REQ-1992). For a module-scoped fixture that starts what writes into the folder (a
+    source's pgwire endpoint): it runs before the per-test fixture that does both, and after it
+    has pointed ``PROVISA_DATA_DIR`` where the folder is to be."""
+    import provisa.api.app as app_mod
+    from provisa.core import org_files
+
+    org_files.folder(app_mod.state.org_id).mkdir(parents=True, exist_ok=True)
+    with as_deployment_org():
+        yield
+
+
 @pytest.fixture()
 def bind_org(monkeypatch):
     """``bind_org(org_id)`` binds the org a test's work is for -- a fake state's own org, or a

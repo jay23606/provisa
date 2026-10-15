@@ -74,9 +74,7 @@ async def ensure_write_pool(state: Any, source_id: str) -> None:
 
     ports = await asyncio.to_thread(ensure_endpoint_for_discovery, source)
     driver = PgwireServerDriver()
-    await driver.connect(
-        ports.calcite_child_host, ports.pgwire_port, _SERVER_DATABASE, _SERVER_USER, ""
-    )
+    await driver.connect(ports.pgwire_host, ports.pgwire_port, _SERVER_DATABASE, _SERVER_USER, "")
     await state.source_pools.add_driver(source_id, driver, "postgres")
 
 
