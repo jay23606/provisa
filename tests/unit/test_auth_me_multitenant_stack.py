@@ -62,6 +62,7 @@ def stack(monkeypatch):
     assert root is not None
     root.model_db = cast("Any", _Pool(rows_by_table={"roles": [{"id": "org_admin"}]}))
     root.roles = _SEEDED
+    root.settings_overrides = {"claim_roles": []}  # the org declares no claim type (REQ-2057)
     state.rate_limiter = NoopRateLimiter()
     monkeypatch.setattr("provisa.api.app.state", state)
     monkeypatch.setattr("provisa.core.control_plane_id.current", lambda: "cp-1")  # made at start

@@ -81,6 +81,14 @@
     "labelTag": "Tag:",
     "tagTableCount_one": "em {{count}} tabela",
     "tagTableCount_other": "em {{count}} tabelas",
-    "alsoReaches": "Também alcança os domínios abaixo deles: {{domains}}"
+    "alsoReaches": "Também alcança os domínios abaixo deles: {{domains}}",
+    "claimRolesButton": "Funções de declaração",
+    "claimRolesTitle": "Funções de declaração",
+    "claimRolesIntro": "Cada tipo de declaração aqui se torna uma função, e cada valor que os atributos de um membro lhe dão, uma subfunção: region se torna region e region__eu. Funções de declaração não têm direitos. Conceda uma coluna ou remova uma máscara para uma delas como para qualquer função; uma solicitação só atua como ela quando a nomeia.",
+    "claimTypes": "Tipos de declaração",
+    "claimTypesPlaceholder": "Digite um tipo de declaração e pressione Enter",
+    "claimRolesFromOrg": "A lista própria desta organização.",
+    "claimRolesFromDeployment": "Da configuração da implantação até que esta organização salve a sua.",
+    "claimRolesHelp": "O valor de um membro vem do que a organização registra para ele na página Equipe ou, caso contrário, da declaração de mesmo nome do provedor de identidade."
   }
 }

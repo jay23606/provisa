@@ -110,6 +110,9 @@ class _State:
         self.admin_db = None
         self.model_db = types.SimpleNamespace(acquire=lambda: _Conn())
         self.engine_conn = None
+        # The org's member attributes and its claim types: none recorded, none declared (REQ-2057).
+        self.user_attributes = {}
+        self.settings_overrides = {"claim_roles": []}
         self.roles = {r: {"id": r} for r in _SERVED}
         self.contexts = {role: _context(served) for role, served in _SERVED.items()}
         self.meta_roles = {_META: ("hr_reader", "seller")}

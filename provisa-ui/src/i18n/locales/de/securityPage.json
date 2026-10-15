@@ -81,6 +81,14 @@
     "labelTag": "Tag:",
     "tagTableCount_one": "auf {{count}} Tabelle",
     "tagTableCount_other": "auf {{count}} Tabellen",
-    "alsoReaches": "Erreicht auch die Domänen darunter: {{domains}}"
+    "alsoReaches": "Erreicht auch die Domänen darunter: {{domains}}",
+    "claimRolesButton": "Claim-Rollen",
+    "claimRolesTitle": "Claim-Rollen",
+    "claimRolesIntro": "Jeder Claim-Typ hier wird zu einer Rolle, und jeder Wert, den die Attribute eines Mitglieds ihm geben, zu einer Unterrolle: aus region werden region und region__eu. Claim-Rollen haben keine Rechte. Geben Sie eine Spalte frei oder heben Sie eine Maskierung für eine auf wie für jede Rolle; eine Anfrage handelt nur als sie, wenn sie sie nennt.",
+    "claimTypes": "Claim-Typen",
+    "claimTypesPlaceholder": "Claim-Typ eingeben und Enter drücken",
+    "claimRolesFromOrg": "Die eigene Liste dieser Organisation.",
+    "claimRolesFromDeployment": "Aus der Bereitstellungskonfiguration, bis diese Organisation eine eigene speichert.",
+    "claimRolesHelp": "Der Wert eines Mitglieds stammt aus dem, was die Organisation auf der Seite Team für es erfasst, sonst aus dem gleichnamigen Claim seines Identitätsanbieters."
   }
 }

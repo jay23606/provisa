@@ -106,7 +106,6 @@ import { useListSortGroup, type ListColumn } from "../components/list/useListSor
 import { PageLoading } from "../components/PageLoading";
 import { useCapability } from "../hooks/useCapability";
 import { hidingDomains } from "../lib/capabilities";
-import { actingRoleHeader } from "../lib/actingRole";
 import { domainToSqlName } from "../naming";
 import { SplitPane } from "../components/list/SplitPane";
 
@@ -189,7 +188,7 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
   // domains the caller's hiding rights reach, editable only in how their columns are hidden.
   const tableEditor = useCapability("table_registration");
   const hidingOnly = !tableEditor;
-  const { selectedRoles } = useAuth();
+  const { selectedRoles, actingRoles } = useAuth();
   const governedDomains = useMemo(
     () => (hidingOnly ? hidingDomains(selectedRoles) : null),
     [hidingOnly, selectedRoles],
@@ -245,7 +244,7 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
   const { domainAccess } = useAuth();
   // REQ-1620: the rows are read as the roles the user acts as -- one role, or under "Role: All"
   // the set, which the server serves as its meta-role -- as every other page reads them.
-  const actingRole = actingRoleHeader(selectedRoles);
+  const actingRole = actingRoles;
   // REQ-1592: the model-report download. Busy while the server builds the workbook.
   const [reportBusy, setReportBusy] = useState(false);
 

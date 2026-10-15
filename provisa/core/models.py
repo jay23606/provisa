@@ -2673,6 +2673,9 @@ class ProvisaConfig(BaseModel):
     metrics: list[Metric] = Field(default_factory=list)
     vector_models: list[VectorModelConfig] = Field(default_factory=list)  # REQ-419
     roles: list[Role]
+    # REQ-2057: the claim types that become pseudo-roles -- a parent role per type and a sub-role
+    # ``<type>__<value>`` for the value a user's attributes give it. Only these, never every claim.
+    claim_roles: list[str] = Field(default_factory=list)
     rls_rules: list[RLSRule] = Field(default_factory=list)
     event_triggers: list[EventTrigger] = Field(default_factory=list)
     scheduled_triggers: list[ScheduledTrigger] = Field(default_factory=list)

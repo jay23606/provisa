@@ -81,6 +81,14 @@
     "labelTag": "Tag:",
     "tagTableCount_one": "op {{count}} tabel",
     "tagTableCount_other": "op {{count}} tabellen",
-    "alsoReaches": "Bereikt ook de domeinen eronder: {{domains}}"
+    "alsoReaches": "Bereikt ook de domeinen eronder: {{domains}}",
+    "claimRolesButton": "Claimrollen",
+    "claimRolesTitle": "Claimrollen",
+    "claimRolesIntro": "Elk claimtype hier wordt een rol, en elke waarde die de kenmerken van een lid eraan geven een subrol: region wordt region en region__eu. Claimrollen hebben geen rechten. Ken een kolom toe of hef een maskering op voor een claimrol zoals voor elke rol; een verzoek handelt alleen als die rol wanneer het die noemt.",
+    "claimTypes": "Claimtypen",
+    "claimTypesPlaceholder": "Typ een claimtype en druk op Enter",
+    "claimRolesFromOrg": "De eigen lijst van deze organisatie.",
+    "claimRolesFromDeployment": "Uit de implementatieconfiguratie totdat deze organisatie een eigen lijst opslaat.",
+    "claimRolesHelp": "De waarde van een lid komt uit wat de organisatie voor het lid vastlegt op de pagina Team, en anders uit de claim met dezelfde naam van de identiteitsprovider."
   }
 }

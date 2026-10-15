@@ -18,7 +18,6 @@ import { useAuth } from "../context/AuthContext";
 import { useDomainFilter } from "../context/DomainFilterContext";
 import "./GrpcPage.css";
 import { requestFailed, serverMessage, type ServerMessageShape } from "../i18n/serverMessage";
-import { actingRoleHeader } from "../lib/actingRole";
 import { Tip } from "../components/Tip";
 
 type OperationType = "query" | "mutation" | "command";
@@ -220,13 +219,13 @@ async function refusal(res: Response, op: string): Promise<string> {
 
 export function GrpcPage() {
   const { t } = useTranslation();
-  const { selectedRoles } = useAuth();
+  const { actingRoles } = useAuth();
   const { checkedDomains } = useDomainFilter();
   // REQ-1620: every call on this page acts as the ACTIVE roles — one role, or under "Role: All"
   // the comma-separated set the server serves as their meta-role — in the path of the routes that
   // take a role there and in X-Provisa-Role. The domain filter spans every active role, so naming
   // only the first role asked for domains that role does not reach and was refused.
-  const roleId = actingRoleHeader(selectedRoles) ?? "";
+  const roleId = actingRoles ?? "";
   const domainsParam = checkedDomains.size > 0 ? [...checkedDomains].join(",") : "";
 
   // A method handed to the page (NL "Open in gRPC", Polly) with the call syntax it was chosen with,

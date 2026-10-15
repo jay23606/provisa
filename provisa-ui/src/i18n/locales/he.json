@@ -29,7 +29,8 @@
     "all": "הכול",
     "role": "תפקיד: {{role}}",
     "dev": "DEV",
-    "checking": "בודק…"
+    "checking": "בודק…",
+    "claimRoles": "תפקידי תביעות"
   },
   "localUsers": {
     "colUsername": "שם משתמש",

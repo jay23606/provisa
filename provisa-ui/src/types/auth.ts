@@ -109,6 +109,13 @@ export interface OrgMembership {
   env_name?: string | null;
 }
 
+/** A pseudo-role the user holds (REQ-2057): a declared claim type (parent null) or the sub-role
+ *  of the value their attributes give it. Rightless; a request acts as it only by naming it. */
+export interface PseudoRole {
+  id: string;
+  parent: string | null;
+}
+
 export interface AuthState {
   /** First selected role — used for API headers that require a single role. */
   role: Role | null;

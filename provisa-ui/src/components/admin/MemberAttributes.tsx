@@ -26,6 +26,7 @@ import {
   TextInput,
 } from "@mantine/core";
 import { Check, Pencil, Trash2, X } from "lucide-react";
+import { FieldGroup, FormField, FormLayout } from "../form/FormLayout";
 import {
   deleteMemberAttribute,
   fetchMemberAttributes,
@@ -205,32 +206,35 @@ export function MemberAttributes({ userId }: { userId: string }) {
           })}
         </Table.Tbody>
       </Table>
-      <Group gap="xs" align="flex-end">
-        <TextInput
-          size="xs"
-          label={t("teamPage.attributes.nameLabel")}
-          placeholder="region"
-          value={name}
-          onChange={(e) => setName(e.currentTarget.value)}
-          data-testid="member-attr-name"
-        />
-        <TextInput
-          size="xs"
-          label={t("teamPage.attributes.valueLabel")}
-          placeholder="eu"
-          value={value}
-          onChange={(e) => setValue(e.currentTarget.value)}
-          data-testid="member-attr-value"
-        />
-        <Button
-          size="xs"
-          onClick={() => void add()}
-          disabled={name.trim() === ""}
-          data-testid="member-attr-add"
-        >
-          {t("teamPage.attributes.add")}
-        </Button>
-      </Group>
+      <FormLayout>
+        <FieldGroup row>
+          <FormField size="short">
+            <TextInput
+              label={t("teamPage.attributes.nameLabel")}
+              placeholder="region"
+              value={name}
+              onChange={(e) => setName(e.currentTarget.value)}
+              data-testid="member-attr-name"
+            />
+          </FormField>
+          <FormField size="short">
+            <TextInput
+              label={t("teamPage.attributes.valueLabel")}
+              placeholder="eu"
+              value={value}
+              onChange={(e) => setValue(e.currentTarget.value)}
+              data-testid="member-attr-value"
+            />
+          </FormField>
+          <Button
+            onClick={() => void add()}
+            disabled={name.trim() === ""}
+            data-testid="member-attr-add"
+          >
+            {t("teamPage.attributes.add")}
+          </Button>
+        </FieldGroup>
+      </FormLayout>
     </Stack>
   );
 }

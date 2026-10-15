@@ -588,6 +588,12 @@
     },
     "engine": {
       "write_conflict": "Een andere wijziging van dezelfde gegevens werd tegelijk geschreven. Probeer het opnieuw."
+    },
+    "claim_roles": {
+      "name_invalid": "Claimtype '{{name}}' mag alleen letters, cijfers en underscores bevatten en mag niet met een cijfer beginnen",
+      "name_missing": "Een claimtype heeft een naam nodig",
+      "name_reserved": "'{{name}}' wordt bij elk verzoek ingesteld vanuit de handelende identiteit en kan geen claimtype zijn",
+      "database_not_connected": "Database niet verbonden"
     }
   }
 }

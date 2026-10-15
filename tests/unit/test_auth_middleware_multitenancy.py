@@ -63,6 +63,8 @@ def _seeded_roles(monkeypatch):
     monkeypatch.setattr("provisa.auth.middleware._platform_roles", lambda: seeded)
     # Nor does any org here record attributes for its members (REQ-1382).
     monkeypatch.setattr("provisa.auth.middleware._loaded_user_attributes", lambda _user_id: {})
+    # Nor declares a claim type (REQ-2057).
+    monkeypatch.setattr("provisa.auth.middleware._loaded_claim_roles", lambda: [])
 
 
 class _Provider(AuthProvider):

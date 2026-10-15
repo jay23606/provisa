@@ -711,14 +711,28 @@ class ProvisaFlightServer(
 
             # The role is authorized with the org bound: a set of held roles is made into its
             # meta-role in the org's runtime, which is a tenant-data path like any other.
+            acting: str | None = None
             if identity is not None:
-                request["role"] = self._authorize_role(identity, request)
+                acting = self._authorize_role(identity, request)
+                request["role"] = acting
 
             # REQ-074/REQ-1386: the validated principal, or — on a deployment that authenticates
             # nobody — the anonymous one: the request is audited either way.
             user_id = identity.user_id if identity is not None else ANONYMOUS_USER
-            with audit_identity_scope(user_id, "flight"):
-                return self._do_get_inner(request, ticket)
+            import contextlib
+
+            from provisa.auth.pseudo_roles import principal_scope
+
+            # REQ-1682/REQ-1382: what a row filter reads for this caller, as on every transport;
+            # a deployment that authenticates nobody has no principal to bind.
+            principal = (
+                contextlib.nullcontext()
+                if identity is None
+                else principal_scope(self._state, identity, acting)
+            )
+            with principal:
+                with audit_identity_scope(user_id, "flight"):
+                    return self._do_get_inner(request, ticket)
         finally:
             # REQ-1905: do_get is over on this handler thread; a stream it returned binds the
             # deadline again around each batch it pulls (provisa/api/flight/deadline.py).

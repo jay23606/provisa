@@ -29,7 +29,8 @@
     "all": "全部",
     "role": "角色：{{role}}",
     "dev": "DEV",
-    "checking": "正在檢查…"
+    "checking": "正在檢查…",
+    "claimRoles": "宣告角色"
   },
   "localUsers": {
     "colUsername": "使用者名稱",

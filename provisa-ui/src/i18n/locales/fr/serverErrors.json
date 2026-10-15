@@ -588,6 +588,12 @@
     },
     "engine": {
       "write_conflict": "Une autre modification des mêmes données a été écrite au même moment. Réessayez."
+    },
+    "claim_roles": {
+      "name_invalid": "Le type de revendication '{{name}}' ne doit contenir que des lettres, des chiffres et des traits de soulignement, et ne doit pas commencer par un chiffre",
+      "name_missing": "Un type de revendication doit avoir un nom",
+      "name_reserved": "'{{name}}' est défini à partir de l'identité agissante à chaque requête et ne peut pas être un type de revendication",
+      "database_not_connected": "Base de données non connectée"
     }
   }
 }

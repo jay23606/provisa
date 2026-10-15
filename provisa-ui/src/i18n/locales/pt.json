@@ -29,7 +29,8 @@
     "all": "Todas",
     "role": "Função: {{role}}",
     "dev": "DEV",
-    "checking": "Verificando…"
+    "checking": "Verificando…",
+    "claimRoles": "Funções de declaração"
   },
   "localUsers": {
     "colUsername": "Nome de usuário",

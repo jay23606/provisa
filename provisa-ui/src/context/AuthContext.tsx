@@ -11,14 +11,21 @@
 /* eslint-disable react-refresh/only-export-components -- context Provider + hook colocated by design */
 import { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
 import type { ReactNode } from "react";
-import type { Capability, Role, RoleAssignment, AuthState, OrgMembership } from "../types/auth";
+import type {
+  Capability,
+  Role,
+  RoleAssignment,
+  AuthState,
+  OrgMembership,
+  PseudoRole,
+} from "../types/auth";
 import { AuthMeError, fetchMe } from "../api/admin";
 import { useRoles, useDomains } from "../hooks/useAdminQueries";
 import { unionDemonstrated } from "../lib/capabilities";
 import { normalizeRole, type RawRole } from "../lib/roles";
 import { clearOrgSelectionRequired } from "../lib/orgSelection";
 import { getStored, removeStored, setStored } from "../lib/browserStorage";
-import { actingRoleHeader, setActingRoles } from "../lib/actingRole";
+import { setActingRoles } from "../lib/actingRole";
 
 // REQ-1297: dev/no-auth mirrors what the server grants an unsecured caller, and that is now
 // org_admin — the DATA-plane administrator — not platform_admin. The no-auth configs' single
@@ -101,6 +108,14 @@ function unionCapabilities(roles: Role[]): Capability[] {
 
 interface AuthContextValue extends AuthState {
   selectRole: (role: Role | "all") => void;
+  // REQ-2057: the pseudo-roles the user holds, those selected to act as beside the roles, and the
+  // switch for one. They never join a request unselected.
+  pseudoRoles: PseudoRole[];
+  selectedPseudoRoles: string[];
+  togglePseudoRole: (id: string) => void;
+  // The X-Provisa-Role value every request sends: the selected roles, then the selected
+  // pseudo-roles. Null with no role selected (a pseudo-role alone reaches no data).
+  actingRoles: string | null;
   availableRoles: Role[];
   availableDomains: string[];
   selectDomain: (domain: string | null) => void;
@@ -170,6 +185,8 @@ export function AuthProvider({
   const [orgMemberships, setOrgMemberships] = useState<OrgMembership[]>([]);
   // REQ-1528: what owning the environment being read confers, as the server reports it.
   const [envCapabilities, setEnvCapabilities] = useState<Capability[]>([]);
+  const [pseudoRoles, setPseudoRoles] = useState<PseudoRole[]>([]);
+  const [pickedPseudo, setPickedPseudo] = useState<string[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [identityErrorStatus, setIdentityErrorStatus] = useState<number | null>(null);
   const [email, setEmail] = useState<string | null>(null);
@@ -203,6 +220,7 @@ export function AuthProvider({
         setControlPlaneId(me.control_plane_id);
         userAssignments = me.assignments;
         setEnvCapabilities(me.env_capabilities as Capability[]);
+        setPseudoRoles(me.pseudo_roles);
         setOrgMemberships(me.org_memberships);
         setUserId(me.user_id);
         setIdentityErrorStatus(null);
@@ -371,8 +389,20 @@ export function AuthProvider({
     () => [...new Set([...unionCapabilities(activeRoles), ...envCapabilities])],
     [activeRoles, envCapabilities],
   );
+  // A selection survives only while the pseudo-role is still held (an identity re-read can drop it).
+  const selectedPseudoRoles = useMemo(
+    () => pickedPseudo.filter((id) => pseudoRoles.some((p) => p.id === id)),
+    [pickedPseudo, pseudoRoles],
+  );
+  const actingRoles = useMemo(
+    () =>
+      activeRoles.length > 0
+        ? [...activeRoles.map((r) => r.id), ...selectedPseudoRoles].join(",")
+        : null,
+    [activeRoles, selectedPseudoRoles],
+  );
   // Every request acts as the selected roles: the server reads rights from them, as these gates do.
-  useEffect(() => setActingRoles(actingRoleHeader(activeRoles)), [activeRoles]);
+  useEffect(() => setActingRoles(actingRoles), [actingRoles]);
   const demonstrated = useMemo(
     () => unionDemonstrated(activeRoles, capabilities),
     [activeRoles, capabilities],
@@ -386,6 +416,10 @@ export function AuthProvider({
     setSelectedDomain(null);
     if (r === "all") removeStored("provisa_role", { global: true });
     else setStored("provisa_role", (r as Role).id, { global: true });
+  }
+
+  function togglePseudoRole(id: string) {
+    setPickedPseudo((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
   }
 
   function selectDomain(domain: string | null) {
@@ -438,6 +472,10 @@ export function AuthProvider({
         selectedRole,
         selectedDomain,
         selectRole,
+        pseudoRoles,
+        selectedPseudoRoles,
+        togglePseudoRole,
+        actingRoles,
         selectDomain,
         availableRoles,
         availableDomains,

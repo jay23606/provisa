@@ -27,7 +27,6 @@ import remarkGfm from "remark-gfm";
 import { Check, Copy, Trash2 } from "lucide-react";
 import { HelpBubble } from "../components/HelpBubble";
 import { useAuth } from "../context/AuthContext";
-import { actingRoleHeader } from "../lib/actingRole";
 import { Tip } from "../components/Tip";
 import { getStored, setStored } from "../lib/browserStorage";
 
@@ -204,9 +203,9 @@ interface ToolEvent {
 // tools (list/describe/run/explain/search) under the active role, streamed over SSE.
 export function McpExplorePage() {
   const { t } = useTranslation();
-  const { selectedRoles } = useAuth();
+  const { actingRoles } = useAuth();
   // REQ-1620: the ACTIVE roles — one, or under "Role: All" the set served as their meta-role.
-  const roleId = actingRoleHeader(selectedRoles) ?? "";
+  const roleId = actingRoles ?? "";
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [tools, setTools] = useState<ToolEvent[]>([]);
   const [busy, setBusy] = useState(false);

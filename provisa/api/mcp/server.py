@@ -202,9 +202,12 @@ def named_role(named: str, state: Any) -> str:  # REQ-273, REQ-1105, REQ-1620
             # The transport sets the identity and the role it maps to together.
             raise RuntimeError("a remote MCP call carries an identity but no role")
         held.add(mapped)
-    else:
-        held = {r.strip() for r in named.split(",") if r.strip()}
-        refuse_named_meta_role(sorted(held))
+        from provisa.auth.pseudo_roles import principal_of
+
+        # REQ-2057: a pseudo-role the principal holds is named like any role.
+        return resolve_requested_role(state, held, named, lambda: principal_of(state, identity)[1])
+    held = {r.strip() for r in named.split(",") if r.strip()}
+    refuse_named_meta_role(sorted(held))
     return resolve_requested_role(state, held, named)
 
 
@@ -845,8 +848,14 @@ def _wrap_role_auth(app: Any, state: Any, *, require_token: bool) -> Any:
         from provisa.core.request_context import current_acting_role
 
         acting_reset = current_acting_role.set(role)
+        from provisa.auth.pseudo_roles import principal_scope
+
         try:
-            with audit_identity_scope(identity.user_id, "mcp"):
+            # REQ-1682/REQ-1382: what a row filter reads for this caller, as on every transport.
+            with (
+                audit_identity_scope(identity.user_id, "mcp"),
+                principal_scope(state, identity, role),
+            ):
                 await app(scope, receive, send)
         finally:
             current_acting_role.reset(acting_reset)

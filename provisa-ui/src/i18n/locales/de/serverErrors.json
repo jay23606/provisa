@@ -588,6 +588,12 @@
     },
     "engine": {
       "write_conflict": "Eine andere Änderung an denselben Daten wurde gleichzeitig geschrieben. Versuchen Sie es erneut."
+    },
+    "claim_roles": {
+      "name_invalid": "Der Claim-Typ '{{name}}' darf nur Buchstaben, Ziffern und Unterstriche enthalten und nicht mit einer Ziffer beginnen",
+      "name_missing": "Ein Claim-Typ braucht einen Namen",
+      "name_reserved": "'{{name}}' wird bei jeder Anfrage aus der handelnden Identität gesetzt und kann kein Claim-Typ sein",
+      "database_not_connected": "Datenbank nicht verbunden"
     }
   }
 }

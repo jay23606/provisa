@@ -588,6 +588,12 @@
     },
     "engine": {
       "write_conflict": "对同一数据的另一项更改同时被写入。请重试。"
+    },
+    "claim_roles": {
+      "name_invalid": "声明类型 '{{name}}' 只能包含字母、数字和下划线，且不能以数字开头",
+      "name_missing": "声明类型需要名称",
+      "name_reserved": "'{{name}}' 在每个请求中由当前操作的身份绑定，不能作为声明类型",
+      "database_not_connected": "数据库未连接"
     }
   }
 }

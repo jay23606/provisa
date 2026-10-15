@@ -29,7 +29,8 @@
     "all": "すべて",
     "role": "ロール: {{role}}",
     "dev": "DEV",
-    "checking": "確認中…"
+    "checking": "確認中…",
+    "claimRoles": "要求ロール"
   },
   "localUsers": {
     "colUsername": "ユーザー名",

@@ -81,6 +81,14 @@
     "labelTag": "Tag :",
     "tagTableCount_one": "sur {{count}} table",
     "tagTableCount_other": "sur {{count}} tables",
-    "alsoReaches": "Atteint aussi les domaines en dessous : {{domains}}"
+    "alsoReaches": "Atteint aussi les domaines en dessous : {{domains}}",
+    "claimRolesButton": "Rôles de revendication",
+    "claimRolesTitle": "Rôles de revendication",
+    "claimRolesIntro": "Chaque type de revendication indiqué ici devient un rôle, et chaque valeur que lui donnent les attributs d'un membre, un sous-rôle : region devient region et region__eu. Les rôles de revendication n'ont aucun droit. Accordez une colonne ou levez un masque pour l'un d'eux comme pour tout rôle ; une requête n'agit en son nom que si elle le nomme.",
+    "claimTypes": "Types de revendication",
+    "claimTypesPlaceholder": "Saisissez un type de revendication et appuyez sur Entrée",
+    "claimRolesFromOrg": "La liste propre à cette organisation.",
+    "claimRolesFromDeployment": "Issue de la configuration du déploiement jusqu'à ce que cette organisation enregistre la sienne.",
+    "claimRolesHelp": "La valeur d'un membre provient de ce que l'organisation enregistre pour lui sur la page Équipe, sinon de la revendication du même nom de son fournisseur d'identité."
   }
 }

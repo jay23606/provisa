@@ -81,6 +81,14 @@
     "labelTag": "Tag:",
     "tagTableCount_one": "on {{count}} table",
     "tagTableCount_other": "on {{count}} tables",
-    "alsoReaches": "Also reaches the domains under them: {{domains}}"
+    "alsoReaches": "Also reaches the domains under them: {{domains}}",
+    "claimRolesButton": "Claim roles",
+    "claimRolesTitle": "Claim roles",
+    "claimRolesIntro": "Each claim type here becomes a role, and each value a member's attributes give it a sub-role: region becomes region and region__eu. Claim roles carry no rights. Grant a column or lift a mask for one like any role; a request acts as it only when it names it.",
+    "claimTypes": "Claim types",
+    "claimTypesPlaceholder": "Type a claim type and press Enter",
+    "claimRolesFromOrg": "This organization's own list.",
+    "claimRolesFromDeployment": "From the deployment configuration until this organization saves its own.",
+    "claimRolesHelp": "A member's value comes from what the organization records for them on the Team page, or else from their identity provider's claim of the same name."
   }
 }

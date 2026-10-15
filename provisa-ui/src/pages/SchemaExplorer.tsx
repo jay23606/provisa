@@ -18,7 +18,6 @@ import { useDomainFilter } from "../context/DomainFilterContext";
 import { useSubnavExtraSlot } from "../context/subnavExtraSlot";
 import { useTables, useAllRelationships, useDomains } from "../hooks/useAdminQueries";
 import { ErdPanel } from "../components/erd/ErdPanel";
-import { actingRoleHeader } from "../lib/actingRole";
 import { VOYAGER_THEME_CSS, VOYAGER_VARS_ID, voyagerThemeVars } from "./schemaExplorerTheme";
 
 /**
@@ -31,9 +30,9 @@ import { VOYAGER_THEME_CSS, VOYAGER_VARS_ID, voyagerThemeVars } from "./schemaEx
  */
 export function SchemaExplorer() {
   const { t } = useTranslation();
-  const { role, selectedRoles } = useAuth();
+  const { role, actingRoles } = useAuth();
   // REQ-1620: under "Role: All" the schema shown is the active set's (their meta-role's).
-  const roleHeader = actingRoleHeader(selectedRoles);
+  const roleHeader = actingRoles;
   const { domains, checkedDomains } = useDomainFilter();
   const { node: subnavExtraNode } = useSubnavExtraSlot();
   const [view, setView] = useState<"sdl" | "erd">("sdl");

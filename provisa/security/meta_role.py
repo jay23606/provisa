@@ -39,6 +39,7 @@ from __future__ import annotations
 import re
 import threading
 import time
+from collections.abc import Callable
 from typing import Any
 
 META_PREFIX = "meta:"
@@ -156,6 +157,28 @@ def _rls(state: Any, members: list[dict], tables: list[dict]) -> Any:
     return RLSContext(rules=rules, domain_rules={}, action_rules=actions)
 
 
+def _lift_qualified(masks: dict, tables: list[dict], meta_id: str) -> dict:
+    """``masks`` without each column whose grant (``unmasked_to``, after inheritance) names the
+    meta-role -- a qualifier's grant, as no data member is exempt where a mask survived the
+    intersection. A fake stays: it is the column's own declaration, never a role mask."""
+    from provisa.security.masking import MaskType
+
+    out = {key: dict(cols) for key, cols in masks.items()}
+    for t in tables:
+        cols = out.get((t["id"], meta_id))
+        if not cols:
+            continue
+        for c in t.get("columns") or []:
+            rule = cols.get(c["column_name"])
+            if (
+                rule is not None
+                and rule.mask_type != MaskType.fake
+                and meta_id in (c.get("unmasked_to") or [])
+            ):
+                del cols[c["column_name"]]
+    return {key: cols for key, cols in out.items() if cols}
+
+
 def meta_masks(rules: dict, meta_id: str, member_ids: list[str] | tuple[str, ...]) -> dict:
     """The meta-role's masks under ``rules`` ({(table id, role id): {column: rule}}): a column
     is masked for it only where it is masked for every member."""
@@ -181,16 +204,23 @@ def with_meta_masks(state: Any, rules: dict, role_ids: set[str]) -> dict:
     return rules
 
 
-def _build(state: Any, meta_id: str, member_ids: list[str]) -> None:
+def _build(
+    state: Any, meta_id: str, member_ids: list[str], qualifiers: tuple[str, ...] = ()
+) -> None:
     """Build the meta-role from its members as this model generation has them, and install it:
     its masks, its role and its surface (one assignment — a request acting as it reads the
-    surface this replaces or this one)."""
+    surface this replaces or this one).
+
+    REQ-2057: ``qualifiers`` are the pseudo-roles the request named. They have no surface, rights,
+    masks or row filters of their own -- as a member, one with no masks would unmask every column,
+    and one reading no table would end every OR of row filters -- so they enter only the grants:
+    a grant list naming one reaches the child, as a member's does."""
     from provisa.api.app_loaders import register_role_surface
     from provisa.security.inheritance import expand_grants
 
     member_roles = [state.roles[m] for m in member_ids]
     inputs = state.role_build_inputs
-    chains = {meta_id: [meta_id, *member_ids]}
+    chains = {meta_id: [meta_id, *member_ids, *qualifiers]}
     # Inheritance with several parents: every grant to a member reaches the child.
     for t in inputs["tables"]:
         expand_grants(t.get("columns") or [], chains)
@@ -200,15 +230,18 @@ def _build(state: Any, meta_id: str, member_ids: list[str]) -> None:
     # A column is masked for the child only where it is masked for every member: a member in
     # its unmasked_to puts the child there too (expand_grants above).
     masks = meta_masks(state.masking_rules, meta_id, member_ids)
+    if qualifiers:
+        masks = _lift_qualified(masks, inputs["tables"], meta_id)
     rls = _rls(state, member_roles, inputs["tables"])
     role = _role(member_roles, meta_id)
     state.masking_rules = {**state.masking_rules, **masks}
     state.roles[meta_id] = role
     register_role_surface(state, role, rls)
     state.meta_roles[meta_id] = tuple(member_ids)
+    state.meta_qualifiers[meta_id] = tuple(qualifiers)
 
 
-def ensure_meta_role(state: Any, members: list[str]) -> str:
+def ensure_meta_role(state: Any, members: list[str], qualifiers: tuple[str, ...] = ()) -> str:
     """The meta-role acting as ``members`` (roles the caller holds, two or more), built on first
     use. A rebuild of the model rebuilds it from the rebuilt members while requests may still be
     acting as it (:func:`rebuild_meta_roles`); each use is recorded so a rebuild knows that.
@@ -220,15 +253,18 @@ def ensure_meta_role(state: Any, members: list[str]) -> str:
     (KeyError 'platform_admin'), on every request and at every model rebuild after."""
     data = sorted({m for m in members if m in state.surfaces})
     if not data:
-        raise PermissionError(f"No schema available for roles {sorted(set(members))}")
-    if len(data) == 1:
+        raise PermissionError(f"No schema available for roles {sorted({*members, *qualifiers})}")
+    quals = tuple(sorted(set(qualifiers)))
+    if len(data) == 1 and not quals:
         return data[0]
     members = data
-    meta_id = meta_role_id(members)
+    # REQ-2057: a set naming pseudo-roles is its own meta-role even with one data role: what it
+    # is granted differs from that role's.
+    meta_id = meta_role_id([*members, *quals])
     if meta_id not in state.roles or state.meta_roles.get(meta_id) is None:
         with _LOCK:
             if meta_id not in state.roles or state.meta_roles.get(meta_id) is None:
-                _build(state, meta_id, sorted(set(members)))
+                _build(state, meta_id, sorted(set(members)), quals)
     state.meta_resolved_at[meta_id] = time.monotonic()
     return meta_id
 
@@ -255,24 +291,42 @@ def rebuild_meta_roles(state: Any, role_ids: set[str]) -> None:
             # meta-role goes, and a later use builds it from the roles that have one.
             held = all(m in role_ids and m in state.surfaces for m in member_ids)
             if held and state.meta_resolved_at.get(meta_id, float("-inf")) >= in_use_since:
-                _build(state, meta_id, list(member_ids))
+                _build(state, meta_id, list(member_ids), state.meta_qualifiers.get(meta_id, ()))
                 continue
             state.meta_roles.pop(meta_id, None)
+            state.meta_qualifiers.pop(meta_id, None)
             state.meta_resolved_at.pop(meta_id, None)
             state.roles.pop(meta_id, None)
             _drop_data_surface(state, meta_id)
 
 
-def resolve_requested_role(state: Any, permitted: set[str], requested: str) -> str:
+def resolve_requested_role(
+    state: Any,
+    permitted: set[str],
+    requested: str,
+    pseudo: Callable[[], dict[str, str]] | None = None,
+) -> str:
     """The role a request acts as, from what it names (a role, or a comma-separated set) and the
     roles its identity holds (``permitted``). Each named role must be held, and one that is not is
-    refused by name; one role is that role, several act as their meta-role."""
+    refused by name; one role is that role, several act as their meta-role.
+
+    REQ-2057: ``pseudo`` reads the pseudo-roles the identity holds (id -> parent), asked only when
+    a request names a role the identity is not assigned. One named enters the set as a qualifier,
+    with its parent, and the set acts as its meta-role."""
     names = [r.strip() for r in requested.split(",") if r.strip()]
     refuse_named_meta_role(names)
+    unassigned = [n for n in names if n not in permitted]
+    held_pseudo = pseudo() if (unassigned and pseudo is not None) else {}
+    data: list[str] = []
+    qualifiers: set[str] = set()
     for name in names:
-        if name not in permitted:
+        if name in permitted:
+            data.append(name)
+        elif name in held_pseudo:
+            qualifiers.update(q for q in (name, held_pseudo[name]) if q)
+        else:
             raise PermissionError(f"role {name!r} is not assigned to this identity")
-    distinct = sorted(set(names))
-    if len(distinct) == 1:
-        return distinct[0]
-    return ensure_meta_role(state, distinct)
+    distinct = sorted(set(data))
+    if not qualifiers:
+        return distinct[0] if len(distinct) == 1 else ensure_meta_role(state, distinct)
+    return ensure_meta_role(state, distinct, tuple(sorted(qualifiers)))

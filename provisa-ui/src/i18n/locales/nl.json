@@ -29,7 +29,8 @@
     "all": "Alle",
     "role": "Rol: {{role}}",
     "dev": "DEV",
-    "checking": "Bezig met controleren…"
+    "checking": "Bezig met controleren…",
+    "claimRoles": "Claimrollen"
   },
   "localUsers": {
     "colUsername": "Gebruikersnaam",

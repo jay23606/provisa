@@ -8,6 +8,7 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
+import { ClaimRolesForm } from "../components/admin/ClaimRolesForm";
 import { Tip } from "../components/Tip";
 import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -94,6 +95,8 @@ export function SecurityRolesPage() {
   const [expandedRole, setExpandedRole] = useState<string | null>(null);
   const [editingRoleInRow, setEditingRoleInRow] = useState<string | null>(null);
   const [roleSearch, setRoleSearch] = useState("");
+  // REQ-2057: the panel shows the org's declared claim types instead of a role.
+  const [showClaimRoles, setShowClaimRoles] = useState(false);
 
   const reload = useCallback(async () => {
     await Promise.all([refetchRoles(), refetchDomains()]);
@@ -108,6 +111,7 @@ export function SecurityRolesPage() {
   }, [domains, setContextDomains]);
 
   const handleNewRole = () => {
+    setShowClaimRoles(false);
     setRoleForm({ ...EMPTY_ROLE });
     setShowRoleForm(true);
     setError("");
@@ -238,6 +242,7 @@ export function SecurityRolesPage() {
   // role -- its detail, or the form that edits it. A role whose details are hidden from this user
   // has nothing to show, so it opens no panel.
   const closeRolePanel = () => {
+    setShowClaimRoles(false);
     setShowRoleForm(false);
     setEditingRoleInRow(null);
     setExpandedRole(null);
@@ -484,6 +489,18 @@ export function SecurityRolesPage() {
               {t("securityPage.addRole")}
             </Button>
           )}
+          <Button
+            variant="default"
+            data-testid="toggle-claim-roles"
+            onClick={() => {
+              setExpandedRole(null);
+              setEditingRoleInRow(null);
+              setShowRoleForm(false);
+              setShowClaimRoles(true);
+            }}
+          >
+            {t("securityPage.claimRolesButton")}
+          </Button>
           <HelpBubble
             title={t("securityPage.rolePurposeTitle")}
             paragraphs={[t("securityPage.rolePurposeBody"), t("securityPage.rolePurposeAdd")]}
@@ -496,7 +513,7 @@ export function SecurityRolesPage() {
       <SplitPane
         testId="roles-split"
         storageKey="provisa.roles.detailWidth"
-        title={rolePanelTitle}
+        title={showClaimRoles ? t("securityPage.claimRolesTitle") : rolePanelTitle}
         onClose={closeRolePanel}
         // Escape closes a role that is only being looked at; it never drops what is being typed.
         closeOnEscape={!showRoleForm && editingRoleInRow === null}
@@ -529,6 +546,7 @@ export function SecurityRolesPage() {
                         setExpandedRole(expandedRole === r.id ? null : r.id);
                         setEditingRoleInRow(null);
                         setShowRoleForm(false);
+                        setShowClaimRoles(false);
                       }}
                     >
                       <Table.Td>{r.id}</Table.Td>
@@ -556,7 +574,7 @@ export function SecurityRolesPage() {
           </ListTable>
         }
       >
-        {rolePanelBody}
+        {showClaimRoles ? <ClaimRolesForm onClose={closeRolePanel} /> : rolePanelBody}
       </SplitPane>
       {refusal.dialog}
     </Stack>

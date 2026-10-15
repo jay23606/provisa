@@ -588,6 +588,12 @@
     },
     "engine": {
       "write_conflict": "Un'altra modifica agli stessi dati è stata scritta nello stesso momento. Riprova."
+    },
+    "claim_roles": {
+      "name_invalid": "Il tipo di attestazione '{{name}}' deve contenere solo lettere, cifre e trattini bassi e non può iniziare con una cifra",
+      "name_missing": "Un tipo di attestazione deve avere un nome",
+      "name_reserved": "'{{name}}' viene impostato dall'identità che agisce a ogni richiesta e non può essere un tipo di attestazione",
+      "database_not_connected": "Database non connesso"
     }
   }
 }
