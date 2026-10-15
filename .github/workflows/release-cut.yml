@@ -156,7 +156,13 @@ jobs:
         run: |
           set -euo pipefail
           gh workflow run build-dmg.yml --ref "$VERSION" -f version="$VERSION" -f publish=true
-          for workflow in build-duckdb-extensions.yml build-pg-extensions.yml release-exports.yml \
-                          ui-e2e-core.yml ui-e2e-swap-amd64.yml ui-e2e-trino.yml; do
+          for workflow in build-duckdb-extensions.yml build-pg-extensions.yml release-exports.yml; do
             gh workflow run "$workflow" --ref "$VERSION"
           done
+          # The UI e2e lanes run on the tag only when the gate is enforced: during alpha the full
+          # suites run only on request (maintainer 2026-10-15).
+          if [ "${{ inputs.ui_gate }}" = "enforce" ]; then
+            for workflow in ui-e2e-core.yml ui-e2e-swap-amd64.yml ui-e2e-trino.yml; do
+              gh workflow run "$workflow" --ref "$VERSION"
+            done
+          fi
