@@ -102,3 +102,35 @@ def test_the_walk_skips_fetch_sources_and_attaches_live_ones():
     assert not any(  # noqa: SLF001
         key[1:] == ("petstore-api", "api", "list_pets") for key in backend._refused
     )
+
+
+def test_the_walk_does_not_attach_a_table_provisa_reads_itself():
+    """A MongoDB pipeline table is run by Provisa's native reader and its rows landed: no
+    collection of its name exists to attach. Its attach failed ("Table ... does not exist") and
+    left the walk incomplete, retried on every statement, in the reviews demo's sandbox."""
+    engine = build_duckdb_engine()
+    backend = engine.backend
+    backend._runtime = _RecordingRuntime()  # noqa: SLF001
+    pipeline = {
+        "source_id": "catalog",
+        "schema_name": "api",
+        "table_name": "ratings_by_product",
+        "query_template": '{"inputCollection": "ratings", "pipeline": []}',
+        "region": None,
+        "cache_ttl": None,
+        "columns": [],
+    }
+    config = SimpleNamespace(
+        sources=[_source("catalog", "mongodb")],
+        tables=[_table("catalog", "products"), _table("catalog", "ratings_by_product")],
+    )
+    state = SimpleNamespace(
+        replica_routes=ReplicaRoutes(),
+        runtime_sources={},
+        tables=[pipeline],
+        source_types={"catalog": "mongodb"},
+        source_catalogs={"catalog": "catalog"},
+    )
+
+    assert backend._walk_registry(state, config) is True  # noqa: SLF001
+    assert backend._runtime.attached == ["mongodb"]  # noqa: SLF001 -- products only

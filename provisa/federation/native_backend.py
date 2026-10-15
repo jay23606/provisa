@@ -439,11 +439,24 @@ class NativeEngineBackend(EngineBackend):
             [*config.tables, *(getattr(state, "tables", None) or [])]
         )
 
+        # A table Provisa reads itself -- a MongoDB pipeline, a search, a code table -- is run by
+        # its native reader and its rows landed for the engine (api.data.materialization): no
+        # collection or index of its name exists to attach, and an attach of it only failed and
+        # left the walk incomplete, retried on every statement.
+        from provisa.api.data.materialization import is_native_read
+
+        _types = getattr(state, "source_types", None) or {}
+        native = {
+            (t["source_id"], t["schema_name"], t["table_name"])
+            for t in (getattr(state, "tables", None) or [])
+            if is_native_read(t, _types)
+        }
+
         def _attach_tbl(src: Any, schema_name: str, table_name: str) -> None:
             """Attach one table into the runtime; skip if already attached or attach fails."""
             nonlocal complete
             key = (state.source_catalogs[src.id], src.id, schema_name, table_name)
-            if key in tried:
+            if key in tried or (src.id, schema_name, table_name) in native:
                 return
             kept = state.replica_routes.kept_for_good
             if floor_setting(src) is not None or (src.id, schema_name, table_name) in kept:

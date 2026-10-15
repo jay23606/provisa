@@ -251,11 +251,11 @@ def test_a_registered_search_takes_query_arg_parameters_only():
 
 
 def test_a_native_search_is_read_natively_whatever_the_engine():
-    from provisa.api.data.materialization import _is_native_read
+    from provisa.api.data.materialization import is_native_read
 
     types = {"es": "elasticsearch"}
-    assert _is_native_read({"source_id": "es", "query_template": "{}", "columns": []}, types)
-    assert not _is_native_read({"source_id": "es", "query_template": None, "columns": []}, types)
+    assert is_native_read({"source_id": "es", "query_template": "{}", "columns": []}, types)
+    assert not is_native_read({"source_id": "es", "query_template": None, "columns": []}, types)
 
 
 def test_a_search_s_pages_keep_each_hit_s_score():
