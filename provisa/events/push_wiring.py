@@ -73,6 +73,16 @@ def _effective_signal(src: Any, tbl: dict) -> str | None:
 _CDC_TRANSPORT_SIGNALS = frozenset({"debezium", "kafka"})
 
 
+def _listener_key(node: str) -> tuple[str, str | None, str]:
+    """A running listener's key: the org and environment it lands for, and its node. One process
+    serves many orgs (a demo's sandboxes) and each org's environments; a node name alone is the
+    same in every one of them, so a second org's table would be taken as already running, and
+    one org's wiring would stop another's listeners as unwired."""
+    from provisa.core.request_context import current_env, require_current_org
+
+    return require_current_org(), current_env.get(), node
+
+
 def _captured_by_cdc(src: Any, tbl: dict) -> bool:
     """Whether a table's changes arrive on its source's CDC transport (REQ-261, REQ-813,
     REQ-824): its effective signal is ``debezium`` or ``kafka`` on a source that is not itself a
@@ -97,7 +107,14 @@ def _cdc_provider(state: Any, src: Any, tbl: dict) -> tuple[Any, str]:
     if _effective_signal(src, tbl) == "kafka":
         topic = ((tbl.get("live") or {}).get("kafka") or {})["topic"]
         provider = get_provider(
-            "kafka", {"bootstrap_servers": cdc.bootstrap_servers, "group_id": group}
+            "kafka",
+            {
+                "bootstrap_servers": cdc.bootstrap_servers,
+                "group_id": group,
+                "registry": RegistrySettings.of(cdc),
+                "field_mapping": ((tbl.get("live") or {}).get("kafka") or {}).get("field_mapping")
+                or {},
+            },
         )
         return provider, topic
     provider = DebeziumNotificationProvider(
@@ -116,6 +133,7 @@ def _build_provider(src: Any, tbl: dict, *, node: str) -> tuple[Any, str] | None
     """A (NotificationProvider, watch_target) pair for *src*, or None (logged) when its config is
     incomplete. ``watch_target`` is what gets passed to ``provider.watch()`` — the Kafka topic for
     kafka, the registered table name for websocket (one socket, one stream, no per-topic routing)."""
+    from provisa.kafka.avro_registry import RegistrySettings
     from provisa.subscriptions.registry import get_provider
 
     source_type = src.type.value if hasattr(src.type, "value") else str(src.type)
@@ -145,8 +163,19 @@ def _build_provider(src: Any, tbl: dict, *, node: str) -> tuple[Any, str] | None
         # host as bootstrap_servers silently used aiokafka's default port (9092) regardless of
         # what the user actually registered, rather than failing loudly or connecting correctly.
         bootstrap_servers = f"{src.host}:{src.port}" if src.port else src.host
+        # Each org (and each of its environments) lands the topic into its own table, so each
+        # reads every message: its own consumer group. One shared by every org would split the
+        # topic's messages among them.
+        org, env, _ = _listener_key(node)
+        group = f"provisa-{org}-{src.id}" if env is None else f"provisa-{org}-{env}-{src.id}"
         provider = get_provider(
-            "kafka", {"bootstrap_servers": bootstrap_servers, "group_id": f"provisa-{src.id}"}
+            "kafka",
+            {
+                "bootstrap_servers": bootstrap_servers,
+                "group_id": group,
+                "registry": RegistrySettings(url=src.database) if src.database else None,
+                "field_mapping": kafka_cfg.get("field_mapping") or {},
+            },
         )
         return provider, topic
 
@@ -253,7 +282,7 @@ async def wire_push_listeners(*, state: Any, log: Any) -> list[LongLived]:
             continue
         node = source_node(tbl["source_id"], tbl["schema_name"], tbl["table_name"])
         wired.add(node)
-        if node in state.push_listener_disconnects:
+        if _listener_key(node) in state.push_listener_disconnects:
             continue  # already running from a prior wire
 
         pk_columns = [c["column_name"] for c in tbl["columns"] if c.get("is_primary_key")]
@@ -292,7 +321,7 @@ async def wire_push_listeners(*, state: Any, log: Any) -> list[LongLived]:
         # A threading.Event: the listener polls is_set() on its own thread, and shutdown sets it
         # from another — an asyncio.Event is not safe to set across threads.
         disconnect = threading.Event()
-        state.push_listener_disconnects[node] = disconnect
+        state.push_listener_disconnects[_listener_key(node)] = disconnect
         debounce_quiet = float(tbl.get("push_debounce_quiet") or 0.0)
         debounce_max_delay = float(tbl.get("push_debounce_max_delay") or 5.0)
 
@@ -323,7 +352,7 @@ async def wire_push_listeners(*, state: Any, log: Any) -> list[LongLived]:
         )
         started.append(task)
         state.push_listener_tasks.append(task)
-        state.push_listener_handles[node] = task
+        state.push_listener_handles[_listener_key(node)] = task
         log.info(
             "push listener started for %s (source=%r type=%s, debounce_quiet=%.1fs "
             "debounce_max_delay=%.1fs)",
@@ -355,10 +384,10 @@ def _start_logical_streams(
     for source_id, (src, followed) in sorted(logical.items()):
         node = "logical:" + source_id + ":" + ",".join(sorted(f"{s}.{t}" for s, t, _ in followed))
         wired.add(node)
-        if node in state.push_listener_disconnects:
+        if _listener_key(node) in state.push_listener_disconnects:
             continue  # already running from a prior wire
         disconnect = threading.Event()
-        state.push_listener_disconnects[node] = disconnect
+        state.push_listener_disconnects[_listener_key(node)] = disconnect
         task = spawn_long_lived(
             _run_logical_stream(
                 state=state, source=src, followed=followed, disconnect=disconnect, log=log
@@ -366,7 +395,7 @@ def _start_logical_streams(
             name=f"logical-stream:{source_id}",
         )
         state.push_listener_tasks.append(task)
-        state.push_listener_handles[node] = task
+        state.push_listener_handles[_listener_key(node)] = task
         started.append(task)
         log.info(
             "logical replication listener started for source %r (%d tables)", src.id, len(followed)
@@ -670,9 +699,17 @@ async def _stop_unwired(state: Any, wired: set[str], *, log: Any, timeout: float
     listener between events flush its partial batch and exit; the cancel ends one blocked
     waiting for the next event. A later wire starts it again if its table comes back."""
     handles = state.push_listener_handles
-    for node in [n for n in state.push_listener_disconnects if n not in wired]:
-        state.push_listener_disconnects.pop(node).set()
-        handle = handles.pop(node, None)
+    org, env, _ = _listener_key("")
+    # Only this org and environment's listeners: another runtime's are wired by its own pass.
+    unwired = [
+        key
+        for key in state.push_listener_disconnects
+        if key[:2] == (org, env) and key[2] not in wired
+    ]
+    for key in unwired:
+        node = key[2]
+        state.push_listener_disconnects.pop(key).set()
+        handle = handles.pop(key, None)
         if handle is None:
             continue
         handle.cancel()
@@ -705,10 +742,10 @@ def _start_change_stream(state: Any, src: Any, tbl: dict, *, log: Any) -> LongLi
     if not _change_feed_opted_in(src, tbl):
         return None
     node = source_node(tbl["source_id"], tbl["schema_name"], tbl["table_name"])
-    if node in state.push_listener_disconnects:
+    if _listener_key(node) in state.push_listener_disconnects:
         return None  # already running from a prior wire
     disconnect = threading.Event()
-    state.push_listener_disconnects[node] = disconnect
+    state.push_listener_disconnects[_listener_key(node)] = disconnect
     quiet = float(tbl.get("push_debounce_quiet") or 0.0)
     max_delay = float(tbl.get("push_debounce_max_delay") or 5.0)
     task = spawn_long_lived(
@@ -727,7 +764,7 @@ def _start_change_stream(state: Any, src: Any, tbl: dict, *, log: Any) -> LongLi
         name=f"change-stream:{node}",
     )
     state.push_listener_tasks.append(task)
-    state.push_listener_handles[node] = task
+    state.push_listener_handles[_listener_key(node)] = task
     log.info(
         "change stream listener started for %s (source=%r, debounce_quiet=%.1fs "
         "debounce_max_delay=%.1fs)",
@@ -903,7 +940,26 @@ async def _run_listener(
 
     from provisa.events.handlers import _held
 
-    async def _land(events: list) -> dict[str, int]:
+    async def _land(batch: list) -> dict[str, int]:
+        # A change without its key has no row to upsert or delete: landed, it would be a row of
+        # NULLs. It is reported and passed over; its offset is committed with the batch's.
+        events = []
+        for event in batch:
+            if event.operation == "delete" and not event.row:
+                continue  # a compaction tombstone, after the delete it marks: nothing to apply
+            missing = [c for c in pk_columns if event.row.get(c) is None]
+            if missing:
+                log.error(
+                    "push listener %s: a change carries no %s, the table's key; passed over "
+                    "(at %s)",
+                    node,
+                    ", ".join(missing),
+                    event.ack_token,
+                )
+                continue
+            events.append(event)
+        if not events:
+            return {"upsert": 0, "delete": 0}
         # REQ-1915: a batch of change events is applied under the replica's own lock, so it is
         # never written into a table a build is about to replace. A batch that finds a build
         # running waits for it and lands in the new table; applied by key, a change the build

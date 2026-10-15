@@ -57,8 +57,16 @@ def test_kafka_builds_provider_with_topic_as_watch_target():
     ) as get_provider:
         result = _build_provider(src, tbl, node="s.t")
     assert result == (mock_provider, "orders")
+    # The consumer group is the bound org's own (the deployment org's here), so every org that
+    # lands the topic reads every message.
     get_provider.assert_called_once_with(
-        "kafka", {"bootstrap_servers": "broker:9092", "group_id": "provisa-src"}
+        "kafka",
+        {
+            "bootstrap_servers": "broker:9092",
+            "group_id": "provisa-default-src",
+            "registry": None,  # the source names no schema registry
+            "field_mapping": {},
+        },
     )
 
 

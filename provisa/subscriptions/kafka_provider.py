@@ -20,6 +20,12 @@ from collections.abc import AsyncGenerator, AsyncIterator
 from datetime import datetime, timezone
 from typing import Any, Protocol
 
+from provisa.kafka.avro_registry import (
+    RegistrySettings,
+    SchemaRegistry,
+    is_registry_framed,
+    refuse_avro_without_registry,
+)
 from provisa.subscriptions.base import ChangeEvent, NotificationProvider
 
 log = logging.getLogger(__name__)
@@ -56,18 +62,41 @@ class KafkaNotificationProvider(NotificationProvider):  # REQ-258, REQ-261
     buffering (subscriptions.cdc_landing) can hold a message for a while before landing it; a
     time-based auto-commit would advance the offset past it regardless, and a crash in that window
     would lose the message on restart.
+
+    A message is a JSON object, or Avro in a Confluent-compatible schema registry's wire format;
+    each message says which, as for the Debezium provider (REQ-1951). An Avro message on a source
+    that names no registry is refused by name. A message that cannot be read -- not JSON, or a datum
+    that does not match its schema -- is reported at ERROR with where it is
+    (topic, partition, offset) and passed over: one bad message never ends the stream. Its offset
+    is committed with the next landed one. A value that is not an object is the row
+    ``{"value": ...}`` (a subscription's scalar payload). ``field_mapping`` renames a message's fields to the
+    table's columns (``LiveKafkaParams.field_mapping``).
     """
 
     def __init__(
         self,
         bootstrap_servers: str,
         group_id: str = "provisa-subscriptions",
+        *,
+        registry: RegistrySettings | None = None,
+        field_mapping: dict[str, str] | None = None,
         **consumer_kwargs: str | int | bool | None,
     ) -> None:
         self._bootstrap_servers = bootstrap_servers
         self._group_id = group_id
+        self._registry_settings = registry
+        self._registry: SchemaRegistry | None = None
+        self._field_mapping = dict(field_mapping or {})
         self._consumer_kwargs = consumer_kwargs
         self._consumer: _KafkaConsumer | None = None
+
+    async def _decode(self, raw: bytes | str, topic: str) -> Any:
+        """The message's value: Avro through the registry, else JSON."""
+        if isinstance(raw, bytes) and is_registry_framed(raw):
+            if self._registry is None:
+                raise refuse_avro_without_registry(topic)
+            return await self._registry.decode(raw)
+        return json.loads(raw)
 
     async def watch(
         self, table: str, filter_expr: str | None = None
@@ -75,6 +104,15 @@ class KafkaNotificationProvider(NotificationProvider):  # REQ-258, REQ-261
         from aiokafka import AIOKafkaConsumer  # type: ignore[import-untyped]
 
         topic = table
+        # REQ-1951: a source that names a registry is asked now, so a registry that is down or
+        # refuses the source is refused by name before any message is read.
+        if self._registry_settings is not None:
+            self._registry = SchemaRegistry(self._registry_settings)
+            try:
+                await self._registry.reach()
+            except BaseException:
+                await self._close_registry()
+                raise
         consumer: _KafkaConsumer = AIOKafkaConsumer(
             topic,
             bootstrap_servers=self._bootstrap_servers,
@@ -91,25 +129,29 @@ class KafkaNotificationProvider(NotificationProvider):  # REQ-258, REQ-261
 
         try:
             async for msg in consumer:
+                where = f"{msg.topic}[{msg.partition}]@{msg.offset}"
+                raw = msg.value
                 try:
-                    value = (
-                        json.loads(msg.value) if isinstance(msg.value, (bytes, str)) else msg.value
-                    )
-                except (json.JSONDecodeError, TypeError):
-                    log.warning("KafkaProvider: invalid message on %s", topic)
+                    value = await self._decode(raw, topic) if isinstance(raw, (bytes, str)) else raw
+                except (ValueError, TypeError, EOFError) as exc:
+                    # Not JSON or not text at all (ValueError covers a UnicodeDecodeError), or an
+                    # Avro datum that does not match the schema its id names.
+                    log.error("KafkaProvider: unreadable message %s passed over: %s", where, exc)
                     continue
-
                 if isinstance(value, dict):
-                    op = value.pop("op", "insert").lower()
+                    op = str(value.pop("op", "insert")).lower()
                     row = value.pop("row", value)
                 else:
                     op = "insert"
                     row = {"value": value}
-
+                if not isinstance(row, dict):
+                    row = {"value": row}
+                if self._field_mapping:
+                    row = {self._field_mapping.get(k, k): v for k, v in row.items()}
                 yield ChangeEvent(
                     operation=op,
                     table=table,
-                    row=row if isinstance(row, dict) else {"value": row},
+                    row=row,
                     timestamp=datetime.fromtimestamp(msg.timestamp / 1000, tz=timezone.utc)
                     if msg.timestamp
                     else datetime.now(timezone.utc),
@@ -118,6 +160,12 @@ class KafkaNotificationProvider(NotificationProvider):  # REQ-258, REQ-261
         finally:
             await consumer.stop()
             self._consumer = None
+            await self._close_registry()
+
+    async def _close_registry(self) -> None:
+        if self._registry is not None:
+            await self._registry.close()
+            self._registry = None
 
     async def ack(self, events: list[ChangeEvent]) -> None:  # REQ-1734
         """Commit what *events* landed (:func:`commit_landed`)."""

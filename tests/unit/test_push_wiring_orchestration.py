@@ -54,6 +54,13 @@ def _kafka_table(table_name: str = "orders", with_pk: bool = True) -> dict:
     }
 
 
+def _key(node: str) -> tuple:
+    """A listener's key: the org and environment it lands for (the bound ones), and its node."""
+    from provisa.events.push_wiring import _listener_key
+
+    return _listener_key(node)
+
+
 class _FakeState:
     def __init__(self) -> None:
         self.push_listener_disconnects: dict = {}
@@ -102,7 +109,7 @@ async def test_wires_a_listener_for_a_valid_kafka_table():
         tasks = await wire_push_listeners(state=state, log=logging.getLogger("test"))
 
     assert len(tasks) == 1
-    assert "kafka_src/s.orders" in state.push_listener_disconnects  # the table's node
+    assert _key("kafka_src/s.orders") in state.push_listener_disconnects  # the table's node
     await shutdown_push_listeners(state)
     for t in tasks:
         assert t.done()
@@ -209,18 +216,18 @@ async def test_a_listener_whose_table_goes_draft_is_stopped_on_the_next_wire():
         patch("provisa.events.push_wiring._run_listener", _runs_until_stopped),
     ):
         started = await wire_push_listeners(state=state, log=logging.getLogger("test"))
-        orders = state.push_listener_handles["kafka_src/s.orders"]
-        refunds = state.push_listener_handles["kafka_src/s.refunds"]
-        orders_disconnect = state.push_listener_disconnects["kafka_src/s.orders"]
+        orders = state.push_listener_handles[_key("kafka_src/s.orders")]
+        refunds = state.push_listener_handles[_key("kafka_src/s.refunds")]
+        orders_disconnect = state.push_listener_disconnects[_key("kafka_src/s.orders")]
 
         again = await wire_push_listeners(state=state, log=logging.getLogger("test"))
 
     assert len(started) == 2 and again == []
     assert orders.done() and orders_disconnect.is_set()
-    assert "kafka_src/s.orders" not in state.push_listener_disconnects
-    assert "kafka_src/s.orders" not in state.push_listener_handles
+    assert _key("kafka_src/s.orders") not in state.push_listener_disconnects
+    assert _key("kafka_src/s.orders") not in state.push_listener_handles
     assert orders not in state.push_listener_tasks
-    assert not refunds.done() and "kafka_src/s.refunds" in state.push_listener_disconnects
+    assert not refunds.done() and _key("kafka_src/s.refunds") in state.push_listener_disconnects
     await shutdown_push_listeners(state)
     assert refunds.done()
 
@@ -333,4 +340,6 @@ async def test_a_kafka_signal_table_of_a_database_lands_its_delta_topic():
         "kind": "kafka",
         "bootstrap_servers": "broker:9092",
         "group_id": "provisa-debezium",
+        "registry": None,  # the source's CDC block names no schema registry
+        "field_mapping": {},
     }

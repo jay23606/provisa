@@ -103,6 +103,9 @@ def get_provider(
         return KafkaNotificationProvider(
             bootstrap_servers=config["bootstrap_servers"],
             group_id=config.get("group_id", "provisa-subscriptions"),
+            # None: the topic is JSON; an Avro message is then refused by name (REQ-1951).
+            registry=config.get("registry"),
+            field_mapping=config.get("field_mapping"),
         )
 
     if source_type in _INGEST_TYPES:
