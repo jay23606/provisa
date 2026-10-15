@@ -53,6 +53,8 @@ import uuid
 
 import pytest
 
+from tests.conftest import as_deployment_org
+
 pytestmark = [
     pytest.mark.requires_trino,
     pytest.mark.integration,
@@ -109,9 +111,14 @@ def endpoint():
     previous = os.environ.get("PROVISA_DATA_DIR")
     os.environ["PROVISA_DATA_DIR"] = str(_state_root())
     try:
-        yield pr.ensure_endpoint(_source(), timeout=_SERVER_READY_SECONDS)
+        # A module fixture runs before the per-test org binding: the endpoint is the
+        # deployment org's, as its runtime's boot starts it (REQ-1266).
+        with as_deployment_org():
+            served = pr.ensure_endpoint(_source(), timeout=_SERVER_READY_SECONDS)
+        yield served
     finally:
-        pr.stop_endpoint(_source_id())
+        with as_deployment_org():
+            pr.stop_endpoint(_source_id())
         if previous is None:
             del os.environ["PROVISA_DATA_DIR"]
         else:

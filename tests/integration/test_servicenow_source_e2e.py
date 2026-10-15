@@ -33,6 +33,8 @@ import os
 
 import pytest
 
+from tests.conftest import as_deployment_org
+
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.requires_servicenow,
@@ -65,9 +67,14 @@ def endpoint():
 
     served_tables.serve_tables(_SOURCE_ID, ["incident"])
     try:
-        yield pr.ensure_endpoint(_source())
+        # A module fixture runs before the per-test org binding: the endpoint is the
+        # deployment org's, as its runtime's boot starts it (REQ-1266).
+        with as_deployment_org():
+            served = pr.ensure_endpoint(_source())
+        yield served
     finally:
-        pr.stop_endpoint(_SOURCE_ID)
+        with as_deployment_org():
+            pr.stop_endpoint(_SOURCE_ID)
         served_tables.serve_tables(_SOURCE_ID, [])
 
 

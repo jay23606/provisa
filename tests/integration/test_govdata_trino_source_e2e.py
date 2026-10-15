@@ -41,6 +41,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.conftest import as_deployment_org
+
 pytestmark = [pytest.mark.integration, pytest.mark.requires_warehouse]
 
 _SOURCE_ID = "askamerica-trino-itest"
@@ -83,10 +85,12 @@ def served(tmp_path_factory):
     os.environ["PROVISA_DATA_DIR"] = str(data_dir)
     source = _source()
     try:
-        pr.ensure_endpoint(source, timeout=_COLD_START_SECONDS)
+        with as_deployment_org():
+            pr.ensure_endpoint(source, timeout=_COLD_START_SECONDS)
         yield source, data_dir
     finally:
-        pr.stop_endpoint(source.id)
+        with as_deployment_org():
+            pr.stop_endpoint(source.id)
         if previous is None:
             del os.environ["PROVISA_DATA_DIR"]
         else:
