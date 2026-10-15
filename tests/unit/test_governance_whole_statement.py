@@ -84,6 +84,21 @@ def test_every_reference_to_a_masked_or_hidden_column_is_governed(sql, governed)
     assert apply_governance(sql, _gov()) == governed
 
 
+def test_a_relationship_join_the_compiler_writes_on_a_masked_key_reads_the_mask():
+    """REQ-740: GraphQL, REST, JSON:API and gRPC compile a relationship to a join of quoted
+    aliases, and that statement is governed here as any other: a join on a masked key compares
+    the mask, so the role is not answered by the real value."""
+    compiled = (
+        'SELECT "t0"."id", "t1"."name" FROM "sales"."orders" "t0" '
+        'LEFT JOIN "sales"."customers" "t1" ON "t0"."email" = "t1"."name"'
+    )
+    assert apply_governance(compiled, _gov()) == (
+        'SELECT "t0"."id", "t1"."name" FROM "sales"."orders" AS "t0" '
+        'LEFT JOIN "sales"."customers" AS "t1" ON \'***\' = "t1"."name" '
+        'WHERE ("t0"."region" = \'east\')'
+    )
+
+
 def test_the_row_filter_reads_the_real_values_of_a_masked_column():
     """The filter is the policy, not the reader's computation: it is added after the reader's
     references are masked, and is never masked itself."""
