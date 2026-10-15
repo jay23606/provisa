@@ -40,6 +40,7 @@ from provisa.pgwire.catalog_populate import (
     _populate_is_columns,
 )
 from tests.integration.conftest import no_replica_routes
+from tests.role_state import with_surfaces
 
 pytestmark = [pytest.mark.integration]
 
@@ -87,7 +88,7 @@ def _make_state(ctx: Any, col_types: dict) -> Any:
     integration: mock-justified — state is a protocol duck-type; only .contexts,
     .schema_build_cache and .multitenancy are accessed by _build_catalog_db and answer().
     """
-    state = no_replica_routes(MagicMock())
+    state = with_surfaces(no_replica_routes(MagicMock()))
     # A single-tenant deployment: the catalog names its one database (REQ-1235); a MagicMock's
     # truthy attribute would read as multi-tenancy with no org bound.
     state.multitenancy = False
@@ -238,7 +239,7 @@ class TestJDBCGetColumnsRoleVisibility:
         si = _make_si(_TABLES, _COL_TYPES, role_id="analyst")
         ctx = build_context(si)
 
-        state = no_replica_routes(MagicMock())
+        state = with_surfaces(no_replica_routes(MagicMock()))
         state.multitenancy = False  # single-tenant: the catalog names its one database (REQ-1235)
         state.contexts = {"analyst": ctx}
         state.schema_build_cache = {

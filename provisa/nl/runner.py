@@ -29,6 +29,7 @@ import logging
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from provisa.api.jsonapi.naming import physical_rel_name
+from provisa.api.role_surface import role_surface
 from provisa.grpc.proto_gen import _to_proto_type_name
 from provisa.nl.job import BranchResult, InMemoryJobStore, NlTarget, RedisJobStore
 from provisa.nl.loop import (
@@ -546,14 +547,12 @@ async def _generate_sql_from_nl(
     )
     from provisa.compiler.naming import domain_to_sql_name
     from provisa.compiler.stage2 import build_governance_context
-    from provisa.compiler.rls import RLSContext
 
-    ctx = getattr(app_state, "contexts", {}).get(role)
-    if ctx is None:
+    surface = role_surface(app_state, role)  # one snapshot: context and row filters of one build
+    if surface is None:
         return None, f"No schema context for role: {role}"
-
-    # Missing rls_contexts attribute is a wiring bug; a role with no rules is legitimately empty.
-    rls = app_state.rls_contexts.get(role, RLSContext.empty())
+    ctx = surface.context
+    rls = surface.rls
     from provisa.security.rights import require_role
 
     role_obj = require_role(app_state.roles, role)
@@ -764,7 +763,9 @@ async def run_nl_job(  # REQ-355, REQ-357, REQ-358, REQ-359
     await job_store.set_state(job_id, "running")
 
     schema_sdl = _get_schema_sdl(app_state, role)
-    graphql_schema = getattr(app_state, "schemas", {}).get(role)
+    # One snapshot of the role's surface for the whole job: its schema and its context.
+    surface = role_surface(app_state, role)
+    graphql_schema = None if surface is None else surface.schema
 
     # Semantic entity matching: surface exact schema names for the LLM prompt.
     from provisa.nl.schema_matcher import get_matcher, make_embed_fn
@@ -808,7 +809,7 @@ async def run_nl_job(  # REQ-355, REQ-357, REQ-358, REQ-359
     if not strict and graphql_schema is not None:
         compilers["graphql"] = make_graphql_compiler(graphql_schema)
 
-    ctx = getattr(app_state, "contexts", {}).get(role)
+    ctx = None if surface is None else surface.context
 
     # Shared table selection for SQL and protocol-based branches (one LLM call). A failure here
     # (e.g. a missing/invalid per-org LLM API key, REQ-1395) must not crash the whole job — it is

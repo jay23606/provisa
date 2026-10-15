@@ -18,6 +18,7 @@ import pytest
 from provisa.nl.job import InMemoryJobStore, NlJob, RedisJobStore, make_job_store, new_job_id
 from provisa.nl.loop import LLMClient
 from provisa.nl.runner import run_nl_job
+from tests.role_state import with_surfaces
 
 
 _SDL = "type Query { persons: [Person] }\ntype Person { id: ID! }"
@@ -63,7 +64,7 @@ class _InvalidLLM(LLMClient):
 
 
 def _make_app_state(has_schema: bool = False) -> MagicMock:
-    state = MagicMock()
+    state = with_surfaces(MagicMock())
     state.schemas = {}
     state.contexts = {}
     state.engine_conn = None

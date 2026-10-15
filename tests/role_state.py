@@ -45,28 +45,42 @@ class RoleState(SimpleNamespace):
             attrs["mv_registry"] = MVRegistry()
         super().__init__(surfaces=surfaces, **attrs)
         for name, values in parts.items():
-            set_part(surfaces, _PARTS[name], values)
+            set_part(self, _PARTS[name], values)
 
     def __getattr__(self, name: str) -> Any:
         if name in _PARTS:
-            return SurfacePart(self.surfaces, _PARTS[name])
+            return SurfacePart(self, _PARTS[name])
         raise AttributeError(name)
 
     def __setattr__(self, name: str, value: Any) -> None:
         if name in _PARTS:
-            set_part(self.surfaces, _PARTS[name], value)
+            set_part(self, _PARTS[name], value)
         else:
             super().__setattr__(name, value)
 
 
-def with_surfaces(state: Any) -> Any:
-    """For a stand-in built another way (a ``MagicMock``, a class with attributes): give it the
-    ``surfaces`` its part maps describe, as they stand now. Returns ``state``."""
-    surfaces: dict[str, RoleSurface] = {}
+def _surfaces_from(state: Any) -> dict[str, RoleSurface]:
+    holder = SimpleNamespace(surfaces={})
     for name, part in _PARTS.items():
         values = getattr(state, name, None)
         if isinstance(values, dict):
-            for role_id, value in values.items():
-                SurfacePart(surfaces, part)[role_id] = value
-    state.surfaces = surfaces
+            set_part(holder, part, values)
+    return holder.surfaces
+
+
+def with_surfaces(state: Any) -> Any:
+    """For a stand-in built another way (a ``MagicMock``, a class with attributes): give it the
+    ``surfaces`` its part maps describe. Returns ``state``.
+
+    A mock gets them live — read from its part maps each time ``surfaces`` is asked for — so
+    the usual ``state = MagicMock(); state.contexts = {...}`` works wherever this is called,
+    and so does a part a test replaces later. Anything else gets them as they stand now.
+    """
+    from unittest.mock import Mock
+
+    if isinstance(state, Mock):
+        # Every mock instance has a class of its own, so this reaches no other mock.
+        type(state).surfaces = property(_surfaces_from)
+    else:
+        state.surfaces = _surfaces_from(state)
     return state

@@ -13,6 +13,7 @@ from types import SimpleNamespace
 
 from provisa.federation import store_writer
 from provisa.security.rights import PLATFORM_RIGHTS, Capability
+from tests.role_state import RoleState
 
 
 #: Every data-plane right a role can be GIVEN, named one by one — for a test role that is to be
@@ -166,19 +167,19 @@ def serve_surfaces(state) -> None:
     from provisa.api.role_surface import SurfacePart, set_part
 
     assert isinstance(state, NonCallableMock), "only a mock's class is its own to give properties"
-    surfaces: dict = {}
+    holder = SimpleNamespace(surfaces={})
     for part, view in _SURFACE_VIEWS.items():
         given = getattr(state, view)
         if isinstance(given, dict):
-            set_part(surfaces, part, given)
-    state.surfaces = surfaces
+            set_part(holder, part, given)
+    state.surfaces = holder.surfaces
     for part, view in _SURFACE_VIEWS.items():
         setattr(
             type(state),
             view,
             property(
-                lambda s, p=part: SurfacePart(s.surfaces, p),
-                lambda s, v, p=part: set_part(s.surfaces, p, v),
+                lambda s, p=part: SurfacePart(s, p),
+                lambda s, v, p=part: set_part(s, p, v),
             ),
         )
 
@@ -347,7 +348,7 @@ def derived_lineage(views: list, tables: list[tuple[str, str, str]]) -> dict[str
     from provisa.events.nodes import lineage_graph
 
     by_id = {v.id: v for v in views}
-    model = SimpleNamespace(
+    model = RoleState(
         tables=[
             {"id": i, "source_id": s, "schema_name": sch, "table_name": t}
             for i, (s, sch, t) in enumerate(tables, 1)

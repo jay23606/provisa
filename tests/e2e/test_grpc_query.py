@@ -24,6 +24,7 @@ import grpc.aio
 import pytest
 
 from provisa.grpc.server import ProvisaServicer
+from tests.role_state import RoleState
 
 pytestmark = [pytest.mark.requires_trino, pytest.mark.e2e, pytest.mark.asyncio]
 
@@ -70,7 +71,7 @@ def _make_full_state(role_id: str, extra_roles: dict | None = None):
             contexts[rid] = MagicMock()
             rls_contexts[rid] = RLSContext.empty()
 
-    state = SimpleNamespace(
+    state = RoleState(
         org_id="default",  # the one org a single-org deployment binds (REQ-1266)
         schemas=schemas,
         contexts=contexts,

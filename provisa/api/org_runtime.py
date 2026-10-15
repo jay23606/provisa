@@ -181,8 +181,9 @@ class OrgRuntime:
     roles: dict[str, dict] = field(default_factory=dict)
     # role id -> everything the role is served through, from ONE build (api/role_surface.py):
     # its schema, compilation context, row filters, REST path map and proto. A build installs a
-    # role's surface whole, with one assignment; a request takes it once. `schemas`, `contexts`,
-    # `rls_contexts`, `table_path_maps` and `proto_files` below are views of it.
+    # role's surface whole, with one assignment; a request takes it once. Replaced, never
+    # changed in place (role_surface.install_surface). `schemas`, `contexts`, `rls_contexts`,
+    # `table_path_maps` and `proto_files` below are views of it.
     surfaces: dict[str, RoleSurface] = field(default_factory=dict)
     # The whole model — every registered table and column, no role's grants applied — used ONLY
     # to lower view SQL to physical (api/app_rebuild.py). It belongs to no role and never answers
@@ -314,43 +315,43 @@ class OrgRuntime:
 
     @property
     def schemas(self) -> SurfacePart:
-        return SurfacePart(self.surfaces, "schema")
+        return SurfacePart(self, "schema")
 
     @schemas.setter
     def schemas(self, value: dict) -> None:
-        set_part(self.surfaces, "schema", value)
+        set_part(self, "schema", value)
 
     @property
     def contexts(self) -> SurfacePart:
-        return SurfacePart(self.surfaces, "context")
+        return SurfacePart(self, "context")
 
     @contexts.setter
     def contexts(self, value: dict) -> None:
-        set_part(self.surfaces, "context", value)
+        set_part(self, "context", value)
 
     @property
     def rls_contexts(self) -> SurfacePart:
-        return SurfacePart(self.surfaces, "rls")
+        return SurfacePart(self, "rls")
 
     @rls_contexts.setter
     def rls_contexts(self, value: dict) -> None:
-        set_part(self.surfaces, "rls", value)
+        set_part(self, "rls", value)
 
     @property
     def table_path_maps(self) -> SurfacePart:
-        return SurfacePart(self.surfaces, "table_path_map")
+        return SurfacePart(self, "table_path_map")
 
     @table_path_maps.setter
     def table_path_maps(self, value: dict) -> None:
-        set_part(self.surfaces, "table_path_map", value)
+        set_part(self, "table_path_map", value)
 
     @property
     def proto_files(self) -> SurfacePart:
-        return SurfacePart(self.surfaces, "proto")
+        return SurfacePart(self, "proto")
 
     @proto_files.setter
     def proto_files(self, value: dict) -> None:
-        set_part(self.surfaces, "proto", value)
+        set_part(self, "proto", value)
 
 
 class OrgRegistry:

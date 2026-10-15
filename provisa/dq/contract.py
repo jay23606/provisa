@@ -30,6 +30,7 @@ a VALID GX suite that round-trips through GX unchanged; a Provisa-invented sibli
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from typing import Any
 
 import yaml
@@ -128,7 +129,7 @@ def meta_dataset(meta: Any) -> str:
     return f"{PGWIRE_DATA_SOURCE}/{domain_to_sql_name(meta.domain_id)}/{semantic_table_name(meta)}"
 
 
-def resolve_contract_target(dataset: str, contexts: dict) -> Any:
+def resolve_contract_target(dataset: str, contexts: Mapping) -> Any:
     """The compiled :class:`~provisa.compiler.sql_types.TableMeta` whose :func:`meta_dataset` is
     ``dataset``, matched over every role's compiled tables in ``contexts`` (``state.contexts``).
     The returned meta carries the physical ``schema_name``/``table_name`` for the results row.

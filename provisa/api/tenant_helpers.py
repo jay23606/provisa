@@ -14,10 +14,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from fastapi import Request
 
-from provisa.core.tenant_context import TenantContext
 from provisa.api.app import state
+from provisa.core.tenant_context import TenantContext
 
 
 def get_tenant_context(request: Request) -> TenantContext | None:  # REQ-456, REQ-592
@@ -25,7 +27,7 @@ def get_tenant_context(request: Request) -> TenantContext | None:  # REQ-456, RE
     return getattr(request.state, "tenant_context", None)
 
 
-def get_schemas(request: Request) -> dict:  # REQ-456
+def get_schemas(request: Request) -> Mapping:  # REQ-456
     ctx = get_tenant_context(request)
     return ctx.schemas if ctx else state.schemas
 

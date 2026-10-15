@@ -25,6 +25,8 @@ dropped edge would tell the external catalog that a governed derivation does not
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from provisa.api.metadata_export.governance import build_governance_tags
 from provisa.api.metadata_export.model import (
     ColumnAsset,
@@ -156,7 +158,7 @@ def _table_assets(
 
 
 def _contract_target(
-    config: ProvisaConfig, results: Table, contract: str, contexts: dict
+    config: ProvisaConfig, results: Table, contract: str, contexts: Mapping
 ) -> tuple[str, Table]:  # REQ-1443
     """``(checker, observed)``: the checker dialect ``results``' contract is written in, and the
     config :class:`Table` its dataset resolves to.
@@ -174,7 +176,7 @@ def _contract_target(
 
 
 def _effective_product_ids(
-    config: ProvisaConfig, contexts: dict
+    config: ProvisaConfig, contexts: Mapping
 ) -> dict[tuple[str, ...], str | None]:  # REQ-1443 clause 10
     """Every registered table's data-product membership, keyed by :func:`table_ref` parts.
 
@@ -472,7 +474,7 @@ def _dq_assertions(
     keep: set[tuple[str, ...]],
     published_columns: set[tuple[str, ...]],
     dq_outcomes: dict[tuple[str, str, str], DataQualityOutcome],
-    contexts: dict,
+    contexts: Mapping,
 ) -> list[DataQualityAssertion]:  # REQ-1443
     """Each registered contract's checks, published on the assets they observe.
 
@@ -602,7 +604,7 @@ def build_snapshot(
     dialect: str,
     glossary: dict | None = None,
     dq_outcomes: dict[tuple[str, str, str], DataQualityOutcome] | None = None,
-    contexts: dict,
+    contexts: Mapping,
     data_products_only: bool = True,
     documentation_base_url: str | None = None,
 ) -> MetadataSnapshot:  # REQ-1070

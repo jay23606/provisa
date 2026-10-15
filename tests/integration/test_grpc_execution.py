@@ -44,6 +44,7 @@ from provisa.grpc.server import (  # noqa: E402
     ProvisaServicer,
     start_grpc_server,
 )
+from tests.role_state import with_surfaces  # noqa: E402
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio(loop_scope="session")]
 
@@ -173,7 +174,7 @@ class TestGrpcServerStarts:
         # MagicMock scaffolds the struct fields needed for server startup.
         pb2_path, pb2_grpc_path = compiled_proto_paths
 
-        state = no_replica_routes(MagicMock())
+        state = with_surfaces(no_replica_routes(MagicMock()))
         # REQ-1266: a bare MagicMock attribute is truthy, which would put this single-org
         # server behind the multitenancy org gate. Name the deployment shape explicitly.
         state.multitenancy = False
@@ -221,7 +222,7 @@ class TestGrpcServerStarts:
         import socket
 
         pb2_path, pb2_grpc_path = compiled_proto_paths
-        state = no_replica_routes(MagicMock())
+        state = with_surfaces(no_replica_routes(MagicMock()))
         # REQ-1266: a bare MagicMock attribute is truthy, which would put this single-org
         # server behind the multitenancy org gate. Name the deployment shape explicitly.
         state.multitenancy = False
@@ -375,7 +376,7 @@ class TestGrpcQueryExecution:
 
         # integration: mock-justified — AppState is not a docker-compose service.
         # MagicMock scaffolds the struct fields; the real data path (source_pool + PG) is live.
-        state = no_replica_routes(MagicMock())
+        state = with_surfaces(no_replica_routes(MagicMock()))
         # REQ-1266: a bare MagicMock attribute is truthy, which would put this single-org
         # server behind the multitenancy org gate. Name the deployment shape explicitly.
         state.multitenancy = False
@@ -535,7 +536,7 @@ class TestGrpcQueryExecution:
         pb2_mock = MagicMock()
         pb2_mock.UnknownType.DESCRIPTOR.fields = []
 
-        state = no_replica_routes(MagicMock())
+        state = with_surfaces(no_replica_routes(MagicMock()))
         # REQ-1266: a bare MagicMock attribute is truthy, which would put this single-org
         # server behind the multitenancy org gate. Name the deployment shape explicitly.
         state.multitenancy = False
@@ -620,7 +621,7 @@ class TestSecuredGrpcRequiresACredential:
 
         # integration: mock-justified — AppState is not a docker-compose service. The auth path
         # under test (interceptor → role derivation → handler) is entirely live.
-        state = no_replica_routes(MagicMock())
+        state = with_surfaces(no_replica_routes(MagicMock()))
         state.multitenancy = False
         # REQ-1910: a bare MagicMock attribute is not None, which reads as a control plane to
         # resolve the debug-trace scope from. This stand-in has none: no window, no permitted hint.

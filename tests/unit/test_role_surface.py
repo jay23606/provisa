@@ -156,18 +156,39 @@ def test_a_role_that_loses_its_data_surface_loses_all_of_it(monkeypatch):
     _drop_data_surface(state, "analyst")  # a role that had none: nothing to do
 
 
-def test_a_part_is_made_from_the_surfaces_and_writes_through_to_them():
-    surfaces: dict[str, RoleSurface] = {}
-    contexts = SurfacePart(surfaces, "context")
-    assert contexts == {}
+def test_a_part_is_a_view_of_the_surfaces_and_a_write_installs_a_surface():
+    holder = SimpleNamespace(surfaces={})
+    contexts = SurfacePart(holder, "context")
+    assert dict(contexts) == {} and "analyst" not in contexts
     contexts["analyst"] = "ctx"  # a test setting a state up part by part
-    assert surfaces["analyst"] == RoleSurface(context="ctx")
-    assert contexts == {"analyst": "ctx"} and SurfacePart(surfaces, "context") == contexts
-    assert "analyst" not in SurfacePart(surfaces, "schema")  # that part was never set
+    assert holder.surfaces["analyst"] == RoleSurface(context="ctx")
+    assert contexts == {"analyst": "ctx"} and SurfacePart(holder, "context") == contexts
+    assert "analyst" not in SurfacePart(holder, "schema")  # that part was never set
+    with pytest.raises(KeyError):
+        SurfacePart(holder, "schema")["analyst"]
     assert contexts.get("nobody", "default") == "default"
     assert contexts.pop("nobody", None) is None
     del contexts["analyst"]
-    assert surfaces == {} and SurfacePart(surfaces, "context") == {}
+    assert holder.surfaces == {} and dict(SurfacePart(holder, "context")) == {}
+
+
+def test_surfaces_is_replaced_never_changed_in_place():
+    """So a mapping taken earlier — by a request, or by a view — still shows what it showed."""
+    from provisa.api.role_surface import install_surface
+
+    holder = SimpleNamespace(surfaces={})
+    install_surface(holder, "analyst", RoleSurface(context="ctx-1"))
+    earlier = holder.surfaces
+    view = SurfacePart(holder, "context")
+    install_surface(holder, "analyst", RoleSurface(context="ctx-2"))
+    install_surface(holder, "admin", RoleSurface(context="ctx-a"))
+    assert holder.surfaces is not earlier
+    assert earlier == {"analyst": RoleSurface(context="ctx-1")}
+    assert view == {"analyst": "ctx-1"}
+    assert SurfacePart(holder, "context") == {"analyst": "ctx-2", "admin": "ctx-a"}
+    install_surface(holder, "analyst", None)
+    install_surface(holder, "nobody", None)  # a role that had none: nothing to do
+    assert set(holder.surfaces) == {"admin"}
 
 
 def test_a_part_taken_before_a_change_is_what_puts_it_back():
@@ -183,6 +204,7 @@ def test_a_part_taken_before_a_change_is_what_puts_it_back():
     runtime.contexts = before
     assert runtime.contexts == {"analyst": "ctx-1"}
     assert runtime.surfaces == {"analyst": RoleSurface(context="ctx-1", rls="rls-1")}
+    assert before == {"analyst": "ctx-1"}  # the view taken first never moved
 
 
 # --- the rule, over the product's source -----------------------------------------------------------
@@ -200,7 +222,16 @@ _STATE_NAMES = {"state", "_state", "app_state", "runtime", "rt"}
 
 
 def _is_part(node: ast.AST) -> bool:
-    """``<the state or a runtime>.<a part>`` — not some other object's attribute of that name."""
+    """``<the state or a runtime>.<a part>`` — not some other object's attribute of that name —
+    or the same read spelled ``getattr(<state>, "<a part>", ...)``."""
+    if isinstance(node, ast.Call):
+        return (
+            isinstance(node.func, ast.Name)
+            and node.func.id == "getattr"
+            and len(node.args) >= 2
+            and isinstance(node.args[1], ast.Constant)
+            and node.args[1].value in _PARTS
+        )
     if not (isinstance(node, ast.Attribute) and node.attr in _PARTS):
         return False
     holder = node.value
@@ -208,12 +239,16 @@ def _is_part(node: ast.AST) -> bool:
     return name in _STATE_NAMES
 
 
+def _part_of(node: ast.AST) -> str:
+    return node.args[1].value if isinstance(node, ast.Call) else node.attr  # type: ignore[attr-defined]
+
+
 def test_no_function_reads_two_parts_of_a_role_through_the_views():
     """Two lookups are two moments: a rebuild between them hands the function parts of two
     builds. A function that needs more than one part takes the surface once."""
     offenders = []
     for path, fn in _functions():
-        parts = {n.attr for n in ast.walk(fn) if _is_part(n)}
+        parts = {_part_of(n) for n in ast.walk(fn) if _is_part(n)}
         if len(parts) >= 2:
             offenders.append(f"{path}:{fn.lineno} {fn.name} reads {sorted(parts)}")
     assert offenders == [], "\n".join(offenders)
@@ -236,38 +271,62 @@ def test_nothing_in_the_product_writes_a_part_through_a_view():
                 targets = list(node.targets)
             for target in targets:
                 if isinstance(target, ast.Subscript) and _is_part(target.value):
-                    offenders.append(f"{where} writes {target.value.attr}[...]")
+                    offenders.append(f"{where} writes {_part_of(target.value)}[...]")
                 elif _is_part(target):
-                    offenders.append(f"{where} replaces .{target.attr}")
+                    offenders.append(f"{where} replaces .{_part_of(target)}")
             if (
                 isinstance(node, ast.Call)
                 and isinstance(node.func, ast.Attribute)
                 and node.func.attr in mutators
                 and _is_part(node.func.value)
             ):
-                offenders.append(f"{where} calls .{node.func.value.attr}.{node.func.attr}()")
+                offenders.append(f"{where} calls .{_part_of(node.func.value)}.{node.func.attr}()")
     assert offenders == [], "\n".join(offenders)
 
 
 def test_the_build_is_the_only_writer_of_surfaces():
-    writers = set()
+    """Surfaces are installed through one function, called by the build and by nothing else;
+    nothing changes the mapping in place or assigns it."""
+    installers, in_place = set(), []
     for path, fn in _functions():
+        where = f"{path.as_posix()}::{fn.name}"
         for node in ast.walk(fn):
-            target = None
-            if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Subscript):
-                target = node.targets[0].value
-            elif (
-                isinstance(node, ast.Call)
-                and isinstance(node.func, ast.Attribute)
-                and node.func.attr in {"pop", "update", "clear", "setdefault"}
-            ):
-                target = node.func.value
-            if isinstance(target, ast.Attribute) and target.attr == "surfaces":
-                writers.add(f"{path.as_posix()}::{fn.name}")
-    assert writers == {
+            if isinstance(node, ast.Call):
+                callee = node.func
+                name = callee.id if isinstance(callee, ast.Name) else getattr(callee, "attr", "")
+                if name == "install_surface":
+                    installers.add(where)
+                if (
+                    isinstance(callee, ast.Attribute)
+                    and callee.attr in {"pop", "update", "clear", "setdefault", "popitem"}
+                    and isinstance(callee.value, ast.Attribute)
+                    and callee.value.attr == "surfaces"
+                ):
+                    in_place.append(where)
+            targets = []
+            if isinstance(node, ast.Assign):
+                targets = node.targets
+            elif isinstance(node, (ast.AugAssign, ast.AnnAssign)):
+                targets = [node.target]
+            elif isinstance(node, ast.Delete):
+                targets = node.targets
+            for target in targets:
+                inner = target.value if isinstance(target, ast.Subscript) else target
+                if isinstance(inner, ast.Attribute) and inner.attr == "surfaces":
+                    in_place.append(where)
+    assert installers == {
         "provisa/api/app_loaders.py::register_role_surface",
         "provisa/api/app_loaders.py::_drop_data_surface",
+        # A view's own write, which product code never reaches (the test above).
+        "provisa/api/role_surface.py::__setitem__",
+        "provisa/api/role_surface.py::__delitem__",
     }
+    assert sorted(in_place) == [
+        # A draft table's read (REQ-1921) holds a state of its own: its surfaces are a new
+        # mapping, made once when it is built, and no other holder's changes.
+        "provisa/api/admin/table_read.py::__init__",
+        "provisa/api/role_surface.py::install_surface",
+    ]
 
 
 # --- an unknown root field that reaches the compiler -------------------------------------------------
@@ -319,3 +378,77 @@ def test_the_ui_has_the_refusals_message_in_every_locale():
     for path in locales:
         text = json.dumps(json.loads(path.read_text(encoding="utf-8")), ensure_ascii=False)
         assert '"unknown_root_field"' in text and "{{field}}" in text, path
+
+
+# --- a role's surface belongs to its organisation's runtime ------------------------------------------
+
+
+def test_two_organisations_roles_of_the_same_name_each_have_their_own_surface(monkeypatch):
+    """Role ids repeat across organisations (every one has ``org_admin``). Each organisation's
+    runtime holds its own surface for the role — schema, context, row filters, path map and
+    proto alike — and dropping the role's surface in one leaves the other's."""
+    from provisa.api.app_loaders import _drop_data_surface, register_role_surface
+
+    first, second = _State(), _State()
+    _build_stubs(monkeypatch, "first-org", [lambda: None])
+    register_role_surface(first, {"id": "org_admin"}, rls="first-rls")
+    _build_stubs(monkeypatch, "second-org", [lambda: None])
+    register_role_surface(second, {"id": "org_admin"}, rls="second-rls")
+
+    for state, org in ((first, "first-org"), (second, "second-org")):
+        surface = role_surface(state, "org_admin")
+        assert {
+            surface.schema.generation,
+            surface.context.generation,
+            surface.table_path_map.generation,
+            surface.proto.generation,
+        } == {org}
+        assert state.proto_files["org_admin"].generation == org
+        assert state.table_path_maps["org_admin"].generation == org
+    assert role_surface(first, "org_admin") is not role_surface(second, "org_admin")
+
+    _drop_data_surface(first, "org_admin")
+    assert role_surface(first, "org_admin") is None
+    assert "org_admin" not in first.proto_files and "org_admin" not in first.table_path_maps
+    assert role_surface(second, "org_admin").proto.generation == "second-org"
+    assert second.table_path_maps["org_admin"].generation == "second-org"
+
+
+def test_each_organisations_api_documents_list_its_own_tables():
+    """The OpenAPI document of the REST routes and the one of the JSON:API routes are built from
+    the role's surface: an organisation's document lists that organisation's tables."""
+    from graphql import build_schema
+
+    from provisa.api.jsonapi.spec import generate_jsonapi_openapi_spec
+    from provisa.api.rest.openapi_spec import generate_rest_openapi_spec
+    from provisa.api.role_surface import install_surface
+
+    def _organisation(table: str) -> _State:
+        state = _State()
+        schema = build_schema(f"type Query {{ {table}: [Row] }} type Row {{ id: Int }}")
+        path_map = {table: {"domain_id": "sales", "table_name": table}}
+        install_surface(
+            state._active_runtime(),
+            "org_admin",
+            RoleSurface(schema=schema, context=object(), rls=None, table_path_map=path_map),
+        )
+        return state
+
+    first, second = _organisation("orders"), _organisation("invoices")
+    for build in (generate_rest_openapi_spec, generate_jsonapi_openapi_spec):
+        ours, theirs = str(build(first, "org_admin")), str(build(second, "org_admin"))
+        assert "orders" in ours and "invoices" not in ours, build.__name__
+        assert "invoices" in theirs and "orders" not in theirs, build.__name__
+
+
+def test_the_application_state_reads_every_part_from_the_active_organisations_runtime():
+    """None of the five is held by the application state itself: each is read from the runtime
+    of the organisation the request is bound to."""
+    import inspect
+
+    from provisa.api.app import AppState
+
+    for part in sorted(_PARTS | {"surfaces"}):
+        attribute = inspect.getattr_static(AppState, part)
+        assert isinstance(attribute, property), part
+        assert "_active_runtime()" in inspect.getsource(attribute.fget), part

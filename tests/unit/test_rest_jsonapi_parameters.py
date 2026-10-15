@@ -303,8 +303,10 @@ async def test_params_that_are_not_a_json_object_are_refused(surface, kind):
 def test_the_rest_spec_offers_a_tables_parameters_as_params():
     from provisa.api.rest.openapi_spec import generate_rest_openapi_spec
 
+    from tests.role_state import RoleState
+
     schema, ctx = _schema()
-    state = SimpleNamespace(
+    state = RoleState(
         schemas={_ROLE: schema},
         table_path_maps={_ROLE: {"orders": {"domain_id": "sales", "table_name": "orders"}}},
     )

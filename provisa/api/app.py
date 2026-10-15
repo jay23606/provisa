@@ -24,6 +24,7 @@ import os
 import time
 import uuid
 from collections import deque
+from collections.abc import MutableMapping
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -688,7 +689,7 @@ class AppState:
         return self._active_runtime().surfaces
 
     @property
-    def proto_files(self) -> dict[str, str]:
+    def proto_files(self) -> MutableMapping[str, str]:
         """role id -> .proto content (a view of ``surfaces``)."""
         return self._active_runtime().proto_files
 
@@ -697,7 +698,7 @@ class AppState:
         self._active_runtime().proto_files = value
 
     @property
-    def table_path_maps(self) -> dict[str, dict[str, dict]]:
+    def table_path_maps(self) -> MutableMapping[str, dict[str, dict]]:
         """role id -> {gql field name -> {schema_name, table_name, domain_id}} (a view of
         ``surfaces``)."""
         return self._active_runtime().table_path_maps
@@ -707,7 +708,7 @@ class AppState:
         self._active_runtime().table_path_maps = value
 
     @property
-    def schemas(self) -> dict[str, graphql.GraphQLSchema]:
+    def schemas(self) -> MutableMapping[str, graphql.GraphQLSchema]:
         return self._active_runtime().schemas
 
     @schemas.setter
@@ -715,7 +716,7 @@ class AppState:
         self._active_runtime().schemas = value
 
     @property
-    def contexts(self) -> dict[str, CompilationContext]:
+    def contexts(self) -> MutableMapping[str, CompilationContext]:
         return self._active_runtime().contexts
 
     @contexts.setter
@@ -798,7 +799,7 @@ class AppState:
         self._active_runtime().view_context = value
 
     @property
-    def rls_contexts(self) -> dict[str, RLSContext]:
+    def rls_contexts(self) -> MutableMapping[str, RLSContext]:
         return self._active_runtime().rls_contexts
 
     @rls_contexts.setter
