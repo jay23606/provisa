@@ -83138,7 +83138,7 @@
     REST, JSON:API, gRPC, Cypher, or an external client over pgwire or Arrow Flight), with a Polly question (answered
     at template build and served stored, REQ-2012) only where a conversational answer is the natural fit; then a
     recap. Data is landed at build as TTL -1 replicas (REQ-2031); the build fails, naming the table, when a govdata
-    table it needs is empty. A per-vertical glossary uses the industry''s own terms.'
+    table it needs is empty. A per-vertical glossary uses the industry''s own terms. Unlike the other verticals, its solution is told as an analyst resolving a request with Polly (maintainer 2026-10-15): a narrated series of questions the analyst poses in turn (which awards the client records, what the government reports paying it, where they differ, which differences are timing and which are missing awards, what goes in the readiness memo), each answered by Polly from answers generated at template build and served stored (REQ-2012), with the SQL behind each answer shown.'
   use_case: A audit firm buyer opens the audit firm demo and sees their own kind of question answered across company
     and public data.
   scenario: 'Given the audit firm demo started from its template
