@@ -1655,7 +1655,6 @@
   "zh-HK/importTab.json::importTab.port": "Port",
   "zh-HK/importTab.json::importTab.preview": "Convert and preview",
   "zh-HK/importTab.json::importTab.remap": "Convert again with these settings",
-  "zh-HK/importTab.json::importTab.replace": "Replace the existing semantic layer",
   "zh-HK/importTab.json::importTab.replaceHelp": "Deletes every source, table, role and rule not present in this configuration. Leave off to merge the import into what the organization already has.",
   "zh-HK/importTab.json::importTab.roleList": "Roles:",
   "zh-HK/importTab.json::importTab.sourceConnections": "Source connections",

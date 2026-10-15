@@ -1650,7 +1650,6 @@
   "he/importTab.json::importTab.port": "Port",
   "he/importTab.json::importTab.preview": "Convert and preview",
   "he/importTab.json::importTab.remap": "Convert again with these settings",
-  "he/importTab.json::importTab.replace": "Replace the existing semantic layer",
   "he/importTab.json::importTab.replaceHelp": "Deletes every source, table, role and rule not present in this configuration. Leave off to merge the import into what the organization already has.",
   "he/importTab.json::importTab.roleList": "Roles:",
   "he/importTab.json::importTab.sourceConnections": "Source connections",
