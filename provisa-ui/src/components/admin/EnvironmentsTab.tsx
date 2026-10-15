@@ -911,22 +911,24 @@ export function EnvironmentsTab() {
                   <Text size="xs" c="dimmed">
                     {t("environmentsTab.selectHelp")}
                   </Text>
-                  {offered(preview, selection).map((path) => (
-                    <Checkbox
-                      key={path}
-                      size="xs"
-                      label={path}
-                      checked={selection.includes(path)}
-                      onChange={(e) =>
-                        setSelection((prev) =>
-                          e.currentTarget.checked
-                            ? [...prev, path]
-                            : prev.filter((p) => p !== path),
-                        )
-                      }
-                      data-testid={`env-merge-select-${path}`}
-                    />
-                  ))}
+                  <FormChecks>
+                    {offered(preview, selection).map((path) => (
+                      <Checkbox
+                        key={path}
+                        size="xs"
+                        label={path}
+                        checked={selection.includes(path)}
+                        onChange={(e) =>
+                          setSelection((prev) =>
+                            e.currentTarget.checked
+                              ? [...prev, path]
+                              : prev.filter((p) => p !== path),
+                          )
+                        }
+                        data-testid={`env-merge-select-${path}`}
+                      />
+                    ))}
+                  </FormChecks>
                 </Stack>
               )}
               {preview?.pulled_in && preview.pulled_in.length > 0 && (
