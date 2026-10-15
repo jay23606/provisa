@@ -356,9 +356,42 @@ async def clone_model(
         raise ValueError(f"a schema cannot be cloned onto itself ({src_schema})")
     report = CopyReport(src_schema, dst_schema, REPLACE, True)
     async with db.acquire() as conn, conn.transaction():
-        return await _copy_schemas(
+        await _copy_schemas(
             conn, src_schema, dst_schema, report, REPLACE, True, True, False, landing, apply=True
         )
+        await copy_profile_results(conn, src_schema, dst_schema)
+        return report
+
+
+async def copy_profile_results(conn: "Connection", src_schema: str, dst_schema: str) -> list[str]:
+    """REQ-2052: the profile runs of ``src_schema``'s member tables, carried into ``dst_schema``.
+
+    A run's results are relations of the org's schema of their own (``<table>_<id>_profile_<kind>``,
+    provisa.profiler.schema), not model tables, so the model copy does not move them; a sandbox
+    is cloned with its template's table ids, so each keeps its name. Each is replaced whole.
+    Returns the relations copied."""
+    from sqlalchemy import text
+
+    from provisa.profiler.schema import is_result_table_name
+
+    names = [
+        r[0]
+        for r in (
+            await conn.execute_core(
+                text(
+                    "SELECT table_name FROM information_schema.tables "
+                    "WHERE table_schema = :schema AND table_type = 'BASE TABLE' ORDER BY table_name"
+                ).bindparams(schema=src_schema)
+            )
+        ).fetchall()
+        if is_result_table_name(r[0])
+    ]
+    for name in names:
+        src, dst = f'"{src_schema}"."{name}"', f'"{dst_schema}"."{name}"'
+        await conn.execute_core(text(f"DROP TABLE IF EXISTS {dst}"))
+        await conn.execute_core(text(f"CREATE TABLE {dst} (LIKE {src} INCLUDING ALL)"))
+        await conn.execute_core(text(f"INSERT INTO {dst} SELECT * FROM {src}"))
+    return names
 
 
 async def _copy_schemas(

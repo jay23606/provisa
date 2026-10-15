@@ -12,7 +12,9 @@
 
 A demo's setup.yaml lists, in order, what it needs run after the server is up: ``command: <name>``
 calls a command of its config.yaml as org_admin with no arguments; ``refresh: <view>`` builds the
-stored rows of a view of its config.yaml with ``materialize: true``. start-ui-install.sh and the
+stored rows of a view of its config.yaml with ``materialize: true``; ``profile: <profiler>`` runs a
+Data Profiler source of its config.yaml at once for every member table (REQ-2052): a sandbox
+cloned from the demo's template carries those runs (env_copy.clone_model). start-ui-install.sh and the
 demo's template build both call this, so the two set a demo up alike.
 
 Once per control plane: the demo's name is added to the operator setting ``demo.setup_completed``
@@ -43,7 +45,8 @@ class StepFailed(RuntimeError):
 
 
 def steps(demo_dir: Path) -> list[dict]:
-    """The demo's steps, each one ``command`` or one ``refresh``; none when it has no setup.yaml."""
+    """The demo's steps, each one ``command``, ``refresh`` or ``profile``; none when it has no
+    setup.yaml."""
     path = demo_dir / "setup.yaml"
     if not path.exists():
         return []
@@ -56,10 +59,12 @@ def steps(demo_dir: Path) -> list[dict]:
             not in (
                 "command",
                 "refresh",
+                "profile",
             )
         ):
             raise SystemExit(
-                f"{path}: a step is one 'command: <name>' or 'refresh: <view>': {step}"
+                f"{path}: a step is one 'command: <name>', 'refresh: <view>' or "
+                f"'profile: <profiler>': {step}"
             )
     return listed
 
@@ -127,6 +132,18 @@ def run_step(client: httpx.Client, step: dict) -> str:
         query = f"mutation {{ {field}{f' {{ {selection} }}' if selection else ''} }}"
         data = _ok(client.post("/data/graphql", json={"query": query}), step)
         return f"command {step['command']}: {data[field]}"
+    if "profile" in step:
+        profiler = step["profile"]
+        response = client.post(f"/admin/profilers/{profiler}/run")
+        if response.status_code != 200:
+            raise StepFailed(step, f"HTTP {response.status_code}: {response.text}")
+        outcomes = response.json()
+        failed = [f"{o['table']}: {o['error']}" for o in outcomes if o["error"] is not None]
+        if failed or not outcomes:
+            raise StepFailed(
+                step, "; ".join(failed) or f"profiler {profiler!r} has no member tables"
+            )
+        return f"profile {profiler}: {', '.join(o['table'] for o in outcomes)}"
     view = step["refresh"]
     data = _ok(
         client.post(

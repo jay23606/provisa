@@ -394,6 +394,11 @@ def result_table_name(profiled_table: str, table_id: int, kind: str) -> str:
     return f"{profiled_table}_{table_id}_profile_{kind}"
 
 
+def is_result_table_name(name: str) -> bool:
+    """Whether ``name`` is a profile result relation's (``<table>_<id>_profile_<kind>``)."""
+    return _RESULT_NAME.match(name) is not None
+
+
 def parse_result_table_name(name: str) -> tuple[str, int, str]:
     """``(profiled table, its id, kind)`` of a result relation name, or ValueError naming it."""
     m = _RESULT_NAME.match(name)

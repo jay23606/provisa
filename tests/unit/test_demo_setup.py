@@ -56,6 +56,16 @@ class _Server:
         if path == "/admin/settings/catalog":
             self.stored = json.loads(request.content)["values"][setup.SETTING]
             return httpx.Response(200, json={"updated": [setup.SETTING]})
+        if path.startswith("/admin/profilers/"):
+            self.calls.append(path)
+            error = "it broke" if self.fail is not None and self.fail in path else None
+            return httpx.Response(
+                200,
+                json=[
+                    {"table": "customers", "run_id": "r1", "error": None},
+                    {"table": "orders", "run_id": None if error else "r2", "error": error},
+                ],
+            )
         query = json.loads(request.content)["query"]
         if "__schema" in query:
             fields = [
@@ -132,7 +142,7 @@ def test_the_first_step_that_fails_stops_the_run_naming_it(monkeypatch, demo, ca
 
 def test_a_step_that_is_neither_a_command_nor_a_refresh_is_refused(tmp_path):
     (tmp_path / "setup.yaml").write_text(yaml.safe_dump({"steps": [{"sql": "SELECT 1"}]}))
-    with pytest.raises(SystemExit, match="'command: <name>' or 'refresh: <view>'"):
+    with pytest.raises(SystemExit, match="'command: <name>', 'refresh: <view>' or 'profile"):
         setup.steps(tmp_path)
 
 
@@ -209,3 +219,26 @@ def test_link_echoes_refuses_a_line_with_no_point():
 
     with pytest.raises(ValueError, match="line 101 has no point in sonnet_lines"):
         echoes._nearest(SimpleNamespace(client=_Client), [(101, 1)])
+
+
+def test_a_profile_step_runs_the_profiler_for_every_member_table(monkeypatch, tmp_path):
+    """REQ-2052: a demo's profiler is run at its template build, so its sandboxes carry the runs."""
+    home = tmp_path / "profiling"
+    home.mkdir()
+    (home / "setup.yaml").write_text(yaml.safe_dump({"steps": [{"profile": "harbor-profiler"}]}))
+    server = _Server(done=[])
+    assert _run(monkeypatch, home, server) == 0
+    assert server.calls == ["/admin/profilers/harbor-profiler/run"]
+    assert server.stored == ["profiling"]
+
+
+def test_a_profile_run_that_fails_for_a_table_fails_the_step_naming_it(
+    monkeypatch, tmp_path, capsys
+):
+    home = tmp_path / "profiling"
+    home.mkdir()
+    (home / "setup.yaml").write_text(yaml.safe_dump({"steps": [{"profile": "harbor-profiler"}]}))
+    server = _Server(done=[], fail="harbor-profiler")
+    assert _run(monkeypatch, home, server) == 1
+    assert server.stored is None
+    assert "orders: it broke" in capsys.readouterr().err
