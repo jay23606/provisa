@@ -146,7 +146,8 @@
       "in_use": "{{env}} è ancora riferito da {{count}} elemento/i. Rimuovi o modifica ciascuno, poi elimina di nuovo."
     },
     "front_door": {
-      "coordinator_waking": "L'ambiente si sta avviando. Sarà pronto tra circa due minuti."
+      "coordinator_waking": "L'ambiente si sta avviando. Sarà pronto tra circa due minuti.",
+      "coordinator_updating": "L'ambiente è in fase di aggiornamento. Sarà di nuovo disponibile a breve."
     },
     "functions": {
       "approval_denied": "Approvazione negata per '{{name}}': {{reason}}",

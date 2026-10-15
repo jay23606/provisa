@@ -146,7 +146,8 @@
       "in_use": "Naar {{env}} wordt nog verwezen door {{count}} item(s). Verwijder of wijzig elk daarvan en verwijder daarna opnieuw."
     },
     "front_door": {
-      "coordinator_waking": "De omgeving wordt gestart. Deze is over ongeveer twee minuten gereed."
+      "coordinator_waking": "De omgeving wordt gestart. Deze is over ongeveer twee minuten gereed.",
+      "coordinator_updating": "De omgeving wordt bijgewerkt. Deze is binnenkort weer beschikbaar."
     },
     "functions": {
       "approval_denied": "Goedkeuring geweigerd voor '{{name}}': {{reason}}",

@@ -6424,5 +6424,6 @@
   "zh/whatsNew.json::whatsNew.features": "Features",
   "zh/whatsNew.json::whatsNew.general": "General",
   "zh/whatsNew.json::whatsNew.released": "Released {{date}}",
-  "zh/whatsNew.json::whatsNew.title": "What's new in {{version}}"
+  "zh/whatsNew.json::whatsNew.title": "What's new in {{version}}",
+  "zh/serverErrors.json::serverErrors.front_door.coordinator_updating": "The environment is being updated. It will be back shortly."
 }

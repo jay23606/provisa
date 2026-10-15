@@ -146,7 +146,8 @@
       "in_use": "仍有 {{count}} 項引用 {{env}}。請移除或更改每一項，然後再次刪除。"
     },
     "front_door": {
-      "coordinator_waking": "環境正在啟動，大約兩分鐘後就緒。"
+      "coordinator_waking": "環境正在啟動，大約兩分鐘後就緒。",
+      "coordinator_updating": "環境正在更新，很快就會恢復。"
     },
     "functions": {
       "approval_denied": "'{{name}}' 的審批被拒絕：{{reason}}",
